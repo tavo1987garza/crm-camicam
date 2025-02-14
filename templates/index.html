@@ -84,17 +84,19 @@
                     row.insertCell(4).textContent = msg.estado;
 
                     let acciones = row.insertCell(5);
-                    if (msg.estado === "Nuevo") {
-                        acciones.innerHTML = `<button class="en-proceso" onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 Marcar En Proceso</button>`;
-                    } else if (msg.estado === "En proceso") {
-                        acciones.innerHTML = `<button class="finalizado" onclick="cambiarEstado(${msg.id}, 'Finalizado')">🔴 Finalizar</button>`;
-                    } else {
-                        acciones.innerHTML = "✔️ Finalizado";
-                    }
+let botones = "";
 
-                    // Agregar botón de eliminar
-            botones += ` <button class="eliminar" onclick="eliminarMensaje(${msg.id})">🗑️ Eliminar</button>`;
-            acciones.innerHTML = botones;
+if (msg.estado === "Nuevo") {
+    botones += `<button class="en-proceso" onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 En Proceso</button>`;
+} else if (msg.estado === "En proceso") {
+    botones += `<button class="finalizado" onclick="cambiarEstado(${msg.id}, 'Finalizado')">🔴 Finalizar</button>`;
+} else {
+    botones += "✔️ Finalizado";
+}
+
+// Agregar botón de eliminar
+botones += ` <button class="eliminar" onclick="eliminarMensaje(${msg.id})">🗑️ Eliminar</button>`;
+acciones.innerHTML = botones;
 
                 });
             });
