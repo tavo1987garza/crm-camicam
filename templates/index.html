@@ -37,6 +37,13 @@
 <body>
 
     <h1>📩 CRM Camicam - Gestión de Mensajes</h1>
+    <h2>📩 Mensajes Recibidos</h2>
+
+    <!-- 🔹 Botones de filtro -->
+    <button onclick="filtrarMensajes('')">🔄 Todos</button>
+    <button onclick="filtrarMensajes('Nuevo')">🟢 Nuevos</button>
+    <button onclick="filtrarMensajes('En proceso')">🟡 En proceso</button>
+    <button onclick="filtrarMensajes('Finalizado')">🔴 Finalizados</button>
 
     <table>
         <thead>
@@ -49,47 +56,63 @@
                 <th>Acciones</th>
             </tr>
         </thead>
-        <tbody id="mensajes">
+        <tbody id="mensajes-table">
             <!-- Aquí se insertarán los mensajes dinámicamente -->
         </tbody>
     </table>
 
     <script>
-        async function obtenerMensajes() {
-            const response = await fetch('/mensajes');
-            const mensajes = await response.json();
-            const tbody = document.getElementById('mensajes');
-            tbody.innerHTML = '';  // Limpiar la tabla antes de recargar
+        // 🔹 Cargar mensajes en la tabla con opción de filtrar por estado
+        function filtrarMensajes(estado) {
+            let url = "/mensajes";
+            if (estado) {
+                url += "?estado=" + encodeURIComponent(estado);
+            }
 
-            mensajes.forEach(msg => {
-                const fila = document.createElement('tr');
+            fetch(url)
+            .then(response => response.json())
+            .then(mensajes => {
+                let tabla = document.getElementById("mensajes-table");
+                tabla.innerHTML = "";  // Limpiar la tabla antes de recargar
 
-                fila.innerHTML = `
-                    <td>${msg.id}</td>
-                    <td>${msg.plataforma}</td>
-                    <td>${msg.remitente}</td>
-                    <td>${msg.mensaje}</td>
-                    <td>${msg.estado}</td>
-                    <td>
-                        <button class="en-proceso" onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 En Proceso</button>
-                        <button class="finalizado" onclick="cambiarEstado(${msg.id}, 'Finalizado')">✅ Finalizado</button>
-                    </td>
-                `;
+                mensajes.forEach(msg => {
+                    let row = tabla.insertRow();
+                    row.insertCell(0).textContent = msg.id;
+                    row.insertCell(1).textContent = msg.plataforma;
+                    row.insertCell(2).textContent = msg.remitente;
+                    row.insertCell(3).textContent = msg.mensaje;
+                    row.insertCell(4).textContent = msg.estado;
 
-                tbody.appendChild(fila);
+                    let acciones = row.insertCell(5);
+                    if (msg.estado === "Nuevo") {
+                        acciones.innerHTML = `<button class="en-proceso" onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 Marcar En Proceso</button>`;
+                    } else if (msg.estado === "En proceso") {
+                        acciones.innerHTML = `<button class="finalizado" onclick="cambiarEstado(${msg.id}, 'Finalizado')">🔴 Finalizar</button>`;
+                    } else {
+                        acciones.innerHTML = "✔️ Finalizado";
+                    }
+                });
             });
         }
 
-        async function cambiarEstado(id, estado) {
-            await fetch('/actualizar_estado', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, estado })
+        // 🔹 Cambiar estado del mensaje
+        function cambiarEstado(id, nuevoEstado) {
+            fetch("/actualizar_estado", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: id, estado: nuevoEstado })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                filtrarMensajes(""); // Recargar tabla después de cambiar estado
             });
-            obtenerMensajes();  // Recargar mensajes después de actualizar
         }
 
-        window.onload = obtenerMensajes;  // Cargar los mensajes al iniciar
+        // 🔹 Cargar mensajes al inicio
+        window.onload = function() {
+            filtrarMensajes(""); 
+        };
     </script>
 
 </body>
