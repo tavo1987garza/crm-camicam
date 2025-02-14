@@ -6,6 +6,11 @@ from flask_cors import CORS  # Permite solicitudes desde el frontend
 app = Flask(__name__)
 CORS(app)  # Habilitar CORS para conectar con un frontend externo
 
+# 📌 Ruta raiz 
+@app.route("/")
+def home():
+    return "¡CRM de Camicam funcionando!"
+
 # 📌 Función para conectar a la base de datos con autocommit
 def conectar_db():
     conn = sqlite3.connect("crm_camicam.db", check_same_thread=False)
