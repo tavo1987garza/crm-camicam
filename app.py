@@ -5,7 +5,7 @@ import datetime
 from flask_cors import CORS  # Permite solicitudes desde el frontend
 
 app = Flask(__name__)
-socketio = SocketIO(app)  # Inicializar WebSockets
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="gevent")  # 🔹 Forzar modo gevent
 CORS(app)  # Habilitar CORS para conectar con un frontend externo
 
 # 📌 Ruta raiz 
@@ -19,34 +19,32 @@ def conectar_db():
     conn.row_factory = sqlite3.Row  # Permite acceder a las columnas por nombre
     return conn
 
-# 📌 Endpoint para recibir mensajes desde Camibot
+# 📌 Endpoint para recibir mensajes y emitir notificación en tiempo real
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
-    try:
-        datos = request.get_json(force=True)  # 👈 Esto forzará la conversión a JSON
-        print(f"📩 Datos recibidos en Flask: {datos}")  # 👈 Ver qué está llegando
+    datos = request.json
+    plataforma = datos.get("plataforma")
+    remitente = datos.get("remitente")
+    mensaje = datos.get("mensaje")
 
-        plataforma = datos.get("plataforma")
-        remitente = datos.get("remitente")
-        mensaje = datos.get("mensaje")
+    if not plataforma or not remitente or not mensaje:
+        return jsonify({"error": "Faltan datos"}), 400
 
-        if not plataforma or not remitente or not mensaje:
-            print("⚠️ Faltan datos en la petición")  # 👈 Mensaje para depurar
-            return jsonify({"error": "Faltan datos"}), 400
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (?, ?, ?, 'Nuevo')",
+                   (plataforma, remitente, mensaje))
+    conn.commit()
+    conn.close()
 
-        conn = conectar_db()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO mensajes (plataforma, remitente, mensaje, estado, fecha) VALUES (?, ?, ?, 'Nuevo', CURRENT_TIMESTAMP)",
-            (plataforma, remitente, mensaje)
-        )
-        conn.commit()
-        conn.close()
+    # 🔹 Emitir evento de nuevo mensaje
+    socketio.emit("nuevo_mensaje", {
+        "plataforma": plataforma,
+        "remitente": remitente,
+        "mensaje": mensaje
+    }, broadcast=True)
 
-        return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
-    except Exception as e:
-        print(f"❌ ERROR en /recibir_mensaje: {e}")  # 👈 Imprimir errores
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
 
 
 # 📌 Endpoint para consultar los mensajes (con filtro opcional por estado)
