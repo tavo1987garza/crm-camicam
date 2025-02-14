@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify, render_template
+from flask_socketio import SocketIO
 import sqlite3
 import datetime
 from flask_cors import CORS  # Permite solicitudes desde el frontend
 
 app = Flask(__name__)
+socketio = SocketIO(app)  # Inicializar WebSockets
 CORS(app)  # Habilitar CORS para conectar con un frontend externo
 
 # 📌 Ruta raiz 
@@ -102,7 +104,8 @@ def eliminar_mensaje():
     cursor.execute("DELETE FROM mensajes WHERE id = ?", (mensaje_id,))
     conn.commit()
     conn.close()
-
+    # 🔹 Emitir evento de nuevo mensaje
+    socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje})
     return jsonify({"mensaje": "Mensaje eliminado correctamente"}), 200
 
 
@@ -111,5 +114,6 @@ def eliminar_mensaje():
 def dashboard():
     return render_template("index.html")  # Flask busca este archivo en `templates/`
 
+# 📌 Iniciar la app con WebSockets
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)
