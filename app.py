@@ -47,21 +47,28 @@ def recibir_mensaje():
         return jsonify({"error": str(e)}), 500
 
 
-# 📌 Endpoint para consultar los mensajes almacenados
+# 📌 Endpoint para consultar los mensajes (con filtro opcional por estado)
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, plataforma, remitente, mensaje, estado, fecha FROM mensajes ORDER BY fecha DESC")
-        mensajes = cursor.fetchall()
-        
-        mensajes_json = [dict(msg) for msg in mensajes]  # Convertimos a JSON
-        return jsonify(mensajes_json)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+    estado = request.args.get("estado")  # Permite filtrar por estado
+    conn = conectar_db()
+    cursor = conn.cursor()
+
+    if estado:
+        cursor.execute("SELECT * FROM mensajes WHERE estado = ? ORDER BY fecha DESC", (estado,))
+    else:
+        cursor.execute("SELECT * FROM mensajes ORDER BY fecha DESC")
+
+    mensajes = cursor.fetchall()
+    conn.close()
+
+    mensajes_json = [
+        {"id": msg["id"], "plataforma": msg["plataforma"], "remitente": msg["remitente"],
+         "mensaje": msg["mensaje"], "estado": msg["estado"], "fecha": msg["fecha"]}
+        for msg in mensajes
+    ]
+
+    return jsonify(mensajes_json)
 
 # 📌 Endpoint para actualizar el estado de un mensaje
 @app.route("/actualizar_estado", methods=["POST"])
@@ -73,16 +80,31 @@ def actualizar_estado():
     if not mensaje_id or nuevo_estado not in ["Nuevo", "En proceso", "Finalizado"]:
         return jsonify({"error": "Datos incorrectos"}), 400
 
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE mensajes SET estado = ? WHERE id = ?", (nuevo_estado, mensaje_id))
-        conn.commit()
-        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE mensajes SET estado = ? WHERE id = ?", (nuevo_estado, mensaje_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+
+# 📌 Endpoint para eliminar un mensaje por su ID
+@app.route("/eliminar_mensaje", methods=["POST"])
+def eliminar_mensaje():
+    datos = request.json
+    mensaje_id = datos.get("id")
+
+    if not mensaje_id:
+        return jsonify({"error": "Falta el ID del mensaje"}), 400
+
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM mensajes WHERE id = ?", (mensaje_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"mensaje": "Mensaje eliminado correctamente"}), 200
+
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")

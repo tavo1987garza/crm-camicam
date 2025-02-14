@@ -91,6 +91,11 @@
                     } else {
                         acciones.innerHTML = "✔️ Finalizado";
                     }
+
+                    // Agregar botón de eliminar
+            botones += ` <button class="eliminar" onclick="eliminarMensaje(${msg.id})">🗑️ Eliminar</button>`;
+            acciones.innerHTML = botones;
+
                 });
             });
         }
@@ -108,6 +113,22 @@
                 filtrarMensajes(""); // Recargar tabla después de cambiar estado
             });
         }
+
+        // 🔹 Función para eliminar un mensaje
+function eliminarMensaje(id) {
+    if (confirm("¿Estás seguro de que quieres eliminar este mensaje? Esta acción no se puede deshacer.")) {
+        fetch("/eliminar_mensaje", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.mensaje);
+            filtrarMensajes(""); // Recargar tabla después de eliminar
+        });
+    }
+}
 
         // 🔹 Cargar mensajes al inicio
         window.onload = function() {
