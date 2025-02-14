@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Camicam</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        button {
+            padding: 5px 10px;
+            margin: 2px;
+            border: none;
+            cursor: pointer;
+        }
+        .en-proceso { background-color: #f4c542; color: white; }
+        .finalizado { background-color: #28a745; color: white; }
+    </style>
+</head>
+<body>
+
+    <h1>📩 CRM Camicam - Gestión de Mensajes</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Plataforma</th>
+                <th>Remitente</th>
+                <th>Mensaje</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="mensajes">
+            <!-- Aquí se insertarán los mensajes dinámicamente -->
+        </tbody>
+    </table>
+
+    <script>
+        async function obtenerMensajes() {
+            const response = await fetch('/mensajes');
+            const mensajes = await response.json();
+            const tbody = document.getElementById('mensajes');
+            tbody.innerHTML = '';  // Limpiar la tabla antes de recargar
+
+            mensajes.forEach(msg => {
+                const fila = document.createElement('tr');
+
+                fila.innerHTML = `
+                    <td>${msg.id}</td>
+                    <td>${msg.plataforma}</td>
+                    <td>${msg.remitente}</td>
+                    <td>${msg.mensaje}</td>
+                    <td>${msg.estado}</td>
+                    <td>
+                        <button class="en-proceso" onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 En Proceso</button>
+                        <button class="finalizado" onclick="cambiarEstado(${msg.id}, 'Finalizado')">✅ Finalizado</button>
+                    </td>
+                `;
+
+                tbody.appendChild(fila);
+            });
+        }
+
+        async function cambiarEstado(id, estado) {
+            await fetch('/actualizar_estado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, estado })
+            });
+            obtenerMensajes();  // Recargar mensajes después de actualizar
+        }
+
+        window.onload = obtenerMensajes;  // Cargar los mensajes al iniciar
+    </script>
+
+</body>
+</html>
