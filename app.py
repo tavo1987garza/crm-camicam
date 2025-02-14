@@ -1,22 +1,19 @@
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO
 import sqlite3
-import datetime
-from flask_cors import CORS  # Permite solicitudes desde el frontend
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="gevent")  # 🔹 Forzar modo gevent
-CORS(app)  # Habilitar CORS para conectar con un frontend externo
+socketio = SocketIO(app, cors_allowed_origins="*")  # 🔹 Eliminamos async_mode
 
 # 📌 Ruta raiz 
 @app.route("/")
 def home():
     return "¡CRM de Camicam funcionando!"
 
-# 📌 Función para conectar a la base de datos con autocommit
+# 📌 Función para conectar a la base de datos
 def conectar_db():
-    conn = sqlite3.connect("crm_camicam.db", check_same_thread=False)
-    conn.row_factory = sqlite3.Row  # Permite acceder a las columnas por nombre
+    conn = sqlite3.connect("crm_camicam.db")
+    conn.row_factory = sqlite3.Row
     return conn
 
 # 📌 Endpoint para recibir mensajes y emitir notificación en tiempo real
@@ -37,7 +34,7 @@ def recibir_mensaje():
     conn.commit()
     conn.close()
 
-    # 🔹 Emitir evento de nuevo mensaje
+    # 🔹 Emitir evento de nuevo mensaje a todos los clientes conectados
     socketio.emit("nuevo_mensaje", {
         "plataforma": plataforma,
         "remitente": remitente,
