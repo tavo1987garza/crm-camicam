@@ -39,7 +39,7 @@ def recibir_mensaje():
         "plataforma": plataforma,
         "remitente": remitente,
         "mensaje": mensaje
-    }, broadcast=True)
+    }, to=None)
 
     return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
 
