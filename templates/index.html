@@ -85,6 +85,7 @@
 
     let notificacionesActivas = true;
     let sonidoActivo = true;
+    let sonidoEnProgreso = false; // 🔹 Para evitar que el sonido se repita
 
     // 🔹 Escuchar eventos de nuevos mensajes
     socket.on("nuevo_mensaje", (data) => {
@@ -113,8 +114,18 @@
 
     // 🔹 Función para reproducir sonido
     function reproducirSonido() {
-        let audio = new Audio("https://www.fesliyanstudios.com/play-mp3/4383");
-        audio.play();
+        if (sonidoHabilitado && !sonidoEnProgreso) {  
+            sonidoEnProgreso = true; // 🔹 Evita que se dispare varias veces seguidas
+            let audio = new Audio("https://www.fesliyanstudios.com/play-mp3/4383");
+    
+            audio.play().then(() => {
+                console.log("🔊 Sonido reproducido.");
+            }).catch(error => console.log("⚠️ No se pudo reproducir el sonido:", error));
+    
+            setTimeout(() => {
+                sonidoEnProgreso = false; // 🔹 Habilita nuevamente después de 2 segundos
+            }, 2000);
+        }
     }
 
     // 🔹 Función para alternar notificaciones
