@@ -275,17 +275,8 @@
                 });
         }
 
-        function enviarMensaje() {
-            let mensaje = document.getElementById("mensaje-input").value;
-            fetch("/recibir_mensaje", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ plataforma: "CRM", remitente: "Usuario", mensaje })
-            }).then(() => {
-                document.getElementById("mensaje-input").value = "";
-                cargarChat();
-            });
-        }
+        
+        
 
         function cargarMensajes() {
             let chatBox = document.getElementById("chat-messages");
@@ -305,7 +296,7 @@
                 });
         }
         
-
+        //Para que el CRM reciba el mensaje del cliente en tiempo real
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
         
@@ -321,9 +312,54 @@
         
             cargarChat(); // Actualizar la lista de conversaciones
         });
+        
+        //Función para responder a los mensajes
+        function enviarMensaje() {
+            let mensaje = document.getElementById("mensaje-input").value;
+            let chatBox = document.getElementById("chat-messages");
+            let remitente = chatBox.getAttribute("data-remitente"); // Usuario seleccionado
+        
+            if (!remitente || mensaje.trim() === "") {
+                alert("Selecciona una conversación y escribe un mensaje.");
+                return;
+            }
+        
+            fetch("/enviar_respuesta", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    remitente: remitente,
+                    mensaje: mensaje
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(() => {
+                document.getElementById("mensaje-input").value = ""; // Limpiar el campo de entrada
+                cargarMensajes(); // Recargar la conversación actual
+            })
+            .catch(error => console.error("❌ Error al enviar mensaje:", error));
+        }
+        
+        //Para que el cliente reciba la respuesta en tiempo real
+        socket.on("respuesta_mensaje", (data) => {
+            console.log("📩 Respuesta enviada:", data);
+        
+            let chatBox = document.getElementById("chat-messages");
+            let chatAbierto = chatBox.getAttribute("data-remitente");
+        
+            if (chatAbierto === data.remitente) {
+                cargarMensajes();  // Recargar la conversación actual en tiempo real
+            }
+        });
+        
 
     
-
+        //Funcion para cargar la seccion de Leads
         function cargarLeads() {
             fetch("/leads")
             .then(response => response.json())
