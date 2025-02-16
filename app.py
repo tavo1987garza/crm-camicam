@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO
+import requests
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")  # 🔹 Eliminamos async_mode
@@ -71,30 +72,37 @@ def recibir_mensaje():
 def enviar_respuesta():
     try:
         datos = request.json
-        print("📥 Datos recibidos:", datos)  # 🔹 Agrega este log para ver qué está recibiendo
-
         remitente = datos.get("remitente")
         mensaje = datos.get("mensaje")
 
         if not remitente or not mensaje:
-            print("⚠️ Faltan datos en la solicitud")  # 🔹 Log adicional
             return jsonify({"error": "Faltan datos"}), 400
 
+        # Guardar el mensaje en la base de datos como "enviado"
         conn = conectar_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, NULL, 'enviado')",
-               ("CRM", remitente, mensaje))
+        cursor.execute(
+            "INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, NULL, 'enviado')",
+            ("CRM", remitente, mensaje)
+        )
         conn.commit()
         conn.close()
-        
 
-        socketio.emit("respuesta_mensaje", {"remitente": remitente, "mensaje": mensaje})
-        print("✅ Mensaje enviado correctamente")
+        # 🔹 Reenviar el mensaje a Camibot para enviarlo a WhatsApp
+        camibot_url = "https://camicam-crm-d78af2926170.herokuapp.com/recibir_mensaje"  # Reemplazar con la URL real de Camibot
+        payload = {
+            "telefono": remitente,  # WhatsApp o Messenger ID
+            "mensaje": mensaje
+        }
 
-        return jsonify({"mensaje": "Respuesta enviada correctamente"}), 200
+        respuesta = requests.post(camibot_url, json=payload)
+
+        if respuesta.status_code == 200:
+            return jsonify({"mensaje": "Respuesta enviada correctamente"}), 200
+        else:
+            return jsonify({"error": "Error al enviar mensaje a Camibot"}), 500
 
     except Exception as e:
-        print("❌ Error en /enviar_respuesta:", str(e))  # 🔹 Agrega esto para ver el error exacto
         return jsonify({"error": str(e)}), 500
 
 

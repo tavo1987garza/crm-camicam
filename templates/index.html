@@ -315,36 +315,38 @@
         
         //Función para responder al cliente
         function enviarMensaje() {
-            let mensaje = document.getElementById("mensaje-input").value;
-            let chatBox = document.getElementById("chat-messages");
-            let remitente = chatBox.getAttribute("data-remitente");
+            let input = document.getElementById("mensaje-input");
+            let mensaje = input.value.trim();
+            let remitente = document.querySelector(".chat-list div.selected")?.getAttribute("data-remitente");
         
-            if (!remitente || mensaje.trim() === "") {
-                alert("Selecciona una conversación y escribe un mensaje.");
+            if (!mensaje || !remitente) {
+                alert("Selecciona un chat y escribe un mensaje.");
                 return;
             }
-        
-            let data = { remitente: remitente, mensaje: mensaje };
-            console.log("📤 Enviando mensaje:", data);  // 🔹 Agrega este log
         
             fetch("/enviar_respuesta", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
+                body: JSON.stringify({ remitente: remitente, mensaje: mensaje })
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Error al enviar mensaje: " + data.error);
+                } else {
+                    // Agregar el mensaje enviado al chat
+                    let chatBox = document.getElementById("chat-messages");
+                    let div = document.createElement("div");
+                    div.textContent = "Tú: " + mensaje;
+                    div.style.fontWeight = "bold";
+                    chatBox.appendChild(div);
+        
+                    input.value = "";
                 }
-                return response.json();
-            })
-            .then(respuesta => {
-                console.log("✅ Respuesta del servidor:", respuesta);
-                document.getElementById("mensaje-input").value = "";
-                cargarMensajes();
             })
             .catch(error => console.error("❌ Error al enviar mensaje:", error));
         }
+        
         
         
         //Para que el cliente reciba la respuesta en tiempo real
