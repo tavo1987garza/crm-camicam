@@ -106,7 +106,7 @@
     <div class="sidebar">
         <h2>CRM Camicam</h2>
         <button onclick="mostrarSeccion('panel')">📊 Panel</button>
-        <button onclick="mostrarSeccion('mensajes', cargarMensajes)">📩 Mensajes</button>
+        <button onclick="mostrarSeccion('leads', cargarLeads)">📩 Leads</button>
         <button onclick="mostrarSeccion('chat')">💬 Chat</button>
         <button onclick="mostrarSeccion('reportes')">📈 Reportes</button>
         <button onclick="mostrarSeccion('configuracion')">⚙️ Configuración</button>
@@ -118,8 +118,8 @@
             <p>Bienvenido al CRM de Camicam.</p>
         </div>
         
-        <div id="mensajes" class="seccion hidden">
-            <h1>📩 Mensajes</h1>
+        <div id="leads" class="seccion hidden">
+            <h1>📩 Leads</h1>
             <table>
                 <thead>
                     <tr>
@@ -131,7 +131,7 @@
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="mensajes-table"></tbody>
+                <tbody id="leads-table"></tbody>
             </table>
         </div>
 
@@ -240,27 +240,27 @@
         function cargarChat() {
             fetch("/chat")
             .then(response => response.json())
-            .then(chat => {
+            .then(chats => {
                 let lista = document.getElementById("chat-list");
                 lista.innerHTML = "";
-                chat.forEach(conv => {
+                chats.forEach(conv => {
                     let div = document.createElement("div");
-                    div.textContent = conv.remitente;
-                    div.onclick = () => cargarMensajesChat(conv.remitente);
+                    div.textContent = conv.nombre;
+                    div.onclick = () => cargarMensajesChat(conv.id);
                     lista.appendChild(div);
                 });
             });
         }
 
-        function cargarMensajesChat(remitente) {
-            fetch(`/mensajes_chat?remitente=${remitente}`)
+        function cargarMensajesChat(id) {
+            fetch(`/mensajes_chat?id=${id}`)
             .then(response => response.json())
             .then(mensajes => {
                 let chatBox = document.getElementById("chat-messages");
                 chatBox.innerHTML = "";
                 mensajes.forEach(msg => {
                     let div = document.createElement("div");
-                    div.textContent = `${msg.remitente}: ${msg.mensaje}`;
+                    div.textContent = `${msg.nombre}: ${msg.mensaje}`;
                     chatBox.appendChild(div);
                 });
             });
@@ -271,48 +271,41 @@
             fetch("/enviar_mensaje", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ mensaje: mensaje })
-            })
-            .then(() => document.getElementById("mensaje-input").value = "");
+                body: JSON.stringify({ mensaje })
+            }).then(() => document.getElementById("mensaje-input").value = "");
         }
 
-        function cargarMensajes() {
-            const tabla = document.getElementById("mensajes-table");
-            if (!tabla) return;
-
-            fetch("/mensajes")
+        function cargarLeads() {
+            fetch("/leads")
             .then(response => response.json())
-            .then(mensajes => {
+            .then(leads => {
+                let tabla = document.getElementById("leads-table");
                 tabla.innerHTML = "";
-                mensajes.forEach(msg => {
+                leads.forEach(lead => {
                     let row = tabla.insertRow();
-                    row.insertCell(0).textContent = msg.id;
-                    row.insertCell(1).textContent = msg.plataforma;
-                    row.insertCell(2).textContent = msg.remitente;
-                    row.insertCell(3).textContent = msg.mensaje;
-                    row.insertCell(4).textContent = msg.estado;
+                    row.insertCell(0).textContent = lead.id;
+                    row.insertCell(1).textContent = lead.nombre;
+                    row.insertCell(2).textContent = lead.mensaje;
+                    row.insertCell(3).textContent = lead.estado;
 
-                    let acciones = row.insertCell(5);
-                    let botones = "";
-                    if (msg.estado === "Nuevo") {
-                        botones += `<button onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 En Proceso</button>`;
-                    } else if (msg.estado === "En proceso") {
-                        botones += `<button onclick="cambiarEstado(${msg.id}, 'Finalizado')">🔴 Finalizar</button>`;
-                    } else {
-                        botones += "✔️ Finalizado";
+                    let acciones = row.insertCell(4);
+                    let opciones = "";
+                    if (lead.estado !== "Finalizado") {
+                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Interes')">📌 Interés</button>`;
+                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Seguimiento')">📞 Seguimiento</button>`;
+                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Finalizado')">✅ Finalizado</button>`;
                     }
-                    botones += ` <button onclick="eliminarMensaje(${msg.id})">🗑️ Eliminar</button>`;
-                    acciones.innerHTML = botones;
+                    acciones.innerHTML = opciones;
                 });
             });
         }
 
-        function cambiarEstado(id, nuevoEstado) {
-            fetch("/actualizar_estado", {
+        function cambiarEstado(id, estado) {
+            fetch("/actualizar_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, estado: nuevoEstado })
-            }).then(() => cargarMensajes());
+                body: JSON.stringify({ id, estado })
+            }).then(() => cargarLeads());
         }
 
         function eliminarMensaje(id) {
