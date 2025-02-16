@@ -39,6 +39,19 @@
         .hidden {
             display: none;
         }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
         .notification {
             position: fixed;
             top: 20px;
@@ -48,41 +61,6 @@
             padding: 10px;
             border-radius: 5px;
             display: none;
-        }
-        .chat-container {
-            display: flex;
-            height: 80vh;
-        }
-        .chat-list {
-            width: 30%;
-            border-right: 1px solid #ccc;
-            overflow-y: auto;
-        }
-        .chat-box {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        .chat-messages {
-            flex-grow: 1;
-            padding: 10px;
-            overflow-y: auto;
-            border-bottom: 1px solid #ccc;
-        }
-        .chat-input {
-            display: flex;
-            padding: 10px;
-        }
-        .chat-input input {
-            flex-grow: 1;
-            padding: 8px;
-        }
-        .chat-input button {
-            padding: 8px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
         }
     </style>
 </head>
@@ -104,10 +82,6 @@
         
         <div id="mensajes" class="seccion hidden">
             <h1>📩 Mensajes</h1>
-            <button onclick="filtrarMensajes('')">🔄 Todos</button>
-            <button onclick="filtrarMensajes('Nuevo')">🟢 Nuevos</button>
-            <button onclick="filtrarMensajes('En proceso')">🟡 En proceso</button>
-            <button onclick="filtrarMensajes('Finalizado')">🔴 Finalizados</button>
             <table>
                 <thead>
                     <tr>
@@ -122,33 +96,6 @@
                 <tbody id="mensajes-table"></tbody>
             </table>
         </div>
-
-        <div id="conversaciones" class="seccion hidden">
-            <h1>💬 Conversaciones</h1>
-            <div class="chat-container">
-                <div class="chat-list" id="chat-list">
-                    <!-- Lista de contactos dinámicos -->
-                </div>
-                <div class="chat-box">
-                    <div class="chat-messages" id="chat-messages"></div>
-                    <div class="chat-input">
-                        <input type="text" id="mensaje-input" placeholder="Escribe un mensaje...">
-                        <button onclick="enviarMensaje()">Enviar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="reportes" class="seccion hidden">
-            <h1>📈 Reportes</h1>
-            <p>Sección de reportes y estadísticas.</p>
-        </div>
-        
-        <div id="configuracion" class="seccion hidden">
-            <h1>⚙️ Configuración</h1>
-            <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
-            <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
-        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
@@ -158,12 +105,8 @@
             document.getElementById(seccion).classList.remove('hidden');
         }
 
-        function filtrarMensajes(estado) {
-            let url = "/mensajes";
-            if (estado) {
-                url += "?estado=" + encodeURIComponent(estado);
-            }
-            fetch(url)
+        function cargarMensajes() {
+            fetch("/mensajes")
             .then(response => response.json())
             .then(mensajes => {
                 let tabla = document.getElementById("mensajes-table");
@@ -175,9 +118,43 @@
                     row.insertCell(2).textContent = msg.remitente;
                     row.insertCell(3).textContent = msg.mensaje;
                     row.insertCell(4).textContent = msg.estado;
+
+                    let acciones = row.insertCell(5);
+                    let botones = "";
+                    if (msg.estado === "Nuevo") {
+                        botones += `<button onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 En Proceso</button>`;
+                    } else if (msg.estado === "En proceso") {
+                        botones += `<button onclick="cambiarEstado(${msg.id}, 'Finalizado')">🔴 Finalizar</button>`;
+                    } else {
+                        botones += "✔️ Finalizado";
+                    }
+                    botones += ` <button onclick="eliminarMensaje(${msg.id})">🗑️ Eliminar</button>`;
+                    acciones.innerHTML = botones;
                 });
             });
         }
+
+        function cambiarEstado(id, estado) {
+            fetch("/actualizar_estado", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, estado })
+            })
+            .then(() => cargarMensajes());
+        }
+
+        function eliminarMensaje(id) {
+            if (confirm("¿Eliminar este mensaje?")) {
+                fetch("/eliminar_mensaje", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id })
+                })
+                .then(() => cargarMensajes());
+            }
+        }
+
+        window.onload = cargarMensajes;
     </script>
 </body>
 </html>
