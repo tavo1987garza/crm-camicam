@@ -287,10 +287,41 @@
             });
         }
 
+        function cargarMensajes() {
+            let chatBox = document.getElementById("chat-messages");
+            let remitente = chatBox.getAttribute("data-remitente");
+        
+            if (!remitente) return; // No hacer nada si no hay un chat abierto
+        
+            fetch(`/mensajes?remitente=${remitente}`)
+                .then(response => response.json())
+                .then(mensajes => {
+                    chatBox.innerHTML = "";
+                    mensajes.forEach(msg => {
+                        let div = document.createElement("div");
+                        div.textContent = `${msg.remitente}: ${msg.mensaje}`;
+                        chatBox.appendChild(div);
+                    });
+                });
+        }
+        
+
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
-            cargarChat();
+        
+            let chatBox = document.getElementById("chat-messages");
+            let chatAbierto = chatBox.getAttribute("data-remitente");
+        
+            if (chatAbierto === data.remitente) {
+                cargarMensajes();  // Refrescar la conversación activa
+            } else {
+                let chatItem = document.querySelector(`#chat-list div[data-remitente="${data.remitente}"]`);
+                if (chatItem) chatItem.style.fontWeight = "bold"; // Resaltar chat con mensajes nuevos
+            }
+        
+            cargarChat(); // Actualizar la lista de conversaciones
         });
+        
 
         function cargarLeads() {
             fetch("/leads")
