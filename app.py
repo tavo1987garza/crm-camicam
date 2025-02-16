@@ -19,20 +19,29 @@ def conectar_db():
 # 📌 Endpoint para recibir mensajes y emitir notificación en tiempo real
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
-    datos = request.json
-    plataforma = datos.get("plataforma")
-    remitente = datos.get("remitente")
-    mensaje = datos.get("mensaje")
+    try:
+        datos = request.json
+        plataforma = datos.get("plataforma")
+        remitente = datos.get("remitente")
+        mensaje = datos.get("mensaje")
 
-    if not plataforma or not remitente or not mensaje:
-        return jsonify({"error": "Faltan datos"}), 400
+        if not plataforma or not remitente or not mensaje:
+            return jsonify({"error": "Faltan datos"}), 400
 
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (?, ?, ?, 'Nuevo')",
-                   (plataforma, remitente, mensaje))
-    conn.commit()
-    conn.close()
+        conn = conectar_db()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (?, ?, ?, 'Nuevo')",
+                       (plataforma, remitente, mensaje))
+        conn.commit()
+        conn.close()
+
+        socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje})
+
+        return jsonify({"mensaje": "Mensaje recibido correctamente"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
     # 🔹 Emitir evento de nuevo mensaje a todos los clientes conectados
     socketio.emit("nuevo_mensaje", {
@@ -47,25 +56,21 @@ def recibir_mensaje():
 # 📌 Endpoint para consultar los mensajes (con filtro opcional por estado)
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
-    estado = request.args.get("estado")  # Permite filtrar por estado
+    remitente = request.args.get("remitente")
     conn = conectar_db()
     cursor = conn.cursor()
 
-    if estado:
-        cursor.execute("SELECT * FROM mensajes WHERE estado = ? ORDER BY fecha DESC", (estado,))
+    if remitente:
+        cursor.execute("SELECT * FROM mensajes WHERE remitente = ? ORDER BY fecha DESC", (remitente,))
     else:
         cursor.execute("SELECT * FROM mensajes ORDER BY fecha DESC")
 
     mensajes = cursor.fetchall()
     conn.close()
 
-    mensajes_json = [
-        {"id": msg["id"], "plataforma": msg["plataforma"], "remitente": msg["remitente"],
-         "mensaje": msg["mensaje"], "estado": msg["estado"], "fecha": msg["fecha"]}
-        for msg in mensajes
-    ]
+    # Si no hay mensajes, devolver una lista vacía en JSON
+    return jsonify([dict(msg) for msg in mensajes]) if mensajes else jsonify([])
 
-    return jsonify(mensajes_json)
 
 # 📌 Endpoint para actualizar el estado de un mensaje
 @app.route("/actualizar_estado", methods=["POST"])
