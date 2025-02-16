@@ -68,7 +68,7 @@
     <div class="sidebar">
         <h2>CRM Camicam</h2>
         <button onclick="mostrarSeccion('dashboard')">📊 Dashboard</button>
-        <button onclick="mostrarSeccion('mensajes')">📩 Mensajes</button>
+        <button onclick="mostrarSeccion('mensajes', cargarMensajes)">📩 Mensajes</button>
         <button onclick="mostrarSeccion('conversaciones')">💬 Conversaciones</button>
         <button onclick="mostrarSeccion('reportes')">📈 Reportes</button>
         <button onclick="mostrarSeccion('configuracion')">⚙️ Configuración</button>
@@ -100,16 +100,18 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script>
-        function mostrarSeccion(seccion) {
+        function mostrarSeccion(seccion, callback = null) {
             document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
             document.getElementById(seccion).classList.remove('hidden');
+            if (callback) callback();
         }
 
         function cargarMensajes() {
+            const tabla = document.getElementById("mensajes-table");
+            if (!tabla) return;
             fetch("/mensajes")
             .then(response => response.json())
             .then(mensajes => {
-                let tabla = document.getElementById("mensajes-table");
                 tabla.innerHTML = "";
                 mensajes.forEach(msg => {
                     let row = tabla.insertRow();
@@ -153,8 +155,6 @@
                 .then(() => cargarMensajes());
             }
         }
-
-        window.onload = cargarMensajes;
     </script>
 </body>
 </html>
