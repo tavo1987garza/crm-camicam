@@ -19,6 +19,12 @@ def conectar_db():
     conn = psycopg2.connect(DATABASE_URL, sslmode="require")
     return conn
 
+# Ruta para Leads
+@app.route("/leads", methods=["GET"])
+def obtener_leads():
+    return jsonify([])  # Devuelve una lista vacía para evitar errores
+
+
 # 📌 Endpoint para recibir mensajes y emitir notificación en tiempo real
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
@@ -33,10 +39,13 @@ def recibir_mensaje():
 
         conn = conectar_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (?, ?, ?, 'Nuevo')",
-                       (plataforma, remitente, mensaje))
+        cursor.execute(
+    "INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, 'Nuevo', 'recibido')",
+    ("CRM", remitente, mensaje)
+                       )
         conn.commit()
         conn.close()
+
 
         socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje})
 
@@ -62,10 +71,11 @@ def enviar_respuesta():
 
         conn = conectar_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (?, ?, ?, 'Nuevo')",
-                       ("CRM", remitente, mensaje))
+        cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, NULL, 'enviado')",
+               ("CRM", remitente, mensaje))
         conn.commit()
         conn.close()
+        
 
         socketio.emit("respuesta_mensaje", {"remitente": remitente, "mensaje": mensaje})
         print("✅ Mensaje enviado correctamente")
@@ -82,20 +92,15 @@ def enviar_respuesta():
 # 📌 Endpoint para consultar los mensajes (con filtro opcional por estado)
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
-    remitente = request.args.get("remitente")
-    conn = conectar_db()
-    cursor = conn.cursor()
-
-    if remitente:
-        cursor.execute("SELECT * FROM mensajes WHERE remitente = ? ORDER BY fecha DESC", (remitente,))
-    else:
+    try:
+        conn = conectar_db()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("SELECT * FROM mensajes ORDER BY fecha DESC")
-
-    mensajes = cursor.fetchall()
-    conn.close()
-
-    # Si no hay mensajes, devolver una lista vacía en JSON
-    return jsonify([dict(msg) for msg in mensajes]) if mensajes else jsonify([])
+        mensajes = cursor.fetchall()
+        conn.close()
+        return jsonify(mensajes)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # 📌 Endpoint para actualizar el estado de un mensaje
