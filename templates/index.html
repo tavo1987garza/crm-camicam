@@ -313,24 +313,24 @@
             cargarChat(); // Actualizar la lista de conversaciones
         });
         
-        //Función para responder a los mensajes
+        //Función para responder al cliente
         function enviarMensaje() {
             let mensaje = document.getElementById("mensaje-input").value;
             let chatBox = document.getElementById("chat-messages");
-            let remitente = chatBox.getAttribute("data-remitente"); // Usuario seleccionado
+            let remitente = chatBox.getAttribute("data-remitente");
         
             if (!remitente || mensaje.trim() === "") {
                 alert("Selecciona una conversación y escribe un mensaje.");
                 return;
             }
         
+            let data = { remitente: remitente, mensaje: mensaje };
+            console.log("📤 Enviando mensaje:", data);  // 🔹 Agrega este log
+        
             fetch("/enviar_respuesta", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    remitente: remitente,
-                    mensaje: mensaje
-                })
+                body: JSON.stringify(data)
             })
             .then(response => {
                 if (!response.ok) {
@@ -338,12 +338,14 @@
                 }
                 return response.json();
             })
-            .then(() => {
-                document.getElementById("mensaje-input").value = ""; // Limpiar el campo de entrada
-                cargarMensajes(); // Recargar la conversación actual
+            .then(respuesta => {
+                console.log("✅ Respuesta del servidor:", respuesta);
+                document.getElementById("mensaje-input").value = "";
+                cargarMensajes();
             })
             .catch(error => console.error("❌ Error al enviar mensaje:", error));
         }
+        
         
         //Para que el cliente reciba la respuesta en tiempo real
         socket.on("respuesta_mensaje", (data) => {
