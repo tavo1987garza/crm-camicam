@@ -7,13 +7,42 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 20px;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            background: #333;
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin: 5px 0;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+        }
+        .sidebar button:hover {
+            background: #555;
+        }
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        .hidden {
+            display: none;
         }
         table {
-            width: 80%;
-            margin: 20px auto;
+            width: 100%;
             border-collapse: collapse;
+            margin-top: 20px;
         }
         th, td {
             border: 1px solid #ddd;
@@ -24,135 +53,88 @@
             background-color: #4CAF50;
             color: white;
         }
-        button {
-            padding: 5px 10px;
-            margin: 2px;
-            border: none;
-            cursor: pointer;
-        }
         .en-proceso { background-color: #f4c542; color: white; }
         .finalizado { background-color: #28a745; color: white; }
     </style>
 </head>
 <body>
-
-    <h1>📩 CRM Camicam - Gestión de Mensajes</h1>
-    <h2>📩 Mensajes Recibidos</h2>
-
-    <!-- 🔹 Botones de filtro -->
-    <button onclick="filtrarMensajes('')">🔄 Todos</button>
-    <button onclick="filtrarMensajes('Nuevo')">🟢 Nuevos</button>
-    <button onclick="filtrarMensajes('En proceso')">🟡 En proceso</button>
-    <button onclick="filtrarMensajes('Finalizado')">🔴 Finalizados</button>
-
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Plataforma</th>
-                <th>Remitente</th>
-                <th>Mensaje</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody id="mensajes-table">
-            <!-- Aquí se insertarán los mensajes dinámicamente -->
-        </tbody>
-    </table>
-    <h2>Configuración</h2>
-<button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
-<button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
-
-<div id="alerta-mensaje" style="display: none; background: red; color: white; padding: 10px; margin: 10px auto; width: 50%;">
-    📩 Nuevo mensaje recibido
-</div>
-
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
-
-<script>
-    // 🔹 Conectar con WebSockets y asegurar transporte WebSocket
-    const socket = io.connect(window.location.origin, { transports: ["websocket", "polling"] });
-
-    socket.on("connect", () => {
-        console.log("✅ Conectado a WebSockets.");
-    });
-
-    socket.on("connect_error", (error) => {
-        console.error("❌ Error en la conexión WebSocket:", error);
-    });
-
-    let notificacionesActivas = true;
-    let sonidoActivo = true;
-    let sonidoEnProgreso = false; // 🔹 Para evitar que el sonido se repita
-
-    // 🔹 Escuchar eventos de nuevos mensajes
-    socket.on("nuevo_mensaje", (data) => {
-        console.log("📩 Nuevo mensaje recibido:", data);
-        filtrarMensajes(""); // Recargar mensajes en tiempo real
-
-        if (notificacionesActivas) {
-            mostrarNotificacion(data);
-        }
-
-        if (sonidoActivo) {
-            reproducirSonido();
-        }
-    });
-
-    // 🔹 Función para mostrar la notificación visual
-    function mostrarNotificacion(data) {
-        let alerta = document.getElementById("alerta-mensaje");
-        alerta.textContent = `📩 Nuevo mensaje de ${data.remitente}: "${data.mensaje}"`;
-        alerta.style.display = "block";
-
-        setTimeout(() => {
-            alerta.style.display = "none";
-        }, 5000);
-    }
-
-    // 🔹 Función para reproducir sonido
-    function reproducirSonido() {
-        if (sonidoActivo && !sonidoEnProgreso) {  
-            sonidoEnProgreso = true; // 🔹 Evita que se dispare varias veces seguidas
-            let audio = new Audio("http://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
+    <div class="sidebar">
+        <h2>CRM Camicam</h2>
+        <button onclick="mostrarSeccion('dashboard')">📊 Dashboard</button>
+        <button onclick="mostrarSeccion('mensajes')">📩 Mensajes</button>
+        <button onclick="mostrarSeccion('reportes')">📈 Reportes</button>
+        <button onclick="mostrarSeccion('configuracion')">⚙️ Configuración</button>
+    </div>
     
-            audio.play().then(() => {
-                console.log("🔊 Sonido reproducido.");
-            }).catch(error => console.log("⚠️ No se pudo reproducir el sonido:", error));
-    
-            setTimeout(() => {
-                sonidoEnProgreso = false; // 🔹 Habilita nuevamente después de 2 segundos
-            }, 2000);
+    <div class="content">
+        <div id="dashboard" class="seccion">
+            <h1>📊 Dashboard</h1>
+            <p>Bienvenido al CRM de Camicam.</p>
+        </div>
+        
+        <div id="mensajes" class="seccion hidden">
+            <h1>📩 Mensajes</h1>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Plataforma</th>
+                        <th>Remitente</th>
+                        <th>Mensaje</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="mensajes-table"></tbody>
+            </table>
+        </div>
+        
+        <div id="reportes" class="seccion hidden">
+            <h1>📈 Reportes</h1>
+            <p>Sección de reportes y estadísticas.</p>
+        </div>
+        
+        <div id="configuracion" class="seccion hidden">
+            <h1>⚙️ Configuración</h1>
+            <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
+            <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script>
+        function mostrarSeccion(seccion) {
+            document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
+            document.getElementById(seccion).classList.remove('hidden');
         }
-    }
 
-    // 🔹 Función para alternar notificaciones
-    function toggleNotificaciones() {
-        notificacionesActivas = !notificacionesActivas;
-        document.getElementById("toggle-notif").textContent = notificacionesActivas ? "🔔 Notificaciones: ON" : "🔕 Notificaciones: OFF";
-    }
+        let sonidoActivo = true;
+        let notificacionesActivas = true;
+        let sonidoEnProgreso = false;
+        const socket = io.connect(window.location.origin, { transports: ["websocket", "polling"] });
 
-    // 🔹 Función para alternar sonido
-    function toggleSonido() {
-        sonidoActivo = !sonidoActivo;
-        document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
-    }
+        socket.on("nuevo_mensaje", (data) => {
+            filtrarMensajes("");
+            if (notificacionesActivas) mostrarNotificacion(data);
+            if (sonidoActivo) reproducirSonido();
+        });
 
-    // 🔹 Cargar mensajes en la tabla con opción de filtrar por estado
-    function filtrarMensajes(estado) {
-        let url = "/mensajes";
-        if (estado) {
-            url += "?estado=" + encodeURIComponent(estado);
+        function toggleSonido() {
+            sonidoActivo = !sonidoActivo;
+            document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
         }
 
-        fetch(url)
+        function toggleNotificaciones() {
+            notificacionesActivas = !notificacionesActivas;
+            document.getElementById("toggle-notif").textContent = notificacionesActivas ? "🔔 Notificaciones: ON" : "🔕 Notificaciones: OFF";
+        }
+
+        function filtrarMensajes() {
+            fetch("/mensajes")
             .then(response => response.json())
             .then(mensajes => {
                 let tabla = document.getElementById("mensajes-table");
-                tabla.innerHTML = "";  // Limpiar la tabla antes de recargar
-
+                tabla.innerHTML = "";
                 mensajes.forEach(msg => {
                     let row = tabla.insertRow();
                     row.insertCell(0).textContent = msg.id;
@@ -160,61 +142,12 @@
                     row.insertCell(2).textContent = msg.remitente;
                     row.insertCell(3).textContent = msg.mensaje;
                     row.insertCell(4).textContent = msg.estado;
-
-                    let acciones = row.insertCell(5);
-                    let botones = "";
-
-                    if (msg.estado === "Nuevo") {
-                        botones += `<button class="en-proceso" onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 En Proceso</button>`;
-                    } else if (msg.estado === "En proceso") {
-                        botones += `<button class="finalizado" onclick="cambiarEstado(${msg.id}, 'Finalizado')">🔴 Finalizar</button>`;
-                    } else {
-                        botones += "✔️ Finalizado";
-                    }
-
-                    // Agregar botón de eliminar
-                    botones += ` <button class="eliminar" onclick="eliminarMensaje(${msg.id})">🗑️ Eliminar</button>`;
-                    acciones.innerHTML = botones;
+                    row.insertCell(5).innerHTML = `<button onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 En Proceso</button>
+                        <button onclick="cambiarEstado(${msg.id}, 'Finalizado')">🔴 Finalizar</button>
+                        <button onclick="eliminarMensaje(${msg.id})">🗑️ Eliminar</button>`;
                 });
             });
-    }
-
-    // 🔹 Cambiar estado del mensaje
-    function cambiarEstado(id, nuevoEstado) {
-        fetch("/actualizar_estado", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: id, estado: nuevoEstado })
-        })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.mensaje);
-                filtrarMensajes(""); // Recargar tabla después de cambiar estado
-            });
-    }
-
-    // 🔹 Función para eliminar un mensaje
-    function eliminarMensaje(id) {
-        if (confirm("¿Estás seguro de que quieres eliminar este mensaje? Esta acción no se puede deshacer.")) {
-            fetch("/eliminar_mensaje", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: id })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.mensaje);
-                    filtrarMensajes(""); // Recargar tabla después de eliminar
-                });
         }
-    }
-
-    // 🔹 Cargar mensajes al inicio
-    window.onload = function () {
-        filtrarMensajes("");
-    };
-</script>
-
-
+    </script>
 </body>
 </html>
