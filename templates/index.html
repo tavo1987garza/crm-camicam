@@ -308,18 +308,18 @@
             }).then(() => cargarLeads());
         }
 
-        function eliminarMensaje(id) {
+        function eliminarLeads(id) {
             if (confirm("¿Estás seguro de eliminar este mensaje?")) {
                 fetch("/eliminar_mensaje", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id })
-                }).then(() => cargarMensajes());
+                }).then(() => cargarLeads());
             }
         }
 
         window.onload = function () {
-            cargarMensajes();
+            cargarLeads();
         };
     </script>
 </body>
