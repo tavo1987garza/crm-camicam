@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO
-import sqlite3
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")  # 🔹 Eliminamos async_mode
@@ -11,9 +10,13 @@ def home():
     return "¡CRM de Camicam funcionando!"
 
 # 📌 Función para conectar a la base de datos
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
 def conectar_db():
-    conn = sqlite3.connect("crm_camicam.db")
-    conn.row_factory = sqlite3.Row
+    DATABASE_URL = os.environ.get("postgres://u34n6dp3djdic3:pb51780d982d6a010b1a2e35edff3181144ba8c8add56065271b8c4279b2a31fb@cat670aihdrkt1.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d2urvhs5f7ahd6")  # Obtiene la URL desde las variables de entorno
+    conn = psycopg2.connect(DATABASE_URL, sslmode="require")
     return conn
 
 # 📌 Endpoint para recibir mensajes y emitir notificación en tiempo real
@@ -59,7 +62,7 @@ def enviar_respuesta():
 
         conn = conectar_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (?, ?, ?, 'Enviado')",
+        cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (?, ?, ?, 'Nuevo')",
                        ("CRM", remitente, mensaje))
         conn.commit()
         conn.close()
