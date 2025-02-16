@@ -200,6 +200,47 @@
             document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
         }
 
+        let contactoActual = "";
+        function cargarConversaciones() {
+            fetch("/conversaciones")
+            .then(response => response.json())
+            .then(conversaciones => {
+                let lista = document.getElementById("chat-list");
+                lista.innerHTML = "";
+                conversaciones.forEach(conv => {
+                    let div = document.createElement("div");
+                    div.textContent = conv.remitente;
+                    div.onclick = () => cargarMensajes(conv.remitente);
+                    lista.appendChild(div);
+                });
+            });
+        }
+        function cargarMensajes(remitente) {
+            contactoActual = remitente;
+            fetch(`/mensajes_chat?remitente=${remitente}`)
+            .then(response => response.json())
+            .then(mensajes => {
+                let chatBox = document.getElementById("chat-messages");
+                chatBox.innerHTML = "";
+                mensajes.forEach(msg => {
+                    let div = document.createElement("div");
+                    div.textContent = `${msg.remitente}: ${msg.mensaje}`;
+                    chatBox.appendChild(div);
+                });
+            });
+        }
+
+        function enviarMensaje() {
+            let mensaje = document.getElementById("mensaje-input").value;
+            if (!mensaje || !contactoActual) return;
+            fetch("/enviar_mensaje", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ remitente: contactoActual, mensaje: mensaje })
+            })
+            .then(() => cargarMensajes(contactoActual));
+        }
+
         function cargarMensajes() {
             const tabla = document.getElementById("mensajes-table");
             if (!tabla) return;
