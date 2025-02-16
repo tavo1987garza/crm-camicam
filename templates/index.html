@@ -49,22 +49,41 @@
             border-radius: 5px;
             display: none;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+        .chat-container {
+            display: flex;
+            height: 80vh;
         }
-        th, td {
-            border: 1px solid #ddd;
+        .chat-list {
+            width: 30%;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+        .chat-box {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {
+            flex-grow: 1;
             padding: 10px;
-            text-align: left;
+            overflow-y: auto;
+            border-bottom: 1px solid #ccc;
         }
-        th {
-            background-color: #4CAF50;
+        .chat-input {
+            display: flex;
+            padding: 10px;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            padding: 8px;
+        }
+        .chat-input button {
+            padding: 8px;
+            background: #4CAF50;
             color: white;
+            border: none;
+            cursor: pointer;
         }
-        .en-proceso { background-color: #f4c542; color: white; }
-        .finalizado { background-color: #28a745; color: white; }
     </style>
 </head>
 <body>
@@ -72,6 +91,7 @@
         <h2>CRM Camicam</h2>
         <button onclick="mostrarSeccion('dashboard')">📊 Dashboard</button>
         <button onclick="mostrarSeccion('mensajes')">📩 Mensajes</button>
+        <button onclick="mostrarSeccion('conversaciones')">💬 Conversaciones</button>
         <button onclick="mostrarSeccion('reportes')">📈 Reportes</button>
         <button onclick="mostrarSeccion('configuracion')">⚙️ Configuración</button>
     </div>
@@ -98,6 +118,22 @@
                 <tbody id="mensajes-table"></tbody>
             </table>
         </div>
+
+        <div id="conversaciones" class="seccion hidden">
+            <h1>💬 Conversaciones</h1>
+            <div class="chat-container">
+                <div class="chat-list" id="chat-list">
+                    <!-- Lista de contactos dinámicos -->
+                </div>
+                <div class="chat-box">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="mensaje-input" placeholder="Escribe un mensaje...">
+                        <button onclick="enviarMensaje()">Enviar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
@@ -111,8 +147,6 @@
         </div>
     </div>
 
-    <div id="notification" class="notification"></div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script>
         function mostrarSeccion(seccion) {
@@ -120,63 +154,46 @@
             document.getElementById(seccion).classList.remove('hidden');
         }
 
-        let sonidoActivo = true;
-        let notificacionesActivas = true;
-        let sonidoEnProgreso = false;
-        const socket = io.connect(window.location.origin, { transports: ["polling"] });
-
-        socket.on("nuevo_mensaje", (data) => {
-            filtrarMensajes("");
-            if (notificacionesActivas) mostrarNotificacion(data);
-            if (sonidoActivo) reproducirSonido();
-        });
-
-        function mostrarNotificacion(data) {
-            let notification = document.getElementById("notification");
-            notification.textContent = `📩 Nuevo mensaje de ${data.remitente}: "${data.mensaje}"`;
-            notification.style.display = "block";
-            setTimeout(() => { notification.style.display = "none"; }, 5000);
-        }
-
-        function reproducirSonido() {
-            if (sonidoActivo && !sonidoEnProgreso) {
-                sonidoEnProgreso = true;
-                let audio = new Audio("http://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
-                audio.play().catch(error => console.log("⚠️ No se pudo reproducir el sonido:", error));
-                setTimeout(() => {
-                    sonidoEnProgreso = false;
-                }, 2000);
-            }
-        }
-
-        function toggleSonido() {
-            sonidoActivo = !sonidoActivo;
-            document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
-        }
-
-        function toggleNotificaciones() {
-            notificacionesActivas = !notificacionesActivas;
-            document.getElementById("toggle-notif").textContent = notificacionesActivas ? "🔔 Notificaciones: ON" : "🔕 Notificaciones: OFF";
-        }
-
-        function filtrarMensajes() {
-            fetch("/mensajes")
+        let contactoActual = "";
+        function cargarConversaciones() {
+            fetch("/conversaciones")
             .then(response => response.json())
-            .then(mensajes => {
-                let tabla = document.getElementById("mensajes-table");
-                tabla.innerHTML = "";
-                mensajes.forEach(msg => {
-                    let row = tabla.insertRow();
-                    row.insertCell(0).textContent = msg.id;
-                    row.insertCell(1).textContent = msg.plataforma;
-                    row.insertCell(2).textContent = msg.remitente;
-                    row.insertCell(3).textContent = msg.mensaje;
-                    row.insertCell(4).textContent = msg.estado;
-                    row.insertCell(5).innerHTML = `<button onclick="cambiarEstado(${msg.id}, 'En proceso')">🟡 En Proceso</button>
-                        <button onclick="cambiarEstado(${msg.id}, 'Finalizado')">🔴 Finalizar</button>
-                        <button onclick="eliminarMensaje(${msg.id})">🗑️ Eliminar</button>`;
+            .then(conversaciones => {
+                let lista = document.getElementById("chat-list");
+                lista.innerHTML = "";
+                conversaciones.forEach(conv => {
+                    let div = document.createElement("div");
+                    div.textContent = conv.remitente;
+                    div.onclick = () => cargarMensajes(conv.remitente);
+                    lista.appendChild(div);
                 });
             });
+        }
+
+        function cargarMensajes(remitente) {
+            contactoActual = remitente;
+            fetch(`/mensajes_chat?remitente=${remitente}`)
+            .then(response => response.json())
+            .then(mensajes => {
+                let chatBox = document.getElementById("chat-messages");
+                chatBox.innerHTML = "";
+                mensajes.forEach(msg => {
+                    let div = document.createElement("div");
+                    div.textContent = `${msg.remitente}: ${msg.mensaje}`;
+                    chatBox.appendChild(div);
+                });
+            });
+        }
+
+        function enviarMensaje() {
+            let mensaje = document.getElementById("mensaje-input").value;
+            if (!mensaje || !contactoActual) return;
+            fetch("/enviar_mensaje", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ remitente: contactoActual, mensaje: mensaje })
+            })
+            .then(() => cargarMensajes(contactoActual));
         }
     </script>
 </body>
