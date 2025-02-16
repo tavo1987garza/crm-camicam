@@ -99,6 +99,33 @@
                 <tbody id="mensajes-table"></tbody>
             </table>
         </div>
+
+        <div id="conversaciones" class="seccion hidden">
+            <h1>💬 Conversaciones</h1>
+            <div class="chat-container">
+                <div class="chat-list" id="chat-list">
+                    <!-- Lista de contactos dinámicos -->
+                </div>
+                <div class="chat-box">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="mensaje-input" placeholder="Escribe un mensaje...">
+                        <button onclick="enviarMensaje()">Enviar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="reportes" class="seccion hidden">
+            <h1>📈 Reportes</h1>
+            <p>Sección de reportes y estadísticas.</p>
+        </div>
+        
+        <div id="configuracion" class="seccion hidden">
+            <h1>⚙️ Configuración</h1>
+            <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
+            <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
+        </div>
     </div>
 
     <div id="alerta-mensaje" class="notification"></div>
