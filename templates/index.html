@@ -200,13 +200,13 @@
             document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
         }
 
-        function cargarConversaciones() {
-            fetch("/conversaciones")
+        function cargarChat() {
+            fetch("/chat")
             .then(response => response.json())
-            .then(conversaciones => {
+            .then(chat => {
                 let lista = document.getElementById("chat-list");
                 lista.innerHTML = "";
-                conversaciones.forEach(conv => {
+                chat.forEach(conv => {
                     let div = document.createElement("div");
                     div.textContent = conv.remitente;
                     div.onclick = () => cargarMensajesChat(conv.remitente);
