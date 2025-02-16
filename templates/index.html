@@ -28,9 +28,10 @@
             cursor: pointer;
             text-align: left;
             width: 100%;
+            transition: background 0.3s;
         }
         .sidebar button:hover {
-            background: #555;
+            background: #666;
         }
         .content {
             flex-grow: 1;
@@ -72,6 +73,8 @@
         <button onclick="mostrarSeccion('conversaciones')">💬 Conversaciones</button>
         <button onclick="mostrarSeccion('reportes')">📈 Reportes</button>
         <button onclick="mostrarSeccion('configuracion')">⚙️ Configuración</button>
+        <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
+        <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
     </div>
     
     <div class="content">
@@ -98,6 +101,8 @@
         </div>
     </div>
 
+    <div id="alerta-mensaje" class="notification"></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script>
         function mostrarSeccion(seccion, callback = null) {
@@ -105,77 +110,75 @@
             document.getElementById(seccion).classList.remove('hidden');
             if (callback) callback();
         }
-        // 🔹 Conectar con WebSockets y asegurar transporte WebSocket
-    const socket = io.connect(window.location.origin, { transports: ["websocket", "polling"] });
 
-    socket.on("connect", () => {
-        console.log("✅ Conectado a WebSockets.");
-    });
+        // 🔹 Conectar con WebSockets
+        const socket = io.connect(window.location.origin, { transports: ["websocket", "polling"] });
 
-    socket.on("connect_error", (error) => {
-        console.error("❌ Error en la conexión WebSocket:", error);
-    });
+        socket.on("connect", () => {
+            console.log("✅ Conectado a WebSockets.");
+        });
 
-    let notificacionesActivas = true;
-    let sonidoActivo = true;
-    let sonidoEnProgreso = false; // 🔹 Para evitar que el sonido se repita
+        socket.on("connect_error", (error) => {
+            console.error("❌ Error en la conexión WebSocket:", error);
+        });
 
-    // 🔹 Escuchar eventos de nuevos mensajes
-    socket.on("nuevo_mensaje", (data) => {
-        console.log("📩 Nuevo mensaje recibido:", data);
-        filtrarMensajes(""); // Recargar mensajes en tiempo real
+        let notificacionesActivas = true;
+        let sonidoActivo = true;
+        let sonidoEnProgreso = false;
 
-        if (notificacionesActivas) {
-            mostrarNotificacion(data);
-        }
+        // 🔹 Escuchar eventos de nuevos mensajes
+        socket.on("nuevo_mensaje", (data) => {
+            console.log("📩 Nuevo mensaje recibido:", data);
+            cargarMensajes();
 
-        if (sonidoActivo) {
-            reproducirSonido();
-        }
-    });
+            if (notificacionesActivas) {
+                mostrarNotificacion(data);
+            }
 
-    // 🔹 Función para mostrar la notificación visual
-    function mostrarNotificacion(data) {
-        let alerta = document.getElementById("alerta-mensaje");
-        alerta.textContent = 📩 Nuevo mensaje de ${data.remitente}: "${data.mensaje}";
-        alerta.style.display = "block";
+            if (sonidoActivo) {
+                reproducirSonido();
+            }
+        });
 
-        setTimeout(() => {
-            alerta.style.display = "none";
-        }, 5000);
-    }
+        function mostrarNotificacion(data) {
+            let alerta = document.getElementById("alerta-mensaje");
+            alerta.textContent = `📩 Nuevo mensaje de ${data.remitente}: "${data.mensaje}"`;
+            alerta.style.display = "block";
 
-    // 🔹 Función para reproducir sonido
-    function reproducirSonido() {
-        if (sonidoActivo && !sonidoEnProgreso) {  
-            sonidoEnProgreso = true; // 🔹 Evita que se dispare varias veces seguidas
-            let audio = new Audio("http://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
-    
-            audio.play().then(() => {
-                console.log("🔊 Sonido reproducido.");
-            }).catch(error => console.log("⚠️ No se pudo reproducir el sonido:", error));
-    
             setTimeout(() => {
-                sonidoEnProgreso = false; // 🔹 Habilita nuevamente después de 2 segundos
-            }, 2000);
+                alerta.style.display = "none";
+            }, 5000);
         }
-    }
 
-    // 🔹 Función para alternar notificaciones
-    function toggleNotificaciones() {
-        notificacionesActivas = !notificacionesActivas;
-        document.getElementById("toggle-notif").textContent = notificacionesActivas ? "🔔 Notificaciones: ON" : "🔕 Notificaciones: OFF";
-    }
+        function reproducirSonido() {
+            if (sonidoActivo && !sonidoEnProgreso) {  
+                sonidoEnProgreso = true;
+                let audio = new Audio("http://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
+        
+                audio.play().catch(error => {
+                    console.warn("⚠️ No se pudo reproducir el sonido. Revisa el enlace del audio.", error);
+                });
 
-    // 🔹 Función para alternar sonido
-    function toggleSonido() {
-        sonidoActivo = !sonidoActivo;
-        document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
-    }
+                setTimeout(() => {
+                    sonidoEnProgreso = false;
+                }, 2000);
+            }
+        }
+
+        function toggleNotificaciones() {
+            notificacionesActivas = !notificacionesActivas;
+            document.getElementById("toggle-notif").textContent = notificacionesActivas ? "🔔 Notificaciones: ON" : "🔕 Notificaciones: OFF";
+        }
+
+        function toggleSonido() {
+            sonidoActivo = !sonidoActivo;
+            document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
+        }
 
         function cargarMensajes() {
             const tabla = document.getElementById("mensajes-table");
             if (!tabla) return;
+
             fetch("/mensajes")
             .then(response => response.json())
             .then(mensajes => {
@@ -203,40 +206,27 @@
             });
         }
 
-       // 🔹 Cambiar estado del mensaje
-    function cambiarEstado(id, nuevoEstado) {
-        fetch("/actualizar_estado", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: id, estado: nuevoEstado })
-        })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.mensaje);
-                filtrarMensajes(""); // Recargar tabla después de cambiar estado
-            });
-    }
-
-       // 🔹 Función para eliminar un mensaje
-    function eliminarMensaje(id) {
-        if (confirm("¿Estás seguro de que quieres eliminar este mensaje? Esta acción no se puede deshacer.")) {
-            fetch("/eliminar_mensaje", {
+        function cambiarEstado(id, nuevoEstado) {
+            fetch("/actualizar_estado", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: id })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.mensaje);
-                    filtrarMensajes(""); // Recargar tabla después de eliminar
-                });
+                body: JSON.stringify({ id, estado: nuevoEstado })
+            }).then(() => cargarMensajes());
         }
-    }
 
-        // 🔹 Cargar mensajes al inicio
-    window.onload = function () {
-        filtrarMensajes("");
-    };
+        function eliminarMensaje(id) {
+            if (confirm("¿Estás seguro de eliminar este mensaje?")) {
+                fetch("/eliminar_mensaje", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id })
+                }).then(() => cargarMensajes());
+            }
+        }
+
+        window.onload = function () {
+            cargarMensajes();
+        };
     </script>
 </body>
 </html>
