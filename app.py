@@ -43,14 +43,32 @@ def recibir_mensaje():
         return jsonify({"error": str(e)}), 500
 
 
-    # 🔹 Emitir evento de nuevo mensaje a todos los clientes conectados
-    socketio.emit("nuevo_mensaje", {
-        "plataforma": plataforma,
-        "remitente": remitente,
-        "mensaje": mensaje
-    }, to=None)
+# 📌 Endpoint para contestar al cliente
+@app.route("/enviar_respuesta", methods=["POST"])
+def enviar_respuesta():
+    try:
+        datos = request.json
+        remitente = datos.get("remitente")
+        mensaje = datos.get("mensaje")
 
-    return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
+        if not remitente or not mensaje:
+            return jsonify({"error": "Faltan datos"}), 400
+
+        conn = conectar_db()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (?, ?, ?, 'Enviado')",
+                       ("CRM", remitente, mensaje))
+        conn.commit()
+        conn.close()
+
+        # 🔹 Emitir la respuesta a través de WebSockets
+        socketio.emit("respuesta_mensaje", {"remitente": remitente, "mensaje": mensaje})
+
+        return jsonify({"mensaje": "Respuesta enviada correctamente"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 # 📌 Endpoint para consultar los mensajes (con filtro opcional por estado)
