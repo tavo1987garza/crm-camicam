@@ -104,6 +104,10 @@
         
         <div id="mensajes" class="seccion hidden">
             <h1>📩 Mensajes</h1>
+            <button onclick="filtrarMensajes('')">🔄 Todos</button>
+            <button onclick="filtrarMensajes('Nuevo')">🟢 Nuevos</button>
+            <button onclick="filtrarMensajes('En proceso')">🟡 En proceso</button>
+            <button onclick="filtrarMensajes('Finalizado')">🔴 Finalizados</button>
             <table>
                 <thead>
                     <tr>
@@ -154,46 +158,25 @@
             document.getElementById(seccion).classList.remove('hidden');
         }
 
-        let contactoActual = "";
-        function cargarConversaciones() {
-            fetch("/conversaciones")
-            .then(response => response.json())
-            .then(conversaciones => {
-                let lista = document.getElementById("chat-list");
-                lista.innerHTML = "";
-                conversaciones.forEach(conv => {
-                    let div = document.createElement("div");
-                    div.textContent = conv.remitente;
-                    div.onclick = () => cargarMensajes(conv.remitente);
-                    lista.appendChild(div);
-                });
-            });
-        }
-
-        function cargarMensajes(remitente) {
-            contactoActual = remitente;
-            fetch(`/mensajes_chat?remitente=${remitente}`)
+        function filtrarMensajes(estado) {
+            let url = "/mensajes";
+            if (estado) {
+                url += "?estado=" + encodeURIComponent(estado);
+            }
+            fetch(url)
             .then(response => response.json())
             .then(mensajes => {
-                let chatBox = document.getElementById("chat-messages");
-                chatBox.innerHTML = "";
+                let tabla = document.getElementById("mensajes-table");
+                tabla.innerHTML = "";
                 mensajes.forEach(msg => {
-                    let div = document.createElement("div");
-                    div.textContent = `${msg.remitente}: ${msg.mensaje}`;
-                    chatBox.appendChild(div);
+                    let row = tabla.insertRow();
+                    row.insertCell(0).textContent = msg.id;
+                    row.insertCell(1).textContent = msg.plataforma;
+                    row.insertCell(2).textContent = msg.remitente;
+                    row.insertCell(3).textContent = msg.mensaje;
+                    row.insertCell(4).textContent = msg.estado;
                 });
             });
-        }
-
-        function enviarMensaje() {
-            let mensaje = document.getElementById("mensaje-input").value;
-            if (!mensaje || !contactoActual) return;
-            fetch("/enviar_mensaje", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ remitente: contactoActual, mensaje: mensaje })
-            })
-            .then(() => cargarMensajes(contactoActual));
         }
     </script>
 </body>
