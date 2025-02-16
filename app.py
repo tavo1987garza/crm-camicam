@@ -48,10 +48,13 @@ def recibir_mensaje():
 def enviar_respuesta():
     try:
         datos = request.json
+        print("📥 Datos recibidos:", datos)  # 🔹 Agrega este log para ver qué está recibiendo
+
         remitente = datos.get("remitente")
         mensaje = datos.get("mensaje")
 
         if not remitente or not mensaje:
+            print("⚠️ Faltan datos en la solicitud")  # 🔹 Log adicional
             return jsonify({"error": "Faltan datos"}), 400
 
         conn = conectar_db()
@@ -61,13 +64,15 @@ def enviar_respuesta():
         conn.commit()
         conn.close()
 
-        # 🔹 Emitir la respuesta a través de WebSockets
         socketio.emit("respuesta_mensaje", {"remitente": remitente, "mensaje": mensaje})
+        print("✅ Mensaje enviado correctamente")
 
         return jsonify({"mensaje": "Respuesta enviada correctamente"}), 200
 
     except Exception as e:
+        print("❌ Error en /enviar_respuesta:", str(e))  # 🔹 Agrega esto para ver el error exacto
         return jsonify({"error": str(e)}), 500
+
 
 
 
