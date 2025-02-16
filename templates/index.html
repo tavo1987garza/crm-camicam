@@ -98,11 +98,11 @@
             </table>
         </div>
 
-        <div id="conversaciones" class="seccion hidden">
-            <h1>💬 Conversaciones</h1>
+        <div id="chat" class="seccion hidden">
+            <h1>💬 Chat</h1>
             <div class="chat-container">
                 <div class="chat-list" id="chat-list">
-                    <!-- Lista de contactos dinámicos -->
+                    <input type="text" id="buscar-chat" placeholder="Buscar..." oninput="filtrarConversaciones()">
                 </div>
                 <div class="chat-box">
                     <div class="chat-messages" id="chat-messages"></div>
@@ -200,7 +200,6 @@
             document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
         }
 
-        let contactoActual = "";
         function cargarConversaciones() {
             fetch("/conversaciones")
             .then(response => response.json())
@@ -210,13 +209,13 @@
                 conversaciones.forEach(conv => {
                     let div = document.createElement("div");
                     div.textContent = conv.remitente;
-                    div.onclick = () => cargarMensajes(conv.remitente);
+                    div.onclick = () => cargarMensajesChat(conv.remitente);
                     lista.appendChild(div);
                 });
             });
         }
-        function cargarMensajes(remitente) {
-            contactoActual = remitente;
+
+        function cargarMensajesChat(remitente) {
             fetch(`/mensajes_chat?remitente=${remitente}`)
             .then(response => response.json())
             .then(mensajes => {
@@ -232,13 +231,12 @@
 
         function enviarMensaje() {
             let mensaje = document.getElementById("mensaje-input").value;
-            if (!mensaje || !contactoActual) return;
             fetch("/enviar_mensaje", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ remitente: contactoActual, mensaje: mensaje })
+                body: JSON.stringify({ mensaje: mensaje })
             })
-            .then(() => cargarMensajes(contactoActual));
+            .then(() => document.getElementById("mensaje-input").value = "");
         }
 
         function cargarMensajes() {
