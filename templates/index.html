@@ -119,6 +119,21 @@
             if (sonidoActivo) reproducirSonido();
         });
 
+        function mostrarNotificacion(data) {
+            alert(`📩 Nuevo mensaje de ${data.remitente}: "${data.mensaje}"`);
+        }
+
+        function reproducirSonido() {
+            if (sonidoActivo && !sonidoEnProgreso) {
+                sonidoEnProgreso = true;
+                let audio = new Audio("http://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
+                audio.play().catch(error => console.log("⚠️ No se pudo reproducir el sonido:", error));
+                setTimeout(() => {
+                    sonidoEnProgreso = false;
+                }, 2000);
+            }
+        }
+
         function toggleSonido() {
             sonidoActivo = !sonidoActivo;
             document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
