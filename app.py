@@ -15,9 +15,20 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 def conectar_db():
-    DATABASE_URL = os.environ.get("postgres://u34n6dp3djdic3:pb51780d982d6a010b1a2e35edff3181144ba8c8add56065271b8c4279b2a31fb@cat670aihdrkt1.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d2urvhs5f7ahd6")  # Obtiene la URL desde las variables de entorno
-    conn = psycopg2.connect(DATABASE_URL, sslmode="require")
-    return conn
+    try:
+        DATABASE_URL = os.environ.get("DATABASE_URL")
+        
+        # Asegurar compatibilidad con psycopg2 (Heroku usa "postgres://", pero psycopg2 necesita "postgresql://")
+        if DATABASE_URL.startswith("postgres://"):
+            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+        conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+        return conn
+
+    except Exception as e:
+        print("❌ Error al conectar con la base de datos:", str(e))
+        return None
+
 
 # Ruta para Leads
 @app.route("/leads", methods=["GET"])
