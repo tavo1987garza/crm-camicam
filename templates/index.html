@@ -107,7 +107,7 @@
         <h2>CRM Camicam</h2>
         <button onclick="mostrarSeccion('panel')">📊 Panel</button>
         <button onclick="mostrarSeccion('leads', cargarLeads)">📩 Leads</button>
-        <button onclick="mostrarSeccion('chat')">💬 Chat</button>
+        <button onclick="mostrarSeccion('chat', cargarChat)">💬 Chat</button>
         <button onclick="mostrarSeccion('reportes')">📈 Reportes</button>
         <button onclick="mostrarSeccion('configuracion')">⚙️ Configuración</button>
     </div>
@@ -135,12 +135,10 @@
             </table>
         </div>
 
-        <div id="chat" class="seccion hidden">
+        <div id="chat" class="seccion">
             <h1>💬 Chat</h1>
             <div class="chat-container">
-                <div class="chat-list" id="chat-list">
-                    <input type="text" id="buscar-chat" placeholder="Buscar..." oninput="filtrarConversaciones()">
-                </div>
+                <div class="chat-list" id="chat-list"></div>
                 <div class="chat-box">
                     <div class="chat-messages" id="chat-messages"></div>
                     <div class="chat-input">
@@ -238,42 +236,61 @@
         }
 
         function cargarChat() {
-            fetch("/chat")
-            .then(response => response.json())
-            .then(chats => {
-                let lista = document.getElementById("chat-list");
-                lista.innerHTML = "";
-                chats.forEach(conv => {
-                    let div = document.createElement("div");
-                    div.textContent = conv.nombre;
-                    div.onclick = () => cargarMensajesChat(conv.id);
-                    lista.appendChild(div);
+            fetch("/mensajes")
+                .then(response => response.json())
+                .then(mensajes => {
+                    let lista = document.getElementById("chat-list");
+                    lista.innerHTML = "";
+                    let remitentes = {};
+
+                    mensajes.forEach(msg => {
+                        if (!remitentes[msg.remitente]) {
+                            remitentes[msg.remitente] = [];
+                        }
+                        remitentes[msg.remitente].push(msg);
+                    });
+
+                    Object.keys(remitentes).forEach(remitente => {
+                        let div = document.createElement("div");
+                        div.textContent = remitente;
+                        div.setAttribute("data-remitente", remitente);
+                        div.onclick = () => mostrarMensajesDe(remitente);
+                        lista.appendChild(div);
+                    });
                 });
-            });
         }
 
-        function cargarMensajesChat(id) {
-            fetch(`/mensajes_chat?id=${id}`)
-            .then(response => response.json())
-            .then(mensajes => {
-                let chatBox = document.getElementById("chat-messages");
-                chatBox.innerHTML = "";
-                mensajes.forEach(msg => {
-                    let div = document.createElement("div");
-                    div.textContent = `${msg.nombre}: ${msg.mensaje}`;
-                    chatBox.appendChild(div);
+        function mostrarMensajesDe(remitente) {
+            fetch(`/mensajes?remitente=${remitente}`)
+                .then(response => response.json())
+                .then(mensajes => {
+                    let chatBox = document.getElementById("chat-messages");
+                    chatBox.setAttribute("data-remitente", remitente);
+                    chatBox.innerHTML = "";
+                    mensajes.forEach(msg => {
+                        let div = document.createElement("div");
+                        div.textContent = `${msg.remitente}: ${msg.mensaje}`;
+                        chatBox.appendChild(div);
+                    });
                 });
-            });
         }
 
         function enviarMensaje() {
             let mensaje = document.getElementById("mensaje-input").value;
-            fetch("/enviar_mensaje", {
+            fetch("/recibir_mensaje", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ mensaje })
-            }).then(() => document.getElementById("mensaje-input").value = "");
+                body: JSON.stringify({ plataforma: "CRM", remitente: "Usuario", mensaje })
+            }).then(() => {
+                document.getElementById("mensaje-input").value = "";
+                cargarChat();
+            });
         }
+
+        socket.on("nuevo_mensaje", (data) => {
+            console.log("📩 Nuevo mensaje recibido:", data);
+            cargarChat();
+        });
 
         function cargarLeads() {
             fetch("/leads")
@@ -315,12 +332,10 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id })
                 }).then(() => cargarLeads());
-            }
+             }
         }
 
-        window.onload = function () {
-            cargarLeads();
-        };
+        
     </script>
 </body>
 </html>
