@@ -172,18 +172,10 @@
         }
 
         // 🔹 Conectar con WebSockets
-const socket = io.connect(window.location.origin, { transports: ["websocket", "polling"] });
+        let socket = io.connect(window.location.origin);
+        let sonidoActivo = true;
 
-socket.on("connect", () => {
-    console.log("✅ Conectado a WebSockets.");
-});
-
-socket.on("connect_error", (error) => {
-    console.error("❌ Error en la conexión WebSocket:", error);
-});
-
-let socket = io.connect(window.location.origin);
-let sonidoActivo = true;
+       
 
 socket.on("nuevo_mensaje", (data) => {
     let chatBox = document.getElementById("chat-messages");
