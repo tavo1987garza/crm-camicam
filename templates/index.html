@@ -602,19 +602,24 @@ document.body.addEventListener("click", function () {
                     lista.innerHTML = "";
                     let remitentes = {};
         
-                    // Agrupar mensajes por remitente
+                    // Agrupar mensajes por remitente y obtener el último
                     mensajes.forEach(msg => {
                         if (!remitentes[msg.remitente]) {
-                            remitentes[msg.remitente] = { mensajes: [], ultimaHora: "" };
+                            remitentes[msg.remitente] = { mensajes: [] };
                         }
                         remitentes[msg.remitente].mensajes.push(msg);
-                        remitentes[msg.remitente].ultimaHora = msg.hora; // Guarda la hora del último mensaje
                     });
         
                     // Crear los elementos de la lista de chats
                     Object.keys(remitentes).forEach(remitente => {
-                        let ultimoMensaje = remitentes[remitente].mensajes.slice(-1)[0]?.mensaje || "";
-                        let horaUltimoMensaje = remitentes[remitente].ultimaHora || "--:--";
+                        let mensajesRemitente = remitentes[remitente].mensajes;
+        
+                        // 🔹 Ordenamos los mensajes por fecha y obtenemos el más reciente
+                        mensajesRemitente.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                        let ultimoMensaje = mensajesRemitente[mensajesRemitente.length - 1]; // Obtener el último
+        
+                        let mensajeTexto = ultimoMensaje.mensaje || "";
+                        let horaUltimoMensaje = ultimoMensaje.hora || "--:--";
         
                         let div = document.createElement("div");
                         div.classList.add("chat-item");
@@ -623,11 +628,11 @@ document.body.addEventListener("click", function () {
                             seleccionarChat(div);
                         };
         
-                        // Foto de perfil (puedes cambiarla por fotos reales si tienes)
+                        // Foto de perfil
                         let img = document.createElement("img");
-                        img.src = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"; // Ícono genérico
+                        img.src = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
         
-                        // Contenedor de la info del chat
+                        // Contenedor de info
                         let infoDiv = document.createElement("div");
                         infoDiv.classList.add("chat-info");
         
@@ -637,7 +642,7 @@ document.body.addEventListener("click", function () {
         
                         let lastMsg = document.createElement("div");
                         lastMsg.classList.add("chat-last-message");
-                        lastMsg.textContent = ultimoMensaje.length > 30 ? ultimoMensaje.slice(0, 30) + "..." : ultimoMensaje;
+                        lastMsg.textContent = mensajeTexto.length > 30 ? mensajeTexto.slice(0, 30) + "..." : mensajeTexto;
         
                         let time = document.createElement("div");
                         time.classList.add("chat-time");
@@ -656,7 +661,7 @@ document.body.addEventListener("click", function () {
                 .catch(error => console.error("❌ Error al cargar chats:", error));
         }
         
-        
+        //Funcion para seleccionar los chats a un lado del chatbox (Telefono)
         function seleccionarChat(chatDiv) {
             document.querySelectorAll(".chat-item").forEach(div => div.classList.remove("selected"));
             chatDiv.classList.add("selected");
