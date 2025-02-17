@@ -136,40 +136,89 @@
             justify-content: center;
         }
         
-        /* 🔹 Lista de chats */
-        .chat-list {
-            width: 250px;
-            background: #f1f1f1;
-            border-radius: 10px;
-            padding: 10px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
         
-        .chat-list h3 {
-            text-align: center;
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        
-        .chat-item {
-            padding: 10px;
-            background: white;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 5px;
-            transition: background 0.3s;
-        }
-        
-        .chat-item:hover {
-            background: #ddd;
-        }
-        
-        .chat-item.selected {
-            background: #075e54;
-            color: white;
-        }
+        /* 🔹 Contenedor de la lista de chats */
+.chat-list {
+    width: 280px;
+    background: #f1f1f1;
+    border-radius: 10px;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* 🔹 Estilos del título "Chats" */
+.chat-list h1 {
+    text-align: center;
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #075e54;
+}
+
+/* 🔹 Tarjeta de chat individual */
+.chat-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 5px;
+    transition: background 0.3s ease-in-out;
+    position: relative;
+}
+
+/* 🔹 Resaltar el chat seleccionado */
+.chat-item.selected {
+    background: #d4f8c6;
+}
+
+/* 🔹 Imagen de perfil del chat */
+.chat-item img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+/* 🔹 Contenedor de la info del chat */
+.chat-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* 🔹 Nombre del contacto */
+.chat-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* 🔹 Último mensaje (pequeño y gris) */
+.chat-last-message {
+    font-size: 14px;
+    color: #777;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+
+/* 🔹 Hora del último mensaje (arriba a la derecha) */
+.chat-time {
+    font-size: 12px;
+    color: #888;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+}
+
+
+
         
         /* 🔹 Contenedor del teléfono */
         .phone {
@@ -290,6 +339,7 @@
             }
         }
         
+
 
     </style>
 </head>
@@ -552,25 +602,60 @@ document.body.addEventListener("click", function () {
                     lista.innerHTML = "";
                     let remitentes = {};
         
+                    // Agrupar mensajes por remitente
                     mensajes.forEach(msg => {
                         if (!remitentes[msg.remitente]) {
-                            remitentes[msg.remitente] = [];
+                            remitentes[msg.remitente] = { mensajes: [], ultimaHora: "" };
                         }
-                        remitentes[msg.remitente].push(msg);
+                        remitentes[msg.remitente].mensajes.push(msg);
+                        remitentes[msg.remitente].ultimaHora = msg.hora; // Guarda la hora del último mensaje
                     });
         
+                    // Crear los elementos de la lista de chats
                     Object.keys(remitentes).forEach(remitente => {
+                        let ultimoMensaje = remitentes[remitente].mensajes.slice(-1)[0]?.mensaje || "";
+                        let horaUltimoMensaje = remitentes[remitente].ultimaHora || "--:--";
+        
                         let div = document.createElement("div");
-                        div.textContent = remitente;
-                        div.setAttribute("data-remitente", remitente);
                         div.classList.add("chat-item");
+                        div.setAttribute("data-remitente", remitente);
                         div.onclick = function () {
                             seleccionarChat(div);
                         };
+        
+                        // Foto de perfil (puedes cambiarla por fotos reales si tienes)
+                        let img = document.createElement("img");
+                        img.src = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"; // Ícono genérico
+        
+                        // Contenedor de la info del chat
+                        let infoDiv = document.createElement("div");
+                        infoDiv.classList.add("chat-info");
+        
+                        let name = document.createElement("div");
+                        name.classList.add("chat-name");
+                        name.textContent = remitente;
+        
+                        let lastMsg = document.createElement("div");
+                        lastMsg.classList.add("chat-last-message");
+                        lastMsg.textContent = ultimoMensaje.length > 30 ? ultimoMensaje.slice(0, 30) + "..." : ultimoMensaje;
+        
+                        let time = document.createElement("div");
+                        time.classList.add("chat-time");
+                        time.textContent = horaUltimoMensaje;
+        
+                        infoDiv.appendChild(name);
+                        infoDiv.appendChild(lastMsg);
+        
+                        div.appendChild(img);
+                        div.appendChild(infoDiv);
+                        div.appendChild(time);
+        
                         lista.appendChild(div);
                     });
-                });
+                })
+                .catch(error => console.error("❌ Error al cargar chats:", error));
         }
+        
         
         function seleccionarChat(chatDiv) {
             document.querySelectorAll(".chat-item").forEach(div => div.classList.remove("selected"));
