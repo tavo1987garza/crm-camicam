@@ -182,34 +182,47 @@ socket.on("connect_error", (error) => {
     console.error("❌ Error en la conexión WebSocket:", error);
 });
 
-// 🔹 Escuchar eventos de nuevos mensajes
+let socket = io.connect(window.location.origin);
+let sonidoActivo = true;
+
 socket.on("nuevo_mensaje", (data) => {
-    console.log("📩 Nuevo mensaje recibido:", data);
-
     let chatBox = document.getElementById("chat-messages");
-    let chatAbierto = chatBox.getAttribute("data-remitente");
-
-    if (chatAbierto === data.remitente) {
-        cargarMensajes();  // Refrescar la conversación activa
-    } else {
-        let chatItem = document.querySelector(#chat-list div[data-remitente="${data.remitente}"]);
-        if (chatItem) chatItem.style.fontWeight = "bold"; // Resaltar chat con mensajes nuevos
+    let div = document.createElement("div");
+    div.textContent = `${data.remitente}: ${data.mensaje}`;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    if (sonidoActivo) {
+        let audio = new Audio("http://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
+        audio.play();
     }
-
-    // Mostrar la notificación
-    let alerta = document.getElementById("alerta-mensaje");
-    alerta.textContent = 📩 Nuevo mensaje de ${data.remitente}: "${data.mensaje}";
-    alerta.style.display = "block";
-
-    setTimeout(() => {
-        alerta.style.display = "none";
-    }, 5000);
-
-    reproducirSonido();
 });
 
+function enviarMensaje() {
+    let input = document.getElementById("mensaje-input");
+    let mensaje = input.value.trim();
+    if (!mensaje) return;
+
+    fetch("/enviar_respuesta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ remitente: "cliente", mensaje })
+    })
+    .then(response => response.json())
+    .then(data => {
+        let chatBox = document.getElementById("chat-messages");
+        let div = document.createElement("div");
+        div.textContent = `Tú: ${mensaje}`;
+        div.style.fontWeight = "bold";
+        chatBox.appendChild(div);
+        input.value = "";
+    })
+    .catch(error => console.error("Error al enviar mensaje:", error));
+}
+
+
+
 function cargarMensajesChat(remitente) {
-    fetch(/mensajes_chat?id=${remitente})
+    fetch(`/mensajes_chat?id=${remitente}`)
         .then(response => response.json())
         .then(mensajes => {
             let chatBox = document.getElementById("chat-messages");
@@ -217,7 +230,7 @@ function cargarMensajesChat(remitente) {
 
             mensajes.forEach(msg => {
                 let div = document.createElement("div");
-                div.textContent = ${msg.tipo === "enviado" ? "Tú" : msg.remitente}: ${msg.mensaje};
+                div.textContent = `${msg.tipo === "enviado" ? "Tú" : msg.remitente}: ${msg.mensaje}`;
                 div.style.fontWeight = msg.tipo === "enviado" ? "bold" : "normal";
                 chatBox.appendChild(div);
             });
@@ -295,7 +308,7 @@ function cargarMensajesChat(remitente) {
         
 
         function mostrarMensajesDe(remitente) {
-            fetch(/mensajes?remitente=${remitente})
+            fetch(`/mensajes?remitente=${remitente}`)
                 .then(response => response.json())
                 .then(mensajes => {
                     let chatBox = document.getElementById("chat-messages");
@@ -303,7 +316,7 @@ function cargarMensajesChat(remitente) {
                     chatBox.innerHTML = "";
                     mensajes.forEach(msg => {
                         let div = document.createElement("div");
-                        div.textContent = ${msg.remitente}: ${msg.mensaje};
+                        div.textContent = `${msg.remitente}: ${msg.mensaje}`;
                         chatBox.appendChild(div);
                     });
                 });
@@ -316,85 +329,17 @@ function cargarMensajesChat(remitente) {
         
             if (!remitente) return; // No hacer nada si no hay un chat abierto
         
-            fetch(/mensajes?remitente=${remitente})
+            fetch(`/mensajes?remitente=${remitente}`)
                 .then(response => response.json())
                 .then(mensajes => {
                     chatBox.innerHTML = "";
                     mensajes.forEach(msg => {
                         let div = document.createElement("div");
-                        div.textContent = ${msg.remitente}: ${msg.mensaje};
+                        div.textContent = `${msg.remitente}: ${msg.mensaje}`;
                         chatBox.appendChild(div);
                     });
                 });
         }
-        
-        //Para que el CRM reciba el mensaje del cliente en tiempo real
-        socket.on("nuevo_mensaje", (data) => {
-            console.log("📩 Nuevo mensaje recibido:", data);
-        
-            let chatBox = document.getElementById("chat-messages");
-            let chatAbierto = chatBox.getAttribute("data-remitente");
-        
-            if (chatAbierto === data.remitente) {
-                cargarMensajes();  // Refrescar la conversación activa
-            } else {
-                let chatItem = document.querySelector(#chat-list div[data-remitente="${data.remitente}"]);
-                if (chatItem) chatItem.style.fontWeight = "bold"; // Resaltar chat con mensajes nuevos
-            }
-        
-            cargarChat(); // Actualizar la lista de conversaciones
-        });
-        
-        //Función para responder al cliente
-        function enviarMensaje() {
-            let input = document.getElementById("mensaje-input");
-            let mensaje = input.value.trim();
-            let chatSeleccionado = document.querySelector(".chat-list div.selected");
-        
-            if (!mensaje) {
-                alert("Escribe un mensaje antes de enviar.");
-                return;
-            }
-        
-            if (!chatSeleccionado) {
-                alert("Selecciona un chat antes de enviar un mensaje.");
-                return;
-            }
-        
-            let remitente = chatSeleccionado.getAttribute("data-remitente");
-        
-            fetch("/enviar_respuesta", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ remitente: remitente, mensaje: mensaje })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert("Error al enviar mensaje: " + data.error);
-                } else {
-                    let chatBox = document.getElementById("chat-messages");
-                    let div = document.createElement("div");
-                    div.textContent = "Tú: " + mensaje;
-                    div.style.fontWeight = "bold";
-                    chatBox.appendChild(div);
-                    input.value = "";
-                }
-            })
-            .catch(error => console.error("❌ Error al enviar mensaje:", error));
-        }
-        
-        //Para que el cliente reciba la respuesta en tiempo real
-        socket.on("respuesta_mensaje", (data) => {
-            console.log("📩 Respuesta enviada:", data);
-        
-            let chatBox = document.getElementById("chat-messages");
-            let chatAbierto = chatBox.getAttribute("data-remitente");
-        
-            if (chatAbierto === data.remitente) {
-                cargarMensajes();  // Recargar la conversación actual en tiempo real
-            }
-        });
         
 
     
@@ -415,9 +360,9 @@ function cargarMensajesChat(remitente) {
                     let acciones = row.insertCell(4);
                     let opciones = "";
                     if (lead.estado !== "Finalizado") {
-                        opciones += <button onclick="cambiarEstado(${lead.id}, 'Interes')">📌 Interés</button>;
-                        opciones += <button onclick="cambiarEstado(${lead.id}, 'Seguimiento')">📞 Seguimiento</button>;
-                        opciones += <button onclick="cambiarEstado(${lead.id}, 'Finalizado')">✅ Finalizado</button>;
+                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Interes')">📌 Interés</button>`;
+                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Seguimiento')">📞 Seguimiento</button>`;
+                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Finalizado')">✅ Finalizado</button>`;
                     }
                     acciones.innerHTML = opciones;
                 });
