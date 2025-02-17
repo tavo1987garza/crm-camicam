@@ -37,34 +37,33 @@ def obtener_leads():
     return jsonify([])  # Devuelve una lista vacía para evitar errores
 
 
-# 📌 Endpoint para recibir mensajes y emitir notificación en tiempo real
+# 📌 Endpoint para recibir mensajes desde whatsapp
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
-    try:
-        datos = request.json
-        plataforma = datos.get("plataforma")
-        remitente = datos.get("remitente")
-        mensaje = datos.get("mensaje")
+    datos = request.json
+    plataforma = datos.get("plataforma")
+    remitente = datos.get("remitente")
+    mensaje = datos.get("mensaje")
 
-        if not plataforma or not remitente or not mensaje:
-            return jsonify({"error": "Faltan datos"}), 400
+    if not plataforma or not remitente or not mensaje:
+        return jsonify({"error": "Faltan datos"}), 400
 
-        conn = conectar_db()
-        cursor = conn.cursor()
-        cursor.execute(
-    "INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, 'Nuevo', 'recibido')",
-    ("CRM", remitente, mensaje)
-                       )
-        conn.commit()
-        conn.close()
+    # Guardar el mensaje en la base de datos
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, 'Nuevo', 'recibido')",
+                   (plataforma, remitente, mensaje))
+    conn.commit()
+    conn.close()
 
+    # 🔹 Emitir evento de nuevo mensaje en tiempo real
+    socketio.emit("nuevo_mensaje", {
+        "plataforma": plataforma,
+        "remitente": remitente,
+        "mensaje": mensaje
+    })
 
-        socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje})
-
-        return jsonify({"mensaje": "Mensaje recibido correctamente"})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
 
 
 # 📌 Endpoint para contestar al cliente
@@ -187,8 +186,8 @@ def eliminar_mensaje():
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")
 def dashboard():
-    return render_template("index.html")  # Flask busca este archivo en `templates/`
+    return render_template("index.html")
 
 # 📌 Iniciar la app con WebSockets
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
