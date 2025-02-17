@@ -125,6 +125,128 @@
             border: none;
             cursor: pointer;
         }
+
+        /* 🔹 Fondo general */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #121212; /* Fondo oscuro simulando un celular apagado */
+}
+
+/* 🔹 Contenedor del teléfono */
+.phone {
+    width: 360px;
+    height: 600px;
+    background: #fff;
+    border-radius: 30px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 8px solid #000;
+    position: relative;
+}
+
+/* 🔹 Barra superior simulando el header del chat */
+.phone-header {
+    background: #075e54;
+    color: white;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.phone-header .icons {
+    display: flex;
+    gap: 10px;
+}
+
+.phone-header img {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+}
+
+/* 🔹 Estilo del chat */
+.chat-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
+    background-image: url("https://www.transparenttextures.com/patterns/cubes.png");
+    background-color: #efe7dd; /* Color típico de WhatsApp */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 🔹 Mensajes */
+.mensaje {
+    max-width: 70%;
+    padding: 10px;
+    border-radius: 15px;
+    margin: 5px;
+    word-wrap: break-word;
+    font-size: 14px;
+    position: relative;
+}
+
+/* 🔹 Mensaje ENVIADO (alineado a la derecha) */
+.mensaje-enviado {
+    background: #dcf8c6;
+    align-self: flex-end;
+    text-align: left;
+    position: relative;
+}
+
+/* 🔹 Mensaje RECIBIDO (alineado a la izquierda) */
+.mensaje-recibido {
+    background: white;
+    border: 1px solid #ddd;
+    align-self: flex-start;
+    text-align: left;
+}
+
+/* 🔹 Icono de "visto" en los mensajes enviados */
+.mensaje-enviado::after {
+    content: "✔✔";
+    font-size: 12px;
+    color: blue;
+    position: absolute;
+    bottom: 5px;
+    right: 8px;
+}
+
+/* 🔹 Input de texto y botón */
+.chat-input {
+    display: flex;
+    padding: 10px;
+    background: white;
+    border-top: 1px solid #ccc;
+}
+
+.chat-input input {
+    flex-grow: 1;
+    padding: 10px;
+    border: none;
+    outline: none;
+    border-radius: 20px;
+    background: #f1f1f1;
+}
+
+.chat-input button {
+    padding: 10px;
+    background: #25d366;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 20px;
+    margin-left: 5px;
+}
+
     </style>
 </head>
 <body>
@@ -160,24 +282,37 @@
             </table>
         </div>
 
-        <div id="chat" class="seccion hidden">
-            <h1>💬 Chat</h1>
-            <div class="chat-container">
-                <div class="chat-list" id="chat-list"></div>
-                <div class="chat-box">
-                    <div class="chat-messages" id="chat-messages"></div>
-                    <div class="chat-input">
-                        <input type="text" id="mensaje-input" placeholder="Escribe un mensaje...">
-                        <button onclick="enviarMensaje()">Enviar</button>
+             <div id="chat" class="seccion hidden">
+             <h1>💬 Chat</h1>
+             <div class="phone">
+                <!-- 🔹 Barra superior (nombre y estado del chat) -->
+                <div class="phone-header">
+                    <div class="user-info">
+                        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                        <span id="chat-usuario">Usuario</span>
+                    </div>
+                    <div class="icons">
+                        <span>📶</span>
+                        <span>🔋</span>
                     </div>
                 </div>
+            
+                <!-- 🔹 Chat -->
+                <div class="chat-messages" id="chat-messages"></div>
+            
+                <!-- 🔹 Input para enviar mensajes -->
+                <div class="chat-input">
+                    <input type="text" id="mensaje-input" placeholder="Escribe un mensaje...">
+                    <button onclick="enviarMensaje()">📤</button>
+                </div>
             </div>
-        </div>
+            
+             </div>
         
-        <div id="reportes" class="seccion hidden">
+         <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
             <p>Sección de reportes y estadísticas.</p>
-        </div>
+         </div>
         
         <div id="configuracion" class="seccion hidden">
             <h1>⚙️ Configuración</h1>
@@ -296,6 +431,8 @@ document.getElementById("mensaje-input").addEventListener("keydown", function (e
 
 //Vista de mensajes en el Chatbox
 function cargarMensajesChat(remitente) {
+    document.getElementById("chat-usuario").textContent = remitente; // Cambiar el nombre en la barra
+
     fetch(`/mensajes_chat?id=${remitente}`)
         .then(response => response.json())
         .then(mensajes => {
@@ -308,9 +445,9 @@ function cargarMensajesChat(remitente) {
                 div.classList.add("mensaje");
 
                 if (msg.tipo === "enviado") {
-                    div.classList.add("mensaje-enviado"); // Mensajes alineados a la derecha
+                    div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
                 } else {
-                    div.classList.add("mensaje-recibido"); // Mensajes alineados a la izquierda
+                    div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
                 }
 
                 chatBox.appendChild(div);
@@ -320,6 +457,7 @@ function cargarMensajesChat(remitente) {
         })
         .catch(error => console.error("❌ Error al cargar mensajes:", error));
 }
+
 
 
 
