@@ -242,23 +242,29 @@
                     let lista = document.getElementById("chat-list");
                     lista.innerHTML = "";
                     let remitentes = {};
-
+        
                     mensajes.forEach(msg => {
                         if (!remitentes[msg.remitente]) {
                             remitentes[msg.remitente] = [];
                         }
                         remitentes[msg.remitente].push(msg);
                     });
-
+        
                     Object.keys(remitentes).forEach(remitente => {
                         let div = document.createElement("div");
                         div.textContent = remitente;
                         div.setAttribute("data-remitente", remitente);
-                        div.onclick = () => mostrarMensajesDe(remitente);
+                        div.onclick = () => seleccionarChat(div);
                         lista.appendChild(div);
                     });
                 });
         }
+        
+        function seleccionarChat(chatDiv) {
+            document.querySelectorAll(".chat-list div").forEach(div => div.classList.remove("selected"));
+            chatDiv.classList.add("selected");
+        }
+        
 
         function mostrarMensajesDe(remitente) {
             fetch(`/mensajes?remitente=${remitente}`)
@@ -317,12 +323,19 @@
         function enviarMensaje() {
             let input = document.getElementById("mensaje-input");
             let mensaje = input.value.trim();
-            let remitente = document.querySelector(".chat-list div.selected")?.getAttribute("data-remitente");
+            let chatSeleccionado = document.querySelector(".chat-list div.selected");
         
-            if (!mensaje || !remitente) {
-                alert("Selecciona un chat y escribe un mensaje.");
+            if (!mensaje) {
+                alert("Escribe un mensaje antes de enviar.");
                 return;
             }
+        
+            if (!chatSeleccionado) {
+                alert("Selecciona un chat antes de enviar un mensaje.");
+                return;
+            }
+        
+            let remitente = chatSeleccionado.getAttribute("data-remitente");
         
             fetch("/enviar_respuesta", {
                 method: "POST",
@@ -334,18 +347,17 @@
                 if (data.error) {
                     alert("Error al enviar mensaje: " + data.error);
                 } else {
-                    // Agregar el mensaje enviado al chat
                     let chatBox = document.getElementById("chat-messages");
                     let div = document.createElement("div");
                     div.textContent = "Tú: " + mensaje;
                     div.style.fontWeight = "bold";
                     chatBox.appendChild(div);
-        
                     input.value = "";
                 }
             })
             .catch(error => console.error("❌ Error al enviar mensaje:", error));
         }
+        
         
         
         
