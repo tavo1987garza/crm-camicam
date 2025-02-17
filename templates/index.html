@@ -186,10 +186,14 @@ socket.on("connect_error", (error) => {
 socket.on("nuevo_mensaje", (data) => {
     console.log("📩 Nuevo mensaje recibido:", data);
 
-    // Verificar si el mensaje pertenece al chat seleccionado
-    let chatSeleccionado = document.querySelector(".chat-list div.selected");
-    if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
-        cargarMensajesChat(data.remitente);
+    let chatBox = document.getElementById("chat-messages");
+    let chatAbierto = chatBox.getAttribute("data-remitente");
+
+    if (chatAbierto === data.remitente) {
+        cargarMensajes();  // Refrescar la conversación activa
+    } else {
+        let chatItem = document.querySelector(`#chat-list div[data-remitente="${data.remitente}"]`);
+        if (chatItem) chatItem.style.fontWeight = "bold"; // Resaltar chat con mensajes nuevos
     }
 
     // Mostrar la notificación
@@ -200,6 +204,8 @@ socket.on("nuevo_mensaje", (data) => {
     setTimeout(() => {
         alerta.style.display = "none";
     }, 5000);
+
+    reproducirSonido();
 });
 
 function cargarMensajesChat(remitente) {
