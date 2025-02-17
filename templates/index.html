@@ -190,15 +190,29 @@ socket.on("nuevo_mensaje", (data) => {
 
     let chatBox = document.getElementById("chat-messages");
     let div = document.createElement("div");
-
     div.textContent = `${data.remitente}: ${data.mensaje}`;
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
+
+    // 🔹 Mostrar la notificación
+    let alerta = document.getElementById("alerta-mensaje");
+    alerta.textContent = `Nuevo mensaje de ${data.remitente}: ${data.mensaje}`;
+    alerta.style.display = "block";
+
+    // 🔹 Ocultar la notificación después de 5 segundos
+    setTimeout(() => {
+        alerta.style.display = "none";
+    }, 5000);
+
+    // 🔹 Reproducir sonido
     if (sonidoActivo) {
-        let audio = new Audio("http://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
-        audio.play();
+        let audio = new Audio("https://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
+        audio.play().catch(error => {
+            console.warn("⚠️ No se pudo reproducir el sonido. Es posible que el usuario deba interactuar con la página.", error);
+        });
     }
 });
+
 
 function enviarMensaje() {
     let input = document.getElementById("mensaje-input");
