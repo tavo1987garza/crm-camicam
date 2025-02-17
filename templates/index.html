@@ -203,7 +203,21 @@ socket.on("nuevo_mensaje", (data) => {
 function enviarMensaje() {
     let input = document.getElementById("mensaje-input");
     let mensaje = input.value.trim();
-    if (!mensaje) return;
+    // Obtener el chat seleccionado
+    let chatSeleccionado = document.querySelector(".chat-list div.selected");
+
+    if (!mensaje) {
+        alert("Escribe un mensaje antes de enviar.");
+        return;
+    }
+
+    if (!chatSeleccionado) {
+        alert("Selecciona un chat antes de enviar un mensaje.");
+        return;
+    }
+
+    let remitente = chatSeleccionado.getAttribute("data-remitente"); // 🔹 Obtener el remitente
+
 
     fetch("/enviar_respuesta", {
         method: "POST",
@@ -221,6 +235,9 @@ function enviarMensaje() {
             div.style.fontWeight = "bold";
             chatBox.appendChild(div);
             input.value = "";
+
+            // 🔹 Hacer scroll al último mensaje
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
     })
     .catch(error => console.error("❌ Error al enviar mensaje:", error));
