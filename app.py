@@ -68,6 +68,8 @@ def recibir_mensaje():
 
 
 # 📌 Endpoint para contestar al cliente
+import requests
+
 @app.route("/enviar_respuesta", methods=["POST"])
 def enviar_respuesta():
     try:
@@ -89,7 +91,7 @@ def enviar_respuesta():
         conn.close()
 
         # 🔹 Reenviar el mensaje a Camibot para enviarlo a WhatsApp
-        camibot_url = "https://camicam-crm-d78af2926170.herokuapp.com/recibir_mensaje"  # Reemplazar con la URL real de Camibot
+        camibot_url = "https://camicam-crm-d78af2926170.herokuapp.com/enviar_mensaje"  # Reemplazar con la URL real de Camibot
         payload = {
             "telefono": remitente,  # WhatsApp o Messenger ID
             "mensaje": mensaje
@@ -100,7 +102,7 @@ def enviar_respuesta():
         if respuesta.status_code == 200:
             return jsonify({"mensaje": "Respuesta enviada correctamente"}), 200
         else:
-            return jsonify({"error": "Error al enviar mensaje a Camibot"}), 500
+            return jsonify({"error": f"Error en Camibot: {respuesta.text}"}), 500
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
