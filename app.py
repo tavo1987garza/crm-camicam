@@ -120,6 +120,26 @@ def obtener_mensajes():
         return jsonify(mensajes)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+@app.route("/mensajes_chat", methods=["GET"])
+def obtener_mensajes_chat():
+    try:
+        remitente = request.args.get("id")
+        if not remitente:
+            return jsonify({"error": "Falta el ID del remitente"}), 400
+
+        conn = conectar_db()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
+        mensajes = cursor.fetchall()
+        conn.close()
+
+        return jsonify(mensajes)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 # 📌 Endpoint para actualizar el estado de un mensaje

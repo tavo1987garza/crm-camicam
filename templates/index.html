@@ -293,6 +293,25 @@
                 });
         }
 
+
+        function cargarMensajesChat(remitente) {
+            fetch(`/mensajes_chat?id=${remitente}`)
+                .then(response => response.json())
+                .then(mensajes => {
+                    let chatBox = document.getElementById("chat-messages");
+                    chatBox.innerHTML = "";
+        
+                    mensajes.forEach(msg => {
+                        let div = document.createElement("div");
+                        div.textContent = `${msg.tipo === "enviado" ? "Tú" : msg.remitente}: ${msg.mensaje}`;
+                        div.style.fontWeight = msg.tipo === "enviado" ? "bold" : "normal";
+                        chatBox.appendChild(div);
+                    });
+                })
+                .catch(error => console.error("❌ Error al cargar mensajes:", error));
+        }
+        
+
         
         
 
@@ -369,9 +388,6 @@
             })
             .catch(error => console.error("❌ Error al enviar mensaje:", error));
         }
-        
-        
-        
         
         //Para que el cliente reciba la respuesta en tiempo real
         socket.on("respuesta_mensaje", (data) => {
