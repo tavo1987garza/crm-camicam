@@ -240,16 +240,17 @@
             border: 1px solid #ddd;
             align-self: flex-start;
         }
-        
-        /* 🔹 Icono de "visto" */
-        .mensaje-enviado::after {
-            content: "✔✔";
-            font-size: 12px;
-            color: blue;
-            position: absolute;
-            bottom: 5px;
-            right: 8px;
-        }
+
+        /* 🔹 Icono de "visto" (✔✔) */
+.mensaje-enviado::after {
+    content: "✔✔";
+    font-size: 12px;
+    color: blue;
+    position: absolute;
+    bottom: 2px;
+    right: -18px;  /* 🔹 Mueve los checks afuera del mensaje */
+    opacity: 0.7;  /* 🔹 Hace los checks más sutiles */
+}        
         
         /* 🔹 Input de chat */
         .chat-input {
