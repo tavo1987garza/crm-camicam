@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO
-import requests
+
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")  # 🔹 Eliminamos async_mode
@@ -69,6 +69,10 @@ def recibir_mensaje():
 
 # 📌 Endpoint para contestar al cliente
 import requests
+import os
+
+# URL de Camibot (Reemplazar con la correcta)
+CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"  # Asegúrate de que sea la URL correcta
 
 @app.route("/enviar_respuesta", methods=["POST"])
 def enviar_respuesta():
@@ -90,19 +94,18 @@ def enviar_respuesta():
         conn.commit()
         conn.close()
 
-        # 🔹 Reenviar el mensaje a Camibot para enviarlo a WhatsApp
-        camibot_url = "https://camicam-crm-d78af2926170.herokuapp.com/enviar_mensaje"  # Reemplazar con la URL real de Camibot
+        # 🔹 Enviar el mensaje a Camibot para que lo reenvíe a WhatsApp
         payload = {
-            "telefono": remitente,  # WhatsApp o Messenger ID
+            "telefono": remitente,
             "mensaje": mensaje
         }
 
-        respuesta = requests.post(camibot_url, json=payload)
+        respuesta = requests.post(CAMIBOT_API_URL, json=payload)
 
         if respuesta.status_code == 200:
-            return jsonify({"mensaje": "Respuesta enviada correctamente"}), 200
+            return jsonify({"mensaje": "Respuesta enviada correctamente a WhatsApp"}), 200
         else:
-            return jsonify({"error": f"Error en Camibot: {respuesta.text}"}), 500
+            return jsonify({"error": f"Error en Camibot: {respuesta.status_code} - {respuesta.text}"}), 500
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
