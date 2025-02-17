@@ -85,7 +85,32 @@
             overflow-y: auto;
             padding: 10px;
             border-bottom: 1px solid #ccc;
+            display: flex;
+            flex-direction: column;
         }
+        
+        .mensaje {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 5px;
+            word-wrap: break-word;
+            display: inline-block;
+        }
+        
+        .mensaje-enviado {
+            background: #dcf8c6; /* Verde claro de WhatsApp */
+            align-self: flex-end;
+            text-align: right;
+        }
+        
+        .mensaje-recibido {
+            background: #ffffff; /* Blanco */
+            border: 1px solid #ddd;
+            align-self: flex-start;
+            text-align: left;
+        }
+        
         .chat-input {
             display: flex;
         }
@@ -190,16 +215,19 @@ socket.on("nuevo_mensaje", (data) => {
 
     let chatBox = document.getElementById("chat-messages");
     let div = document.createElement("div");
-    div.textContent = `${data.remitente}: ${data.mensaje}`;
-    chatBox.appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight;
 
-    // 🔹 Mostrar la notificación
+    div.textContent = data.mensaje;
+    div.classList.add("mensaje", "mensaje-recibido"); // Alineado a la izquierda
+
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+
+    // 🔹 Mostrar notificación
     let alerta = document.getElementById("alerta-mensaje");
-    alerta.textContent = `Nuevo mensaje de ${data.remitente}: ${data.mensaje}`;
+    alerta.textContent = `Nuevo mensaje de ${data.remitente}`;
     alerta.style.display = "block";
 
-    // 🔹 Ocultar la notificación después de 5 segundos
+    // 🔹 Ocultar después de 5s
     setTimeout(() => {
         alerta.style.display = "none";
     }, 5000);
@@ -208,16 +236,16 @@ socket.on("nuevo_mensaje", (data) => {
     if (sonidoActivo) {
         let audio = new Audio("https://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
         audio.play().catch(error => {
-            console.warn("⚠️ No se pudo reproducir el sonido. Es posible que el usuario deba interactuar con la página.", error);
+            console.warn("⚠️ No se pudo reproducir el sonido.", error);
         });
     }
 });
 
 
+//Responder a los mensajes
 function enviarMensaje() {
     let input = document.getElementById("mensaje-input");
     let mensaje = input.value.trim();
-    // Obtener el chat seleccionado
     let chatSeleccionado = document.querySelector(".chat-list div.selected");
 
     if (!mensaje) {
@@ -230,8 +258,7 @@ function enviarMensaje() {
         return;
     }
 
-    let remitente = chatSeleccionado.getAttribute("data-remitente"); // 🔹 Obtener el remitente
-
+    let remitente = chatSeleccionado.getAttribute("data-remitente");
 
     fetch("/enviar_respuesta", {
         method: "POST",
@@ -245,17 +272,19 @@ function enviarMensaje() {
         } else {
             let chatBox = document.getElementById("chat-messages");
             let div = document.createElement("div");
-            div.textContent = "Tú: " + mensaje;
-            div.style.fontWeight = "bold";
+
+            div.textContent = mensaje;
+            div.classList.add("mensaje", "mensaje-enviado"); // Mensaje alineado a la derecha
+
             chatBox.appendChild(div);
             input.value = "";
 
-            // 🔹 Hacer scroll al último mensaje
-            chatBox.scrollTop = chatBox.scrollHeight;
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll al último mensaje
         }
     })
     .catch(error => console.error("❌ Error al enviar mensaje:", error));
 }
+
 
 // Detectar cuando se presiona "Enter" en el campo de entrada de mensaje
 document.getElementById("mensaje-input").addEventListener("keydown", function (event) {
@@ -265,7 +294,7 @@ document.getElementById("mensaje-input").addEventListener("keydown", function (e
     }
 });
 
-
+//Vista de mensajes en el Chatbox
 function cargarMensajesChat(remitente) {
     fetch(`/mensajes_chat?id=${remitente}`)
         .then(response => response.json())
@@ -275,13 +304,23 @@ function cargarMensajesChat(remitente) {
 
             mensajes.forEach(msg => {
                 let div = document.createElement("div");
-                div.textContent = `${msg.tipo === "enviado" ? "Tú" : msg.remitente}: ${msg.mensaje}`;
-                div.style.fontWeight = msg.tipo === "enviado" ? "bold" : "normal";
+                div.textContent = msg.mensaje;
+                div.classList.add("mensaje");
+
+                if (msg.tipo === "enviado") {
+                    div.classList.add("mensaje-enviado"); // Mensajes alineados a la derecha
+                } else {
+                    div.classList.add("mensaje-recibido"); // Mensajes alineados a la izquierda
+                }
+
                 chatBox.appendChild(div);
             });
+
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll al último mensaje
         })
         .catch(error => console.error("❌ Error al cargar mensajes:", error));
 }
+
 
 
 function reproducirSonido() {
