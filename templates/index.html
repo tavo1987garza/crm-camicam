@@ -254,16 +254,28 @@
                         let div = document.createElement("div");
                         div.textContent = remitente;
                         div.setAttribute("data-remitente", remitente);
-                        div.onclick = () => seleccionarChat(div);
+                        div.classList.add("chat-item"); // Clase para resaltar la selección
+                        div.onclick = function () {
+                            seleccionarChat(div);
+                        };
                         lista.appendChild(div);
                     });
                 });
         }
         
+        
         function seleccionarChat(chatDiv) {
+            // Quitar la selección previa
             document.querySelectorAll(".chat-list div").forEach(div => div.classList.remove("selected"));
+            
+            // Seleccionar el chat actual
             chatDiv.classList.add("selected");
+        
+            // Cargar los mensajes de este remitente
+            let remitente = chatDiv.getAttribute("data-remitente");
+            cargarMensajesChat(remitente);
         }
+        
         
 
         function mostrarMensajesDe(remitente) {
