@@ -172,43 +172,53 @@
         }
 
         // 🔹 Conectar con WebSockets
-        const socket = io.connect(window.location.origin, { transports: ["websocket", "polling"] });
+const socket = io.connect(window.location.origin, { transports: ["websocket", "polling"] });
 
-        socket.on("connect", () => {
-            console.log("✅ Conectado a WebSockets.");
-        });
+socket.on("connect", () => {
+    console.log("✅ Conectado a WebSockets.");
+});
 
-        socket.on("connect_error", (error) => {
-            console.error("❌ Error en la conexión WebSocket:", error);
-        });
+socket.on("connect_error", (error) => {
+    console.error("❌ Error en la conexión WebSocket:", error);
+});
 
-        let notificacionesActivas = true;
-        let sonidoActivo = true;
-        let sonidoEnProgreso = false;
+// 🔹 Escuchar eventos de nuevos mensajes
+socket.on("nuevo_mensaje", (data) => {
+    console.log("📩 Nuevo mensaje recibido:", data);
 
-        // 🔹 Escuchar eventos de nuevos mensajes
-        socket.on("nuevo_mensaje", (data) => {
-            console.log("📩 Nuevo mensaje recibido:", data);
-            cargarMensajes();
+    // Verificar si el mensaje pertenece al chat seleccionado
+    let chatSeleccionado = document.querySelector(".chat-list div.selected");
+    if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
+        cargarMensajesChat(data.remitente);
+    }
 
-            if (notificacionesActivas) {
-                mostrarNotificacion(data);
-            }
+    // Mostrar la notificación
+    let alerta = document.getElementById("alerta-mensaje");
+    alerta.textContent = `📩 Nuevo mensaje de ${data.remitente}: "${data.mensaje}"`;
+    alerta.style.display = "block";
 
-            if (sonidoActivo) {
-                reproducirSonido();
-            }
-        });
+    setTimeout(() => {
+        alerta.style.display = "none";
+    }, 5000);
+});
 
-        function mostrarNotificacion(data) {
-            let alerta = document.getElementById("alerta-mensaje");
-            alerta.textContent = `📩 Nuevo mensaje de ${data.remitente}: "${data.mensaje}"`;
-            alerta.style.display = "block";
+function cargarMensajesChat(remitente) {
+    fetch(`/mensajes_chat?id=${remitente}`)
+        .then(response => response.json())
+        .then(mensajes => {
+            let chatBox = document.getElementById("chat-messages");
+            chatBox.innerHTML = "";
 
-            setTimeout(() => {
-                alerta.style.display = "none";
-            }, 5000);
-        }
+            mensajes.forEach(msg => {
+                let div = document.createElement("div");
+                div.textContent = `${msg.tipo === "enviado" ? "Tú" : msg.remitente}: ${msg.mensaje}`;
+                div.style.fontWeight = msg.tipo === "enviado" ? "bold" : "normal";
+                chatBox.appendChild(div);
+            });
+        })
+        .catch(error => console.error("❌ Error al cargar mensajes:", error));
+}
+
 
         function reproducirSonido() {
             if (sonidoActivo && !sonidoEnProgreso) {  
@@ -293,23 +303,6 @@
                 });
         }
 
-
-        function cargarMensajesChat(remitente) {
-            fetch(`/mensajes_chat?id=${remitente}`)
-                .then(response => response.json())
-                .then(mensajes => {
-                    let chatBox = document.getElementById("chat-messages");
-                    chatBox.innerHTML = "";
-        
-                    mensajes.forEach(msg => {
-                        let div = document.createElement("div");
-                        div.textContent = `${msg.tipo === "enviado" ? "Tú" : msg.remitente}: ${msg.mensaje}`;
-                        div.style.fontWeight = msg.tipo === "enviado" ? "bold" : "normal";
-                        chatBox.appendChild(div);
-                    });
-                })
-                .catch(error => console.error("❌ Error al cargar mensajes:", error));
-        }
         
         function cargarMensajes() {
             let chatBox = document.getElementById("chat-messages");

@@ -61,10 +61,9 @@ def recibir_mensaje():
         "plataforma": plataforma,
         "remitente": remitente,
         "mensaje": mensaje
-    })
+    }, broadcast=True)
 
     return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
-
 
 # 📌 Endpoint para contestar al cliente
 import requests
