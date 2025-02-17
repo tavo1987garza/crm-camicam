@@ -208,18 +208,22 @@ function enviarMensaje() {
     fetch("/enviar_respuesta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remitente: "cliente", mensaje })
+        body: JSON.stringify({ remitente: remitente, mensaje: mensaje })
     })
     .then(response => response.json())
     .then(data => {
-        let chatBox = document.getElementById("chat-messages");
-        let div = document.createElement("div");
-        div.textContent = `Tú: ${mensaje}`;
-        div.style.fontWeight = "bold";
-        chatBox.appendChild(div);
-        input.value = "";
+        if (data.error) {
+            alert("Error al enviar mensaje: " + data.error);
+        } else {
+            let chatBox = document.getElementById("chat-messages");
+            let div = document.createElement("div");
+            div.textContent = "Tú: " + mensaje;
+            div.style.fontWeight = "bold";
+            chatBox.appendChild(div);
+            input.value = "";
+        }
     })
-    .catch(error => console.error("Error al enviar mensaje:", error));
+    .catch(error => console.error("❌ Error al enviar mensaje:", error));
 }
 
 
