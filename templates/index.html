@@ -173,13 +173,24 @@
 
         // 🔹 Conectar con WebSockets
         let socket = io.connect(window.location.origin);
+        socket.on("connect", () => {
+            console.log("✅ Conectado a WebSockets.");
+        });
+        
+        socket.on("connect_error", (error) => {
+            console.error("❌ Error en la conexión WebSocket:", error);
+        });
+
         let sonidoActivo = true;
 
        
-
+// 🔹 Escuchar eventos de nuevos mensajes
 socket.on("nuevo_mensaje", (data) => {
+    console.log("📩 Nuevo mensaje recibido:", data);
+
     let chatBox = document.getElementById("chat-messages");
     let div = document.createElement("div");
+
     div.textContent = `${data.remitente}: ${data.mensaje}`;
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -231,20 +242,21 @@ function cargarMensajesChat(remitente) {
 }
 
 
-        function reproducirSonido() {
-            if (sonidoActivo && !sonidoEnProgreso) {  
-                sonidoEnProgreso = true;
-                let audio = new Audio("http://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
-        
-                audio.play().catch(error => {
-                    console.warn("⚠️ No se pudo reproducir el sonido. Revisa el enlace del audio.", error);
-                });
+function reproducirSonido() {
+    if (sonidoActivo) {
+        let audio = new Audio("https://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
 
-                setTimeout(() => {
-                    sonidoEnProgreso = false;
-                }, 2000);
-            }
-        }
+        audio.play().catch(error => {
+            console.warn("⚠️ No se pudo reproducir el sonido. El usuario debe interactuar con la página.", error);
+        });
+    }
+}
+
+// Habilitar el sonido cuando el usuario interactúe con la página
+document.body.addEventListener("click", function () {
+    sonidoActivo = true;
+});
+
 
         function toggleNotificaciones() {
             notificacionesActivas = !notificacionesActivas;

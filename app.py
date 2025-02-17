@@ -74,6 +74,8 @@ def enviar_respuesta():
         if not remitente or not mensaje:
             return jsonify({"error": "Faltan datos"}), 400
 
+        print(f"📩 Enviando mensaje a {remitente}: {mensaje}")
+
         conn = conectar_db()
         if conn:
             try:
@@ -88,13 +90,17 @@ def enviar_respuesta():
         payload = {"telefono": remitente, "mensaje": mensaje}
         respuesta = requests.post(CAMIBOT_API_URL, json=payload)
 
+        print(f"✅ Respuesta de Camibot: {respuesta.status_code}, {respuesta.text}")
+
         if respuesta.status_code == 200:
             return jsonify({"mensaje": "Respuesta enviada correctamente a WhatsApp"}), 200
         else:
             return jsonify({"error": f"Error en Camibot: {respuesta.status_code} - {respuesta.text}"}), 500
 
     except Exception as e:
+        print(f"❌ Error en /enviar_respuesta: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 # 📌 Obtener mensajes
 @app.route("/mensajes", methods=["GET"])
