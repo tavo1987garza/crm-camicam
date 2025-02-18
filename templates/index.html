@@ -54,48 +54,142 @@
             color: white;
         }
 
-        .leads-container {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-        }
-        .leads-column {
-            min-width: 250px;
-            background: #f1f1f1;
-            padding: 10px;
-            border-radius: 10px;
-            transition: background 0.3s ease-in-out;
-        }
+        /* 🔹 Contenedor principal de Leads */
+.leads-container {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 10px;
+    justify-content: center; /* Centra las columnas */
+}
+/* 🔹 Cada columna de Leads */
+.leads-column {
+    min-width: 220px;
+    max-width: 250px;
+    flex-grow: 1;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: transform 0.2s ease-in-out;
+}
 
-        .lead {
-            background: white;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 5px;
-            cursor: grab;
-        }
+.leads-column:hover {
+    transform: scale(1.03); /* Efecto de resalte al pasar el cursor */
+}
+
+/* 🔹 Colores para cada columna */
+[data-estado="Contacto Inicial"] {
+    background: #e3f2fd; /* Azul claro */
+    border-left: 5px solid #1e88e5;
+}
+
+[data-estado="En proceso"] {
+    background: #fff3e0; /* Naranja claro */
+    border-left: 5px solid #ff9800;
+}
+
+[data-estado="Seguimiento"] {
+    background: #f1f8e9; /* Verde claro */
+    border-left: 5px solid #43a047;
+}
+
+[data-estado="Cliente"] {
+    background: #e8f5e9; /* Verde pastel */
+    border-left: 5px solid #2e7d32;
+}
+
+[data-estado="No cliente"] {
+    background: #ffebee; /* Rojo claro */
+    border-left: 5px solid #d32f2f;
+}
+
+/* 🔹 Lista de Leads dentro de cada columna */
+.leads-list {
+    min-height: 100px;
+    padding: 10px;
+    background: white;
+    border-radius: 5px;
+    margin-top: 10px;
+    box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* 🔹 Estilo de cada Lead */
+.lead {
+    background: white;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: grab;
+    transition: background 0.2s ease-in-out;
+}
+
+.lead:hover {
+    background: #eeeeee;
+}
+
+/* 🔹 Botón de eliminar dentro del lead */
+.lead button {
+    background: transparent;
+    border: none;
+    color: #d32f2f;
+    cursor: pointer;
+    font-size: 18px;
+    transition: color 0.2s ease-in-out;
+}
+
+.lead button:hover {
+    color: red;
+}
+
+/* 🔹 Formulario para agregar lead */
+.form-container {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    margin-top: 10px;
+}
+
+/* 🔹 Inputs estilizados */
+.form-container input {
+    width: 90%;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    outline: none;
+    transition: border 0.3s ease-in-out;
+}
+
+.form-container input:focus {
+    border: 1px solid #1e88e5;
+}
+
+/* 🔹 Botón para agregar lead */
+.form-container button {
+    width: 100%;
+    padding: 8px;
+    background: #1e88e5;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease-in-out;
+}
+
+.form-container button:hover {
+    background: #1565c0;
+}
 
         .leads-column.dragover {
             background: #d3f9d8; /* Color de fondo cuando se arrastra un lead */
-        }
-
-        .form-container {
-            margin-top: 15px;
-        }
-
-        .form-container input {
-            width: 100%;
-            padding: 8px;
-            margin: 5px 0;
-        }
-
-        .form-container button {
-            width: 100%;
-            padding: 10px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
         }
 
         .notification {
