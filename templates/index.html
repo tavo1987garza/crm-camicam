@@ -581,6 +581,7 @@
                         <div id="lead-form" class="hidden">
                             <input type="text" id="lead-nombre" placeholder="Nombre" required>
                             <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                            <textarea id="lead-notas" placeholder="Notas (Opcional)"></textarea>
                             <button onclick="crearLead()">Agregar</button>
                         </div>
                     </div>
@@ -992,14 +993,25 @@ document.body.addEventListener("click", function () {
                         if (leadList) {
                             let leadElement = document.createElement("div");
                             leadElement.classList.add("lead");
-                            leadElement.innerHTML = `<strong>${lead.nombre}</strong><br><span>${lead.ultimoMensaje || "(Sin mensajes)"}</span>`;
-                            leadElement.draggable = true;
                             leadElement.setAttribute("data-id", lead.id);
-                            
-                            leadElement.onclick = function () {
-                                mostrarDetallesLead(lead);
-                            };
-        
+            
+                            // Contenido principal con nombre y último mensaje
+                            leadElement.innerHTML = `
+                                <strong>${lead.nombre}</strong>
+                                <p class="ultimo-mensaje">${lead.ultimo_mensaje || "(Sin mensajes)"}</p>
+                                <div class="lead-detalles hidden">
+                                    <p>📞 ${lead.telefono}</p>
+                                    <textarea class="lead-notas" placeholder="Notas...">${lead.notas || ""}</textarea>
+                                    <button onclick="editarLead(${lead.id})">✏️ Editar</button>
+                                    <button onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
+                                </div>
+                            `;
+            
+                            // Toggle de detalles
+                            leadElement.addEventListener("click", function() {
+                                this.querySelector(".lead-detalles").classList.toggle("hidden");
+                            });
+            
                             leadList.appendChild(leadElement);
                         }
                     });
@@ -1020,13 +1032,15 @@ document.body.addEventListener("click", function () {
             detallesDiv.classList.remove("hidden");
         }
         
-        function guardarEdicionLead(leadId) {
-            let notas = document.getElementById("lead-notas").value.trim();
-            
+        function editarLead(leadId) {
+            let leadElement = document.querySelector(`[data-id='${leadId}']`);
+            let nombre = leadElement.querySelector("strong").textContent;
+            let notas = leadElement.querySelector(".lead-notas").value;
+        
             fetch("/editar_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: leadId, notas })
+                body: JSON.stringify({ id: leadId, nombre, notas })
             })
             .then(response => response.json())
             .then(data => {
