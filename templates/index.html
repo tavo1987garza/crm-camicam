@@ -214,23 +214,6 @@
             background: #d3f9d8; /* Color de fondo cuando se arrastra un lead */
         }
 
-        /* 🔹 Estilizar el botón de agregar */
-#toggle-form {
-    width: 100%;
-    padding: 8px;
-    background: #1e88e5;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background 0.3s ease-in-out;
-}
-
-#toggle-form:hover {
-    background: #1565c0;
-}
-
         .notification {
             position: fixed;
             top: 20px;
@@ -577,13 +560,12 @@
                     <h3>📞 Contacto inicial</h3>
                     <div class="leads-list"></div>
                     <div class="form-container">
-                        <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
-                        <div id="lead-form" class="hidden">
-                            <input type="text" id="lead-nombre" placeholder="Nombre" required>
-                            <input type="text" id="lead-telefono" placeholder="Teléfono" required>
-                            <button onclick="crearLead()">Agregar</button>
-                        </div>
+                        <h4>➕ Agregar Lead</h4>
+                        <input type="text" id="lead-nombre" placeholder="Nombre" required>
+                        <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                        <button onclick="crearLead()">Agregar</button>
                     </div>
+                </div>
 
                 <div class="leads-column" data-estado="En proceso">
                     <h3>🔄 En proceso</h3>
