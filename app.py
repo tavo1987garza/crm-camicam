@@ -57,20 +57,29 @@ def recibir_mensaje():
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, 'Nuevo', 'recibido')",
-                           (plataforma, remitente, mensaje))
+            
+            # Verificar si el remitente ya es un lead
+            cursor.execute("SELECT id FROM leads WHERE telefono = %s", (remitente,))
+            lead = cursor.fetchone()
+            
+            if not lead:
+                # Crear lead automáticamente
+                cursor.execute("INSERT INTO leads (nombre, telefono, estado) VALUES (%s, %s, %s) RETURNING id",
+                               (remitente, remitente, "Contacto Inicial"))
+                lead_id = cursor.fetchone()[0]
+                conn.commit()
+                socketio.emit("nuevo_lead", {"id": lead_id, "nombre": remitente, "telefono": remitente, "estado": "Contacto Inicial"})
+            
+            # Guardar mensaje en la tabla "mensajes"
+            cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (%s, %s, %s, %s)",
+                           (plataforma, remitente, mensaje, "Nuevo"))
             conn.commit()
         finally:
             conn.close()
-
-    # Emitir evento en tiempo real
-    socketio.emit("nuevo_mensaje", {
-        "plataforma": plataforma,
-        "remitente": remitente,
-        "mensaje": mensaje
-    })
-
+    
+    socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje})
     return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
+
 
 
 # 📌 Crear un nuevo lead manualmente
