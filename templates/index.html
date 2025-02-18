@@ -673,16 +673,20 @@
         
 
         function mostrarSeccion(seccion, callback = null) {
+            // Ocultar todas las secciones
             document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
-            let elemento = document.getElementById(seccion);
             
+            // Mostrar la sección solicitada
+            let elemento = document.getElementById(seccion);
             if (elemento) {
                 elemento.classList.remove('hidden');
                 
-                // Esperar a que la sección esté visible antes de ejecutar el callback
-                setTimeout(() => {
-                    if (callback) callback();
-                }, 50); // Pequeño retraso para asegurar que el DOM se actualice
+                // Ejecutar el callback si se proporciona
+                if (callback && typeof callback === 'function') {
+                    callback();
+                }
+            } else {
+                console.warn(`⚠️ Sección con ID "${seccion}" no encontrada.`);
             }
         }
 
