@@ -814,7 +814,14 @@ document.body.addEventListener("click", function () {
 
     
         //Funcion para cargar la seccion de Leads
+        function validarTelefono(telefono) {
+            return /^\d{10}$/.test(telefono); // Asegura que el teléfono tenga 10 dígitos numéricos
+        }
+
         function cargarLeads() {
+            let seccionLeads = document.getElementById("leads");
+            if (seccionLeads.classList.contains("hidden")) return; // No cargar si la sección no está visible
+
             fetch("/leads")
             .then(response => response.json())
             .then(leads => {
@@ -832,12 +839,29 @@ document.body.addEventListener("click", function () {
             });
         }
 
+        document.getElementById("leads-container").addEventListener("dragstart", (event) => {
+            if (event.target.classList.contains("lead")) {
+                event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
+            }
+        });
+
         document.querySelectorAll(".leads-column").forEach(column => {
-            column.ondragover = (event) => event.preventDefault();
+            column.ondragover = (event) => {
+                event.preventDefault();
+                column.classList.add("dragover");
+            };
+            column.ondragleave = () => column.classList.remove("dragover");
+
             column.ondrop = (event) => {
                 event.preventDefault();
+                column.classList.remove("dragover");
+
                 let leadId = event.dataTransfer.getData("text");
                 let newEstado = column.getAttribute("data-estado");
+
+                let confirmacion = confirm(`¿Mover este lead a "${newEstado}"?`);
+                if (!confirmacion) return;
+
                 fetch("/cambiar_estado_lead", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -849,9 +873,14 @@ document.body.addEventListener("click", function () {
         function crearLead() {
             let nombre = document.getElementById("lead-nombre").value.trim();
             let telefono = document.getElementById("lead-telefono").value.trim();
-            
+
             if (!nombre || !telefono) {
                 alert("Por favor, completa todos los campos.");
+                return;
+            }
+
+            if (!validarTelefono(telefono)) {
+                alert("El número de teléfono debe contener 10 dígitos numéricos.");
                 return;
             }
 
@@ -861,14 +890,10 @@ document.body.addEventListener("click", function () {
                 body: JSON.stringify({ nombre, telefono })
             })
             .then(response => response.json())
-            .then(data => {
-                alert(data.mensaje);
-                cargarLeads();
-                document.getElementById("lead-nombre").value = "";
-                document.getElementById("lead-telefono").value = "";
-            })
-            .catch(error => console.error("❌ Error al crear lead:", error));
+            .then(() => cargarLeads());
         }
+
+        
 
         
     </script>

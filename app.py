@@ -2,8 +2,11 @@ from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO
 import os
 import psycopg2
+from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 import requests
+import re
+import time
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -13,33 +16,51 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 def home():
     return "¡CRM de Camicam funcionando!"
 
-# 📌 Función para conectar a la base de datos
+# 📌 Configuración de la conexión con *connection pooling*
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+try:
+    db_pool = pool.SimpleConnectionPool(1, 10, dsn=DATABASE_URL, sslmode="require")
+except Exception as e:
+    print("❌ Error al conectar con la base de datos:", str(e))
+    db_pool = None
+
 def conectar_db():
-    conn = None
+    if db_pool is None:
+        print("❌ No se pudo iniciar el pool de conexiones")
+        return None
     try:
-        DATABASE_URL = os.environ.get("DATABASE_URL")
-        if DATABASE_URL.startswith("postgres://"):
-            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        conn = psycopg2.connect(DATABASE_URL, sslmode="require")
-        return conn
+        return db_pool.getconn()
     except Exception as e:
-        print("❌ Error al conectar con la base de datos:", str(e))
-    return None
+        print("❌ Error al obtener conexión del pool:", str(e))
+        return None
+
+def liberar_db(conn):
+    if conn:
+        db_pool.putconn(conn)
+
+# 📌 Validación de teléfono (solo 10 dígitos numéricos)
+def validar_telefono(telefono):
+    return re.fullmatch(r"\d{10}", telefono) is not None
+
 
 # 📌 Ruta para obtener Leads
 @app.route("/leads", methods=["GET"])
 def obtener_leads():
+    conn = conectar_db()
+    if not conn:
+        return jsonify([])
+
     try:
-        conn = conectar_db()
-        if conn:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute("SELECT * FROM leads ORDER BY estado")
-            leads = cursor.fetchall()
-            conn.close()
-            return jsonify(leads if leads else [])  # Siempre devolver un array
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM leads ORDER BY estado")
+        leads = cursor.fetchall()
+        return jsonify(leads if leads else [])
     except Exception as e:
         print("❌ Error en /leads:", str(e))
         return jsonify([])
+    finally:
+        liberar_db(conn)
 
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
@@ -63,19 +84,25 @@ def recibir_mensaje():
             lead = cursor.fetchone()
             
             if not lead:
-                # Crear lead automáticamente
-                cursor.execute("INSERT INTO leads (nombre, telefono, estado) VALUES (%s, %s, %s) RETURNING id",
-                               (remitente, remitente, "Contacto Inicial"))
-                lead_id = cursor.fetchone()[0]
+                # Crear lead automáticamente si no existe
+                cursor.execute("""
+                    INSERT INTO leads (nombre, telefono, estado)
+                    VALUES (%s, %s, 'Contacto Inicial')
+                    ON CONFLICT (telefono) DO NOTHING
+                    RETURNING id
+                """, (remitente, remitente))
+                lead_id = cursor.fetchone()
                 conn.commit()
-                socketio.emit("nuevo_lead", {"id": lead_id, "nombre": remitente, "telefono": remitente, "estado": "Contacto Inicial"})
-            
+                
+                if lead_id:
+                    socketio.emit("nuevo_lead", {"id": lead_id[0], "nombre": remitente, "telefono": remitente, "estado": "Contacto Inicial"})
+
             # Guardar mensaje en la tabla "mensajes"
-            cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (%s, %s, %s, %s)",
-                           (plataforma, remitente, mensaje, "Nuevo"))
+            cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (%s, %s, %s, 'Nuevo')",
+                           (plataforma, remitente, mensaje))
             conn.commit()
         finally:
-            conn.close()
+            liberar_db(conn)
     
     socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje})
     return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
@@ -85,34 +112,38 @@ def recibir_mensaje():
 # 📌 Crear un nuevo lead manualmente
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
-    try:
-        datos = request.json
-        nombre = datos.get("nombre")
-        telefono = datos.get("telefono")
-        estado = "Contacto Inicial"
-        
-        if not nombre or not telefono:
-            return jsonify({"error": "Faltan datos"}), 400
+    datos = request.json
+    nombre = datos.get("nombre")
+    telefono = datos.get("telefono")
 
-        conn = conectar_db()
-        if conn:
+    if not nombre or not telefono or not validar_telefono(telefono):
+        return jsonify({"error": "Datos inválidos. El teléfono debe tener 10 dígitos."}), 400
+
+    conn = conectar_db()
+    if conn:
+        try:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO leads (nombre, telefono, estado) VALUES (%s, %s, %s) RETURNING id",
-                           (nombre, telefono, estado))
-            lead_id = cursor.fetchone()[0]
+            cursor.execute("""
+                INSERT INTO leads (nombre, telefono, estado)
+                VALUES (%s, %s, 'Contacto Inicial')
+                ON CONFLICT (telefono) DO NOTHING
+                RETURNING id
+            """, (nombre, telefono))
+            lead_id = cursor.fetchone()
             conn.commit()
-            conn.close()
-        
-        socketio.emit("nuevo_lead", {
-            "id": lead_id,
-            "nombre": nombre,
-            "telefono": telefono,
-            "estado": estado
-        })
 
-        return jsonify({"mensaje": "Lead creado correctamente"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            if lead_id:
+                socketio.emit("nuevo_lead", {
+                    "id": lead_id[0],
+                    "nombre": nombre,
+                    "telefono": telefono,
+                    "estado": "Contacto Inicial"
+                })
+                return jsonify({"mensaje": "Lead creado correctamente"}), 200
+            else:
+                return jsonify({"mensaje": "El lead ya existía"}), 200
+        finally:
+            liberar_db(conn)
 
 # 📌 Endpoint para actualizar estado de Lead
 @app.route("/cambiar_estado_lead", methods=["POST"])
@@ -150,60 +181,57 @@ def eliminar_lead():
         return jsonify({"error": str(e)}), 500
 
 
-# 📌 Enviar respuesta al cliente
+# 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
 
 @app.route("/enviar_respuesta", methods=["POST"])
 def enviar_respuesta():
-    try:
-        datos = request.json
-        remitente = datos.get("remitente")
-        mensaje = datos.get("mensaje")
+    datos = request.json
+    remitente = datos.get("remitente")
+    mensaje = datos.get("mensaje")
 
-        if not remitente or not mensaje:
-            return jsonify({"error": "Faltan datos"}), 400
+    if not remitente or not mensaje:
+        return jsonify({"error": "Faltan datos"}), 400
 
-        print(f"📩 Enviando mensaje a {remitente}: {mensaje}")
+    print(f"📩 Enviando mensaje a {remitente}: {mensaje}")
 
-        conn = conectar_db()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, NULL, 'enviado')",
-                               ("CRM", remitente, mensaje))
-                conn.commit()
-            finally:
-                conn.close()
+    conn = conectar_db()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+                VALUES (%s, %s, %s, 'Nuevo', 'enviado')
+            """, ("CRM", remitente, mensaje))
+            conn.commit()
+        finally:
+            liberar_db(conn)
 
-        # Enviar mensaje a Camibot
-        payload = {"telefono": remitente, "mensaje": mensaje}
+    payload = {"telefono": remitente, "mensaje": mensaje}
+
+    for intento in range(3):
         respuesta = requests.post(CAMIBOT_API_URL, json=payload)
-
-        print(f"✅ Respuesta de Camibot: {respuesta.status_code}, {respuesta.text}")
-
         if respuesta.status_code == 200:
-            return jsonify({"mensaje": "Respuesta enviada correctamente a WhatsApp"}), 200
-        else:
-            return jsonify({"error": f"Error en Camibot: {respuesta.status_code} - {respuesta.text}"}), 500
+            return jsonify({"mensaje": "Mensaje enviado a WhatsApp"}), 200
+        print(f"⚠️ Reintentando... ({intento+1}/3)")
+        time.sleep(2)
 
-    except Exception as e:
-        print(f"❌ Error en /enviar_respuesta: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "No se pudo enviar el mensaje después de 3 intentos"}), 500
+
 
 
 # 📌 Obtener mensajes
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
-    try:
-        conn = conectar_db()
-        if conn:
+    conn = conectar_db()
+    if conn:
+        try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute("SELECT * FROM mensajes ORDER BY fecha DESC")
             mensajes = cursor.fetchall()
-            conn.close()
             return jsonify(mensajes)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        finally:
+            liberar_db(conn)
 
 # 📌 Actualizar estado de mensaje
 @app.route("/actualizar_estado", methods=["POST"])
@@ -230,22 +258,19 @@ def actualizar_estado():
 # Mostrar los mensajes de cada chat
 @app.route("/mensajes_chat", methods=["GET"])
 def obtener_mensajes_chat():
-    try:
-        remitente = request.args.get("id")
-        if not remitente:
-            return jsonify({"error": "Falta el ID del remitente"}), 400
+    remitente = request.args.get("id")
+    if not remitente:
+        return jsonify({"error": "Falta el ID del remitente"}), 400
 
-        conn = conectar_db()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
-        mensajes = cursor.fetchall()
-        conn.close()
-
-        return jsonify(mensajes)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+    conn = conectar_db()
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
+            mensajes = cursor.fetchall()
+            return jsonify(mensajes)
+        finally:
+            liberar_db(conn)
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")
