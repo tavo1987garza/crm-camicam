@@ -212,6 +212,27 @@ def eliminar_lead():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/editar_lead', methods=['POST'])
+def editar_lead():
+    data = request.get_json()
+    lead_id = data.get("id")
+    nuevo_nombre = data.get("nombre")
+    nuevas_notas = data.get("notas")
+
+    if not lead_id:
+        return jsonify({"error": "ID del lead no proporcionado"}), 400
+
+    # Aquí deberías actualizar el lead en tu base de datos.
+    # Suponiendo que usas SQLAlchemy:
+    lead = Lead.query.get(lead_id)
+    if lead:
+        lead.nombre = nuevo_nombre
+        lead.notas = nuevas_notas
+        db.session.commit()
+        return jsonify({"mensaje": "Lead actualizado correctamente"})
+    else:
+        return jsonify({"error": "Lead no encontrado"}), 404
+
 
 
 # 📌 Enviar respuesta a Camibot con reintento automático
