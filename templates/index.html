@@ -996,16 +996,20 @@ document.body.addEventListener("click", function () {
                             leadElement.setAttribute("data-id", lead.id);
             
                             // Contenido principal con nombre y último mensaje
-                            leadElement.innerHTML = `
-                                <strong>${lead.nombre}</strong>
-                                <p class="ultimo-mensaje">${lead.ultimo_mensaje || "(Sin mensajes)"}</p>
-                                <div class="lead-detalles hidden">
-                                    <p>📞 ${lead.telefono}</p>
-                                    <textarea class="lead-notas" placeholder="Notas...">${lead.notas || ""}</textarea>
-                                    <button onclick="editarLead(${lead.id})">✏️ Editar</button>
-                                    <button onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
-                                </div>
-                            `;
+                leadElement.innerHTML = `
+                <div class="lead-info">
+                    <strong>${lead.nombre}</strong>
+                    <p class="ultimo-mensaje">${lead.ultimo_mensaje || "(Sin mensajes)"}</p>
+                </div>
+                <div class="lead-detalles hidden">
+                    <p>📞 <span class="lead-telefono">${lead.telefono}</span></p>
+                    <textarea class="lead-notas" placeholder="Notas...">${lead.notas || ""}</textarea>
+                    <div class="lead-buttons">
+                        <button class="editar-btn" onclick="editarLead(${lead.id})">✏️ Editar</button>
+                        <button class="eliminar-btn" onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `;
             
                             // Toggle de detalles
                             leadElement.addEventListener("click", function() {
