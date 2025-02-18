@@ -673,20 +673,16 @@
         
 
         function mostrarSeccion(seccion, callback = null) {
-            // Ocultar todas las secciones
             document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
-            
-            // Mostrar la sección solicitada
             let elemento = document.getElementById(seccion);
+            
             if (elemento) {
                 elemento.classList.remove('hidden');
                 
-                // Ejecutar el callback si se proporciona
-                if (callback && typeof callback === 'function') {
-                    callback();
-                }
-            } else {
-                console.warn(`⚠️ Sección con ID "${seccion}" no encontrada.`);
+                // Esperar a que la sección esté visible antes de ejecutar el callback
+                setTimeout(() => {
+                    if (callback) callback();
+                }, 50); // Pequeño retraso para asegurar que el DOM se actualice
             }
         }
 
@@ -1000,24 +996,20 @@ document.body.addEventListener("click", function () {
                             leadElement.setAttribute("data-id", lead.id);
             
                             // Contenido principal con nombre y último mensaje
-                            let leadElement = document.createElement("div");
-                            leadElement.classList.add("lead");
-                            leadElement.setAttribute("data-id", lead.id);
-                            
-                            leadElement.innerHTML = `
-                                <div class="lead-info">
-                                    <strong>${lead.nombre}</strong>
-                                    <p class="ultimo-mensaje">${lead.ultimo_mensaje || "(Sin mensajes)"}</p>
-                                </div>
-                                <div class="lead-detalles hidden">
-                                    <p>📞 <span class="lead-telefono">${lead.telefono}</span></p>
-                                    <textarea class="lead-notas" placeholder="Notas...">${lead.notas || ""}</textarea>
-                                    <div class="lead-buttons">
-                                        <button class="editar-btn" onclick="editarLead(${lead.id})">✏️ Editar</button>
-                                        <button class="eliminar-btn" onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
-                                    </div>
-                                </div>
-                            `;
+                leadElement.innerHTML = `
+                <div class="lead-info">
+                    <strong>${lead.nombre}</strong>
+                    <p class="ultimo-mensaje">${lead.ultimo_mensaje || "(Sin mensajes)"}</p>
+                </div>
+                <div class="lead-detalles hidden">
+                    <p>📞 <span class="lead-telefono">${lead.telefono}</span></p>
+                    <textarea class="lead-notas" placeholder="Notas...">${lead.notas || ""}</textarea>
+                    <div class="lead-buttons">
+                        <button class="editar-btn" onclick="editarLead(${lead.id})">✏️ Editar</button>
+                        <button class="eliminar-btn" onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `;
             
                             // Toggle de detalles
                             leadElement.addEventListener("click", function() {
