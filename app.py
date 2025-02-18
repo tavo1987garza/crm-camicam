@@ -74,7 +74,6 @@ def eliminar_lead():
         return jsonify({"mensaje": "Lead eliminado correctamente"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
@@ -91,20 +90,58 @@ def recibir_mensaje():
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, 'Nuevo', 'recibido')",
-                           (plataforma, remitente, mensaje))
+            cursor.execute("INSERT INTO leads (nombre, mensaje, estado) VALUES (%s, %s, %s) RETURNING id",
+                           (remitente, mensaje, "Contacto Inicial"))
+            lead_id = cursor.fetchone()[0]
             conn.commit()
         finally:
             conn.close()
-
-    # Emitir evento en tiempo real
-    socketio.emit("nuevo_mensaje", {
-        "plataforma": plataforma,
-        "remitente": remitente,
-        "mensaje": mensaje
+    
+    # Emitir evento en tiempo real para actualizar la sección de leads
+    socketio.emit("nuevo_lead", {
+        "id": lead_id,
+        "nombre": remitente,
+        "mensaje": mensaje,
+        "estado": "Contacto Inicial"
     })
 
-    return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
+    return jsonify({"mensaje": "Mensaje recibido y registrado como Lead"}), 200
+
+# 📌 Endpoint para actualizar estado de Lead
+@app.route("/actualizar_lead", methods=["POST"])
+def actualizar_lead():
+    try:
+        datos = request.json
+        lead_id = datos.get("id")
+        nuevo_estado = datos.get("estado")
+        if not lead_id or nuevo_estado not in ["Contacto Inicial", "En proceso", "Seguimiento", "Cliente", "No cliente"]:
+            return jsonify({"error": "Datos incorrectos"}), 400
+        conn = conectar_db()
+        if conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE leads SET estado = %s WHERE id = %s", (nuevo_estado, lead_id))
+            conn.commit()
+            conn.close()
+        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 📌 Ruta para eliminar un lead
+@app.route("/eliminar_lead", methods=["POST"])
+def eliminar_lead():
+    try:
+        datos = request.json
+        lead_id = datos.get("id")
+        conn = conectar_db()
+        if conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM leads WHERE id = %s", (lead_id,))
+            conn.commit()
+            conn.close()
+        return jsonify({"mensaje": "Lead eliminado correctamente"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # 📌 Enviar respuesta al cliente
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
