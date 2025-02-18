@@ -53,6 +53,26 @@
             background-color: #4CAF50;
             color: white;
         }
+
+        .leads-container {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+        .leads-column {
+            min-width: 250px;
+            background: #f1f1f1;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .lead {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: grab;
+        }
+
         .notification {
             position: fixed;
             top: 20px;
@@ -390,19 +410,28 @@
         
         <div id="leads" class="seccion hidden">
             <h1>📩 Leads</h1>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Plataforma</th>
-                        <th>Remitente</th>
-                        <th>Mensaje</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="leads-table"></tbody>
-            </table>
+            <div class="leads-container" id="leads-container">
+                <div class="leads-column" data-estado="Contacto inicial">
+                    <h3>📞 Contacto inicial</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="En proceso">
+                    <h3>🔄 En proceso</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="Seguimiento">
+                    <h3>📌 Seguimiento</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="Cliente">
+                    <h3>✅ Cliente</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="No cliente">
+                    <h3>🚫 No cliente</h3>
+                    <div class="leads-list"></div>
+                </div>
+            </div>
         </div>
 
     
@@ -748,44 +777,33 @@ document.body.addEventListener("click", function () {
             fetch("/leads")
             .then(response => response.json())
             .then(leads => {
-                let tabla = document.getElementById("leads-table");
-                tabla.innerHTML = "";
+                document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
                 leads.forEach(lead => {
-                    let row = tabla.insertRow();
-                    row.insertCell(0).textContent = lead.id;
-                    row.insertCell(1).textContent = lead.nombre;
-                    row.insertCell(2).textContent = lead.mensaje;
-                    row.insertCell(3).textContent = lead.estado;
-
-                    let acciones = row.insertCell(4);
-                    let opciones = "";
-                    if (lead.estado !== "Finalizado") {
-                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Interes')">📌 Interés</button>`;
-                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Seguimiento')">📞 Seguimiento</button>`;
-                        opciones += `<button onclick="cambiarEstado(${lead.id}, 'Finalizado')">✅ Finalizado</button>`;
-                    }
-                    acciones.innerHTML = opciones;
+                    let leadElement = document.createElement("div");
+                    leadElement.classList.add("lead");
+                    leadElement.textContent = `${lead.nombre} - ${lead.mensaje}`;
+                    leadElement.draggable = true;
+                    leadElement.setAttribute("data-id", lead.id);
+                    leadElement.ondragstart = (event) => event.dataTransfer.setData("text", lead.id);
+                    
+                    document.querySelector(`[data-estado='${lead.estado}'] .leads-list`).appendChild(leadElement);
                 });
             });
         }
-
-        function cambiarEstado(id, estado) {
-            fetch("/actualizar_lead", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, estado })
-            }).then(() => cargarLeads());
-        }
-
-        function eliminarLeads(id) {
-            if (confirm("¿Estás seguro de eliminar este mensaje?")) {
-                fetch("/eliminar_mensaje", {
+        
+        document.querySelectorAll(".leads-column").forEach(column => {
+            column.ondragover = (event) => event.preventDefault();
+            column.ondrop = (event) => {
+                event.preventDefault();
+                let leadId = event.dataTransfer.getData("text");
+                let newEstado = column.getAttribute("data-estado");
+                fetch("/actualizar_lead", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id })
+                    body: JSON.stringify({ id: leadId, estado: newEstado })
                 }).then(() => cargarLeads());
-             }
-        }
+            };
+        });
 
         
     </script>

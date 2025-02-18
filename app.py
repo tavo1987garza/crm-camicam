@@ -26,10 +26,55 @@ def conectar_db():
         print("❌ Error al conectar con la base de datos:", str(e))
     return None
 
-# 📌 Ruta para Leads
+# 📌 Ruta para obtener Leads
 @app.route("/leads", methods=["GET"])
 def obtener_leads():
-    return jsonify([])
+    try:
+        conn = conectar_db()
+        if conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("SELECT * FROM leads ORDER BY estado")
+            leads = cursor.fetchall()
+            conn.close()
+            return jsonify(leads)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 📌 Endpoint para actualizar estado de Lead
+@app.route("/actualizar_lead", methods=["POST"])
+def actualizar_lead():
+    try:
+        datos = request.json
+        lead_id = datos.get("id")
+        nuevo_estado = datos.get("estado")
+        if not lead_id or nuevo_estado not in ["Contacto inicial", "En proceso", "Seguimiento", "Cliente", "No cliente"]:
+            return jsonify({"error": "Datos incorrectos"}), 400
+        conn = conectar_db()
+        if conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE leads SET estado = %s WHERE id = %s", (nuevo_estado, lead_id))
+            conn.commit()
+            conn.close()
+        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 📌 Ruta para eliminar un lead
+@app.route("/eliminar_lead", methods=["POST"])
+def eliminar_lead():
+    try:
+        datos = request.json
+        lead_id = datos.get("id")
+        conn = conectar_db()
+        if conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM leads WHERE id = %s", (lead_id,))
+            conn.commit()
+            conn.close()
+        return jsonify({"mensaje": "Lead eliminado correctamente"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
