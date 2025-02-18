@@ -214,6 +214,26 @@
             background: #d3f9d8; /* Color de fondo cuando se arrastra un lead */
         }
 
+       
+        
+        /* 🔹 Estilizar el botón de agregar */
+        #toggle-form {
+            width: 100%;
+            padding: 8px;
+            background: #1e88e5;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease-in-out;
+        }
+        
+        #toggle-form:hover {
+            background: #1565c0;
+        }
+        
+
         .notification {
             position: fixed;
             top: 20px;
@@ -560,12 +580,14 @@
                     <h3>📞 Contacto inicial</h3>
                     <div class="leads-list"></div>
                     <div class="form-container">
-                        <h4>➕ Agregar Lead</h4>
-                        <input type="text" id="lead-nombre" placeholder="Nombre" required>
-                        <input type="text" id="lead-telefono" placeholder="Teléfono" required>
-                        <button onclick="crearLead()">Agregar</button>
+                        <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
+                        <div id="lead-form" class="hidden">
+                            <input type="text" id="lead-nombre" placeholder="Nombre" required>
+                            <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                            <button onclick="crearLead()">Agregar</button>
+                        </div>
                     </div>
-                </div>
+                    
 
                 <div class="leads-column" data-estado="En proceso">
                     <h3>🔄 En proceso</h3>
@@ -1029,16 +1051,13 @@ document.body.addEventListener("click", function () {
         
 
         function crearLead() {
-            let nombre = document.getElementById("lead-nombre").value.trim();
-            let telefono = document.getElementById("lead-telefono").value.trim();
+            let nombreInput = document.getElementById("lead-nombre");
+            let telefonoInput = document.getElementById("lead-telefono");
+            let nombre = nombreInput.value.trim();
+            let telefono = telefonoInput.value.trim();
         
             if (!nombre || !telefono) {
                 alert("Por favor, completa todos los campos.");
-                return;
-            }
-        
-            if (!/^\d{10}$/.test(telefono)) {
-                alert("El número de teléfono debe contener 10 dígitos numéricos.");
                 return;
             }
         
@@ -1047,21 +1066,34 @@ document.body.addEventListener("click", function () {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ nombre, telefono })
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => { throw new Error(text); });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 alert(data.mensaje);
-                cargarLeads();
+                cargarLeads();  // 🔹 Recargar la lista de leads
+        
+                // 🔹 Limpiar los inputs
+                nombreInput.value = "";
+                telefonoInput.value = "";
+        
+                // 🔹 Ocultar el formulario después de agregar
+                toggleFormulario();
             })
-            .catch(error => {
-                console.error("❌ Error al crear lead:", error);
-                alert("Hubo un error al crear el lead. Revisa la consola.");
-            });
+            .catch(error => console.error("❌ Error al crear lead:", error));
         }
+
+        function toggleFormulario() {
+            let form = document.getElementById("lead-form");
+            let button = document.getElementById("toggle-form");
+        
+            if (form.classList.contains("hidden")) {
+                form.classList.remove("hidden"); // 🔹 Mostrar formulario
+                button.textContent = "✖ Cerrar"; // 🔹 Cambiar el botón a "Cerrar"
+            } else {
+                form.classList.add("hidden"); // 🔹 Ocultar formulario
+                button.textContent = "➕ Agregar Lead"; // 🔹 Volver a mostrar el botón original
+            }
+        }
+        
 
         function eliminarLead(leadId, telefono) {
             if (!confirm("¿Seguro que quieres eliminar este lead y todos sus mensajes?")) {
