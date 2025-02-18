@@ -981,36 +981,60 @@ document.body.addEventListener("click", function () {
             }
         
             fetch("/leads")
-            .then(response => response.json())
-            .then(leads => {
-                document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
-    
-                leads.forEach(lead => {
-                    let estadoLimpio = lead.estado.trim();
-                    let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
-    
-                    if (leadList) {
-                        let leadElement = document.createElement("div");
-                        leadElement.classList.add("lead");
-                        leadElement.textContent = `${lead.nombre} - ${lead.telefono}`;
-                        leadElement.draggable = true;
-                        leadElement.setAttribute("data-id", lead.id);
-    
-                        // 🔹 Botón de eliminar
-                        let deleteButton = document.createElement("button");
-                        deleteButton.textContent = "🗑️";
-                        deleteButton.style.marginLeft = "10px";
-                        deleteButton.onclick = function () {
-                            eliminarLead(lead.id, lead.telefono);
-                        };
-    
-                        leadElement.appendChild(deleteButton);
-                        leadList.appendChild(leadElement);
-                    }
-                });
+                .then(response => response.json())
+                .then(leads => {
+                    document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
+        
+                    leads.forEach(lead => {
+                        let estadoLimpio = lead.estado.trim();
+                        let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
+        
+                        if (leadList) {
+                            let leadElement = document.createElement("div");
+                            leadElement.classList.add("lead");
+                            leadElement.innerHTML = `<strong>${lead.nombre}</strong><br><span>${lead.ultimoMensaje || "(Sin mensajes)"}</span>`;
+                            leadElement.draggable = true;
+                            leadElement.setAttribute("data-id", lead.id);
+                            
+                            leadElement.onclick = function () {
+                                mostrarDetallesLead(lead);
+                            };
+        
+                            leadList.appendChild(leadElement);
+                        }
+                    });
+                })
+                .catch(error => console.error("❌ Error al cargar leads:", error));
+        }
+        
+        function mostrarDetallesLead(lead) {
+            let detallesDiv = document.getElementById("lead-detalles");
+            detallesDiv.innerHTML = `
+                <h3>${lead.nombre}</h3>
+                <p><strong>Teléfono:</strong> ${lead.telefono}</p>
+                <p><strong>Notas:</strong></p>
+                <textarea id="lead-notas">${lead.notas || ""}</textarea>
+                <button onclick="guardarEdicionLead(${lead.id})">💾 Guardar</button>
+                <button onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
+            `;
+            detallesDiv.classList.remove("hidden");
+        }
+        
+        function guardarEdicionLead(leadId) {
+            let notas = document.getElementById("lead-notas").value.trim();
+            
+            fetch("/editar_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: leadId, notas })
             })
-            .catch(error => console.error("❌ Error al cargar leads:", error));
-    }
+            .then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                cargarLeads();
+            })
+            .catch(error => console.error("❌ Error al editar lead:", error));
+        }
 
     
 
@@ -1050,8 +1074,10 @@ document.body.addEventListener("click", function () {
         function crearLead() {
             let nombreInput = document.getElementById("lead-nombre");
             let telefonoInput = document.getElementById("lead-telefono");
+            let notasInput = document.getElementById("lead-notas");
             let nombre = nombreInput.value.trim();
             let telefono = telefonoInput.value.trim();
+            let notas = notasInput.value.trim();
         
             if (!nombre || !telefono) {
                 alert("Por favor, completa todos los campos.");
@@ -1061,18 +1087,15 @@ document.body.addEventListener("click", function () {
             fetch("/crear_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nombre, telefono })
+                body: JSON.stringify({ nombre, telefono, notas })
             })
             .then(response => response.json())
             .then(data => {
                 alert(data.mensaje);
-                cargarLeads();  // 🔹 Recargar la lista de leads
-        
-                // 🔹 Limpiar los inputs
+                cargarLeads();
                 nombreInput.value = "";
                 telefonoInput.value = "";
-        
-                // 🔹 Ocultar el formulario después de agregar
+                notasInput.value = "";
                 toggleFormulario();
             })
             .catch(error => console.error("❌ Error al crear lead:", error));
