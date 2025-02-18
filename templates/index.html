@@ -560,10 +560,12 @@
                     <h3>📞 Contacto inicial</h3>
                     <div class="leads-list"></div>
                     <div class="form-container">
-                        <h4>➕ Agregar Lead</h4>
-                        <input type="text" id="lead-nombre" placeholder="Nombre" required>
-                        <input type="text" id="lead-telefono" placeholder="Teléfono" required>
-                        <button onclick="crearLead()">Agregar</button>
+                        <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
+                        <div id="lead-form" class="hidden">
+                            <input type="text" id="lead-nombre" placeholder="Nombre" required>
+                            <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                            <button onclick="crearLead()">Agregar</button>
+                        </div>
                     </div>
                 </div>
 
