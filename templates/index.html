@@ -115,19 +115,41 @@
 }
 
 /* 🔹 Estilo de cada Lead */
+/* 🔹 Leads ahora serán transparentes inicialmente */
 .lead {
-    background: white;
+    background: transparent; /* Se aplicará el color de la columna con JS */
     padding: 8px;
     margin: 5px 0;
     border-radius: 5px;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
     font-size: 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: grab;
-    transition: background 0.2s ease-in-out;
+    transition: background 0.3s ease-in-out;
 }
+
+/* 🔹 Cuando se suelta un lead, tomará el color de la columna */
+[data-estado="Contacto Inicial"] .lead {
+    background: #bbdefb; /* Azul claro */
+}
+
+[data-estado="En proceso"] .lead {
+    background: #ffe0b2; /* Naranja claro */
+}
+
+[data-estado="Seguimiento"] .lead {
+    background: #dcedc8; /* Verde claro */
+}
+
+[data-estado="Cliente"] .lead {
+    background: #c8e6c9; /* Verde pastel */
+}
+
+[data-estado="No cliente"] .lead {
+    background: #ffcdd2; /* Rojo claro */
+}
+
 
 .lead:hover {
     background: #eeeeee;
@@ -202,6 +224,8 @@
             border-radius: 5px;
             display: none;
         }
+
+
         .chat-container {
             display: flex;
             height: 80vh;
@@ -982,29 +1006,27 @@ document.body.addEventListener("click", function () {
         });
 
         document.querySelectorAll(".leads-column").forEach(column => {
-            column.ondragover = (event) => {
-                event.preventDefault();
-                column.classList.add("dragover");
-            };
-            column.ondragleave = () => column.classList.remove("dragover");
-
+            column.ondragover = (event) => event.preventDefault();
             column.ondrop = (event) => {
                 event.preventDefault();
-                column.classList.remove("dragover");
-
                 let leadId = event.dataTransfer.getData("text");
                 let newEstado = column.getAttribute("data-estado");
-
-                let confirmacion = confirm(`¿Mover este lead a "${newEstado}"?`);
-                if (!confirmacion) return;
-
+                let leadElement = document.querySelector(`[data-id='${leadId}']`);
+        
+                // 🔹 Cambiar el fondo del lead al color de la nueva columna
+                if (leadElement) {
+                    leadElement.style.background = window.getComputedStyle(column).backgroundColor;
+                }
+        
+                // 🔹 Enviar la actualización al backend
                 fetch("/cambiar_estado_lead", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id: leadId, estado: newEstado })
-                }).then(() => cargarLeads());
+                }).then(() => cargarLeads()); // Recargar para reflejar cambios
             };
         });
+        
 
         function crearLead() {
             let nombre = document.getElementById("lead-nombre").value.trim();
