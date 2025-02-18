@@ -844,40 +844,40 @@ document.body.addEventListener("click", function () {
             }
         
             fetch("/leads")
-                .then(response => response.json())
-                .then(leads => {
-                    let listasLeads = document.querySelectorAll('.leads-list');
-        
-                    if (!listasLeads || listasLeads.length === 0) {
-                        console.error("❌ No se encontraron elementos .leads-list en el DOM.");
-                        return;
+            .then(response => response.json())
+            .then(leads => {
+                document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
+    
+                leads.forEach(lead => {
+                    let estadoLimpio = lead.estado.trim();
+                    let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
+    
+                    if (leadList) {
+                        let leadElement = document.createElement("div");
+                        leadElement.classList.add("lead");
+                        leadElement.textContent = `${lead.nombre} - ${lead.telefono}`;
+                        leadElement.draggable = true;
+                        leadElement.setAttribute("data-id", lead.id);
+    
+                        // 🔹 Botón de eliminar
+                        let deleteButton = document.createElement("button");
+                        deleteButton.textContent = "🗑️";
+                        deleteButton.style.marginLeft = "10px";
+                        deleteButton.onclick = function () {
+                            eliminarLead(lead.id, lead.telefono);
+                        };
+    
+                        leadElement.appendChild(deleteButton);
+                        leadList.appendChild(leadElement);
                     }
-        
-                    // Limpiar listas antes de insertar nuevos leads
-                    listasLeads.forEach(list => list.innerHTML = "");
-        
-                    leads.forEach(lead => {
-                        let estadoLimpio = lead.estado.trim(); // Elimina espacios extra
-        
-                        // Buscar la lista correcta
-                        let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
-        
-                        if (leadList) {
-                            let leadElement = document.createElement("div");
-                            leadElement.classList.add("lead");
-                            leadElement.textContent = `${lead.nombre} - ${lead.telefono}`;
-                            leadElement.draggable = true;
-                            leadElement.setAttribute("data-id", lead.id);
-                            leadElement.ondragstart = (event) => event.dataTransfer.setData("text", lead.id);
-        
-                            leadList.appendChild(leadElement);
-                        } else {
-                            console.error(`❌ No se encontró la lista de leads para el estado: "${estadoLimpio}"`);
-                        }
-                    });
-                })
-                .catch(error => console.error("❌ Error al cargar leads:", error));
-        }
+                });
+            })
+            .catch(error => console.error("❌ Error al cargar leads:", error));
+    }
+
+    
+
+    
         
         
 
@@ -946,6 +946,42 @@ document.body.addEventListener("click", function () {
                 alert("Hubo un error al crear el lead. Revisa la consola.");
             });
         }
+
+        function eliminarLead(leadId, telefono) {
+            if (!confirm("¿Seguro que quieres eliminar este lead y todos sus mensajes?")) {
+                return;
+            }
+        
+            fetch("/eliminar_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: leadId, telefono: telefono })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                cargarLeads();
+                cargarChat(); // 🔹 También actualizar la lista de chats
+            })
+            .catch(error => console.error("❌ Error al eliminar lead:", error));
+        }
+
+        socket.on("lead_eliminado", (data) => {
+            console.log(`🗑️ Lead eliminado: ${data.telefono}`);
+        
+            // 🔹 Quitar el chat de la lista si estaba visible
+            let chats = document.querySelectorAll(".chat-item");
+            chats.forEach(chat => {
+                if (chat.getAttribute("data-remitente") === data.telefono) {
+                    chat.remove();
+                }
+            });
+        
+            // 🔹 Actualizar la lista de leads y chats
+            cargarLeads();
+            cargarChat();
+        });
+        
         
 
         

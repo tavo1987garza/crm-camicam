@@ -184,15 +184,34 @@ def eliminar_lead():
     try:
         datos = request.json
         lead_id = datos.get("id")
+        telefono = datos.get("telefono")  # Necesario para borrar sus mensajes
+
+        if not lead_id or not telefono:
+            return jsonify({"error": "Faltan datos"}), 400
+
         conn = conectar_db()
-        if conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM leads WHERE id = %s", (lead_id,))
-            conn.commit()
-            conn.close()
-        return jsonify({"mensaje": "Lead eliminado correctamente"}), 200
+        if not conn:
+            return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+        cursor = conn.cursor()
+
+        # 🔹 Eliminar todos los mensajes asociados al teléfono del lead
+        cursor.execute("DELETE FROM mensajes WHERE remitente = %s", (telefono,))
+
+        # 🔹 Eliminar el lead de la tabla leads
+        cursor.execute("DELETE FROM leads WHERE id = %s", (lead_id,))
+
+        conn.commit()
+        conn.close()
+
+        # 🔹 Notificar al frontend para actualizar la interfaz
+        socketio.emit("lead_eliminado", {"id": lead_id, "telefono": telefono})
+
+        return jsonify({"mensaje": "Lead y sus mensajes eliminados correctamente"}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 # 📌 Enviar respuesta a Camibot con reintento automático
