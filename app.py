@@ -112,20 +112,20 @@ def recibir_mensaje():
 # 📌 Crear un nuevo lead manualmente
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
-    datos = request.json
-    nombre = datos.get("nombre")
-    telefono = datos.get("telefono")
-
-    if not nombre or not telefono or not validar_telefono(telefono):
-        print("❌ Error: Datos inválidos en la solicitud de creación de lead.")
-        return jsonify({"error": "Datos inválidos. El teléfono debe tener 10 dígitos."}), 400
-
-    conn = conectar_db()
-    if not conn:
-        print("❌ Error: No se pudo conectar a la base de datos.")
-        return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
-
     try:
+        datos = request.json
+        nombre = datos.get("nombre")
+        telefono = datos.get("telefono")
+
+        if not nombre or not telefono or not validar_telefono(telefono):
+            print("❌ Error: Datos inválidos en la solicitud de creación de lead.")
+            return jsonify({"error": "Datos inválidos. El teléfono debe tener 10 dígitos."}), 400
+
+        conn = conectar_db()
+        if not conn:
+            print("❌ Error: No se pudo conectar a la base de datos.")
+            return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
+
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO leads (nombre, telefono, estado)
@@ -154,7 +154,7 @@ def crear_lead():
 
     except Exception as e:
         print(f"❌ Error en /crear_lead: {str(e)}")
-        return jsonify({"error": "Error interno del servidor"}), 500
+        return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
     finally:
         liberar_db(conn)
 
