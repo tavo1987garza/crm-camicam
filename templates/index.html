@@ -339,6 +339,35 @@
             }
         }
         
+        /* 🔹 Media Query para hacer que siempre sea de dos columnas */
+@media (max-width: 1024px) {
+    
+
+    .chat-list {
+        width: 40%; /* 🔹 Se ajusta en pantallas más pequeñas */
+        min-width: 250px;
+    }
+
+    .phone {
+        width: 55%; /* 🔹 Se mantiene al lado derecho */
+        min-width: 320px;
+    }
+}
+
+/* 🔹 Para pantallas aún más pequeñas */
+@media (max-width: 768px) {
+   
+
+    .chat-list {
+        width: 45%;
+        min-width: 220px;
+    }
+
+    .phone {
+        width: 50%;
+        min-width: 300px;
+    }
+}
 
 
     </style>
