@@ -222,16 +222,36 @@ def editar_lead():
     if not lead_id:
         return jsonify({"error": "ID del lead no proporcionado"}), 400
 
-    # Aquí deberías actualizar el lead en tu base de datos.
-    # Suponiendo que usas SQLAlchemy:
-    lead = Lead.query.get(lead_id)
-    if lead:
-        lead.nombre = nuevo_nombre
-        lead.notas = nuevas_notas
-        db.session.commit()
-        return jsonify({"mensaje": "Lead actualizado correctamente"})
-    else:
-        return jsonify({"error": "Lead no encontrado"}), 404
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        # Verificar si el lead existe
+        cursor.execute("SELECT id FROM leads WHERE id = %s", (lead_id,))
+        lead = cursor.fetchone()
+
+        if not lead:
+            return jsonify({"error": "Lead no encontrado"}), 404
+
+        # Actualizar los datos del lead
+        cursor.execute("""
+            UPDATE leads 
+            SET nombre = %s, notas = %s
+            WHERE id = %s
+        """, (nuevo_nombre, nuevas_notas, lead_id))
+
+        conn.commit()
+        return jsonify({"mensaje": "Lead actualizado correctamente"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /editar_lead: {str(e)}")
+        return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
+
+    finally:
+        liberar_db(conn)
 
 
 
