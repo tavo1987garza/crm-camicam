@@ -410,11 +410,20 @@
         
         <div id="leads" class="seccion hidden">
             <h1>📩 Leads</h1>
+
             <div class="leads-container" id="leads-container">
+
                 <div class="leads-column" data-estado="Contacto inicial">
                     <h3>📞 Contacto inicial</h3>
                     <div class="leads-list"></div>
+                    <div class="form-container">
+                        <h4>➕ Agregar Lead</h4>
+                        <input type="text" id="lead-nombre" placeholder="Nombre" required>
+                        <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                        <button onclick="crearLead()">Agregar</button>
+                    </div>
                 </div>
+
                 <div class="leads-column" data-estado="En proceso">
                     <h3>🔄 En proceso</h3>
                     <div class="leads-list"></div>
@@ -489,10 +498,17 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            console.log("📌 DOM cargado. Preparando eventos.");
+        });
+
         function mostrarSeccion(seccion, callback = null) {
             document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
-            document.getElementById(seccion).classList.remove('hidden');
-            if (callback) callback();
+            let elemento = document.getElementById(seccion);
+            if (elemento) {
+                elemento.classList.remove('hidden');
+                if (callback) callback();
+            }
         }
 
         // 🔹 Conectar con WebSockets
@@ -781,7 +797,7 @@ document.body.addEventListener("click", function () {
                 leads.forEach(lead => {
                     let leadElement = document.createElement("div");
                     leadElement.classList.add("lead");
-                    leadElement.textContent = `${lead.nombre} - ${lead.mensaje}`;
+                    leadElement.textContent = `${lead.nombre} - ${lead.telefono}`;
                     leadElement.draggable = true;
                     leadElement.setAttribute("data-id", lead.id);
                     leadElement.ondragstart = (event) => event.dataTransfer.setData("text", lead.id);
@@ -790,20 +806,44 @@ document.body.addEventListener("click", function () {
                 });
             });
         }
-        
+
         document.querySelectorAll(".leads-column").forEach(column => {
             column.ondragover = (event) => event.preventDefault();
             column.ondrop = (event) => {
                 event.preventDefault();
                 let leadId = event.dataTransfer.getData("text");
                 let newEstado = column.getAttribute("data-estado");
-                fetch("/actualizar_lead", {
+                fetch("/cambiar_estado_lead", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id: leadId, estado: newEstado })
                 }).then(() => cargarLeads());
             };
         });
+
+        function crearLead() {
+            let nombre = document.getElementById("lead-nombre").value.trim();
+            let telefono = document.getElementById("lead-telefono").value.trim();
+            
+            if (!nombre || !telefono) {
+                alert("Por favor, completa todos los campos.");
+                return;
+            }
+
+            fetch("/crear_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ nombre, telefono })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                cargarLeads();
+                document.getElementById("lead-nombre").value = "";
+                document.getElementById("lead-telefono").value = "";
+            })
+            .catch(error => console.error("❌ Error al crear lead:", error));
+        }
 
         
     </script>
