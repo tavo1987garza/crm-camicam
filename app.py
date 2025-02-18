@@ -117,33 +117,47 @@ def crear_lead():
     telefono = datos.get("telefono")
 
     if not nombre or not telefono or not validar_telefono(telefono):
+        print("❌ Error: Datos inválidos en la solicitud de creación de lead.")
         return jsonify({"error": "Datos inválidos. El teléfono debe tener 10 dígitos."}), 400
 
     conn = conectar_db()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO leads (nombre, telefono, estado)
-                VALUES (%s, %s, 'Contacto Inicial')
-                ON CONFLICT (telefono) DO NOTHING
-                RETURNING id
-            """, (nombre, telefono))
-            lead_id = cursor.fetchone()
-            conn.commit()
+    if not conn:
+        print("❌ Error: No se pudo conectar a la base de datos.")
+        return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
 
-            if lead_id:
-                socketio.emit("nuevo_lead", {
-                    "id": lead_id[0],
-                    "nombre": nombre,
-                    "telefono": telefono,
-                    "estado": "Contacto Inicial"
-                })
-                return jsonify({"mensaje": "Lead creado correctamente"}), 200
-            else:
-                return jsonify({"mensaje": "El lead ya existía"}), 200
-        finally:
-            liberar_db(conn)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO leads (nombre, telefono, estado)
+            VALUES (%s, %s, 'Contacto Inicial')
+            ON CONFLICT (telefono) DO NOTHING
+            RETURNING id
+        """, (nombre, telefono))
+
+        lead_id = cursor.fetchone()
+        conn.commit()
+
+        if lead_id:
+            lead_id = lead_id[0]
+            print(f"✅ Lead creado: ID={lead_id}, Nombre={nombre}, Teléfono={telefono}")
+
+            socketio.emit("nuevo_lead", {
+                "id": lead_id,
+                "nombre": nombre,
+                "telefono": telefono,
+                "estado": "Contacto Inicial"
+            })
+            return jsonify({"mensaje": "Lead creado correctamente"}), 200
+        else:
+            print(f"⚠️ El lead ya existía: Nombre={nombre}, Teléfono={telefono}")
+            return jsonify({"mensaje": "El lead ya existía"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /crear_lead: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+    finally:
+        liberar_db(conn)
+
 
 # 📌 Endpoint para actualizar estado de Lead
 @app.route("/cambiar_estado_lead", methods=["POST"])

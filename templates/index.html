@@ -915,25 +915,38 @@ document.body.addEventListener("click", function () {
         function crearLead() {
             let nombre = document.getElementById("lead-nombre").value.trim();
             let telefono = document.getElementById("lead-telefono").value.trim();
-
+        
             if (!nombre || !telefono) {
                 alert("Por favor, completa todos los campos.");
                 return;
             }
-
-            if (!validarTelefono(telefono)) {
+        
+            if (!/^\d{10}$/.test(telefono)) {
                 alert("El número de teléfono debe contener 10 dígitos numéricos.");
                 return;
             }
-
+        
             fetch("/crear_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ nombre, telefono })
             })
-            .then(response => response.json())
-            .then(() => cargarLeads());
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.mensaje);
+                cargarLeads();
+            })
+            .catch(error => {
+                console.error("❌ Error al crear lead:", error);
+                alert("Hubo un error al crear el lead. Revisa la consola.");
+            });
         }
+        
 
         
 
