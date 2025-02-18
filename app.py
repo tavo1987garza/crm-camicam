@@ -36,10 +36,10 @@ def obtener_leads():
             cursor.execute("SELECT * FROM leads ORDER BY estado")
             leads = cursor.fetchall()
             conn.close()
-            return jsonify(leads)
+            return jsonify(leads if leads else [])  # Siempre devolver un array
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        print("❌ Error en /leads:", str(e))
+        return jsonify([])
 
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
@@ -57,26 +57,57 @@ def recibir_mensaje():
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO leads (nombre, mensaje, estado) VALUES (%s, %s, %s) RETURNING id",
-                           (remitente, mensaje, "Contacto Inicial"))
-            lead_id = cursor.fetchone()[0]
+            cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo) VALUES (%s, %s, %s, 'Nuevo', 'recibido')",
+                           (plataforma, remitente, mensaje))
             conn.commit()
         finally:
             conn.close()
-    
-    # Emitir evento en tiempo real para actualizar la sección de leads
-    socketio.emit("nuevo_lead", {
-        "id": lead_id,
-        "nombre": remitente,
-        "mensaje": mensaje,
-        "estado": "Contacto Inicial"
+
+    # Emitir evento en tiempo real
+    socketio.emit("nuevo_mensaje", {
+        "plataforma": plataforma,
+        "remitente": remitente,
+        "mensaje": mensaje
     })
 
-    return jsonify({"mensaje": "Mensaje recibido y registrado como Lead"}), 200
+    return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
+
+
+# 📌 Crear un nuevo lead manualmente
+@app.route("/crear_lead", methods=["POST"])
+def crear_lead():
+    try:
+        datos = request.json
+        nombre = datos.get("nombre")
+        telefono = datos.get("telefono")
+        estado = "Contacto Inicial"
+        
+        if not nombre or not telefono:
+            return jsonify({"error": "Faltan datos"}), 400
+
+        conn = conectar_db()
+        if conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO leads (nombre, telefono, estado) VALUES (%s, %s, %s) RETURNING id",
+                           (nombre, telefono, estado))
+            lead_id = cursor.fetchone()[0]
+            conn.commit()
+            conn.close()
+        
+        socketio.emit("nuevo_lead", {
+            "id": lead_id,
+            "nombre": nombre,
+            "telefono": telefono,
+            "estado": estado
+        })
+
+        return jsonify({"mensaje": "Lead creado correctamente"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # 📌 Endpoint para actualizar estado de Lead
-@app.route("/actualizar_lead", methods=["POST"])
-def actualizar_lead():
+@app.route("/cambiar_estado_lead", methods=["POST"])
+def cambiar_estado_lead():
     try:
         datos = request.json
         lead_id = datos.get("id")
