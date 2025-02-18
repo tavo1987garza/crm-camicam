@@ -523,16 +523,28 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            console.log("📌 DOM cargado. Preparando eventos.");
+        document.addEventListener("DOMContentLoaded", function () {
+            console.log("📌 DOM completamente cargado. Configurando eventos.");
+            
+            // Solo cargar leads si la sección está visible
+            let seccionLeads = document.getElementById("leads");
+            if (seccionLeads && !seccionLeads.classList.contains("hidden")) {
+                cargarLeads();
+            }
         });
+        
 
         function mostrarSeccion(seccion, callback = null) {
             document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
             let elemento = document.getElementById(seccion);
+            
             if (elemento) {
                 elemento.classList.remove('hidden');
-                if (callback) callback();
+                
+                // Esperar a que la sección esté visible antes de ejecutar el callback
+                setTimeout(() => {
+                    if (callback) callback();
+                }, 50); // Pequeño retraso para asegurar que el DOM se actualice
             }
         }
 
@@ -820,24 +832,53 @@ document.body.addEventListener("click", function () {
 
         function cargarLeads() {
             let seccionLeads = document.getElementById("leads");
-            if (seccionLeads.classList.contains("hidden")) return; // No cargar si la sección no está visible
-
+            
+            // Si la sección no existe en el DOM, salir de la función
+            if (!seccionLeads) {
+                console.warn("⚠️ Sección de leads no encontrada en el DOM.");
+                return;
+            }
+        
+            // Si la sección está oculta, no ejecutar la carga
+            if (seccionLeads.classList.contains("hidden")) {
+                console.warn("⚠️ La sección de leads está oculta. No se cargan los datos.");
+                return;
+            }
+        
             fetch("/leads")
-            .then(response => response.json())
-            .then(leads => {
-                document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
-                leads.forEach(lead => {
-                    let leadElement = document.createElement("div");
-                    leadElement.classList.add("lead");
-                    leadElement.textContent = `${lead.nombre} - ${lead.telefono}`;
-                    leadElement.draggable = true;
-                    leadElement.setAttribute("data-id", lead.id);
-                    leadElement.ondragstart = (event) => event.dataTransfer.setData("text", lead.id);
-                    
-                    document.querySelector(`[data-estado='${lead.estado}'] .leads-list`).appendChild(leadElement);
-                });
-            });
+                .then(response => response.json())
+                .then(leads => {
+                    let listasLeads = document.querySelectorAll('.leads-list');
+        
+                    // Verificar si existen las listas en el DOM
+                    if (!listasLeads || listasLeads.length === 0) {
+                        console.error("❌ No se encontraron elementos .leads-list en el DOM.");
+                        return;
+                    }
+        
+                    // Limpiar las listas antes de insertar nuevos leads
+                    listasLeads.forEach(list => list.innerHTML = "");
+        
+                    leads.forEach(lead => {
+                        let leadElement = document.createElement("div");
+                        leadElement.classList.add("lead");
+                        leadElement.textContent = `${lead.nombre} - ${lead.telefono}`;
+                        leadElement.draggable = true;
+                        leadElement.setAttribute("data-id", lead.id);
+                        leadElement.ondragstart = (event) => event.dataTransfer.setData("text", lead.id);
+        
+                        let leadList = document.querySelector(`[data-estado='${lead.estado}'] .leads-list`);
+        
+                        if (leadList) {
+                            leadList.appendChild(leadElement);
+                        } else {
+                            console.error(`❌ No se encontró la lista de leads para el estado: ${lead.estado}`);
+                        }
+                    });
+                })
+                .catch(error => console.error("❌ Error al cargar leads:", error));
         }
+        
 
         document.getElementById("leads-container").addEventListener("dragstart", (event) => {
             if (event.target.classList.contains("lead")) {
