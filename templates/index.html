@@ -260,6 +260,43 @@
     font-size: 20px;
 }
 
+.modal-buttons {
+    display: flex;
+    justify-content: space-between; /* Alinear los botones a los extremos */
+    margin-top: 10px;
+}
+
+.delete-btn {
+    background: #d32f2f;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease-in-out;
+}
+
+.delete-btn:hover {
+    background: #b71c1c;
+}
+
+.save-btn {
+    background: #1e88e5;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease-in-out;
+}
+
+.save-btn:hover {
+    background: #1565c0;
+}
+
+
         .notification {
             position: fixed;
             top: 20px;
@@ -617,17 +654,27 @@
                 </div>
 
                 <!-- Modal para edición de Leads -->
-        <div id="edit-lead-modal" class="modal hidden">
-            <div class="modal-content">
-                <span class="close" onclick="cerrarModal()">&times;</span>
-                <h2>✏️ Editar Lead</h2>
-                <input type="hidden" id="edit-lead-id">
-                <input type="text" id="edit-lead-nombre" placeholder="Nombre">
-                <input type="text" id="edit-lead-telefono" placeholder="Teléfono">
-                <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
-                <button onclick="guardarEdicionLead()">Guardar</button>
-            </div>
+<div id="edit-lead-modal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close" onclick="cerrarModal()">&times;</span>
+        <h2>✏️ Editar Lead</h2>
+        <input type="hidden" id="edit-lead-id">
+        <input type="text" id="edit-lead-nombre" placeholder="Nombre">
+        <input type="text" id="edit-lead-telefono" placeholder="Teléfono">
+        <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
+        
+        <!-- Contenedor de botones alineados -->
+        <div class="modal-buttons">
+            <button class="delete-btn" onclick="eliminarLeadDesdeModal()">
+                🗑️ Eliminar
+            </button>
+            <button class="save-btn" onclick="guardarEdicionLead()">
+                💾 Guardar
+            </button>
         </div>
+    </div>
+</div>
+
 
                 <div class="leads-column" data-estado="En proceso">
                     <h3>🔄 En proceso</h3>
@@ -1131,25 +1178,11 @@ document.body.addEventListener("click", function () {
                 alert(data.mensaje);
                 cargarLeads();
                 cargarChat(); // 🔹 También actualizar la lista de chats
+                cerrarModal(); // 🔹 Cerrar el modal si estaba abierto
             })
             .catch(error => console.error("❌ Error al eliminar lead:", error));
         }
-
-        socket.on("lead_eliminado", (data) => {
-            console.log(`🗑️ Lead eliminado: ${data.telefono}`);
         
-            // 🔹 Quitar el chat de la lista si estaba visible
-            let chats = document.querySelectorAll(".chat-item");
-            chats.forEach(chat => {
-                if (chat.getAttribute("data-remitente") === data.telefono) {
-                    chat.remove();
-                }
-            });
-        
-            // 🔹 Actualizar la lista de leads y chats
-            cargarLeads();
-            cargarChat();
-        });
         
 
         function editarNota(id, nombre, telefono, notas) {
