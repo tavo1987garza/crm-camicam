@@ -1002,14 +1002,14 @@ document.body.addEventListener("click", function () {
                     <p class="ultimo-mensaje">${lead.ultimo_mensaje || "(Sin mensajes)"}</p>
                 </div>
                 <div class="lead-detalles hidden">
-                    <p>📞 <span class="lead-telefono">${lead.telefono}</span></p>
-                    <textarea class="lead-notas" placeholder="Notas...">${lead.notas || ""}</textarea>
-                    <div class="lead-buttons">
-                        <button class="editar-btn" onclick="editarLead(${lead.id})">✏️ Editar</button>
-                        <button class="eliminar-btn" onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
-                    </div>
-                </div>
-            `;
+    <p>📞 <span class="lead-telefono">${lead.telefono}</span></p>
+    <textarea class="lead-notas" placeholder="Notas...">${lead.notas || ""}</textarea>
+    <div class="lead-buttons">
+        <button class="editar-btn" onclick="editarLead(${lead.id})">✏️ Editar</button>
+        <button class="cerrar-btn" onclick="cerrarDetalles()">✖ Cerrar</button>
+        <button class="eliminar-btn" onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
+    </div>
+</div> `
             
                             // Toggle de detalles
                             leadElement.addEventListener("click", function() {
@@ -1121,12 +1121,18 @@ document.body.addEventListener("click", function () {
         function editarLead(leadId) {
             let leadElement = document.querySelector(`[data-id='${leadId}']`);
             let nombre = leadElement.querySelector("strong").textContent;
-            let notas = leadElement.querySelector(".lead-notas").value; // Obtener el valor del textarea
+            let telefono = leadElement.querySelector(".lead-telefono").textContent;
+            let notas = leadElement.querySelector(".lead-notas").value;
+        
+            if (!nombre || !telefono) {
+                alert("Nombre y teléfono son campos obligatorios.");
+                return;
+            }
         
             fetch("/editar_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: leadId, nombre, notas }) // Enviar nombre y notas
+                body: JSON.stringify({ id: leadId, nombre, telefono, notas })
             })
             .then(response => response.json())
             .then(data => {
@@ -1144,19 +1150,17 @@ document.body.addEventListener("click", function () {
         });
 
         document.querySelectorAll(".leads-column").forEach(column => {
-            column.ondragover = (event) => event.preventDefault();
             column.ondrop = (event) => {
                 event.preventDefault();
                 let leadId = event.dataTransfer.getData("text");
                 let newEstado = column.getAttribute("data-estado");
                 let leadElement = document.querySelector(`[data-id='${leadId}']`);
         
-                // 🔹 Cambiar el fondo del lead al color de la nueva columna
                 if (leadElement) {
+                    // Cambiar el color del lead al soltarlo
                     leadElement.style.background = window.getComputedStyle(column).backgroundColor;
                 }
         
-                // 🔹 Enviar la actualización al backend
                 fetch("/cambiar_estado_lead", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -1164,13 +1168,6 @@ document.body.addEventListener("click", function () {
                 }).then(() => cargarLeads()); // Recargar para reflejar cambios
             };
         });
-        
-
-        
-        
-
-        
-
         
     </script>
 </body>
