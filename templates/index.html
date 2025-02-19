@@ -1071,7 +1071,7 @@ document.body.addEventListener("click", function () {
                         
                         leadElement.innerHTML = `
                             <div>
-                                <strong>${lead.nombre}</strong> br - ${lead.telefono}
+                                <strong>${lead.nombre}</strong> - ${lead.telefono}
                                 <p class="lead-notas">${lead.notas ? `📝 ${lead.notas}` : "Sin notas"}</p>
                             </div>
                             <button onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">✏️</button>
