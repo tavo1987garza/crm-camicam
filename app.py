@@ -212,48 +212,7 @@ def eliminar_lead():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/editar_lead', methods=['POST'])
-def editar_lead():
-    data = request.get_json()
-    lead_id = data.get("id")
-    nuevo_nombre = data.get("nombre")
-    nuevo_telefono = data.get("telefono")
-    nuevas_notas = data.get("notas")
 
-    # Validación de datos
-    if not lead_id or not nuevo_nombre or not nuevo_telefono:
-        return jsonify({"error": "Datos incompletos"}), 400
-
-    if not validar_telefono(nuevo_telefono):
-        return jsonify({"error": "Teléfono inválido"}), 400
-
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
-    try:
-        cursor = conn.cursor()
-
-        # 🔹 Validar que el lead exista
-        cursor.execute("SELECT id FROM leads WHERE id = %s", (lead_id,))
-        if not cursor.fetchone():
-            return jsonify({"error": "Lead no encontrado"}), 404
-
-        # 🔹 Actualizar el lead
-        cursor.execute("""
-            UPDATE leads
-            SET nombre = %s, telefono = %s, notas = %s
-            WHERE id = %s
-        """, (nuevo_nombre, nuevo_telefono, nuevas_notas, lead_id))
-        conn.commit()
-
-        return jsonify({"mensaje": "Lead actualizado correctamente"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        liberar_db(conn)
-        
-        
 
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"

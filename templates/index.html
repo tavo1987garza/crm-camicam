@@ -581,7 +581,6 @@
                         <div id="lead-form" class="hidden">
                             <input type="text" id="lead-nombre" placeholder="Nombre" required>
                             <input type="text" id="lead-telefono" placeholder="Teléfono" required>
-                            <textarea id="lead-notas" placeholder="Notas (Opcional)"></textarea>
                             <button onclick="crearLead()">Agregar</button>
                         </div>
                     </div>
@@ -982,105 +981,106 @@ document.body.addEventListener("click", function () {
             }
         
             fetch("/leads")
-                .then(response => response.json())
-                .then(leads => {
-                    document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
+            .then(response => response.json())
+            .then(leads => {
+                document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
+    
+                leads.forEach(lead => {
+                    let estadoLimpio = lead.estado.trim();
+                    let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
+    
+                    if (leadList) {
+                        let leadElement = document.createElement("div");
+                        leadElement.classList.add("lead");
+                        leadElement.textContent = `${lead.nombre} - ${lead.telefono}`;
+                        leadElement.draggable = true;
+                        leadElement.setAttribute("data-id", lead.id);
+    
+                        // 🔹 Botón de eliminar
+                        let deleteButton = document.createElement("button");
+                        deleteButton.textContent = "🗑️";
+                        deleteButton.style.marginLeft = "10px";
+                        deleteButton.onclick = function () {
+                            eliminarLead(lead.id, lead.telefono);
+                        };
+    
+                        leadElement.appendChild(deleteButton);
+                        leadList.appendChild(leadElement);
+                    }
+                });
+            })
+            .catch(error => console.error("❌ Error al cargar leads:", error));
+    }
+
+    
+
+    
         
-                    leads.forEach(lead => {
-                        let estadoLimpio = lead.estado.trim();
-                        let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
         
-                        if (leadList) {
-                            let leadElement = document.createElement("div");
-                            leadElement.classList.add("lead");
-                            leadElement.setAttribute("data-id", lead.id);
-            
-                            // Contenido principal con nombre y último mensaje
-                leadElement.innerHTML = `
-                <div class="lead-info">
-                    <strong>${lead.nombre}</strong>
-                    <p class="ultimo-mensaje">${lead.ultimo_mensaje || "(Sin mensajes)"}</p>
-                </div>
-                <div class="lead-detalles hidden">
-    <p>📞 <span class="lead-telefono">${lead.telefono}</span></p>
-    <textarea class="lead-notas" placeholder="Notas...">${lead.notas || ""}</textarea>
-    <div class="lead-buttons">
-        <button class="editar-btn" onclick="editarLead(${lead.id})">✏️ Editar</button>
-        <button class="cerrar-btn" onclick="cerrarDetalles()">✖ Cerrar</button>
-        <button class="eliminar-btn" onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
-    </div>
-</div> `
-            
-                            // Toggle de detalles
-                            leadElement.addEventListener("click", function() {
-                                this.querySelector(".lead-detalles").classList.toggle("hidden");
-                            });
-            
-                            leadList.appendChild(leadElement);
-                        }
-                    });
-                })
-                .catch(error => console.error("❌ Error al cargar leads:", error));
-        }
+
+        document.getElementById("leads-container").addEventListener("dragstart", (event) => {
+            if (event.target.classList.contains("lead")) {
+                event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
+            }
+        });
+
+        document.querySelectorAll(".leads-column").forEach(column => {
+            column.ondragover = (event) => event.preventDefault();
+            column.ondrop = (event) => {
+                event.preventDefault();
+                let leadId = event.dataTransfer.getData("text");
+                let newEstado = column.getAttribute("data-estado");
+                let leadElement = document.querySelector(`[data-id='${leadId}']`);
         
-        function mostrarDetallesLead(lead) {
-            let detallesDiv = document.getElementById("lead-detalles");
-            detallesDiv.innerHTML = `
-                <h3>${lead.nombre}</h3>
-                <p><strong>Teléfono:</strong> ${lead.telefono}</p>
-                <p><strong>Notas:</strong></p>
-                <textarea id="lead-notas">${lead.notas || ""}</textarea>
-                <button onclick="guardarEdicionLead(${lead.id})">💾 Guardar</button>
-                <button onclick="eliminarLead(${lead.id}, '${lead.telefono}')">🗑️ Eliminar</button>
-            `;
-            detallesDiv.classList.remove("hidden");
-        }
+                // 🔹 Cambiar el fondo del lead al color de la nueva columna
+                if (leadElement) {
+                    leadElement.style.background = window.getComputedStyle(column).backgroundColor;
+                }
+        
+                // 🔹 Enviar la actualización al backend
+                fetch("/cambiar_estado_lead", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: leadId, estado: newEstado })
+                }).then(() => cargarLeads()); // Recargar para reflejar cambios
+            };
+        });
         
 
         function crearLead() {
-            let nombreInput = document.getElementById("lead-nombre");
-            let telefonoInput = document.getElementById("lead-telefono");
-            let notasInput = document.getElementById("lead-notas");
-            let nombre = nombreInput.value.trim();
-            let telefono = telefonoInput.value.trim();
-            let notas = notasInput.value.trim();
+            let nombre = document.getElementById("lead-nombre").value.trim();
+            let telefono = document.getElementById("lead-telefono").value.trim();
         
             if (!nombre || !telefono) {
                 alert("Por favor, completa todos los campos.");
                 return;
             }
         
+            if (!/^\d{10}$/.test(telefono)) {
+                alert("El número de teléfono debe contener 10 dígitos numéricos.");
+                return;
+            }
+        
             fetch("/crear_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nombre, telefono, notas })
+                body: JSON.stringify({ nombre, telefono })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text); });
+                }
+                return response.json();
+            })
             .then(data => {
                 alert(data.mensaje);
                 cargarLeads();
-                nombreInput.value = "";
-                telefonoInput.value = "";
-                notasInput.value = "";
-                toggleFormulario();
             })
-            .catch(error => console.error("❌ Error al crear lead:", error));
+            .catch(error => {
+                console.error("❌ Error al crear lead:", error);
+                alert("Hubo un error al crear el lead. Revisa la consola.");
+            });
         }
-
-        function toggleFormulario() {
-            let form = document.getElementById("lead-form");
-            let button = document.getElementById("toggle-form");
-        
-            if (form.classList.contains("hidden")) {
-                form.classList.remove("hidden"); // 🔹 Mostrar formulario
-                button.textContent = "✖ Cerrar"; // 🔹 Cambiar el botón a "Cerrar"
-            } else {
-                form.classList.add("hidden"); // 🔹 Ocultar formulario
-                button.textContent = "➕ Agregar Lead"; // 🔹 Volver a mostrar el botón original
-            }
-        }
-        
-        
 
         function eliminarLead(leadId, telefono) {
             if (!confirm("¿Seguro que quieres eliminar este lead y todos sus mensajes?")) {
@@ -1117,57 +1117,10 @@ document.body.addEventListener("click", function () {
             cargarChat();
         });
         
-
-        function editarLead(leadId) {
-            let leadElement = document.querySelector(`[data-id='${leadId}']`);
-            let nombre = leadElement.querySelector("strong").textContent;
-            let telefono = leadElement.querySelector(".lead-telefono").textContent;
-            let notas = leadElement.querySelector(".lead-notas").value;
-        
-            if (!nombre || !telefono) {
-                alert("Nombre y teléfono son campos obligatorios.");
-                return;
-            }
-        
-            fetch("/editar_lead", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: leadId, nombre, telefono, notas })
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.mensaje);
-                cargarLeads(); // Recargar la lista de leads después de editar
-            })
-            .catch(error => console.error("❌ Error al editar lead:", error));
-        }
         
 
-        document.getElementById("leads-container").addEventListener("dragstart", (event) => {
-            if (event.target.classList.contains("lead")) {
-                event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
-            }
-        });
+        
 
-        document.querySelectorAll(".leads-column").forEach(column => {
-            column.ondrop = (event) => {
-                event.preventDefault();
-                let leadId = event.dataTransfer.getData("text");
-                let newEstado = column.getAttribute("data-estado");
-                let leadElement = document.querySelector(`[data-id='${leadId}']`);
-        
-                if (leadElement) {
-                    // Cambiar el color del lead al soltarlo
-                    leadElement.style.background = window.getComputedStyle(column).backgroundColor;
-                }
-        
-                fetch("/cambiar_estado_lead", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: leadId, estado: newEstado })
-                }).then(() => cargarLeads()); // Recargar para reflejar cambios
-            };
-        });
         
     </script>
 </body>
