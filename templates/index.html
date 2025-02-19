@@ -1223,11 +1223,17 @@ document.body.addEventListener("click", function () {
             document.getElementById("edit-lead-modal").style.display = "none";
         }
         
+        
         function guardarEdicionLead() {
             let id = document.getElementById("edit-lead-id").value;
-            let nombre = document.getElementById("edit-lead-nombre").value;
-            let telefono = document.getElementById("edit-lead-telefono").value;
-            let notas = document.getElementById("edit-lead-notas").value;
+            let nombre = document.getElementById("edit-lead-nombre").value.trim();
+            let telefono = document.getElementById("edit-lead-telefono").value.trim();
+            let notas = document.getElementById("edit-lead-notas").value.trim();
+        
+            if (!id || !telefono) {
+                alert("⚠️ Error: ID y teléfono son obligatorios.");
+                return;
+            }
         
             fetch("/editar_lead", {
                 method: "POST",
@@ -1236,9 +1242,13 @@ document.body.addEventListener("click", function () {
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.mensaje);
-                cargarLeads();
-                cerrarModal();
+                if (data.error) {
+                    alert("❌ Error: " + data.error);
+                } else {
+                    alert("✅ Lead actualizado correctamente");
+                    cargarLeads();
+                    cerrarModal();
+                }
             })
             .catch(error => console.error("❌ Error al actualizar lead:", error));
         }

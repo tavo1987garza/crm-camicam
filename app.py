@@ -58,23 +58,32 @@ def recibir_mensaje():
         try:
             cursor = conn.cursor()
             
-            # Verificar si el remitente ya es un lead
-            cursor.execute("SELECT id FROM leads WHERE telefono = %s", (remitente,))
+            # Verificar si el lead ya existe
+            cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
             lead = cursor.fetchone()
             
             if not lead:
-                # Crear lead automáticamente si no existe
+                # 🔹 Si no tiene nombre, asignar "Lead desde Chat"
+                nombre_por_defecto = f"Lead {remitente[-4:]}"  # Usa los últimos 4 dígitos del teléfono
                 cursor.execute("""
                     INSERT INTO leads (nombre, telefono, estado)
                     VALUES (%s, %s, 'Contacto Inicial')
                     ON CONFLICT (telefono) DO NOTHING
                     RETURNING id
-                """, (remitente, remitente))
+                """, (nombre_por_defecto, remitente))  
+
                 lead_id = cursor.fetchone()
                 conn.commit()
                 
                 if lead_id:
-                    socketio.emit("nuevo_lead", {"id": lead_id[0], "nombre": remitente, "telefono": remitente, "estado": "Contacto Inicial"})
+                    socketio.emit("nuevo_lead", {
+                        "id": lead_id[0],
+                        "nombre": nombre_por_defecto,
+                        "telefono": remitente,
+                        "estado": "Contacto Inicial"
+                    })
+            else:
+                lead_id = lead[0]
 
             # Guardar mensaje en la tabla "mensajes"
             cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (%s, %s, %s, 'Nuevo')",
@@ -212,18 +221,25 @@ def eliminar_lead():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
 @app.route('/editar_lead', methods=['POST'])
 def editar_lead():
     data = request.get_json()
-    lead_id = data.get("id")
-    nuevo_nombre = data.get("nombre")
-    nuevo_telefono = data.get("telefono")
-    nuevas_notas = data.get("notas")
 
-    if not lead_id or not nuevo_nombre or not nuevo_telefono:
-        return jsonify({"error": "Datos incompletos"}), 400
+    print("📌 Datos recibidos en /editar_lead:", data)  # Debug
+
+    lead_id = data.get("id")
+    nuevo_nombre = data.get("nombre").strip() if data.get("nombre") else None
+    nuevo_telefono = data.get("telefono").strip() if data.get("telefono") else None
+    nuevas_notas = data.get("notas").strip() if data.get("notas") else ""
+
+    if not lead_id or not nuevo_telefono:
+        print("❌ Error: ID o teléfono faltante")
+        return jsonify({"error": "ID y teléfono son obligatorios"}), 400
 
     if not validar_telefono(nuevo_telefono):
+        print("❌ Error: Teléfono inválido")
         return jsonify({"error": "Teléfono inválido"}), 400
 
     conn = conectar_db()
@@ -234,12 +250,17 @@ def editar_lead():
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE leads
-            SET nombre = %s, telefono = %s, notas = %s
+            SET nombre = COALESCE(%s, nombre), 
+                telefono = %s, 
+                notas = %s
             WHERE id = %s
         """, (nuevo_nombre, nuevo_telefono, nuevas_notas, lead_id))
         conn.commit()
+
+        print("✅ Lead actualizado correctamente")
         return jsonify({"mensaje": "Lead actualizado correctamente"}), 200
     except Exception as e:
+        print(f"❌ Error en /editar_lead: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
