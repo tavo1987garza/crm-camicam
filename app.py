@@ -238,9 +238,7 @@ def editar_lead():
         print("❌ Error: ID o teléfono faltante")
         return jsonify({"error": "ID y teléfono son obligatorios"}), 400
 
-    if not validar_telefono(nuevo_telefono):
-        print("❌ Error: Teléfono inválido")
-        return jsonify({"error": "Teléfono inválido"}), 400
+   
 
     conn = conectar_db()
     if not conn:
