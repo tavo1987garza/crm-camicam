@@ -581,6 +581,7 @@
                         <div id="lead-form" class="hidden">
                             <input type="text" id="lead-nombre" placeholder="Nombre" required>
                             <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                            <textarea id="lead-notas" placeholder="Notas"></textarea>
                             <button onclick="crearLead()">Agregar</button>
                         </div>
                     </div>
@@ -1170,11 +1171,18 @@ document.body.addEventListener("click", function () {
                 cargarLeads();
             }).catch(error => console.error("❌ Error al editar lead:", error));
         }
-        
 
-        
+        function renderizarLead(lead) {
+            let leadElement = document.createElement("div");
+            leadElement.classList.add("lead-item");
+            leadElement.innerHTML = `
+                <strong>${lead.nombre}</strong>
+                <p class="lead-notas-preview">📝 ${lead.notas ? lead.notas : "Sin notas"}</p>
+                <button onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">✏️ Editar</button>
+            `;
+            return leadElement;
+        }
 
-        
     </script>
 </body>
 </html>
