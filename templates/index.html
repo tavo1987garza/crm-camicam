@@ -1162,6 +1162,14 @@ document.body.addEventListener("click", function () {
             }
         }
         
+        function eliminarLeadDesdeModal() {
+            let leadId = document.getElementById("edit-lead-id").value;
+            let telefono = document.getElementById("edit-lead-telefono").value;
+        
+            eliminarLead(leadId, telefono); // 🔹 Reutilizamos la función de eliminación
+            cerrarModal(); // 🔹 Cerramos el modal después de eliminar
+        }
+        
 
         function eliminarLead(leadId, telefono) {
             if (!confirm("¿Seguro que quieres eliminar este lead y todos sus mensajes?")) {
