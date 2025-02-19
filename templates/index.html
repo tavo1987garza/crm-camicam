@@ -982,50 +982,33 @@ document.body.addEventListener("click", function () {
         }
 
         function cargarLeads() {
-            let seccionLeads = document.getElementById("leads");
-        
-            if (!seccionLeads) {
-                console.warn("⚠️ Sección de leads no encontrada en el DOM.");
-                return;
-            }
-        
-            if (seccionLeads.classList.contains("hidden")) {
-                console.warn("⚠️ La sección de leads está oculta. No se cargan los datos.");
-                return;
-            }
-        
             fetch("/leads")
             .then(response => response.json())
             .then(leads => {
                 document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
-    
+        
                 leads.forEach(lead => {
                     let estadoLimpio = lead.estado.trim();
                     let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
-    
+        
                     if (leadList) {
                         let leadElement = document.createElement("div");
                         leadElement.classList.add("lead");
-                        leadElement.textContent = `${lead.nombre} - ${lead.telefono}`;
-                        leadElement.draggable = true;
-                        leadElement.setAttribute("data-id", lead.id);
-    
-                        // 🔹 Botón de eliminar
-                        let deleteButton = document.createElement("button");
-                        deleteButton.textContent = "🗑️";
-                        deleteButton.style.marginLeft = "10px";
-                        deleteButton.onclick = function () {
-                            eliminarLead(lead.id, lead.telefono);
-                        };
-    
-                        leadElement.appendChild(deleteButton);
+                        leadElement.innerHTML = `
+                            <div>
+                                <strong>${lead.nombre}</strong> - ${lead.telefono}
+                                <p class="lead-notas">${lead.notas ? `📝 ${lead.notas}` : "Sin notas"}</p>
+                            </div>
+                            <button onclick="editarNota('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">📝</button>
+                        `;
+        
                         leadList.appendChild(leadElement);
                     }
                 });
             })
             .catch(error => console.error("❌ Error al cargar leads:", error));
-    }
-
+        }
+        
     
 
     
@@ -1064,8 +1047,11 @@ document.body.addEventListener("click", function () {
         function crearLead() {
             let nombreInput = document.getElementById("lead-nombre");
             let telefonoInput = document.getElementById("lead-telefono");
+            let notasInput = document.getElementById("lead-notas");
+        
             let nombre = nombreInput.value.trim();
             let telefono = telefonoInput.value.trim();
+            let notas = notasInput.value.trim();
         
             if (!nombre || !telefono) {
                 alert("Por favor, completa todos los campos.");
@@ -1075,7 +1061,7 @@ document.body.addEventListener("click", function () {
             fetch("/crear_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nombre, telefono })
+                body: JSON.stringify({ nombre, telefono, notas })
             })
             .then(response => response.json())
             .then(data => {
@@ -1085,12 +1071,13 @@ document.body.addEventListener("click", function () {
                 // 🔹 Limpiar los inputs
                 nombreInput.value = "";
                 telefonoInput.value = "";
+                notasInput.value = "";
         
-                // 🔹 Ocultar el formulario después de agregar
                 toggleFormulario();
             })
             .catch(error => console.error("❌ Error al crear lead:", error));
         }
+        
 
         function toggleFormulario() {
             let form = document.getElementById("lead-form");
@@ -1141,62 +1128,24 @@ document.body.addEventListener("click", function () {
             cargarChat();
         });
         
-        //Editar leads
-        function abrirModalEditar(leadId, nombre, telefono, notas) {
-            document.getElementById("edit-lead-id").value = leadId;
-            document.getElementById("edit-lead-nombre").value = nombre;
-            document.getElementById("edit-lead-telefono").value = telefono;
-            document.getElementById("edit-lead-notas").value = notas;
-            document.getElementById("edit-lead-modal").classList.remove("hidden");
-        }
-        
-        function cerrarModal() {
-            document.getElementById("edit-lead-modal").classList.add("hidden");
-        }
-        
-        function guardarEdicionLead() {
-            let id = document.getElementById("edit-lead-id").value;
-            let nombre = document.getElementById("edit-lead-nombre").value;
-            let telefono = document.getElementById("edit-lead-telefono").value;
-            let notas = document.getElementById("edit-lead-notas").value;
+
+        function editarNota(id, nombre, telefono, notas) {
+            let nuevaNota = prompt(`Editar nota de ${nombre}:`, notas);
+            if (nuevaNota === null) return; // Si el usuario cancela, no hacer nada
         
             fetch("/editar_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, nombre, telefono, notas })
-            }).then(response => response.json())
+                body: JSON.stringify({ id, nombre, telefono, notas: nuevaNota })
+            })
+            .then(response => response.json())
             .then(data => {
                 alert(data.mensaje);
-                cerrarModal();
-                cargarLeads();
-            }).catch(error => console.error("❌ Error al editar lead:", error));
+                cargarLeads();  // 🔹 Recargar la lista de leads
+            })
+            .catch(error => console.error("❌ Error al actualizar nota:", error));
         }
-
-        function renderizarLead(lead) {
-            let leadElement = document.createElement("div");
-            leadElement.classList.add("lead-item");
-            leadElement.innerHTML = `
-                <strong>${lead.nombre}</strong>
-                <p class="lead-notas-preview">📝 ${lead.notas ? lead.notas : "Sin notas"}</p>
-            `;
-            leadElement.addEventListener("click", () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas));
-            return leadElement;
-        }
-
-        // 🔹 WebSocket para actualización en tiempo real de leads
-        const socket = io();
-        socket.on("nuevo_lead", (data) => {
-            let existingLead = document.querySelector(`[data-id='${data.id}']`);
-            if (existingLead) {
-                existingLead.querySelector("strong").textContent = data.nombre;
-                existingLead.querySelector(".lead-notas-preview").textContent = `📝 ${data.notas ? data.notas : "Sin notas"}`;
-            } else {
-                let leadsList = document.querySelector(`[data-estado='${data.estado}'] .leads-list`);
-                if (leadsList) {
-                    leadsList.appendChild(renderizarLead(data));
-                }
-            }
-        });
+        
 
     </script>
 </body>

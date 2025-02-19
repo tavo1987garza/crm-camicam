@@ -93,7 +93,7 @@ def validar_telefono(telefono):
     return re.fullmatch(r"\d{10}", telefono) is not None
 
 
-# 📌 Ruta para obtener Leads
+# 📌 Ruta para obtener Leads        
 @app.route("/leads", methods=["GET"])
 def obtener_leads():
     conn = conectar_db()
@@ -111,6 +111,7 @@ def obtener_leads():
     finally:
         liberar_db(conn)
 
+
 # 📌 Crear un nuevo lead manualmente
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
@@ -121,12 +122,10 @@ def crear_lead():
         notas = datos.get("notas", "")
 
         if not nombre or not telefono or not validar_telefono(telefono):
-            print("❌ Error: Datos inválidos en la solicitud de creación de lead.")
             return jsonify({"error": "Datos inválidos. El teléfono debe tener 10 dígitos."}), 400
 
         conn = conectar_db()
         if not conn:
-            print("❌ Error: No se pudo conectar a la base de datos.")
             return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
 
         cursor = conn.cursor()
@@ -142,11 +141,8 @@ def crear_lead():
         conn.commit()
 
         if lead_id:
-            lead_id = lead_id[0]
-            print(f"✅ Lead creado o actualizado: ID={lead_id}, Nombre={nombre}, Teléfono={telefono}, Notas={notas}")
-
             socketio.emit("nuevo_lead", {
-                "id": lead_id,
+                "id": lead_id[0],
                 "nombre": nombre,
                 "telefono": telefono,
                 "estado": "Contacto Inicial",
@@ -154,11 +150,9 @@ def crear_lead():
             })
             return jsonify({"mensaje": "Lead creado o actualizado correctamente"}), 200
         else:
-            print(f"⚠️ No se pudo obtener el ID del lead: Nombre={nombre}, Teléfono={telefono}")
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
 
     except Exception as e:
-        print(f"❌ Error en /crear_lead: {str(e)}")
         return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
     finally:
         liberar_db(conn)
@@ -249,6 +243,7 @@ def editar_lead():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+
 
 
 
