@@ -231,6 +231,35 @@
     background: #1565c0;
 }
 
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 300px;
+    text-align: center;
+}
+
+.close {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    cursor: pointer;
+    font-size: 20px;
+}
+
         .notification {
             position: fixed;
             top: 20px;
@@ -999,7 +1028,7 @@ document.body.addEventListener("click", function () {
                                 <strong>${lead.nombre}</strong> - ${lead.telefono}
                                 <p class="lead-notas">${lead.notas ? `📝 ${lead.notas}` : "Sin notas"}</p>
                             </div>
-                            <button onclick="editarNota('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">📝</button>
+                            <button onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">✏️</button>
                         `;
         
                         leadList.appendChild(leadElement);
@@ -1008,12 +1037,6 @@ document.body.addEventListener("click", function () {
             })
             .catch(error => console.error("❌ Error al cargar leads:", error));
         }
-        
-    
-
-    
-        
-        
 
         document.getElementById("leads-container").addEventListener("dragstart", (event) => {
             if (event.target.classList.contains("lead")) {
@@ -1144,6 +1167,39 @@ document.body.addEventListener("click", function () {
                 cargarLeads();  // 🔹 Recargar la lista de leads
             })
             .catch(error => console.error("❌ Error al actualizar nota:", error));
+        }
+        
+        function abrirModalEditar(id, nombre, telefono, notas) {
+            document.getElementById("edit-lead-id").value = id;
+            document.getElementById("edit-lead-nombre").value = nombre;
+            document.getElementById("edit-lead-telefono").value = telefono;
+            document.getElementById("edit-lead-notas").value = notas;
+        
+            document.getElementById("edit-lead-modal").style.display = "flex";
+        }
+        
+        function cerrarModal() {
+            document.getElementById("edit-lead-modal").style.display = "none";
+        }
+        
+        function guardarEdicionLead() {
+            let id = document.getElementById("edit-lead-id").value;
+            let nombre = document.getElementById("edit-lead-nombre").value;
+            let telefono = document.getElementById("edit-lead-telefono").value;
+            let notas = document.getElementById("edit-lead-notas").value;
+        
+            fetch("/editar_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, nombre, telefono, notas })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                cargarLeads();
+                cerrarModal();
+            })
+            .catch(error => console.error("❌ Error al actualizar lead:", error));
         }
         
 

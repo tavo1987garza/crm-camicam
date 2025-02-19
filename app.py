@@ -245,8 +245,6 @@ def editar_lead():
         liberar_db(conn)
 
 
-
-
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
 
