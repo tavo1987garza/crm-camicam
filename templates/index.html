@@ -1051,12 +1051,6 @@ document.body.addEventListener("click", function () {
         }
         
 
-    
-        //Funcion para cargar la seccion de Leads
-        function validarTelefono(telefono) {
-            return /^\d{10}$/.test(telefono); // Asegura que el teléfono tenga 10 dígitos numéricos
-        }
-
         function cargarLeads() {
             fetch("/leads")
             .then(response => response.json())
