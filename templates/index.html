@@ -820,6 +820,11 @@ socket.on("nuevo_mensaje", (data) => {
     }
 });
 
+socket.on("nuevo_lead", (data) => {
+    console.log("📩 Nuevo lead recibido en tiempo real:", data);
+    cargarLeads();  // 🔹 Recargar los leads automáticamente
+});
+
 
 //Responder a los mensajes
 function enviarMensaje() {
