@@ -128,11 +128,12 @@ def crear_lead():
 
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO leads (nombre, telefono, estado)
-            VALUES (%s, %s, 'Contacto Inicial')
-            ON CONFLICT (telefono) DO NOTHING
-            RETURNING id
-        """, (nombre, telefono))
+    INSERT INTO leads (nombre, telefono, estado, notas)
+    VALUES (%s, %s, 'Contacto Inicial', %s)
+    ON CONFLICT (telefono) DO NOTHING
+    RETURNING id
+""", (nombre, telefono, datos.get("notas", "")))
+
 
         lead_id = cursor.fetchone()
         conn.commit()
@@ -282,7 +283,6 @@ def enviar_respuesta():
         time.sleep(2)
 
     return jsonify({"error": "No se pudo enviar el mensaje después de 3 intentos"}), 500
-
 
 
 # 📌 Obtener mensajes

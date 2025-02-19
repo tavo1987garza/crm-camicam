@@ -586,6 +586,19 @@
                     </div>
                 </div>
 
+                <!-- Modal para edición de Leads -->
+        <div id="edit-lead-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close" onclick="cerrarModal()">&times;</span>
+                <h2>✏️ Editar Lead</h2>
+                <input type="hidden" id="edit-lead-id">
+                <input type="text" id="edit-lead-nombre" placeholder="Nombre">
+                <input type="text" id="edit-lead-telefono" placeholder="Teléfono">
+                <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
+                <button onclick="guardarEdicionLead()">Guardar</button>
+            </div>
+        </div>
+
                 <div class="leads-column" data-estado="En proceso">
                     <h3>🔄 En proceso</h3>
                     <div class="leads-list"></div>
@@ -1091,7 +1104,6 @@ document.body.addEventListener("click", function () {
             }
         }
         
-        
 
         function eliminarLead(leadId, telefono) {
             if (!confirm("¿Seguro que quieres eliminar este lead y todos sus mensajes?")) {
@@ -1128,6 +1140,36 @@ document.body.addEventListener("click", function () {
             cargarChat();
         });
         
+        //Editar leads
+        function abrirModalEditar(leadId, nombre, telefono, notas) {
+            document.getElementById("edit-lead-id").value = leadId;
+            document.getElementById("edit-lead-nombre").value = nombre;
+            document.getElementById("edit-lead-telefono").value = telefono;
+            document.getElementById("edit-lead-notas").value = notas;
+            document.getElementById("edit-lead-modal").classList.remove("hidden");
+        }
+        
+        function cerrarModal() {
+            document.getElementById("edit-lead-modal").classList.add("hidden");
+        }
+        
+        function guardarEdicionLead() {
+            let id = document.getElementById("edit-lead-id").value;
+            let nombre = document.getElementById("edit-lead-nombre").value;
+            let telefono = document.getElementById("edit-lead-telefono").value;
+            let notas = document.getElementById("edit-lead-notas").value;
+        
+            fetch("/editar_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, nombre, telefono, notas })
+            }).then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                cerrarModal();
+                cargarLeads();
+            }).catch(error => console.error("❌ Error al editar lead:", error));
+        }
         
 
         
