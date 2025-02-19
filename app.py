@@ -64,7 +64,7 @@ def recibir_mensaje():
             
             if not lead:
                 # 🔹 Si no tiene nombre, asignar "Lead desde Chat"
-                nombre_por_defecto = f"Lead {remitente[-4:]}"  # Usa los últimos 4 dígitos del teléfono
+                nombre_por_defecto = f"{remitente[-10:]}"  # Usa los últimos 4 dígitos del teléfono
                 cursor.execute("""
                     INSERT INTO leads (nombre, telefono, estado)
                     VALUES (%s, %s, 'Contacto Inicial')
