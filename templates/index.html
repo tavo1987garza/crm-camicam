@@ -231,6 +231,7 @@
     background: #1565c0;
 }
 
+/* Revisar los elementos dentro de modal*/
 .modal {
     display: none;
     position: fixed;
@@ -295,7 +296,7 @@
 .save-btn:hover {
     background: #1565c0;
 }
-
+/* Revisar los elementos dentro de modal*/
 
 .lead-info {
     display: flex;
@@ -303,6 +304,29 @@
     align-items: flex-start; /* 🔹 Alinear a la izquierda */
 }
 
+.lead-actions {
+    display: flex;
+    gap: 10px; /* 🔹 Espacio entre botones */
+}
+
+.btn-edit,
+.btn-delete {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.btn-edit:hover {
+    color: #1e88e5; /* Azul */
+}
+
+.btn-delete:hover {
+    color: red;
+}
+
+/*Reisar tambien estos elementos*/
 .lead-nombre {
     font-size: 16px;
     font-weight: bold;
@@ -1100,7 +1124,10 @@ document.body.addEventListener("click", function () {
                                 <span class="lead-telefono">${lead.telefono}</span>
                                 <p class="lead-notas">${lead.notas ? `📝 ${lead.notas}` : "Sin notas"}</p>
                             </div>
-                            <button onclick="editarNota('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">📝</button>
+                            <div class="lead-actions">
+                                <button class="btn-edit" onclick="editarNota('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">✏️</button>
+                                <button class="btn-delete" onclick="eliminarLead('${lead.id}', '${lead.telefono}')">🗑️</button>
+                            </div>
                         `;
         
                         leadList.appendChild(leadElement);
@@ -1112,6 +1139,7 @@ document.body.addEventListener("click", function () {
             })
             .catch(error => console.error("❌ Error al cargar leads:", error));
         }
+        
         
 
         document.getElementById("leads-container").addEventListener("dragstart", (event) => {
