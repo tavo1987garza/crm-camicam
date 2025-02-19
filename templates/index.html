@@ -1178,8 +1178,8 @@ document.body.addEventListener("click", function () {
             leadElement.innerHTML = `
                 <strong>${lead.nombre}</strong>
                 <p class="lead-notas-preview">📝 ${lead.notas ? lead.notas : "Sin notas"}</p>
-                <button onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">✏️ Editar</button>
             `;
+            leadElement.addEventListener("click", () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas));
             return leadElement;
         }
 
