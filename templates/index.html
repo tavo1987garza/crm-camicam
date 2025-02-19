@@ -1183,6 +1183,21 @@ document.body.addEventListener("click", function () {
             return leadElement;
         }
 
+        // 🔹 WebSocket para actualización en tiempo real de leads
+        const socket = io();
+        socket.on("nuevo_lead", (data) => {
+            let existingLead = document.querySelector(`[data-id='${data.id}']`);
+            if (existingLead) {
+                existingLead.querySelector("strong").textContent = data.nombre;
+                existingLead.querySelector(".lead-notas-preview").textContent = `📝 ${data.notas ? data.notas : "Sin notas"}`;
+            } else {
+                let leadsList = document.querySelector(`[data-estado='${data.estado}'] .leads-list`);
+                if (leadsList) {
+                    leadsList.appendChild(renderizarLead(data));
+                }
+            }
+        });
+
     </script>
 </body>
 </html>

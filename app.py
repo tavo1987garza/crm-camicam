@@ -39,28 +39,7 @@ def liberar_db(conn):
     if conn:
         db_pool.putconn(conn)
 
-# 📌 Validación de teléfono (solo 10 dígitos numéricos)
-def validar_telefono(telefono):
-    return re.fullmatch(r"\d{10}", telefono) is not None
 
-
-# 📌 Ruta para obtener Leads
-@app.route("/leads", methods=["GET"])
-def obtener_leads():
-    conn = conectar_db()
-    if not conn:
-        return jsonify([])
-
-    try:
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM leads ORDER BY estado")
-        leads = cursor.fetchall()
-        return jsonify(leads if leads else [])
-    except Exception as e:
-        print("❌ Error en /leads:", str(e))
-        return jsonify([])
-    finally:
-        liberar_db(conn)
 
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
@@ -109,6 +88,29 @@ def recibir_mensaje():
 
 
 
+# 📌 Validación de teléfono (solo 10 dígitos numéricos)
+def validar_telefono(telefono):
+    return re.fullmatch(r"\d{10}", telefono) is not None
+
+
+# 📌 Ruta para obtener Leads
+@app.route("/leads", methods=["GET"])
+def obtener_leads():
+    conn = conectar_db()
+    if not conn:
+        return jsonify([])
+
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM leads ORDER BY estado")
+        leads = cursor.fetchall()
+        return jsonify(leads if leads else [])
+    except Exception as e:
+        print("❌ Error en /leads:", str(e))
+        return jsonify([])
+    finally:
+        liberar_db(conn)
+
 # 📌 Crear un nuevo lead manualmente
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
@@ -116,6 +118,7 @@ def crear_lead():
         datos = request.json
         nombre = datos.get("nombre")
         telefono = datos.get("telefono")
+        notas = datos.get("notas", "")
 
         if not nombre or not telefono or not validar_telefono(telefono):
             print("❌ Error: Datos inválidos en la solicitud de creación de lead.")
@@ -128,36 +131,38 @@ def crear_lead():
 
         cursor = conn.cursor()
         cursor.execute("""
-    INSERT INTO leads (nombre, telefono, estado, notas)
-    VALUES (%s, %s, 'Contacto Inicial', %s)
-    ON CONFLICT (telefono) DO NOTHING
-    RETURNING id
-""", (nombre, telefono, datos.get("notas", "")))
-
+            INSERT INTO leads (nombre, telefono, estado, notas)
+            VALUES (%s, %s, 'Contacto Inicial', %s)
+            ON CONFLICT (telefono) DO UPDATE
+            SET notas = EXCLUDED.notas  -- 🔹 Ahora actualiza las notas si el lead ya existía
+            RETURNING id
+        """, (nombre, telefono, notas))
 
         lead_id = cursor.fetchone()
         conn.commit()
 
         if lead_id:
             lead_id = lead_id[0]
-            print(f"✅ Lead creado: ID={lead_id}, Nombre={nombre}, Teléfono={telefono}")
+            print(f"✅ Lead creado o actualizado: ID={lead_id}, Nombre={nombre}, Teléfono={telefono}, Notas={notas}")
 
             socketio.emit("nuevo_lead", {
                 "id": lead_id,
                 "nombre": nombre,
                 "telefono": telefono,
-                "estado": "Contacto Inicial"
+                "estado": "Contacto Inicial",
+                "notas": notas  # 🔹 Enviar notas al frontend en tiempo real
             })
-            return jsonify({"mensaje": "Lead creado correctamente"}), 200
+            return jsonify({"mensaje": "Lead creado o actualizado correctamente"}), 200
         else:
-            print(f"⚠️ El lead ya existía: Nombre={nombre}, Teléfono={telefono}")
-            return jsonify({"mensaje": "El lead ya existía"}), 200
+            print(f"⚠️ No se pudo obtener el ID del lead: Nombre={nombre}, Teléfono={telefono}")
+            return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
 
     except Exception as e:
         print(f"❌ Error en /crear_lead: {str(e)}")
         return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
     finally:
         liberar_db(conn)
+
 
 
 # 📌 Endpoint para actualizar estado de Lead
