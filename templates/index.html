@@ -1160,7 +1160,7 @@ document.body.addEventListener("click", function () {
                         leadElement.ondragstart = (event) => drag(event); // 🔹 Evento de arrastre
                         
                         leadElement.innerHTML = `
-                            <div class="lead-content" onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">
+                            <div class="lead-content">
                                 <strong class="lead-nombre">${lead.nombre}</strong>
                                 <p class="lead-ultimo-mensaje">${lead.ultimo_mensaje || "No hay mensajes recientes"}</p>
                                 <button class="send-message-btn" onclick="enviarMensajeLead('${lead.telefono}')">✉️ Enviar mensaje</button>
