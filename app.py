@@ -111,7 +111,12 @@ def obtener_leads():
 
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM leads ORDER BY estado")
+        cursor.execute("""
+            SELECT l.*, 
+                   (SELECT mensaje FROM mensajes WHERE remitente = l.telefono ORDER BY fecha DESC LIMIT 1) as ultimo_mensaje
+            FROM leads l
+            ORDER BY l.estado
+        """)
         leads = cursor.fetchall()
         return jsonify(leads if leads else [])
     except Exception as e:
