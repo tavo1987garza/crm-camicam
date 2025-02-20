@@ -659,21 +659,23 @@
         <span class="close" onclick="cerrarModal()">&times;</span>
         <h2>✏️ Editar Lead</h2>
         <input type="hidden" id="edit-lead-id">
-        <input type="text" id="edit-lead-nombre" placeholder="Nombre">
+
+         <!-- Contenedor para alinear el nombre y el teléfono -->
+    <div class="lead-edit-info">
+         <input type="text" id="edit-lead-nombre" placeholder="Nombre">
         <input type="text" id="edit-lead-telefono" placeholder="Teléfono">
+    </div>
+
         <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
         
         <!-- Contenedor de botones alineados -->
         <div class="modal-buttons">
-            <button class="delete-btn" onclick="eliminarLeadDesdeModal()">
-                🗑️ Eliminar
-            </button>
-            <button class="save-btn" onclick="guardarEdicionLead()">
-                💾 Guardar
-            </button>
+            <button class="delete-btn" onclick="eliminarLeadDesdeModal()">🗑️</button>
+            <button class="save-btn" onclick="guardarEdicionLead()">💾</button>
         </div>
     </div>
 </div>
+
 
 
                 <div class="leads-column" data-estado="En proceso">
