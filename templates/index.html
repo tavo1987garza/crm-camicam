@@ -199,6 +199,20 @@
     text-align: center;
 }
 
+.send-message-btn {
+    margin-top: 5px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.send-message-btn:hover {
+    background: #45a049;
+}
+
 /* 🔹 Formulario para agregar lead */
 .form-container {
     background: white;
@@ -1149,6 +1163,7 @@ document.body.addEventListener("click", function () {
                             <div class="lead-content" onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">
                                 <strong class="lead-nombre">${lead.nombre}</strong>
                                 <p class="lead-ultimo-mensaje">${lead.ultimo_mensaje || "No hay mensajes recientes"}</p>
+                                <button class="send-message-btn" onclick="enviarMensajeLead('${lead.telefono}')">✉️ Enviar mensaje</button>
                             </div>
                         `;
                         leadList.appendChild(leadElement);
@@ -1221,8 +1236,8 @@ document.body.addEventListener("click", function () {
             let telefono = document.getElementById("lead-telefono").value.trim();
             let notas = document.getElementById("lead-notas").value.trim();
             
-            if (!nombre || !telefono) {
-                alert("Por favor, completa todos los campos.");
+            if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
+                alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
                 return;
             }
             
@@ -1241,6 +1256,21 @@ document.body.addEventListener("click", function () {
                 toggleFormulario();
             })
             .catch(error => console.error("Error al crear lead:", error));
+        }
+        function enviarMensajeLead(telefono) {
+            let mensaje = prompt("Escribe el mensaje para este lead:");
+            if (!mensaje) return;
+            
+            fetch("/enviar_mensaje", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ telefono, mensaje })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert("Mensaje enviado exitosamente.");
+            })
+            .catch(error => console.error("Error al enviar mensaje:", error));
         }
         
 

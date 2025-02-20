@@ -97,9 +97,9 @@ def recibir_mensaje():
 
 
 
-# 📌 Validación de teléfono (solo 10 dígitos numéricos)
+# 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
-    return re.fullmatch(r"\d{10}", telefono) is not None
+    return len(telefono) == 13 and telefono.startswith("521")
 
 
 # 📌 Ruta para obtener Leads        
@@ -136,7 +136,7 @@ def crear_lead():
         notas = datos.get("notas", "")
 
         if not nombre or not telefono or not validar_telefono(telefono):
-            return jsonify({"error": "Datos inválidos. El teléfono debe tener 10 dígitos."}), 400
+            return jsonify({"error": "El teléfono debe tener 13 dígitos (ejemplo: 521XXXXXXXXXX)."}), 400
 
         conn = conectar_db()
         if not conn:
@@ -147,7 +147,7 @@ def crear_lead():
             INSERT INTO leads (nombre, telefono, estado, notas)
             VALUES (%s, %s, 'Contacto Inicial', %s)
             ON CONFLICT (telefono) DO UPDATE
-            SET notas = EXCLUDED.notas  -- 🔹 Ahora actualiza las notas si el lead ya existía
+            SET notas = EXCLUDED.notas  -- 🔹 Si ya existe, solo actualiza las notas
             RETURNING id
         """, (nombre, telefono, notas))
 
@@ -155,21 +155,49 @@ def crear_lead():
         conn.commit()
 
         if lead_id:
-            socketio.emit("nuevo_lead", {
+            nuevo_lead = {
                 "id": lead_id[0],
                 "nombre": nombre,
                 "telefono": telefono,
                 "estado": "Contacto Inicial",
-                "notas": notas  # 🔹 Enviar notas al frontend en tiempo real
-            })
-            return jsonify({"mensaje": "Lead creado o actualizado correctamente"}), 200
+                "notas": notas
+            }
+            socketio.emit("nuevo_lead", nuevo_lead)  # 🔹 Enviar nuevo lead en tiempo real
+            return jsonify({"mensaje": "Lead creado correctamente", "lead": nuevo_lead}), 200
         else:
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
 
     except Exception as e:
-        return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
+        return jsonify({"error": f"Error en /crear_lead: {str(e)}"}), 500
     finally:
         liberar_db(conn)
+
+# 📌 Ruta para enviar mensaje desde la sección de Leads
+@app.route("/enviar_mensaje", methods=["POST"])
+def enviar_mensaje():
+    datos = request.json
+    telefono = datos.get("telefono")
+    mensaje = datos.get("mensaje")
+
+    if not telefono or not mensaje:
+        return jsonify({"error": "Número de teléfono y mensaje son obligatorios"}), 400
+
+    conn = conectar_db()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+                VALUES (%s, %s, %s, 'Nuevo', 'enviado')
+            """, ("CRM", telefono, mensaje))
+            conn.commit()
+
+            nuevo_mensaje = {"remitente": telefono, "mensaje": mensaje}
+            socketio.emit("nuevo_mensaje", nuevo_mensaje)  # 🔹 Notificar a la UI
+        finally:
+            liberar_db(conn)
+
+    return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
 
 
