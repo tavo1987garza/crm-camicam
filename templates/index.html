@@ -659,18 +659,18 @@
         <span class="close" onclick="cerrarModal()">&times;</span>
         <h2>✏️ Editar Lead</h2>
         <input type="hidden" id="edit-lead-id">
-
-        <!-- Contenedor para alinear el nombre y el teléfono -->
-        <div class="lead-edit-info">
-            <input type="text" id="edit-lead-nombre" placeholder="Nombre">
-            <span class="edit-lead-telefono" id="edit-lead-telefono"></span> <!-- Aquí mostramos el teléfono -->
-        </div>
-
+        <input type="text" id="edit-lead-nombre" placeholder="Nombre">
+        <input type="text" id="edit-lead-telefono" placeholder="Teléfono">
         <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
-
-        <div class="lead-modal-actions">
-            <button class="btn-delete" onclick="eliminarLeadDesdeModal()">🗑️</button>
-            <button class="btn-save" onclick="guardarEdicionLead()">💾</button>
+        
+        <!-- Contenedor de botones alineados -->
+        <div class="modal-buttons">
+            <button class="delete-btn" onclick="eliminarLeadDesdeModal()">
+                🗑️ Eliminar
+            </button>
+            <button class="save-btn" onclick="guardarEdicionLead()">
+                💾 Guardar
+            </button>
         </div>
     </div>
 </div>
@@ -1214,8 +1214,8 @@ document.body.addEventListener("click", function () {
         function abrirModalEditar(id, nombre, telefono, notas) {
             document.getElementById("edit-lead-id").value = id;
             document.getElementById("edit-lead-nombre").value = nombre;
-            document.getElementById("edit-lead-telefono").textContent = telefono; // 🔹 Ahora se muestra en una línea aparte
-           document.getElementById("edit-lead-notas").value = notas;
+            document.getElementById("edit-lead-telefono").value = telefono;
+            document.getElementById("edit-lead-notas").value = notas;
         
             document.getElementById("edit-lead-modal").style.display = "flex";
         }
