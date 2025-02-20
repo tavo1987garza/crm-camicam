@@ -1142,6 +1142,9 @@ document.body.addEventListener("click", function () {
                         leadElement.classList.add("lead", "lead-nuevo"); // 🔹 Agregar animación opcional
                         leadElement.setAttribute("data-id", lead.id);
                         leadElement.setAttribute("data-telefono", lead.telefono);
+                        leadElement.setAttribute("draggable", "true"); // 🔹 Hacer el lead arrastrable
+                        leadElement.ondragstart = (event) => drag(event); // 🔹 Evento de arrastre
+                        
                         leadElement.innerHTML = `
                             <div class="lead-content" onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">
                                 <strong class="lead-nombre">${lead.nombre}</strong>
@@ -1156,6 +1159,31 @@ document.body.addEventListener("click", function () {
                 });
             })
             .catch(error => console.error("❌ Error al cargar leads:", error));
+        }
+        
+        // 🔹 Evento de arrastre
+        function drag(event) {
+            event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
+        }
+        
+        // 🔹 Permitir soltar en las columnas
+        document.querySelectorAll(".leads-column").forEach(column => {
+            column.ondragover = (event) => event.preventDefault(); // 🔹 Permitir arrastrar sobre la columna
+            column.ondrop = (event) => drop(event, column.getAttribute("data-estado")); // 🔹 Manejar el drop
+        });
+        
+        // 🔹 Manejar el evento de soltar
+        function drop(event, nuevoEstado) {
+            event.preventDefault();
+            let leadId = event.dataTransfer.getData("text");
+            
+            fetch("/cambiar_estado_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: leadId, estado: nuevoEstado })
+            })
+            .then(() => cargarLeads()) // 🔹 Recargar la lista para reflejar cambios
+            .catch(error => console.error("Error al cambiar estado del lead:", error));
         }
         
 
