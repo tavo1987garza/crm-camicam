@@ -849,9 +849,29 @@ socket.on("nuevo_mensaje", (data) => {
 
 
 socket.on("nuevo_lead", (data) => {
-    console.log("📩 Nuevo lead recibido en tiempo real:", data);
-    cargarLeads();  // 🔹 Recargar los leads automáticamente
+    console.log("🆕 Nuevo lead creado automáticamente:", data);
+
+    let estado = "Contacto Inicial"; // 🔹 El estado predeterminado
+    let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+
+    if (leadList) {
+        let leadElement = document.createElement("div");
+        leadElement.classList.add("lead", "lead-nuevo");
+        leadElement.setAttribute("data-telefono", data.telefono); // 🔹 Agregar teléfono al atributo
+
+        leadElement.innerHTML = `
+            <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
+                <strong class="lead-nombre">${data.nombre}</strong>
+                <p class="lead-ultimo-mensaje">${data.ultimo_mensaje ? data.ultimo_mensaje : "No hay mensajes recientes"}</p>
+            </div>
+        `;
+
+        leadList.appendChild(leadElement);
+
+        setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+    }
 });
+
 
 //Responder a los mensajes
 function enviarMensaje() {
