@@ -1180,11 +1180,40 @@ document.body.addEventListener("click", function () {
 
         
         
-        // 🔹  Funcion para Abrir el chat
+        /* 🔹  Funcion para Abrir el chat
         function irAChat(telefono) {
             mostrarSeccion("chat", () => {
                 document.getElementById("chat-usuario").textContent = telefono;
                 cargarMensajesChat(telefono);
+            });
+        }*/
+        
+        // 🔹  Funcion para Abrir el chat
+        function irAChat(telefono) {
+            mostrarSeccion("chat", () => {
+                let chatLista = document.getElementById("lista-chats");
+                let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
+                
+                // Si el chat no existe en la lista, crearlo
+                if (!chatExistente) {
+                    let div = document.createElement("div");
+                    div.classList.add("chat-item");
+                    div.setAttribute("data-remitente", telefono);
+                    div.onclick = function () {
+                        seleccionarChat(div);
+                    };
+                    div.innerHTML = `
+                        <div class="chat-info">
+                            <div class="chat-name">${telefono}</div>
+                            <div class="chat-last-message">Nuevo chat</div>
+                        </div>
+                    `;
+                    chatLista.appendChild(div);
+                    chatExistente = div;
+                }
+                
+                // Seleccionar automáticamente el chat y habilitar input
+                seleccionarChat(chatExistente);
             });
         }
         
