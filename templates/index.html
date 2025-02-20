@@ -818,7 +818,26 @@ socket.on("nuevo_mensaje", (data) => {
             console.warn("⚠️ No se pudo reproducir el sonido.", error);
         });
     }
+    // 🔹 Actualizar el último mensaje en la sección de leads
+    let leads = document.querySelectorAll(".lead");
+
+    leads.forEach((lead) => {
+        let telefono = lead.getAttribute("data-telefono");
+
+        if (telefono === data.remitente) {
+            let mensajeElemento = lead.querySelector(".lead-ultimo-mensaje");
+            if (mensajeElemento) {
+                mensajeElemento.textContent = data.mensaje; // 🔹 Actualizar mensaje
+            }
+            lead.classList.add("lead-mensaje-nuevo"); // 🔹 Agregar animación de mensaje nuevo
+
+            setTimeout(() => {
+                lead.classList.remove("lead-mensaje-nuevo"); // 🔹 Quitar animación después de 3s
+            }, 3000);
+        }
+    });
 });
+
 
 socket.on("nuevo_lead", (data) => {
     console.log("📩 Nuevo lead recibido en tiempo real:", data);
@@ -1071,7 +1090,9 @@ document.body.addEventListener("click", function () {
                     if (leadList) {
                         let leadElement = document.createElement("div");
                         leadElement.classList.add("lead", "lead-nuevo"); // 🔹 Agregar animación opcional
-        
+                        leadElement.setAttribute("data-telefono", lead.telefono); // 🔹 Agregar teléfono al atributo
+
+
                         leadElement.innerHTML = `
                             <div class="lead-content" onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">
                                 <strong class="lead-nombre">${lead.nombre}</strong>
