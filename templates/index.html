@@ -1136,16 +1136,14 @@ document.body.addEventListener("click", function () {
                     if (leadList) {
                         let leadElement = document.createElement("div");
                         leadElement.classList.add("lead", "lead-nuevo"); // 🔹 Agregar animación opcional
-                        leadElement.setAttribute("data-telefono", lead.telefono); // 🔹 Agregar teléfono al atributo
-
-
+                        leadElement.setAttribute("data-id", lead.id);
+                        leadElement.setAttribute("data-telefono", lead.telefono);
                         leadElement.innerHTML = `
                             <div class="lead-content" onclick="abrirModalEditar('${lead.id}', '${lead.nombre}', '${lead.telefono}', '${lead.notas}')">
                                 <strong class="lead-nombre">${lead.nombre}</strong>
-                                <p class="lead-ultimo-mensaje">${lead.ultimo_mensaje ? lead.ultimo_mensaje : "No hay mensajes recientes"}</p>
+                                <p class="lead-ultimo-mensaje">${lead.ultimo_mensaje || "No hay mensajes recientes"}</p>
                             </div>
                         `;
-        
                         leadList.appendChild(leadElement);
         
                         // 🔹 Remover la animación después de 3 segundos
@@ -1187,19 +1185,15 @@ document.body.addEventListener("click", function () {
         
 
         function crearLead() {
-            let nombreInput = document.getElementById("lead-nombre");
-            let telefonoInput = document.getElementById("lead-telefono");
-            let notasInput = document.getElementById("lead-notas");
-        
-            let nombre = nombreInput.value.trim();
-            let telefono = telefonoInput.value.trim();
-            let notas = notasInput.value.trim();
-        
+            let nombre = document.getElementById("lead-nombre").value.trim();
+            let telefono = document.getElementById("lead-telefono").value.trim();
+            let notas = document.getElementById("lead-notas").value.trim();
+            
             if (!nombre || !telefono) {
                 alert("Por favor, completa todos los campos.");
                 return;
             }
-        
+            
             fetch("/crear_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1208,16 +1202,13 @@ document.body.addEventListener("click", function () {
             .then(response => response.json())
             .then(data => {
                 alert(data.mensaje);
-                cargarLeads();  // 🔹 Recargar la lista de leads
-        
-                // 🔹 Limpiar los inputs
-                nombreInput.value = "";
-                telefonoInput.value = "";
-                notasInput.value = "";
-        
+                cargarLeads();
+                document.getElementById("lead-nombre").value = "";
+                document.getElementById("lead-telefono").value = "";
+                document.getElementById("lead-notas").value = "";
                 toggleFormulario();
             })
-            .catch(error => console.error("❌ Error al crear lead:", error));
+            .catch(error => console.error("Error al crear lead:", error));
         }
         
 
