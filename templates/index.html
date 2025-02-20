@@ -1177,16 +1177,6 @@ document.body.addEventListener("click", function () {
             })
             .catch(error => console.error("❌ Error al cargar leads:", error));
         }
-
-        
-        
-        /* 🔹  Funcion para Abrir el chat
-        function irAChat(telefono) {
-            mostrarSeccion("chat", () => {
-                document.getElementById("chat-usuario").textContent = telefono;
-                cargarMensajesChat(telefono);
-            });
-        }*/
         
         // 🔹  Funcion para Abrir el chat
         function irAChat(telefono) {
@@ -1203,11 +1193,13 @@ document.body.addEventListener("click", function () {
                         seleccionarChat(div);
                     };
                     div.innerHTML = `
-                        <div class="chat-info">
-                            <div class="chat-name">${telefono}</div>
-                            <div class="chat-last-message">Nuevo chat</div>
-                        </div>
-                    `;
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                    <div class="chat-info">
+                        <div class="chat-name">${telefono}</div>
+                        <div class="chat-last-message">Nuevo chat</div>
+                    </div>
+                    <div class="chat-time">--:--</div>
+                `;
                     chatLista.appendChild(div);
                     chatExistente = div;
                 }
