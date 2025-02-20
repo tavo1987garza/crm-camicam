@@ -1162,11 +1162,13 @@ document.body.addEventListener("click", function () {
                         leadElement.innerHTML = `
                             <div class="lead-content">
                                 <strong class="lead-nombre">${lead.nombre}</strong>
-                                <span class="lead-telefono">${lead.telefono}</span>
+                                <p class="lead-ultimo-mensaje">${lead.ultimo_mensaje || "No hay mensajes recientes"}</p>
                             </div>
                             <button class="send-message-btn" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">✉️</button>
                         `;
                         leadList.appendChild(leadElement);
+
+                        
         
                         // 🔹 Remover la animación después de 3 segundos
                         setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
@@ -1175,6 +1177,8 @@ document.body.addEventListener("click", function () {
             })
             .catch(error => console.error("❌ Error al cargar leads:", error));
         }
+
+        
         
         // 🔹  Funcion para Abrir el chat
         function irAChat(telefono) {
