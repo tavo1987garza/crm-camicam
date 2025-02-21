@@ -1181,56 +1181,41 @@ document.body.addEventListener("click", function () {
         
         // 🔹  Funcion para Abrir el chat
         function irAChat(telefono) {
-            fetch(`/obtener_lead?telefono=${telefono}`)
-                .then(response => response.json())
-                .then(lead => {
-                    let nombre = lead.nombre || telefono; // Si hay nombre, usarlo. Si no, usar el teléfono.
-        
-                    // 🔹 Cambiar a la sección de chat ANTES de actualizarlo
-                    mostrarSeccion("chat", () => {
-                        actualizarChat(telefono, "Nuevo chat", nombre);
-                        
-                        // Habilitar el input y botón de envío
-                        document.getElementById("mensaje-input").disabled = false;
-                        document.querySelector(".chat-input button").disabled = false;
-        
-                        // Verificar si el chat ya existe en la lista de chats
-                        let chatItem = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
-                        if (!chatItem) {
-                            let chatLista = document.getElementById("lista-chats");
-                            
-                            let div = document.createElement("div");
-                            div.classList.add("chat-item");
-                            div.setAttribute("data-remitente", telefono);
-                            div.onclick = function () {
-                                seleccionarChat(div);
-                            };
-        
-                            div.innerHTML = `
-                                <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
-                                <div class="chat-info">
-                                    <div class="chat-name">${nombre}</div>
-                                    <div class="chat-last-message">Nuevo chat</div>
-                                </div>
-                                <div class="chat-time">--:--</div>
-                            `;
-        
-                            chatLista.appendChild(div);
-                            chatItem = div;
-                        }
-        
-                        // Seleccionar el chat recién creado o existente
-                        seleccionarChat(chatItem);
-                    });
-                })
-                .catch(error => console.error("Error al obtener lead:", error));
+            mostrarSeccion("chat", () => {
+                actualizarChat(telefono, "Nuevo chat");
+                
+                let chatLista = document.getElementById("lista-chats");
+                let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
+                
+                // Si el chat no existe en la lista, crearlo
+                if (!chatExistente) {
+                    let div = document.createElement("div");
+                    div.classList.add("chat-item");
+                    div.setAttribute("data-remitente", telefono);
+                    div.onclick = function () {
+                        seleccionarChat(div);
+                    };
+                    div.innerHTML = `
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                    <div class="chat-info">
+                        <div class="chat-name">${telefono}</div>
+                        <div class="chat-last-message">Nuevo chat</div>
+                    </div>
+                    <div class="chat-time">--:--</div>
+                `;
+                    chatLista.appendChild(div);
+                    chatExistente = div;
+                }
+                
+                // Seleccionar automáticamente el chat y habilitar input
+                seleccionarChat(chatExistente);
+            });
         }
-        
-        
-        function actualizarChat(telefono, mensaje, nombre = null) {
+
+        function actualizarChat(telefono, mensaje) {
             let chatLista = document.getElementById("lista-chats");
             let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
-        
+            
             if (!chatExistente) {
                 let div = document.createElement("div");
                 div.classList.add("chat-item");
@@ -1238,13 +1223,11 @@ document.body.addEventListener("click", function () {
                 div.onclick = function () {
                     seleccionarChat(div);
                 };
-        
-                let chatNombre = nombre || telefono; // Si hay nombre, usarlo.
-        
+                
                 div.innerHTML = `
                     <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                     <div class="chat-info">
-                        <div class="chat-name">${chatNombre}</div>
+                        <div class="chat-name">${telefono}</div>
                         <div class="chat-last-message">${mensaje}</div>
                     </div>
                     <div class="chat-time">--:--</div>
@@ -1252,14 +1235,12 @@ document.body.addEventListener("click", function () {
                 chatLista.appendChild(div);
                 chatExistente = div;
             } else {
-                let chatNombre = nombre || chatExistente.querySelector(".chat-name").textContent;
-                chatExistente.querySelector(".chat-name").textContent = chatNombre;
                 chatExistente.querySelector(".chat-last-message").textContent = mensaje;
             }
-        
+            
             seleccionarChat(chatExistente);
-        
-            // Agregar el mensaje al chat en tiempo real
+
+            // 🔹 Agregar el mensaje al chat en tiempo real
             let chatBox = document.getElementById("chat-messages");
             let divMensaje = document.createElement("div");
             divMensaje.textContent = mensaje;
