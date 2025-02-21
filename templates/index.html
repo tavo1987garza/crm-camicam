@@ -1168,8 +1168,6 @@ document.body.addEventListener("click", function () {
                         `;
                         leadList.appendChild(leadElement);
 
-                        
-        
                         // 🔹 Remover la animación después de 3 segundos
                         setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
                     }
@@ -1196,7 +1194,7 @@ document.body.addEventListener("click", function () {
                     <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                     <div class="chat-info">
                         <div class="chat-name">${telefono}</div>
-                        <div class="chat-last-message">Nuevo chat</div>
+                        <div class="chat-last-message">${mensaje}</div>
                     </div>
                     <div class="chat-time">--:--</div>
                 `;
