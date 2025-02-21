@@ -1309,12 +1309,12 @@ document.body.addEventListener("click", function () {
             let nombre = document.getElementById("lead-nombre").value.trim();
             let telefono = document.getElementById("lead-telefono").value.trim();
             let notas = document.getElementById("lead-notas").value.trim();
-            
+        
             if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
                 alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
                 return;
             }
-            
+        
             fetch("/crear_lead", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1322,14 +1322,21 @@ document.body.addEventListener("click", function () {
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.mensaje);
-                cargarLeads();
-                document.getElementById("lead-nombre").value = "";
-                document.getElementById("lead-telefono").value = "";
-                document.getElementById("lead-notas").value = "";
-                toggleFormulario();
+                if (data.error) {
+                    alert("Error al crear lead: " + data.error);
+                } else {
+                    alert(data.mensaje);
+                    cargarLeads();
+                    document.getElementById("lead-nombre").value = "";
+                    document.getElementById("lead-telefono").value = "";
+                    document.getElementById("lead-notas").value = "";
+                    toggleFormulario();
+                }
             })
-            .catch(error => console.error("Error al crear lead:", error));
+            .catch(error => {
+                console.error("❌ Error al crear lead:", error);
+                alert("Error al crear lead. Inténtalo de nuevo.");
+            });
         }
 
         function toggleFormulario() {

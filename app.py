@@ -47,51 +47,65 @@ def recibir_mensaje():
     remitente = datos.get("remitente")
     mensaje = datos.get("mensaje")
 
+    # Validación de datos
     if not plataforma or not remitente or not mensaje:
-        return jsonify({"error": "Faltan datos"}), 400
+        return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
     conn = conectar_db()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            
-            # Verificar si el lead ya existe
-            cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
-            lead = cursor.fetchone()
-            
-            if not lead:
-                # Crear nuevo lead
-                nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
-                cursor.execute("""
-                    INSERT INTO leads (nombre, telefono, estado)
-                    VALUES (%s, %s, 'Contacto Inicial')
-                    ON CONFLICT (telefono) DO NOTHING
-                    RETURNING id
-                """, (nombre_por_defecto, remitente))
-                lead_id = cursor.fetchone()
-            else:
-                lead_id = lead[0]
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
 
-            # Guardar mensaje en la tabla "mensajes"
+    try:
+        cursor = conn.cursor()
+
+        # Verificar si el lead ya existe
+        cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
+        lead = cursor.fetchone()
+
+        if not lead:
+            # Crear nuevo lead automáticamente
+            nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
             cursor.execute("""
-                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-                VALUES (%s, %s, %s, 'Nuevo', 'recibido')
-            """, (plataforma, remitente, mensaje))
-            conn.commit()
+                INSERT INTO leads (nombre, telefono, estado)
+                VALUES (%s, %s, 'Contacto Inicial')
+                ON CONFLICT (telefono) DO NOTHING
+                RETURNING id
+            """, (nombre_por_defecto, remitente))
+            lead_id = cursor.fetchone()
+        else:
+            lead_id = lead[0]
 
-            # Emitir eventos para actualizar la interfaz
-            socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje, "tipo": "recibido"})
-            if lead_id:
-                socketio.emit("nuevo_lead", {
-                    "id": lead_id[0],
-                    "nombre": nombre_por_defecto if not lead else lead[1],
-                    "telefono": remitente,
-                    "estado": "Contacto Inicial"
-                })
-        finally:
-            liberar_db(conn)
-    
-    return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
+        # Guardar mensaje en la tabla "mensajes"
+        cursor.execute("""
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+            VALUES (%s, %s, %s, 'Nuevo', 'recibido')
+        """, (plataforma, remitente, mensaje))
+        conn.commit()
+
+        # Emitir eventos para actualizar la interfaz
+        socketio.emit("nuevo_mensaje", {
+            "plataforma": plataforma,
+            "remitente": remitente,
+            "mensaje": mensaje,
+            "tipo": "recibido"
+        })
+
+        if lead_id:
+            socketio.emit("nuevo_lead", {
+                "id": lead_id[0],
+                "nombre": nombre_por_defecto if not lead else lead[1],
+                "telefono": remitente,
+                "estado": "Contacto Inicial"
+            })
+
+        return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /recibir_mensaje: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+    finally:
+        liberar_db(conn)
 
 
 
@@ -133,6 +147,7 @@ def crear_lead():
         telefono = datos.get("telefono")
         notas = datos.get("notas", "")
 
+        # Validación de datos
         if not nombre or not telefono or not validar_telefono(telefono):
             return jsonify({"error": "El teléfono debe tener 13 dígitos (ejemplo: 521XXXXXXXXXX)."}), 400
 
@@ -145,7 +160,7 @@ def crear_lead():
             INSERT INTO leads (nombre, telefono, estado, notas)
             VALUES (%s, %s, 'Contacto Inicial', %s)
             ON CONFLICT (telefono) DO UPDATE
-            SET notas = EXCLUDED.notas  -- 🔹 Si ya existe, solo actualiza las notas
+            SET notas = EXCLUDED.notas
             RETURNING id
         """, (nombre, telefono, notas))
 
@@ -166,7 +181,9 @@ def crear_lead():
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
 
     except Exception as e:
-        return jsonify({"error": f"Error en /crear_lead: {str(e)}"}), 500
+        print(f"❌ Error en /crear_lead: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+
     finally:
         liberar_db(conn)
 
@@ -184,33 +201,46 @@ def enviar_mensaje():
         return jsonify({"error": "Número de teléfono y mensaje son obligatorios"}), 400
 
     conn = conectar_db()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            # Guardar mensaje en la base de datos
-            cursor.execute("""
-                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-                VALUES (%s, %s, %s, 'Nuevo', 'enviado')
-            """, ("CRM", telefono, mensaje))
-            conn.commit()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
 
-            # Enviar mensaje a través de la API de Camibot
-            payload = {"telefono": telefono, "mensaje": mensaje}
-            for intento in range(3):  # Reintentar hasta 3 veces
-                respuesta = requests.post(CAMIBOT_API_URL, json=payload)
+    try:
+        cursor = conn.cursor()
+
+        # Guardar mensaje en la base de datos
+        cursor.execute("""
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+            VALUES (%s, %s, %s, 'Nuevo', 'enviado')
+        """, ("CRM", telefono, mensaje))
+        conn.commit()
+
+        # Enviar mensaje a través de la API de Camibot
+        payload = {"telefono": telefono, "mensaje": mensaje}
+        max_intentos = 3
+        for intento in range(max_intentos):
+            try:
+                respuesta = requests.post(CAMIBOT_API_URL, json=payload, timeout=5)
                 if respuesta.status_code == 200:
                     break
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
                 time.sleep(2)  # Esperar 2 segundos antes de reintentar
 
-            # Emitir evento para actualizar la interfaz
-            nuevo_mensaje = {"remitente": telefono, "mensaje": mensaje, "tipo": "enviado"}
-            socketio.emit("nuevo_mensaje", nuevo_mensaje)
+        # Emitir evento para actualizar la interfaz
+        socketio.emit("nuevo_mensaje", {
+            "remitente": telefono,
+            "mensaje": mensaje,
+            "tipo": "enviado"
+        })
 
-            return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
-        except Exception as e:
-            return jsonify({"error": f"Error al enviar mensaje: {str(e)}"}), 500
-        finally:
-            liberar_db(conn)
+        return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /enviar_mensaje: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+    finally:
+        liberar_db(conn)
 
 
 
