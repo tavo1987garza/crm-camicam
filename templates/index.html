@@ -842,17 +842,10 @@
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
         
-                // Solo agregar el mensaje si no es un duplicado
-                let mensajesExistentes = chatBox.querySelectorAll(".mensaje");
-                let esDuplicado = Array.from(mensajesExistentes).some(mensaje => {
-                    return mensaje.textContent === data.mensaje && mensaje.classList.contains(`mensaje-${data.tipo}`);
-                });
-        
-                if (!esDuplicado) {
-                    let divMensaje = crearMensajeChat(data.mensaje, data.tipo);
-                    chatBox.appendChild(divMensaje);
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                }
+                // Crear y agregar el mensaje al chat
+                let divMensaje = crearMensajeChat(data.mensaje, data.tipo);
+                chatBox.appendChild(divMensaje);
+                chatBox.scrollTop = chatBox.scrollHeight;
             }
         
             // Mostrar notificación solo para mensajes recibidos
@@ -961,15 +954,8 @@ function enviarMensaje() {
         if (data.error) {
             alert("Error al enviar mensaje: " + data.error);
         } else {
-            let chatBox = document.getElementById("chat-messages");
-            let div = document.createElement("div");
-
-            div.textContent = mensaje;
-            div.classList.add("mensaje", "mensaje-enviado");
-
-            chatBox.appendChild(div);
+            // Limpiar el input después de enviar el mensaje
             input.value = "";
-            chatBox.scrollTop = chatBox.scrollHeight;
         }
     })
     .catch(error => console.error("❌ Error al enviar mensaje:", error));
