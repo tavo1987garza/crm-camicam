@@ -1185,12 +1185,25 @@ document.body.addEventListener("click", function () {
                 .then(response => response.json())
                 .then(lead => {
                     let nombre = lead.nombre || telefono; // Si hay nombre, usarlo. Si no, usar el teléfono.
+        
+                    // 🔹 Cambia a la sección de chat antes de actualizarlo
                     mostrarSeccion("chat", () => {
                         actualizarChat(telefono, "Nuevo chat", nombre);
+                        
+                        // Habilitar el input y botón de envío
+                        document.getElementById("mensaje-input").disabled = false;
+                        document.querySelector(".chat-input button").disabled = false;
+        
+                        // Seleccionar el chat recién creado o existente
+                        let chatItem = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
+                        if (chatItem) {
+                            seleccionarChat(chatItem);
+                        }
                     });
                 })
                 .catch(error => console.error("Error al obtener lead:", error));
         }
+        
         
         function actualizarChat(telefono, mensaje, nombre = null) {
             let chatLista = document.getElementById("lista-chats");
