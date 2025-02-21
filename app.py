@@ -39,9 +39,6 @@ def liberar_db(conn):
     if conn:
         db_pool.putconn(conn)
 
-
-
-
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
@@ -58,23 +55,32 @@ def recibir_mensaje():
         try:
             cursor = conn.cursor()
             
-            # Verificar si el remitente ya es un lead
-            cursor.execute("SELECT id FROM leads WHERE telefono = %s", (remitente,))
+            # Verificar si el lead ya existe
+            cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
             lead = cursor.fetchone()
             
             if not lead:
-                # Crear lead automáticamente si no existe
+                # 🔹 Si no tiene nombre, asignar "Lead desde Chat"
+                nombre_por_defecto = f"{remitente[-10:]}"  # Usa los últimos 4 dígitos del teléfono
                 cursor.execute("""
                     INSERT INTO leads (nombre, telefono, estado)
                     VALUES (%s, %s, 'Contacto Inicial')
                     ON CONFLICT (telefono) DO NOTHING
                     RETURNING id
-                """, (remitente, remitente))
+                """, (nombre_por_defecto, remitente))  
+
                 lead_id = cursor.fetchone()
                 conn.commit()
                 
                 if lead_id:
-                    socketio.emit("nuevo_lead", {"id": lead_id[0], "nombre": remitente, "telefono": remitente, "estado": "Contacto Inicial"})
+                    socketio.emit("nuevo_lead", {
+                        "id": lead_id[0],
+                        "nombre": nombre_por_defecto,
+                        "telefono": remitente,
+                        "estado": "Contacto Inicial"
+                    })
+            else:
+                lead_id = lead[0]
 
             # Guardar mensaje en la tabla "mensajes"
             cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (%s, %s, %s, 'Nuevo')",
@@ -88,12 +94,12 @@ def recibir_mensaje():
 
 
 
-# 📌 Validación de teléfono (solo 10 dígitos numéricos)
+# 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
-    return re.fullmatch(r"\d{10}", telefono) is not None
+    return len(telefono) == 13 and telefono.startswith("521")
 
 
-# 📌 Ruta para obtener Leads
+# 📌 Ruta para obtener Leads        
 @app.route("/leads", methods=["GET"])
 def obtener_leads():
     conn = conectar_db()
@@ -102,7 +108,12 @@ def obtener_leads():
 
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM leads ORDER BY estado")
+        cursor.execute("""
+            SELECT l.*, 
+                   (SELECT mensaje FROM mensajes WHERE remitente = l.telefono ORDER BY fecha DESC LIMIT 1) as ultimo_mensaje
+            FROM leads l
+            ORDER BY l.estado
+        """)
         leads = cursor.fetchall()
         return jsonify(leads if leads else [])
     except Exception as e:
@@ -110,6 +121,7 @@ def obtener_leads():
         return jsonify([])
     finally:
         liberar_db(conn)
+
 
 # 📌 Crear un nuevo lead manualmente
 @app.route("/crear_lead", methods=["POST"])
@@ -121,12 +133,10 @@ def crear_lead():
         notas = datos.get("notas", "")
 
         if not nombre or not telefono or not validar_telefono(telefono):
-            print("❌ Error: Datos inválidos en la solicitud de creación de lead.")
-            return jsonify({"error": "Datos inválidos. El teléfono debe tener 10 dígitos."}), 400
+            return jsonify({"error": "El teléfono debe tener 13 dígitos (ejemplo: 521XXXXXXXXXX)."}), 400
 
         conn = conectar_db()
         if not conn:
-            print("❌ Error: No se pudo conectar a la base de datos.")
             return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
 
         cursor = conn.cursor()
@@ -134,7 +144,7 @@ def crear_lead():
             INSERT INTO leads (nombre, telefono, estado, notas)
             VALUES (%s, %s, 'Contacto Inicial', %s)
             ON CONFLICT (telefono) DO UPDATE
-            SET notas = EXCLUDED.notas  -- 🔹 Ahora actualiza las notas si el lead ya existía
+            SET notas = EXCLUDED.notas  -- 🔹 Si ya existe, solo actualiza las notas
             RETURNING id
         """, (nombre, telefono, notas))
 
@@ -142,26 +152,49 @@ def crear_lead():
         conn.commit()
 
         if lead_id:
-            lead_id = lead_id[0]
-            print(f"✅ Lead creado o actualizado: ID={lead_id}, Nombre={nombre}, Teléfono={telefono}, Notas={notas}")
-
-            socketio.emit("nuevo_lead", {
-                "id": lead_id,
+            nuevo_lead = {
+                "id": lead_id[0],
                 "nombre": nombre,
                 "telefono": telefono,
                 "estado": "Contacto Inicial",
-                "notas": notas  # 🔹 Enviar notas al frontend en tiempo real
-            })
-            return jsonify({"mensaje": "Lead creado o actualizado correctamente"}), 200
+                "notas": notas
+            }
+            socketio.emit("nuevo_lead", nuevo_lead)  # 🔹 Enviar nuevo lead en tiempo real
+            return jsonify({"mensaje": "Lead creado correctamente", "lead": nuevo_lead}), 200
         else:
-            print(f"⚠️ No se pudo obtener el ID del lead: Nombre={nombre}, Teléfono={telefono}")
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
 
     except Exception as e:
-        print(f"❌ Error en /crear_lead: {str(e)}")
-        return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
+        return jsonify({"error": f"Error en /crear_lead: {str(e)}"}), 500
     finally:
         liberar_db(conn)
+
+# 📌 Ruta para enviar mensaje desde la sección de Leads
+@app.route("/enviar_mensaje", methods=["POST"])
+def enviar_mensaje():
+    datos = request.json
+    telefono = datos.get("telefono")
+    mensaje = datos.get("mensaje")
+
+    if not telefono or not mensaje:
+        return jsonify({"error": "Número de teléfono y mensaje son obligatorios"}), 400
+
+    conn = conectar_db()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+                VALUES (%s, %s, %s, 'Nuevo', 'enviado')
+            """, ("CRM", telefono, mensaje))
+            conn.commit()
+
+            nuevo_mensaje = {"remitente": telefono, "mensaje": mensaje}
+            socketio.emit("nuevo_mensaje", nuevo_mensaje)  # 🔹 Notificar a la UI
+        finally:
+            liberar_db(conn)
+
+    return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
 
 
@@ -218,19 +251,24 @@ def eliminar_lead():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
 @app.route('/editar_lead', methods=['POST'])
 def editar_lead():
     data = request.get_json()
+
+    print("📌 Datos recibidos en /editar_lead:", data)  # Debug
+
     lead_id = data.get("id")
-    nuevo_nombre = data.get("nombre")
-    nuevo_telefono = data.get("telefono")
-    nuevas_notas = data.get("notas")
+    nuevo_nombre = data.get("nombre").strip() if data.get("nombre") else None
+    nuevo_telefono = data.get("telefono").strip() if data.get("telefono") else None
+    nuevas_notas = data.get("notas").strip() if data.get("notas") else ""
 
-    if not lead_id or not nuevo_nombre or not nuevo_telefono:
-        return jsonify({"error": "Datos incompletos"}), 400
+    if not lead_id or not nuevo_telefono:
+        print("❌ Error: ID o teléfono faltante")
+        return jsonify({"error": "ID y teléfono son obligatorios"}), 400
 
-    if not validar_telefono(nuevo_telefono):
-        return jsonify({"error": "Teléfono inválido"}), 400
+   
 
     conn = conectar_db()
     if not conn:
@@ -240,16 +278,20 @@ def editar_lead():
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE leads
-            SET nombre = %s, telefono = %s, notas = %s
+            SET nombre = COALESCE(%s, nombre), 
+                telefono = %s, 
+                notas = %s
             WHERE id = %s
         """, (nuevo_nombre, nuevo_telefono, nuevas_notas, lead_id))
         conn.commit()
+
+        print("✅ Lead actualizado correctamente")
         return jsonify({"mensaje": "Lead actualizado correctamente"}), 200
     except Exception as e:
+        print(f"❌ Error en /editar_lead: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
 
 
 # 📌 Enviar respuesta a Camibot con reintento automático
@@ -350,3 +392,4 @@ def dashboard():
 # 📌 Iniciar la app con WebSockets
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    
