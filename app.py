@@ -39,7 +39,7 @@ def liberar_db(conn):
     if conn:
         db_pool.putconn(conn)
 
-# 📌⚠️ Endpoint para recibir mensajes desde WhatsApp⚠️
+# 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
     datos = request.json
@@ -60,36 +60,39 @@ def recibir_mensaje():
             lead = cursor.fetchone()
             
             if not lead:
-                # 🔹 Si no tiene nombre, asignar "Lead desde Chat"
-                nombre_por_defecto = f"{remitente[-10:]}"  # Usa los últimos 10 dígitos del teléfono
+                # Crear nuevo lead
+                nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
                 cursor.execute("""
-                    INSERT INTO leads (nombre, telefono, estado)
-                    VALUES (%s, %s, 'Contacto Inicial')
-                    ON CONFLICT (telefono) DO NOTHING
+                    INSERT INTO leads (nombre, telefono, estado, ultimo_mensaje)
+                    VALUES (%s, %s, 'Contacto Inicial', %s)
+                    ON CONFLICT (telefono) DO UPDATE
+                    SET ultimo_mensaje = EXCLUDED.ultimo_mensaje
                     RETURNING id
-                """, (nombre_por_defecto, remitente))  
-
+                """, (nombre_por_defecto, remitente, mensaje))
                 lead_id = cursor.fetchone()
-                conn.commit()
-                
-                if lead_id:
-                    socketio.emit("nuevo_lead", {
-                        "id": lead_id[0],
-                        "nombre": nombre_por_defecto,
-                        "telefono": remitente,
-                        "estado": "Contacto Inicial"
-                    })
             else:
                 lead_id = lead[0]
 
             # Guardar mensaje en la tabla "mensajes"
-            cursor.execute("INSERT INTO mensajes (plataforma, remitente, mensaje, estado) VALUES (%s, %s, %s, 'Nuevo')",
-                           (plataforma, remitente, mensaje))
+            cursor.execute("""
+                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+                VALUES (%s, %s, %s, 'Nuevo', 'recibido')
+            """, (plataforma, remitente, mensaje))
             conn.commit()
+
+            # Emitir eventos para actualizar la interfaz
+            socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje, "tipo": "recibido"})
+            if lead_id:
+                socketio.emit("nuevo_lead", {
+                    "id": lead_id[0],
+                    "nombre": nombre_por_defecto if not lead else lead[1],
+                    "telefono": remitente,
+                    "estado": "Contacto Inicial",
+                    "ultimo_mensaje": mensaje
+                })
         finally:
             liberar_db(conn)
     
-    socketio.emit("nuevo_mensaje", {"plataforma": plataforma, "remitente": remitente, "mensaje": mensaje})
     return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
 
 
@@ -169,7 +172,10 @@ def crear_lead():
     finally:
         liberar_db(conn)
 
-# 📌 Ruta para enviar mensaje desde la sección de Leads
+# 📌 Enviar respuesta a Camibot con reintento automático
+CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
+
+# 📌 Endpoint para enviar mensajes desde el chat o desde leads
 @app.route("/enviar_mensaje", methods=["POST"])
 def enviar_mensaje():
     datos = request.json
@@ -183,18 +189,38 @@ def enviar_mensaje():
     if conn:
         try:
             cursor = conn.cursor()
+            # Guardar mensaje en la base de datos
             cursor.execute("""
                 INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
                 VALUES (%s, %s, %s, 'Nuevo', 'enviado')
             """, ("CRM", telefono, mensaje))
+            
+            
+            # Actualizar el último mensaje en la tabla leads
+            cursor.execute("""
+                UPDATE leads
+                SET ultimo_mensaje = %s
+                WHERE telefono = %s
+            """, (mensaje, telefono))
             conn.commit()
 
-            nuevo_mensaje = {"remitente": telefono, "mensaje": mensaje}
-            socketio.emit("nuevo_mensaje", nuevo_mensaje)  # 🔹 Notificar a la UI
+            # Enviar mensaje a través de la API de Camibot
+            payload = {"telefono": telefono, "mensaje": mensaje}
+            for intento in range(3):  # Reintentar hasta 3 veces
+                respuesta = requests.post(CAMIBOT_API_URL, json=payload)
+                if respuesta.status_code == 200:
+                    break
+                time.sleep(2)  # Esperar 2 segundos antes de reintentar
+
+            # Emitir evento para actualizar la interfaz
+            nuevo_mensaje = {"remitente": telefono, "mensaje": mensaje, "tipo": "enviado"}
+            socketio.emit("nuevo_mensaje", nuevo_mensaje)
+
+            return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
+        except Exception as e:
+            return jsonify({"error": f"Error al enviar mensaje: {str(e)}"}), 500
         finally:
             liberar_db(conn)
-
-    return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
 
 
@@ -293,45 +319,6 @@ def editar_lead():
     finally:
         liberar_db(conn)
 
-
-# 📌 Enviar respuesta a Camibot con reintento automático
-CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
-
-@app.route("/enviar_respuesta", methods=["POST"])
-def enviar_respuesta():
-    datos = request.json
-    remitente = datos.get("remitente")
-    mensaje = datos.get("mensaje")
-
-    if not remitente or not mensaje:
-        return jsonify({"error": "Faltan datos"}), 400
-
-    print(f"📩 Enviando mensaje a {remitente}: {mensaje}")
-
-    conn = conectar_db()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-                VALUES (%s, %s, %s, 'Nuevo', 'enviado')
-            """, ("CRM", remitente, mensaje))
-            conn.commit()
-        finally:
-            liberar_db(conn)
-
-    payload = {"telefono": remitente, "mensaje": mensaje}
-
-    for intento in range(3):
-        respuesta = requests.post(CAMIBOT_API_URL, json=payload)
-        if respuesta.status_code == 200:
-            return jsonify({"mensaje": "Mensaje enviado a WhatsApp"}), 200
-        print(f"⚠️ Reintentando... ({intento+1}/3)")
-        time.sleep(2)
-
-    return jsonify({"error": "No se pudo enviar el mensaje después de 3 intentos"}), 500
-
-
 # 📌 Obtener mensajes
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
@@ -366,7 +353,7 @@ def actualizar_estado():
 
     return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
 
-
+#obtener los mensajes de un remitente específico Devuelve los mensajes en el formato esperado por el frontend.
 # Mostrar los mensajes de cada chat
 @app.route("/mensajes_chat", methods=["GET"])
 def obtener_mensajes_chat():
@@ -381,8 +368,10 @@ def obtener_mensajes_chat():
             cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
             mensajes = cursor.fetchall()
             return jsonify(mensajes)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
         finally:
-            liberar_db(conn)
+            liberar_db(conn)           
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")

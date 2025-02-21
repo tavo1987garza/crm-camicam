@@ -831,59 +831,140 @@
 
         let sonidoActivo = true;
 
-       
-// 🔹 Escuchar eventos de nuevos mensajes
+        socket.on("nuevo_mensaje", (data) => {
+            console.log("📩 Nuevo mensaje recibido:", data);
+        
+            // Actualizar la lista de chats
+            let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
+        
+            // Agregar el mensaje al chat abierto si coincide con el remitente
+            let chatSeleccionado = document.querySelector(".chat-item.selected");
+            if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
+                let chatBox = document.getElementById("chat-messages");
+                let divMensaje = crearMensajeChat(data.mensaje, "recibido");
+                chatBox.appendChild(divMensaje);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        
+            // Mostrar notificación
+            mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+        
+            // Reproducir sonido
+            reproducirSonido();
+        
+            // Actualizar el último mensaje en la sección de leads
+            actualizarUltimoMensajeLead(data.remitente, data.mensaje);
+        
+            // Recargar la lista de chats
+            cargarChat();
+        });
+
+    
+/* 🔹 Escuchar eventos de nuevos mensajes
 socket.on("nuevo_mensaje", (data) => {
     console.log("📩 Nuevo mensaje recibido:", data);
 
-    actualizarChat(data.remitente, data.mensaje);
-    actualizarLead(data.remitente, data.mensaje);
+    // 1. Actualizar la lista de chats
+    let chatLista = document.getElementById("lista-chats");
+    let chatExistente = document.querySelector(`.chat-item[data-remitente='${data.remitente}']`);
+    
+    if (!chatExistente) {
+        // Crear un nuevo chat si no existe
+        let div = document.createElement("div");
+        div.classList.add("chat-item");
+        div.setAttribute("data-remitente", data.remitente);
+        div.onclick = function () {
+            seleccionarChat(div);
+        };
+        
+        div.innerHTML = `
+            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+            <div class="chat-info">
+                <div class="chat-name">${data.remitente}</div>
+                <div class="chat-last-message">${data.mensaje}</div>
+            </div>
+            <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+        `;
+        chatLista.appendChild(div);
+        chatExistente = div;
+    } else {
+        // Actualizar el último mensaje y la hora
+        chatExistente.querySelector(".chat-last-message").textContent = data.mensaje;
+        chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
 
-    let chatBox = document.getElementById("chat-messages");
-    let div = document.createElement("div");
+    // Resaltar el chat si no está seleccionado
+    if (!chatExistente.classList.contains("selected")) {
+        chatExistente.style.backgroundColor = "#e3f2fd"; // Color de resalte
+        setTimeout(() => {
+            chatExistente.style.backgroundColor = ""; // Quitar el resalte después de 3 segundos
+        }, 3000);
+    }
 
-    div.textContent = data.mensaje;
-    div.classList.add("mensaje", "mensaje-recibido"); // Alineado a la izquierda
+    // 2. Agregar el mensaje al chat abierto si coincide con el remitente
+    let chatSeleccionado = document.querySelector(".chat-item.selected");
+    if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
+        let chatBox = document.getElementById("chat-messages");
+        let divMensaje = document.createElement("div");
+        divMensaje.textContent = data.mensaje;
+        divMensaje.classList.add("mensaje", "mensaje-recibido");
+        chatBox.appendChild(divMensaje);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
 
-    chatBox.appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+    // 3. Mostrar notificación
+    mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
 
-    // 🔹 Mostrar notificación
+    // 4. Reproducir sonido
+    reproducirSonido();
+
+    // 5. Actualizar el último mensaje en la sección de leads
+    actualizarUltimoMensajeLead(data.remitente, data.mensaje);
+
+    // 6. Recargar la lista de chats
+    cargarChat();
+}); */
+
+// 🔹 Función para mostrar notificaciones
+function mostrarNotificacion(mensaje) {
     let alerta = document.getElementById("alerta-mensaje");
-    alerta.textContent = `Nuevo mensaje de ${data.remitente}`;
+    alerta.textContent = mensaje;
     alerta.style.display = "block";
 
-    // 🔹 Ocultar después de 5s
+    // Ocultar después de 5s
     setTimeout(() => {
         alerta.style.display = "none";
     }, 5000);
+}
 
-    // 🔹 Reproducir sonido
+// 🔹 Función para reproducir sonido
+function reproducirSonido() {
     if (sonidoActivo) {
         let audio = new Audio("https://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
         audio.play().catch(error => {
             console.warn("⚠️ No se pudo reproducir el sonido.", error);
         });
     }
-    // 🔹 Actualizar el último mensaje en la sección de leads
+}
+
+// 🔹 Función para actualizar el último mensaje en la sección de leads
+function actualizarUltimoMensajeLead(telefono, mensaje) {
     let leads = document.querySelectorAll(".lead");
 
     leads.forEach((lead) => {
-        let telefono = lead.getAttribute("data-telefono");
-
-        if (telefono === data.remitente) {
+        if (lead.getAttribute("data-telefono") === telefono) {
             let mensajeElemento = lead.querySelector(".lead-ultimo-mensaje");
             if (mensajeElemento) {
-                mensajeElemento.textContent = data.mensaje; // 🔹 Actualizar mensaje
+                mensajeElemento.textContent = mensaje;
             }
-            lead.classList.add("lead-mensaje-nuevo"); // 🔹 Agregar animación de mensaje nuevo
+            lead.classList.add("lead-mensaje-nuevo"); // Agregar animación de mensaje nuevo
 
             setTimeout(() => {
-                lead.classList.remove("lead-mensaje-nuevo"); // 🔹 Quitar animación después de 3s
+                lead.classList.remove("lead-mensaje-nuevo"); // Quitar animación después de 3s
             }, 3000);
         }
     });
-});
+}
 
 
 socket.on("nuevo_lead", (data) => {
@@ -911,11 +992,11 @@ socket.on("nuevo_lead", (data) => {
 });
 
 
-//Responder a los mensajes
+//Responder a los mensajes  UNIFICADO
 function enviarMensaje() {
     let input = document.getElementById("mensaje-input");
     let mensaje = input.value.trim();
-    let chatSeleccionado = document.querySelector(".chat-list div.selected");
+    let chatSeleccionado = document.querySelector(".chat-item.selected");
 
     if (!mensaje) {
         alert("Escribe un mensaje antes de enviar.");
@@ -929,10 +1010,10 @@ function enviarMensaje() {
 
     let remitente = chatSeleccionado.getAttribute("data-remitente");
 
-    fetch("/enviar_respuesta", {
+    fetch("/enviar_mensaje", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remitente: remitente, mensaje: mensaje })
+        body: JSON.stringify({ telefono: remitente, mensaje: mensaje })
     })
     .then(response => response.json())
     .then(data => {
@@ -943,12 +1024,11 @@ function enviarMensaje() {
             let div = document.createElement("div");
 
             div.textContent = mensaje;
-            div.classList.add("mensaje", "mensaje-enviado"); // Mensaje alineado a la derecha
+            div.classList.add("mensaje", "mensaje-enviado");
 
             chatBox.appendChild(div);
             input.value = "";
-
-            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll al último mensaje
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
     })
     .catch(error => console.error("❌ Error al enviar mensaje:", error));
@@ -965,19 +1045,23 @@ document.getElementById("mensaje-input").addEventListener("keydown", function (e
 
 //Vista de mensajes en el Chatbox
 function cargarMensajesChat(remitente) {
-    document.getElementById("chat-usuario").textContent = remitente; // Cambiar el nombre en la barra
+    // Actualizar el nombre del remitente en la barra superior
+    document.getElementById("chat-usuario").textContent = remitente;
 
+    // Cargar los mensajes del remitente desde el backend
     fetch(`/mensajes_chat?id=${remitente}`)
         .then(response => response.json())
         .then(mensajes => {
             let chatBox = document.getElementById("chat-messages");
-            chatBox.innerHTML = "";
+            chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
 
+            // Mostrar cada mensaje en el chat
             mensajes.forEach(msg => {
                 let div = document.createElement("div");
                 div.textContent = msg.mensaje;
                 div.classList.add("mensaje");
 
+                // Mostrar si el mensaje fue enviado o recibido
                 if (msg.tipo === "enviado") {
                     div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
                 } else {
@@ -987,7 +1071,8 @@ function cargarMensajesChat(remitente) {
                 chatBox.appendChild(div);
             });
 
-            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll al último mensaje
+            // Auto-scroll al último mensaje
+            chatBox.scrollTop = chatBox.scrollHeight;
         })
         .catch(error => console.error("❌ Error al cargar mensajes:", error));
 }
@@ -1022,7 +1107,48 @@ document.body.addEventListener("click", function () {
         }
 
 
-        //Funcion para cargar los chats a un lado del chatbox (Telefono)
+        function actualizarListaChats(remitente, mensaje) {
+            let chatLista = document.getElementById("lista-chats");
+            let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
+            
+            if (!chatExistente) {
+                // Crear un nuevo chat si no existe
+                let div = document.createElement("div");
+                div.classList.add("chat-item");
+                div.setAttribute("data-remitente", remitente);
+                div.onclick = function () {
+                    seleccionarChat(div);
+                };
+                
+                div.innerHTML = `
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                    <div class="chat-info">
+                        <div class="chat-name">${remitente}</div>
+                        <div class="chat-last-message">${mensaje}</div>
+                    </div>
+                    <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                `;
+                chatLista.appendChild(div);
+                chatExistente = div;
+            } else {
+                // Actualizar el último mensaje y la hora
+                chatExistente.querySelector(".chat-last-message").textContent = mensaje;
+                chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            }
+        
+            // Resaltar el chat si no está seleccionado
+            if (!chatExistente.classList.contains("selected")) {
+                chatExistente.style.backgroundColor = "#e3f2fd"; // Color de resalte
+                setTimeout(() => {
+                    chatExistente.style.backgroundColor = ""; // Quitar el resalte después de 3 segundos
+                }, 3000);
+            }
+        
+            return chatExistente;
+        }
+
+
+        /*Funcion para cargar los chats a un lado del chatbox (Telefono)
         function cargarChat() {
             fetch("/mensajes")
                 .then(response => response.json())
@@ -1043,12 +1169,12 @@ document.body.addEventListener("click", function () {
                     Object.keys(remitentes).forEach(remitente => {
                         let mensajesRemitente = remitentes[remitente].mensajes;
         
-                        // 🔹 Ordenamos los mensajes por fecha y obtenemos el más reciente
+                        // Ordenar los mensajes por fecha y obtener el más reciente
                         mensajesRemitente.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-                        let ultimoMensaje = mensajesRemitente[mensajesRemitente.length - 1]; // Obtener el último
+                        let ultimoMensaje = mensajesRemitente[mensajesRemitente.length - 1];
         
                         let mensajeTexto = ultimoMensaje.mensaje || "";
-                        let horaUltimoMensaje = ultimoMensaje.hora || "--:--";
+                        let horaUltimoMensaje = new Date(ultimoMensaje.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         
                         let div = document.createElement("div");
                         div.classList.add("chat-item");
@@ -1088,7 +1214,41 @@ document.body.addEventListener("click", function () {
                     });
                 })
                 .catch(error => console.error("❌ Error al cargar chats:", error));
+        } */
+
+
+        function cargarChat() {
+            fetch("/mensajes")
+                .then(response => response.json())
+                .then(mensajes => {
+                    let lista = document.getElementById("lista-chats");
+                    lista.innerHTML = "";
+                    let remitentes = {};
+        
+                    // Agrupar mensajes por remitente y obtener el último
+                    mensajes.forEach(msg => {
+                        if (!remitentes[msg.remitente]) {
+                            remitentes[msg.remitente] = { mensajes: [] };
+                        }
+                        remitentes[msg.remitente].mensajes.push(msg);
+                    });
+        
+                    // Crear los elementos de la lista de chats
+                    Object.keys(remitentes).forEach(remitente => {
+                        let mensajesRemitente = remitentes[remitente].mensajes;
+        
+                        // Ordenar los mensajes por fecha y obtener el más reciente
+                        mensajesRemitente.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                        let ultimoMensaje = mensajesRemitente[mensajesRemitente.length - 1];
+        
+                        // Actualizar la lista de chats
+                        actualizarListaChats(remitente, ultimoMensaje.mensaje);
+                    });
+                })
+                .catch(error => console.error("❌ Error al cargar chats:", error));
         }
+
+
         
         //Funcion para seleccionar los chats a un lado del chatbox (Telefono)
         function seleccionarChat(chatDiv) {
@@ -1104,45 +1264,85 @@ document.body.addEventListener("click", function () {
             document.getElementById("mensaje-input").disabled = false;
             document.querySelector(".chat-input button").disabled = false;
         }
-        
-        
 
-        function mostrarMensajesDe(remitente) {
-            fetch(`/mensajes?remitente=${remitente}`)
+
+
+        function crearMensajeChat(mensaje, tipo) {
+            let div = document.createElement("div");
+            div.textContent = mensaje;
+            div.classList.add("mensaje");
+        
+            if (tipo === "enviado") {
+                div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
+            } else {
+                div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
+            }
+        
+            return div;
+        }
+
+            /*Funcion para cargar Cargar los mensajes de un remitente específico
+        function cargarMensajesChat(remitente) {
+            // Actualizar el nombre del remitente en la barra superior
+            document.getElementById("chat-usuario").textContent = remitente;
+        
+            // Cargar los mensajes del remitente desde el backend
+            fetch(`/mensajes_chat?id=${remitente}`)
                 .then(response => response.json())
                 .then(mensajes => {
                     let chatBox = document.getElementById("chat-messages");
-                    chatBox.setAttribute("data-remitente", remitente);
-                    chatBox.innerHTML = "";
+                    chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
+        
+                    // Mostrar cada mensaje en el chat
                     mensajes.forEach(msg => {
                         let div = document.createElement("div");
-                        div.textContent = `${msg.remitente}: ${msg.mensaje}`;
+                        div.textContent = msg.mensaje;
+                        div.classList.add("mensaje");
+        
+                        // Mostrar si el mensaje fue enviado o recibido
+                        if (msg.tipo === "enviado") {
+                            div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
+                        } else {
+                            div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
+                        }
+        
                         chatBox.appendChild(div);
                     });
-                });
-        }
+        
+                    // Auto-scroll al último mensaje
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                })
+                .catch(error => console.error("❌ Error al cargar mensajes:", error));
 
+
+                socket.on("nuevo_mensaje", (data) => {
+                    actualizarChat(data.remitente, data.mensaje);
+                    cargarMensajesChat(data.remitente); // Reemplazo aquí
+                });
+        }*/
+
+        function cargarMensajesChat(remitente) {
+            // Actualizar el nombre del remitente en la barra superior
+            document.getElementById("chat-usuario").textContent = remitente;
         
-        function cargarMensajes() {
-            let chatBox = document.getElementById("chat-messages");
-            let remitente = chatBox.getAttribute("data-remitente");
-        
-            if (!remitente) return; // No hacer nada si no hay un chat abierto
-        
-            fetch(`/mensajes?remitente=${remitente}`)
+            // Cargar los mensajes del remitente desde el backend
+            fetch(`/mensajes_chat?id=${remitente}`)
                 .then(response => response.json())
                 .then(mensajes => {
-                    chatBox.innerHTML = "";
+                    let chatBox = document.getElementById("chat-messages");
+                    chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
+        
+                    // Mostrar cada mensaje en el chat
                     mensajes.forEach(msg => {
-                        let div = document.createElement("div");
-                        div.textContent = `${msg.remitente}: ${msg.mensaje}`;
+                        let div = crearMensajeChat(msg.mensaje, msg.tipo);
                         chatBox.appendChild(div);
                     });
-                });
-        }
         
-
-       
+                    // Auto-scroll al último mensaje
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                })
+                .catch(error => console.error("❌ Error al cargar mensajes:", error));
+        }
 
         function cargarLeads() {
             fetch("/leads")
@@ -1182,8 +1382,6 @@ document.body.addEventListener("click", function () {
         // 🔹  Funcion para Abrir el chat
         function irAChat(telefono) {
             mostrarSeccion("chat", () => {
-                actualizarChat(telefono, "Nuevo chat");
-                
                 let chatLista = document.getElementById("lista-chats");
                 let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
                 
@@ -1195,58 +1393,34 @@ document.body.addEventListener("click", function () {
                     div.onclick = function () {
                         seleccionarChat(div);
                     };
-                    div.innerHTML = `
-                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
-                    <div class="chat-info">
-                        <div class="chat-name">${telefono}</div>
-                        <div class="chat-last-message">Nuevo chat</div>
-                    </div>
-                    <div class="chat-time">--:--</div>
-                `;
-                    chatLista.appendChild(div);
-                    chatExistente = div;
+                    
+                    // Cargar mensajes existentes para obtener el último mensaje y la hora
+                    fetch(`/mensajes_chat?id=${telefono}`)
+                        .then(response => response.json())
+                        .then(mensajes => {
+                            let ultimoMensaje = mensajes.length > 0 ? mensajes[mensajes.length - 1].mensaje : "No hay mensajes";
+                            let horaUltimoMensaje = mensajes.length > 0 ? new Date(mensajes[mensajes.length - 1].fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
+        
+                            div.innerHTML = `
+                                <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                                <div class="chat-info">
+                                    <div class="chat-name">${telefono}</div>
+                                    <div class="chat-last-message">${ultimoMensaje}</div>
+                                </div>
+                                <div class="chat-time">${horaUltimoMensaje}</div>
+                            `;
+                            chatLista.appendChild(div);
+                            chatExistente = div;
+        
+                            // Seleccionar automáticamente el chat y habilitar input
+                            seleccionarChat(chatExistente);
+                        })
+                        .catch(error => console.error("❌ Error al cargar mensajes:", error));
+                } else {
+                    // Si el chat ya existe, seleccionarlo y habilitar input
+                    seleccionarChat(chatExistente);
                 }
-                
-                // Seleccionar automáticamente el chat y habilitar input
-                seleccionarChat(chatExistente);
             });
-        }
-
-        function actualizarChat(telefono, mensaje) {
-            let chatLista = document.getElementById("lista-chats");
-            let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
-            
-            if (!chatExistente) {
-                let div = document.createElement("div");
-                div.classList.add("chat-item");
-                div.setAttribute("data-remitente", telefono);
-                div.onclick = function () {
-                    seleccionarChat(div);
-                };
-                
-                div.innerHTML = `
-                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
-                    <div class="chat-info">
-                        <div class="chat-name">${telefono}</div>
-                        <div class="chat-last-message">${mensaje}</div>
-                    </div>
-                    <div class="chat-time">--:--</div>
-                `;
-                chatLista.appendChild(div);
-                chatExistente = div;
-            } else {
-                chatExistente.querySelector(".chat-last-message").textContent = mensaje;
-            } 
-            
-            seleccionarChat(chatExistente);
-
-            // 🔹 Agregar el mensaje al chat en tiempo real
-            let chatBox = document.getElementById("chat-messages");
-            let divMensaje = document.createElement("div");
-            divMensaje.textContent = mensaje;
-            divMensaje.classList.add("mensaje", "mensaje-recibido");
-            chatBox.appendChild(divMensaje);
-            chatBox.scrollTop = chatBox.scrollHeight;
         }
         
         // 🔹 Evento de arrastre
@@ -1330,22 +1504,6 @@ document.body.addEventListener("click", function () {
             })
             .catch(error => console.error("Error al crear lead:", error));
         }
-        function enviarMensajeLead(telefono) {
-            let mensaje = prompt("Escribe el mensaje para este lead:");
-            if (!mensaje) return;
-            
-            fetch("/enviar_mensaje", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ telefono, mensaje })
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert("Mensaje enviado exitosamente.");
-            })
-            .catch(error => console.error("Error al enviar mensaje:", error));
-        }
-        
 
         function toggleFormulario() {
             let form = document.getElementById("lead-form");
