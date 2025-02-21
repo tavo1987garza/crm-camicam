@@ -836,6 +836,9 @@
 socket.on("nuevo_mensaje", (data) => {
     console.log("📩 Nuevo mensaje recibido:", data);
 
+    actualizarChat(data.remitente, data.mensaje);
+    actualizarLead(data.remitente, data.mensaje);
+
     let chatBox = document.getElementById("chat-messages");
     let div = document.createElement("div");
 
@@ -1179,6 +1182,7 @@ document.body.addEventListener("click", function () {
         // 🔹  Funcion para Abrir el chat
         function irAChat(telefono) {
             mostrarSeccion("chat", () => {
+                actualizarChat(telefono, "Nuevo chat");
                 let chatLista = document.getElementById("lista-chats");
                 let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
                 
@@ -1205,6 +1209,43 @@ document.body.addEventListener("click", function () {
                 // Seleccionar automáticamente el chat y habilitar input
                 seleccionarChat(chatExistente);
             });
+        }
+
+        function actualizarChat(telefono, mensaje) {
+            let chatLista = document.getElementById("lista-chats");
+            let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
+            
+            if (!chatExistente) {
+                let div = document.createElement("div");
+                div.classList.add("chat-item");
+                div.setAttribute("data-remitente", telefono);
+                div.onclick = function () {
+                    seleccionarChat(div);
+                };
+                
+                div.innerHTML = `
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                    <div class="chat-info">
+                        <div class="chat-name">${telefono}</div>
+                        <div class="chat-last-message">${mensaje}</div>
+                    </div>
+                    <div class="chat-time">--:--</div>
+                `;
+                chatLista.appendChild(div);
+                chatExistente = div;
+            } else {
+                chatExistente.querySelector(".chat-last-message").textContent = mensaje;
+            }
+            
+            seleccionarChat(chatExistente);
+
+            // 🔹 Agregar el mensaje al chat en tiempo real
+            let chatBox = document.getElementById("chat-messages");
+            let divMensaje = document.createElement("div");
+            divMensaje.textContent = mensaje;
+            divMensaje.classList.add("mensaje", "mensaje-recibido");
+            chatBox.appendChild(divMensaje);
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
         
         // 🔹 Evento de arrastre
