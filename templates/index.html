@@ -1186,7 +1186,7 @@ document.body.addEventListener("click", function () {
                 .then(lead => {
                     let nombre = lead.nombre || telefono; // Si hay nombre, usarlo. Si no, usar el teléfono.
         
-                    // 🔹 Cambia a la sección de chat antes de actualizarlo
+                    // 🔹 Cambiar a la sección de chat ANTES de actualizarlo
                     mostrarSeccion("chat", () => {
                         actualizarChat(telefono, "Nuevo chat", nombre);
                         
@@ -1194,11 +1194,33 @@ document.body.addEventListener("click", function () {
                         document.getElementById("mensaje-input").disabled = false;
                         document.querySelector(".chat-input button").disabled = false;
         
-                        // Seleccionar el chat recién creado o existente
+                        // Verificar si el chat ya existe en la lista de chats
                         let chatItem = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
-                        if (chatItem) {
-                            seleccionarChat(chatItem);
+                        if (!chatItem) {
+                            let chatLista = document.getElementById("lista-chats");
+                            
+                            let div = document.createElement("div");
+                            div.classList.add("chat-item");
+                            div.setAttribute("data-remitente", telefono);
+                            div.onclick = function () {
+                                seleccionarChat(div);
+                            };
+        
+                            div.innerHTML = `
+                                <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                                <div class="chat-info">
+                                    <div class="chat-name">${nombre}</div>
+                                    <div class="chat-last-message">Nuevo chat</div>
+                                </div>
+                                <div class="chat-time">--:--</div>
+                            `;
+        
+                            chatLista.appendChild(div);
+                            chatItem = div;
                         }
+        
+                        // Seleccionar el chat recién creado o existente
+                        seleccionarChat(chatItem);
                     });
                 })
                 .catch(error => console.error("Error al obtener lead:", error));
