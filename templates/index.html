@@ -975,8 +975,9 @@ function cargarMensajesChat(remitente) {
     fetch(`/mensajes_chat?id=${remitente}`)
         .then(response => response.json())
         .then(data => {
-            // Actualizar el nombre del remitente en la barra superior
-            document.getElementById("chat-usuario").textContent = data.nombre;
+            // Actualizar el nombre del remitente en la barra superior del simulador de teléfono
+            let nombreLead = data.nombre || remitente; // Usar el teléfono si no hay nombre
+            document.getElementById("chat-usuario").textContent = nombreLead;
 
             // Cargar los mensajes en el chat
             let chatBox = document.getElementById("chat-messages");
