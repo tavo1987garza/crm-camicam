@@ -1199,7 +1199,7 @@ document.body.addEventListener("click", function () {
                     <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                     <div class="chat-info">
                         <div class="chat-name">${telefono}</div>
-                        <div class="chat-last-message">${lead.ultimo_mensaje || "No hay mensajes recientes"}</div>
+                        <div class="chat-last-message">Nuevo chat</div>
                     </div>
                     <div class="chat-time">--:--</div>
                 `;
@@ -1212,7 +1212,7 @@ document.body.addEventListener("click", function () {
             });
         }
 
-       /* function actualizarChat(telefono, mensaje) {
+        function actualizarChat(telefono, mensaje) {
             let chatLista = document.getElementById("lista-chats");
             let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
             
@@ -1228,7 +1228,7 @@ document.body.addEventListener("click", function () {
                     <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                     <div class="chat-info">
                         <div class="chat-name">${telefono}</div>
-                        <div class="chat-last-message">${lead.ultimo_mensaje || "No hay mensajes recientes"}</div>
+                        <div class="chat-last-message">${mensaje}</div>
                     </div>
                     <div class="chat-time">--:--</div>
                 `;
@@ -1247,7 +1247,7 @@ document.body.addEventListener("click", function () {
             divMensaje.classList.add("mensaje", "mensaje-recibido");
             chatBox.appendChild(divMensaje);
             chatBox.scrollTop = chatBox.scrollHeight;
-        }*/
+        }
         
         // 🔹 Evento de arrastre
         function drag(event) {
