@@ -39,10 +39,6 @@ def liberar_db(conn):
     if conn:
         db_pool.putconn(conn)
 
-# 📌 Validación de teléfono (debe tener 13 dígitos)
-def validar_telefono(telefono):
-    return len(telefono) == 13 and telefono.startswith("521")
-
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
@@ -97,6 +93,13 @@ def recibir_mensaje():
     
     return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
 
+
+
+# 📌 Validación de teléfono (debe tener 13 dígitos)
+def validar_telefono(telefono):
+    return len(telefono) == 13 and telefono.startswith("521")
+
+
 # 📌 Ruta para obtener Leads        
 @app.route("/leads", methods=["GET"])
 def obtener_leads():
@@ -120,6 +123,7 @@ def obtener_leads():
     finally:
         liberar_db(conn)
 
+
 # 📌 Crear un nuevo lead manualmente
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
@@ -141,7 +145,7 @@ def crear_lead():
             INSERT INTO leads (nombre, telefono, estado, notas)
             VALUES (%s, %s, 'Contacto Inicial', %s)
             ON CONFLICT (telefono) DO UPDATE
-            SET notas = EXCLUDED.notas
+            SET notas = EXCLUDED.notas  -- 🔹 Si ya existe, solo actualiza las notas
             RETURNING id
         """, (nombre, telefono, notas))
 
@@ -156,7 +160,7 @@ def crear_lead():
                 "estado": "Contacto Inicial",
                 "notas": notas
             }
-            socketio.emit("nuevo_lead", nuevo_lead)
+            socketio.emit("nuevo_lead", nuevo_lead)  # 🔹 Enviar nuevo lead en tiempo real
             return jsonify({"mensaje": "Lead creado correctamente", "lead": nuevo_lead}), 200
         else:
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
@@ -165,6 +169,9 @@ def crear_lead():
         return jsonify({"error": f"Error en /crear_lead: {str(e)}"}), 500
     finally:
         liberar_db(conn)
+
+# 📌 Enviar respuesta a Camibot con reintento automático
+CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
 
 # 📌 Endpoint para enviar mensajes desde el chat o desde leads
 @app.route("/enviar_mensaje", methods=["POST"])
@@ -204,6 +211,8 @@ def enviar_mensaje():
             return jsonify({"error": f"Error al enviar mensaje: {str(e)}"}), 500
         finally:
             liberar_db(conn)
+
+
 
 # 📌 Endpoint para actualizar estado de Lead
 @app.route("/cambiar_estado_lead", methods=["POST"])
@@ -258,7 +267,84 @@ def eliminar_lead():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 📌 Obtener mensajes de un remitente específico
+
+
+@app.route('/editar_lead', methods=['POST'])
+def editar_lead():
+    data = request.get_json()
+
+    print("📌 Datos recibidos en /editar_lead:", data)  # Debug
+
+    lead_id = data.get("id")
+    nuevo_nombre = data.get("nombre").strip() if data.get("nombre") else None
+    nuevo_telefono = data.get("telefono").strip() if data.get("telefono") else None
+    nuevas_notas = data.get("notas").strip() if data.get("notas") else ""
+
+    if not lead_id or not nuevo_telefono:
+        print("❌ Error: ID o teléfono faltante")
+        return jsonify({"error": "ID y teléfono son obligatorios"}), 400
+
+   
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE leads
+            SET nombre = COALESCE(%s, nombre), 
+                telefono = %s, 
+                notas = %s
+            WHERE id = %s
+        """, (nuevo_nombre, nuevo_telefono, nuevas_notas, lead_id))
+        conn.commit()
+
+        print("✅ Lead actualizado correctamente")
+        return jsonify({"mensaje": "Lead actualizado correctamente"}), 200
+    except Exception as e:
+        print(f"❌ Error en /editar_lead: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+# 📌 Obtener mensajes
+@app.route("/mensajes", methods=["GET"])
+def obtener_mensajes():
+    conn = conectar_db()
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("SELECT * FROM mensajes ORDER BY fecha DESC")
+            mensajes = cursor.fetchall()
+            return jsonify(mensajes)
+        finally:
+            liberar_db(conn)
+
+# 📌 Actualizar estado de mensaje
+@app.route("/actualizar_estado", methods=["POST"])
+def actualizar_estado():
+    datos = request.json
+    mensaje_id = datos.get("id")
+    nuevo_estado = datos.get("estado")
+
+    if not mensaje_id or nuevo_estado not in ["Nuevo", "En proceso", "Finalizado"]:
+        return jsonify({"error": "Datos incorrectos"}), 400
+
+    conn = conectar_db()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE mensajes SET estado = %s WHERE id = %s", (nuevo_estado, mensaje_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+    return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+
+#obtener los mensajes de un remitente específico Devuelve los mensajes en el formato esperado por el frontend.
+# Mostrar los mensajes de cada chat
 @app.route("/mensajes_chat", methods=["GET"])
 def obtener_mensajes_chat():
     remitente = request.args.get("id")
@@ -275,7 +361,12 @@ def obtener_mensajes_chat():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
         finally:
-            liberar_db(conn)
+            liberar_db(conn)           
+
+# 📌 Endpoint para renderizar el Dashboard Web
+@app.route("/dashboard")
+def dashboard():
+    return render_template("index.html")
 
 # 📌 Iniciar la app con WebSockets
 if __name__ == "__main__":
