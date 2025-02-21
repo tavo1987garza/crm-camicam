@@ -850,7 +850,7 @@ socket.on("nuevo_mensaje", (data) => {
 
     // 🔹 Mostrar notificación
     let alerta = document.getElementById("alerta-mensaje");
-    alerta.textContent = Nuevo mensaje de ${data.remitente};
+    alerta.textContent = `Nuevo mensaje de ${data.remitente}`;
     alerta.style.display = "block";
 
     // 🔹 Ocultar después de 5s
@@ -890,19 +890,19 @@ socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
 
     let estado = "Contacto Inicial"; // 🔹 El estado predeterminado
-    let leadList = document.querySelector([data-estado="${estado}"] .leads-list);
+    let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
 
     if (leadList) {
         let leadElement = document.createElement("div");
         leadElement.classList.add("lead", "lead-nuevo");
         leadElement.setAttribute("data-telefono", data.telefono); // 🔹 Agregar teléfono al atributo
 
-        leadElement.innerHTML = 
+        leadElement.innerHTML = `
             <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
                 <strong class="lead-nombre">${data.nombre}</strong>
                 <p class="lead-ultimo-mensaje">${data.ultimo_mensaje ? data.ultimo_mensaje : "No hay mensajes recientes"}</p>
             </div>
-        ;
+        `;
 
         leadList.appendChild(leadElement);
 
@@ -967,7 +967,7 @@ document.getElementById("mensaje-input").addEventListener("keydown", function (e
 function cargarMensajesChat(remitente) {
     document.getElementById("chat-usuario").textContent = remitente; // Cambiar el nombre en la barra
 
-    fetch(/mensajes_chat?id=${remitente})
+    fetch(`/mensajes_chat?id=${remitente}`)
         .then(response => response.json())
         .then(mensajes => {
             let chatBox = document.getElementById("chat-messages");
@@ -1108,7 +1108,7 @@ document.body.addEventListener("click", function () {
         
 
         function mostrarMensajesDe(remitente) {
-            fetch(/mensajes?remitente=${remitente})
+            fetch(`/mensajes?remitente=${remitente}`)
                 .then(response => response.json())
                 .then(mensajes => {
                     let chatBox = document.getElementById("chat-messages");
@@ -1116,7 +1116,7 @@ document.body.addEventListener("click", function () {
                     chatBox.innerHTML = "";
                     mensajes.forEach(msg => {
                         let div = document.createElement("div");
-                        div.textContent = ${msg.remitente}: ${msg.mensaje};
+                        div.textContent = `${msg.remitente}: ${msg.mensaje}`;
                         chatBox.appendChild(div);
                     });
                 });
@@ -1129,13 +1129,13 @@ document.body.addEventListener("click", function () {
         
             if (!remitente) return; // No hacer nada si no hay un chat abierto
         
-            fetch(/mensajes?remitente=${remitente})
+            fetch(`/mensajes?remitente=${remitente}`)
                 .then(response => response.json())
                 .then(mensajes => {
                     chatBox.innerHTML = "";
                     mensajes.forEach(msg => {
                         let div = document.createElement("div");
-                        div.textContent = ${msg.remitente}: ${msg.mensaje};
+                        div.textContent = `${msg.remitente}: ${msg.mensaje}`;
                         chatBox.appendChild(div);
                     });
                 });
@@ -1151,7 +1151,7 @@ document.body.addEventListener("click", function () {
                 document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
                 leads.forEach(lead => {
                     let estadoLimpio = lead.estado.trim();
-                    let leadList = document.querySelector([data-estado="${estadoLimpio}"] .leads-list);
+                    let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
         
                     if (leadList) {
                         let leadElement = document.createElement("div");
@@ -1162,13 +1162,13 @@ document.body.addEventListener("click", function () {
                         leadElement.ondragstart = (event) => drag(event); // 🔹 Evento de arrastre
                         leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
                         
-                        leadElement.innerHTML = 
+                        leadElement.innerHTML = `
                             <div class="lead-content">
                                 <strong class="lead-nombre">${lead.nombre}</strong>
                                 <p class="lead-ultimo-mensaje">${lead.ultimo_mensaje || "No hay mensajes recientes"}</p>
                             </div>
                             <button class="send-message-btn" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">✉️</button>
-                        ;
+                        `;
                         leadList.appendChild(leadElement);
                         
                         // 🔹 Remover la animación después de 3 segundos
@@ -1185,7 +1185,7 @@ document.body.addEventListener("click", function () {
                 actualizarChat(telefono, "Nuevo chat");
                 
                 let chatLista = document.getElementById("lista-chats");
-                let chatExistente = document.querySelector(.chat-item[data-remitente='${telefono}']);
+                let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
                 
                 // Si el chat no existe en la lista, crearlo
                 if (!chatExistente) {
@@ -1195,14 +1195,14 @@ document.body.addEventListener("click", function () {
                     div.onclick = function () {
                         seleccionarChat(div);
                     };
-                    div.innerHTML = 
+                    div.innerHTML = `
                     <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                     <div class="chat-info">
                         <div class="chat-name">${telefono}</div>
                         <div class="chat-last-message">Nuevo chat</div>
                     </div>
                     <div class="chat-time">--:--</div>
-                ;
+                `;
                     chatLista.appendChild(div);
                     chatExistente = div;
                 }
@@ -1214,7 +1214,7 @@ document.body.addEventListener("click", function () {
 
         function actualizarChat(telefono, mensaje) {
             let chatLista = document.getElementById("lista-chats");
-            let chatExistente = document.querySelector(.chat-item[data-remitente='${telefono}']);
+            let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
             
             if (!chatExistente) {
                 let div = document.createElement("div");
@@ -1224,14 +1224,14 @@ document.body.addEventListener("click", function () {
                     seleccionarChat(div);
                 };
                 
-                div.innerHTML = 
+                div.innerHTML = `
                     <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                     <div class="chat-info">
                         <div class="chat-name">${telefono}</div>
                         <div class="chat-last-message">${mensaje}</div>
                     </div>
                     <div class="chat-time">--:--</div>
-                ;
+                `;
                 chatLista.appendChild(div);
                 chatExistente = div;
             } else {
@@ -1287,7 +1287,7 @@ document.body.addEventListener("click", function () {
                 event.preventDefault();
                 let leadId = event.dataTransfer.getData("text");
                 let newEstado = column.getAttribute("data-estado");
-                let leadElement = document.querySelector([data-id='${leadId}']);
+                let leadElement = document.querySelector(`[data-id='${leadId}']`);
         
                 // 🔹 Cambiar el fondo del lead al color de la nueva columna
                 if (leadElement) {
@@ -1392,7 +1392,7 @@ document.body.addEventListener("click", function () {
         
 
         function editarNota(id, nombre, telefono, notas) {
-            let nuevaNota = prompt(Editar nota de ${nombre}:, notas);
+            let nuevaNota = prompt(`Editar nota de ${nombre}:`, notas);
             if (nuevaNota === null) return; // Si el usuario cancela, no hacer nada
         
             fetch("/editar_lead", {
