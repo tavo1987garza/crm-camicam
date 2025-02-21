@@ -1179,6 +1179,7 @@ document.body.addEventListener("click", function () {
             .catch(error => console.error("❌ Error al cargar leads:", error));
         }
         
+        
         // 🔹  Funcion para Abrir el chat
         function irAChat(telefono) {
             mostrarSeccion("chat", () => {
@@ -1207,6 +1208,7 @@ document.body.addEventListener("click", function () {
                     chatExistente = div;
                 }
                 
+                
                 // Seleccionar automáticamente el chat y habilitar input
                 seleccionarChat(chatExistente);
             });
@@ -1227,8 +1229,8 @@ document.body.addEventListener("click", function () {
                 div.innerHTML = `
                     <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                     <div class="chat-info">
-                        <div class="chat-name">${telefono}</div>
-                        <div class="chat-last-message">${mensaje}</div>
+                        <div class="chat-name">${lead.nombre}</div>
+                        <div class="chat-last-message">${lead.ultimo_mensaje || "No hay mensajes recientes"}</div>
                     </div>
                     <div class="chat-time">--:--</div>
                 `;

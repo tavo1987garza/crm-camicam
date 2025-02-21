@@ -808,9 +808,17 @@ def obtener_mensajes_chat():
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
             mensajes = cursor.fetchall()
-            return jsonify(mensajes)
+            # Obtener detalles del lead
+            cursor.execute("SELECT * FROM leads WHERE telefono = %s", (remitente,))
+            lead = cursor.fetchone()
+            if not lead:
+                # Si no se encontró lead, usar el número como nombre
+                lead = {"nombre": remitente, "telefono": remitente}
+            return jsonify({"lead": lead, "mensajes": mensajes})
         finally:
             liberar_db(conn)
+    return jsonify({"lead": {"nombre": remitente, "telefono": remitente}, "mensajes": []})
+
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")
