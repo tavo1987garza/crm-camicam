@@ -63,12 +63,11 @@ def recibir_mensaje():
                 # Crear nuevo lead
                 nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
                 cursor.execute("""
-                    INSERT INTO leads (nombre, telefono, estado, ultimo_mensaje)
-                    VALUES (%s, %s, 'Contacto Inicial', %s)
-                    ON CONFLICT (telefono) DO UPDATE
-                    SET ultimo_mensaje = EXCLUDED.ultimo_mensaje
+                    INSERT INTO leads (nombre, telefono, estado)
+                    VALUES (%s, %s, 'Contacto Inicial')
+                    ON CONFLICT (telefono) DO NOTHING
                     RETURNING id
-                """, (nombre_por_defecto, remitente, mensaje))
+                """, (nombre_por_defecto, remitente))
                 lead_id = cursor.fetchone()
             else:
                 lead_id = lead[0]
@@ -87,8 +86,7 @@ def recibir_mensaje():
                     "id": lead_id[0],
                     "nombre": nombre_por_defecto if not lead else lead[1],
                     "telefono": remitente,
-                    "estado": "Contacto Inicial",
-                    "ultimo_mensaje": mensaje
+                    "estado": "Contacto Inicial"
                 })
         finally:
             liberar_db(conn)
@@ -194,14 +192,6 @@ def enviar_mensaje():
                 INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
                 VALUES (%s, %s, %s, 'Nuevo', 'enviado')
             """, ("CRM", telefono, mensaje))
-            
-            
-            # Actualizar el último mensaje en la tabla leads
-            cursor.execute("""
-                UPDATE leads
-                SET ultimo_mensaje = %s
-                WHERE telefono = %s
-            """, (mensaje, telefono))
             conn.commit()
 
             # Enviar mensaje a través de la API de Camibot
