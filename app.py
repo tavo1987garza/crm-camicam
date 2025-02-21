@@ -39,7 +39,7 @@ def liberar_db(conn):
     if conn:
         db_pool.putconn(conn)
 
-# 📌 Endpoint para recibir mensajes desde WhatsApp
+# 📌⚠️ Endpoint para recibir mensajes desde WhatsApp⚠️
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
     datos = request.json
@@ -61,7 +61,7 @@ def recibir_mensaje():
             
             if not lead:
                 # 🔹 Si no tiene nombre, asignar "Lead desde Chat"
-                nombre_por_defecto = f"{remitente[-10:]}"  # Usa los últimos 4 dígitos del teléfono
+                nombre_por_defecto = f"{remitente[-10:]}"  # Usa los últimos 10 dígitos del teléfono
                 cursor.execute("""
                     INSERT INTO leads (nombre, telefono, estado)
                     VALUES (%s, %s, 'Contacto Inicial')
@@ -392,4 +392,3 @@ def dashboard():
 # 📌 Iniciar la app con WebSockets
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
-    
