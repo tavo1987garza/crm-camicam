@@ -383,16 +383,30 @@ def obtener_mensajes_chat():
         return jsonify({"error": "Falta el ID del remitente"}), 400
 
     conn = conectar_db()
-    if conn:
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
-            mensajes = cursor.fetchall()
-            return jsonify(mensajes)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-        finally:
-            liberar_db(conn)           
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Obtener el nombre del lead
+        cursor.execute("SELECT nombre FROM leads WHERE telefono = %s", (remitente,))
+        lead = cursor.fetchone()
+        nombre_lead = lead["nombre"] if lead else remitente  # Usar el teléfono si no hay nombre
+
+        # Obtener los mensajes del remitente
+        cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
+        mensajes = cursor.fetchall()
+
+        return jsonify({
+            "nombre": nombre_lead,
+            "mensajes": mensajes
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)       
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")

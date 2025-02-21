@@ -972,29 +972,18 @@ document.getElementById("mensaje-input").addEventListener("keydown", function (e
 
 //Vista de mensajes en el Chatbox
 function cargarMensajesChat(remitente) {
-    // Actualizar el nombre del remitente en la barra superior
-    document.getElementById("chat-usuario").textContent = remitente;
-
-    // Cargar los mensajes del remitente desde el backend
     fetch(`/mensajes_chat?id=${remitente}`)
         .then(response => response.json())
-        .then(mensajes => {
+        .then(data => {
+            // Actualizar el nombre del remitente en la barra superior
+            document.getElementById("chat-usuario").textContent = data.nombre;
+
+            // Cargar los mensajes en el chat
             let chatBox = document.getElementById("chat-messages");
             chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
 
-            // Mostrar cada mensaje en el chat
-            mensajes.forEach(msg => {
-                let div = document.createElement("div");
-                div.textContent = msg.mensaje;
-                div.classList.add("mensaje");
-
-                // Mostrar si el mensaje fue enviado o recibido
-                if (msg.tipo === "enviado") {
-                    div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
-                } else {
-                    div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
-                }
-
+            data.mensajes.forEach(msg => {
+                let div = crearMensajeChat(msg.mensaje, msg.tipo);
                 chatBox.appendChild(div);
             });
 
@@ -1037,38 +1026,38 @@ document.body.addEventListener("click", function () {
         function actualizarListaChats(remitente, mensaje) {
             let chatLista = document.getElementById("lista-chats");
             let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
-            
+        
             if (!chatExistente) {
-                // Crear un nuevo chat si no existe
-                let div = document.createElement("div");
-                div.classList.add("chat-item");
-                div.setAttribute("data-remitente", remitente);
-                div.onclick = function () {
-                    seleccionarChat(div);
-                };
-                
-                div.innerHTML = `
-                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
-                    <div class="chat-info">
-                        <div class="chat-name">${remitente}</div>
-                        <div class="chat-last-message">${mensaje}</div>
-                    </div>
-                    <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                `;
-                chatLista.appendChild(div);
-                chatExistente = div;
+                // Obtener el nombre del lead desde el backend
+                fetch(`/mensajes_chat?id=${remitente}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let nombre = data.nombre || remitente; // Usar el teléfono si no hay nombre
+        
+                        // Crear un nuevo chat si no existe
+                        let div = document.createElement("div");
+                        div.classList.add("chat-item");
+                        div.setAttribute("data-remitente", remitente);
+                        div.onclick = function () {
+                            seleccionarChat(div);
+                        };
+        
+                        div.innerHTML = `
+                            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                            <div class="chat-info">
+                                <div class="chat-name">${nombre}</div>
+                                <div class="chat-last-message">${mensaje}</div>
+                            </div>
+                            <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                        `;
+                        chatLista.appendChild(div);
+                        chatExistente = div;
+                    })
+                    .catch(error => console.error("❌ Error al obtener nombre del lead:", error));
             } else {
                 // Actualizar el último mensaje y la hora
                 chatExistente.querySelector(".chat-last-message").textContent = mensaje;
                 chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-            }
-        
-            // Resaltar el chat si no está seleccionado
-            if (!chatExistente.classList.contains("selected")) {
-                chatExistente.style.backgroundColor = "#e3f2fd"; // Color de resalte
-                setTimeout(() => {
-                    chatExistente.style.backgroundColor = ""; // Quitar el resalte después de 3 segundos
-                }, 3000);
             }
         
             return chatExistente;
