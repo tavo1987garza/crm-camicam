@@ -107,7 +107,61 @@ def recibir_mensaje():
     finally:
         liberar_db(conn)
 
+# 📌 Enviar respuesta a Camibot con reintento automático
+CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
 
+# 📌 Endpoint para enviar o responder mensajes al whatsapp
+@app.route("/enviar_mensaje", methods=["POST"])
+def enviar_mensaje():
+    datos = request.json
+    telefono = datos.get("telefono")
+    mensaje = datos.get("mensaje")
+
+    if not telefono or not mensaje:
+        return jsonify({"error": "Número de teléfono y mensaje son obligatorios"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        # Guardar mensaje en la base de datos
+        cursor.execute("""
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+            VALUES (%s, %s, %s, 'Nuevo', 'enviado')
+        """, ("CRM", telefono, mensaje))
+        conn.commit()
+
+        # Enviar mensaje a través de la API de Camibot
+        payload = {"telefono": telefono, "mensaje": mensaje}
+        max_intentos = 3
+        for intento in range(max_intentos):
+            try:
+                respuesta = requests.post(CAMIBOT_API_URL, json=payload, timeout=5)
+                if respuesta.status_code == 200:
+                    break
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
+                time.sleep(2)  # Esperar 2 segundos antes de reintentar
+
+        # Emitir evento para actualizar la interfaz (solo mensaje enviado)
+        socketio.emit("nuevo_mensaje", {
+            "remitente": telefono,
+            "mensaje": mensaje,
+            "tipo": "enviado"  # 🔹 Solo emitir como mensaje enviado
+        })
+
+        return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /enviar_mensaje: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+    finally:
+        liberar_db(conn)
+        
 
 # 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
@@ -187,60 +241,7 @@ def crear_lead():
     finally:
         liberar_db(conn)
 
-# 📌 Enviar respuesta a Camibot con reintento automático
-CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
 
-# 📌 Endpoint para enviar mensajes desde el chat o desde leads
-@app.route("/enviar_mensaje", methods=["POST"])
-def enviar_mensaje():
-    datos = request.json
-    telefono = datos.get("telefono")
-    mensaje = datos.get("mensaje")
-
-    if not telefono or not mensaje:
-        return jsonify({"error": "Número de teléfono y mensaje son obligatorios"}), 400
-
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
-    try:
-        cursor = conn.cursor()
-
-        # Guardar mensaje en la base de datos
-        cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', 'enviado')
-        """, ("CRM", telefono, mensaje))
-        conn.commit()
-
-        # Enviar mensaje a través de la API de Camibot
-        payload = {"telefono": telefono, "mensaje": mensaje}
-        max_intentos = 3
-        for intento in range(max_intentos):
-            try:
-                respuesta = requests.post(CAMIBOT_API_URL, json=payload, timeout=5)
-                if respuesta.status_code == 200:
-                    break
-            except requests.exceptions.RequestException as e:
-                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
-                time.sleep(2)  # Esperar 2 segundos antes de reintentar
-
-        # Emitir evento para actualizar la interfaz
-        socketio.emit("nuevo_mensaje", {
-            "remitente": telefono,
-            "mensaje": mensaje,
-            "tipo": "enviado"
-        })
-
-        return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
-
-    except Exception as e:
-        print(f"❌ Error en /enviar_mensaje: {str(e)}")
-        return jsonify({"error": "Error interno del servidor"}), 500
-
-    finally:
-        liberar_db(conn)
 
 
 

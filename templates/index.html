@@ -841,22 +841,28 @@
             let chatSeleccionado = document.querySelector(".chat-item.selected");
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
-                let divMensaje = crearMensajeChat(data.mensaje, "recibido");
-                chatBox.appendChild(divMensaje);
-                chatBox.scrollTop = chatBox.scrollHeight;
+        
+                // Solo agregar el mensaje si no es un duplicado
+                let mensajesExistentes = chatBox.querySelectorAll(".mensaje");
+                let esDuplicado = Array.from(mensajesExistentes).some(mensaje => {
+                    return mensaje.textContent === data.mensaje && mensaje.classList.contains(`mensaje-${data.tipo}`);
+                });
+        
+                if (!esDuplicado) {
+                    let divMensaje = crearMensajeChat(data.mensaje, data.tipo);
+                    chatBox.appendChild(divMensaje);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
             }
         
-            // Mostrar notificación
-            mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
-        
-            // Reproducir sonido
-            reproducirSonido();
+            // Mostrar notificación solo para mensajes recibidos
+            if (data.tipo === "recibido") {
+                mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+                reproducirSonido();
+            }
         
             // Actualizar el último mensaje en la sección de leads
             actualizarUltimoMensajeLead(data.remitente, data.mensaje);
-        
-            // Recargar la lista de chats
-            cargarChat();
         });
 
     
@@ -1140,7 +1146,7 @@ document.body.addEventListener("click", function () {
         
             if (tipo === "enviado") {
                 div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
-            } else {
+            } else if (tipo === "recibido") {
                 div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
             }
         
