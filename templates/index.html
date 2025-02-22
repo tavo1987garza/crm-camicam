@@ -759,6 +759,10 @@
         <i class="fas fa-comments"></i> <!-- 🔹 Icono moderno -->
         <span>Chat</span>
     </button>
+        <button onclick="mostrarSeccion('calendario')" class="sidebar-btn">
+      <i class="fas fa-calendar-alt"></i>
+      <span>Calendario</span>
+  </button>
     <button onclick="mostrarSeccion('reportes')" class="sidebar-btn">
         <i class="fas fa-chart-pie"></i> <!-- 🔹 Icono moderno -->
         <span>Reportes</span>
@@ -871,10 +875,12 @@
                 </div>
             </div>
         </div>
-        
 
-             
-        
+        <div id="calendario" class="seccion hidden">
+           <h1>📅 Calendario</h1>
+            <p>Sección para Calendario</p>
+         </div>
+
          <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
             <p>Sección de reportes y estadísticas.</p>
