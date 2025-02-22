@@ -68,9 +68,13 @@
     font-size: 24px; /* Icono más grande */
     margin-bottom: 5px;
     color: #aaa; /* Color gris para apariencia monocromática */
-    transition: background 0.2s, color 0.2s;
+    transition: transform 0.2s ease-in-out, background 0.2s, color 0.2s;
 }
     
+/* Efecto hover: agrandar el icono */
+.sidebar-btn:hover i {
+    transform: scale(1.2);
+}
 
 /* Texto debajo del icono */
 .sidebar-btn span {
