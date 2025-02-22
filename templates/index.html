@@ -125,8 +125,8 @@
 /* 🔹 Estilo de cada Lead */
 .lead {
     background: transparent;
-    padding: 8px;
-    margin: 5px 0;
+    padding: 6px;
+    margin: 3px 0;
     border-radius: 5px;
     font-size: 14px;
     display: flex;
@@ -134,7 +134,7 @@
     justify-content: space-between;
     align-items: center;
     text-align: center;
-    cursor: grab;
+    cursor: pointer;
     transition: all 0.3s ease-in-out; /* 🔹 Transición suave */
     border: 1px solid #e0e0e0; /* 🔹 Borde sutil */
 }
@@ -206,33 +206,24 @@
 .lead-content {
     text-align: center;
 }
+
 .lead-nombre {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     color: #333;
     text-align: center;
+    margin-bottom: 2px;
 }
 
 .lead-ultimo-mensaje {
-    font-size: 14px;
+    font-size: 12px;
     color: #666;
-    margin-top: 4px;
-    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; /* 🔹 Evitar saltos de línea */
+    max-width: 90%; /* 🔹 Limitar el ancho */
 }
 
-.send-message-btn {
-    margin-top: 5px;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 12px;
-}
-.send-message-btn:hover {
-    background: #45a049;
-}
 
 /* 🔹 Formulario para agregar lead */
 .form-container {
@@ -936,7 +927,9 @@ socket.on("nuevo_lead", (data) => {
         leadElement.innerHTML = `
             <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
                 <strong class="lead-nombre">${data.nombre}</strong>
-                <p class="lead-ultimo-mensaje">${data.ultimo_mensaje ? data.ultimo_mensaje : "No hay mensajes recientes"}</p>
+                <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${data.telefono}')">
+                    ${data.ultimo_mensaje ? data.ultimo_mensaje : "No hay mensajes recientes"}
+                </p>
             </div>
         `;
 
@@ -1176,37 +1169,38 @@ document.body.addEventListener("click", function () {
 
         function cargarLeads() {
             fetch("/leads")
-            .then(response => response.json())
-            .then(leads => {
-                document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
-                leads.forEach(lead => {
-                    let estadoLimpio = lead.estado.trim();
-                    let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
+                .then(response => response.json())
+                .then(leads => {
+                    document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
+                    leads.forEach(lead => {
+                        let estadoLimpio = lead.estado.trim();
+                        let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
         
-                    if (leadList) {
-                        let leadElement = document.createElement("div");
-                        leadElement.classList.add("lead", "lead-nuevo"); // 🔹 Agregar animación opcional
-                        leadElement.setAttribute("data-id", lead.id);
-                        leadElement.setAttribute("data-telefono", lead.telefono);
-                        leadElement.setAttribute("draggable", "true"); // 🔹 Hacer el lead arrastrable
-                        leadElement.ondragstart = (event) => drag(event); // 🔹 Evento de arrastre
-                        leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
-                        
-                        leadElement.innerHTML = `
-                            <div class="lead-content">
-                                <strong class="lead-nombre">${lead.nombre}</strong>
-                                <p class="lead-ultimo-mensaje">${lead.ultimo_mensaje || "No hay mensajes recientes"}</p>
-                            </div>
-                            <button class="send-message-btn" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">✉️</button>
-                        `;
-                        leadList.appendChild(leadElement);
-                        
-                        // 🔹 Remover la animación después de 3 segundos
-                        setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
-                    }
-                });
-            })
-            .catch(error => console.error("❌ Error al cargar leads:", error));
+                        if (leadList) {
+                            let leadElement = document.createElement("div");
+                            leadElement.classList.add("lead", "lead-nuevo");
+                            leadElement.setAttribute("data-id", lead.id);
+                            leadElement.setAttribute("data-telefono", lead.telefono);
+                            leadElement.setAttribute("draggable", "true");
+                            leadElement.ondragstart = (event) => drag(event);
+                            leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
+        
+                            leadElement.innerHTML = `
+                                <div class="lead-content">
+                                    <strong class="lead-nombre">${lead.nombre}</strong>
+                                    <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">
+                                        ${lead.ultimo_mensaje || "No hay mensajes recientes"}
+                                    </p>
+                                </div>
+                            `;
+        
+                            leadList.appendChild(leadElement);
+        
+                            setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+                        }
+                    });
+                })
+                .catch(error => console.error("❌ Error al cargar leads:", error));
         }
         
         // 🔹  Funcion para Abrir el chat

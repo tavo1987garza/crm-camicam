@@ -400,7 +400,7 @@ def obtener_mensajes_chat():
 
         return jsonify({
             "nombre": nombre_lead,
-            "mensajes": mensajes
+            "mensajes": mensajes 
         })
 
     except Exception as e:
