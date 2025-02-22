@@ -33,19 +33,6 @@
     align-items: center;
 }
 
-/* 🔹 Botón para colapsar/expandir */
-.collapse-btn {
-    background: #444;
-    color: white;
-    border: none;
-    padding: 10px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    text-align: center;
-    font-size: 20px;
-    display: none; /* 🔹 Ocultar por defecto en pantallas grandes */
-}
-
 /* 🔹 Botones del Sidebar */
 .sidebar-btn {
     color: white;
@@ -99,29 +86,6 @@
     color: #fff;
 }
 
-/* 🔹 Indicador de notificaciones */
-.notification-badge {
-    background: red;
-    color: white;
-    border-radius: 50%;
-    padding: 2px 6px;
-    font-size: 12px;
-    margin-left: auto; /* 🔹 Alinear a la derecha */
-}
-
-/* 🔹 Sidebar colapsado */
-.sidebar.collapsed {
-    width: 60px; /* 🔹 Ancho reducido */
-}
-
-.sidebar.collapsed  {
-    display: none; /* 🔹 Ocultar texto cuando está colapsado */
-}
-
-.sidebar.collapsed .collapse-btn {
-    display: block; /* 🔹 Mostrar botón de colapsar/expandir */
-}
-
         .content {
             flex-grow: 1;
             padding: 20px;
@@ -151,7 +115,7 @@
     padding: 10px;
     justify-content: center; /* Centra las columnas */
 }
-/* 🔹 Cada columna de Leads */
+
 /* 🔹 Cada columna de Leads */
 .leads-column {
     min-width: 220px;
