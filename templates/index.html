@@ -891,18 +891,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 
-// 🔹 Función para colapsar/expandir el sidebar
-function toggleSidebar() {
-    let sidebar = document.querySelector(".sidebar");
-    sidebar.classList.toggle("collapsed");
-
-    // Guardar el estado en localStorage
-    if (sidebar.classList.contains("collapsed")) {
-        localStorage.setItem("sidebarCollapsed", "true");
-    } else {
-        localStorage.setItem("sidebarCollapsed", "false");
-    }
-}
 
 // 🔹 Resaltar la sección activa
 function mostrarSeccion(seccion, callback = null) {
