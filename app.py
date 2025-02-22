@@ -406,7 +406,7 @@ def obtener_mensajes_chat():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        liberar_db(conn)       
+        liberar_db(conn)     
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")

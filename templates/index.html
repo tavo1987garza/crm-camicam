@@ -1044,7 +1044,7 @@ document.body.addEventListener("click", function () {
             document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
         }
 
-
+          //Actualiza la lista de chats a un lado del telefono
         function actualizarListaChats(remitente, mensaje) {
             let chatLista = document.getElementById("lista-chats");
             let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
@@ -1067,7 +1067,7 @@ document.body.addEventListener("click", function () {
                         div.innerHTML = `
                             <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                             <div class="chat-info">
-                                <div class="chat-name">${nombre}</div>
+                                <div class="chat-name">${nombre}</div> <!-- 🔹 Mostrar el nombre del lead -->
                                 <div class="chat-last-message">${mensaje}</div>
                             </div>
                             <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
