@@ -50,11 +50,17 @@
   
 
 .sidebar-btn:hover {
-    background: #666; /* 🔹 Efecto hover */
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-btn.active {
     background: #1e88e5; /* 🔹 Resaltar la sección activa */
+}
+
+
+.sidebar-btn.active i,
+.sidebar-btn.active span {
+    color: #fff;
 }
 
 /* 🔹 Iconos modernos */
@@ -726,7 +732,6 @@
 </head>
 <body>
     <div class="sidebar">
-    <h2>CRM Camicam</h2>
     <button onclick="mostrarSeccion('panel')" class="sidebar-btn">
         <i class="fas fa-chart-line"></i> <!-- 🔹 Icono moderno -->
         <span>Panel</span>
