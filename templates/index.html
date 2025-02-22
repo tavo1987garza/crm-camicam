@@ -21,13 +21,14 @@
         }
         /* 🔹 Estilos del Sidebar */
 .sidebar {
-    width: 250px;
+    width: 60px;
     background: #333;
     color: white;
-    padding: 20px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     transition: width 0.3s ease-in-out; /* 🔹 Transición suave al colapsar/expandir */
+    align-items: center;
 }
 
 /* 🔹 Botón para colapsar/expandir */
@@ -45,18 +46,19 @@
 
 /* 🔹 Botones del Sidebar */
 .sidebar-btn {
-    background: #444;
     color: white;
-    border: none;
-    padding: 10px;
-    margin: 5px 0;
-    cursor: pointer;
     text-align: left;
+    gap: 10px; /* 🔹 Espacio entre icono y texto */
+    background: transparent;
+    border: none;
+    margin: 5px 0;
+    padding: 10px;
+    cursor: pointer;
     width: 100%;
     display: flex;
+    flex-direction: column; /* Apilar icono y texto verticalmente */
     align-items: center;
-    gap: 10px; /* 🔹 Espacio entre icono y texto */
-    transition: background 0.3s ease-in-out;
+    transition: background 0.2s ease-in-out;
 }
 
 .sidebar-btn:hover {
@@ -69,7 +71,30 @@
 
 /* 🔹 Iconos modernos */
 .sidebar-btn i {
-    font-size: 18px;
+    font-size: 24px; /* Icono más grande */
+    margin-bottom: 5px;
+    color: #aaa; /* Color gris para apariencia monocromática */
+}
+
+/* Texto debajo del icono */
+.sidebar-btn span {
+    font-size: 12px;
+    color: #aaa; /* Color gris por defecto */
+}
+
+/* Efecto hover: resalta ligeramente el fondo */
+.sidebar-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Estado activo: fondo de color y icono/texto en blanco */
+.sidebar-btn.active {
+    background: #1e88e5;
+}
+
+.sidebar-btn.active i,
+.sidebar-btn.active span {
+    color: #fff;
 }
 
 /* 🔹 Indicador de notificaciones */
@@ -87,7 +112,7 @@
     width: 60px; /* 🔹 Ancho reducido */
 }
 
-.sidebar.collapsed .sidebar-btn span {
+.sidebar.collapsed  {
     display: none; /* 🔹 Ocultar texto cuando está colapsado */
 }
 
