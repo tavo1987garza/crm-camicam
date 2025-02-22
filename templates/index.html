@@ -1131,18 +1131,18 @@ document.body.addEventListener("click", function () {
 
 
         function cargarMensajesChat(remitente) {
-            // Actualizar el nombre del remitente en la barra superior
-            document.getElementById("chat-usuario").textContent = remitente;
-        
-            // Cargar los mensajes del remitente desde el backend
             fetch(`/mensajes_chat?id=${remitente}`)
                 .then(response => response.json())
-                .then(mensajes => {
+                .then(data => {
+                    // Actualizar el nombre del remitente en la barra superior
+                    let nombreLead = data.nombre || remitente; // Usar el teléfono si no hay nombre
+                    document.getElementById("chat-usuario").textContent = nombreLead;
+        
+                    // Cargar los mensajes en el chat
                     let chatBox = document.getElementById("chat-messages");
                     chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
         
-                    // Mostrar cada mensaje en el chat
-                    mensajes.forEach(msg => {
+                    data.mensajes.forEach(msg => {
                         let div = crearMensajeChat(msg.mensaje, msg.tipo);
                         chatBox.appendChild(div);
                     });
