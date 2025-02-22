@@ -63,6 +63,7 @@
     justify-content: center; /* Centra las columnas */
 }
 /* 🔹 Cada columna de Leads */
+/* 🔹 Cada columna de Leads */
 .leads-column {
     min-width: 220px;
     max-width: 250px;
@@ -71,11 +72,16 @@
     border-radius: 10px;
     box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
     text-align: center;
-    transition: transform 0.2s ease-in-out;
+    transition: all 0.3s ease-in-out; /* 🔹 Transición suave para todas las propiedades */
+    background: white; /* 🔹 Fondo blanco por defecto */
+    border: 1px solid #e0e0e0; /* 🔹 Borde sutil */
 }
 
+/* 🔹 Efecto al pasar el cursor */
 .leads-column:hover {
-    transform: scale(1.03); /* Efecto de resalte al pasar el cursor */
+    transform: scale(1.02); /* 🔹 Escala más pequeña para un efecto más sutil */
+    box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.2); /* 🔹 Sombra más pronunciada */
+    border-color: #1e88e5; /* 🔹 Cambiar color del borde al hacer hover */
 }
 
 /* 🔹 Colores para cada columna */
@@ -104,6 +110,7 @@
     border-left: 5px solid #d32f2f;
 }
 
+
 /* 🔹 Lista de Leads dentro de cada columna */
 .leads-list {
     min-height: 100px;
@@ -115,8 +122,9 @@
 }
 
 /* 🔹 Estilo de cada Lead. Transparentes inicialmente */
+/* 🔹 Estilo de cada Lead */
 .lead {
-    background: transparent; /* Se aplicará el color de la columna con JS */
+    background: transparent;
     padding: 8px;
     margin: 5px 0;
     border-radius: 5px;
@@ -127,11 +135,16 @@
     align-items: center;
     text-align: center;
     cursor: grab;
-    transition: background 0.3s ease-in-out;
-    
+    transition: all 0.3s ease-in-out; /* 🔹 Transición suave */
+    border: 1px solid #e0e0e0; /* 🔹 Borde sutil */
 }
 
-
+/* 🔹 Efecto al pasar el cursor sobre un Lead */
+.lead:hover {
+    background: #f5f5f5; /* 🔹 Fondo gris claro */
+    transform: translateY(-2px); /* 🔹 Levantar ligeramente el lead */
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1); /* 🔹 Sombra sutil */
+}
 
 /* 🔹 Cuando se suelta un lead, tomará el color de la columna */
 [data-estado="Contacto Inicial"] .lead {
@@ -154,9 +167,17 @@
     background: #ffcdd2; /* Rojo claro */
 }
 
+/* 🔹 Estilo cuando se arrastra un lead */
+.lead.dragging {
+    opacity: 0.5; /* 🔹 Hacer el lead semi-transparente */
+    transform: scale(0.95); /* 🔹 Reducir ligeramente el tamaño */
+}
 
-.lead:hover {
-    background: #eeeeee;
+/* 🔹 Estilo cuando una columna está lista para recibir un lead */
+.leads-column.dragover {
+    background: #d3f9d8; /* 🔹 Color de fondo cuando se arrastra un lead */
+    border: 2px dashed #4CAF50; /* 🔹 Borde punteado */
+    transition: all 0.3s ease-in-out; /* 🔹 Transición suave */
 }
 
 /* 🔹 Botón de eliminar dentro del lead */
