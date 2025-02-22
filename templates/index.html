@@ -747,6 +747,10 @@
 </head>
 <body>
     <div class="sidebar">
+     <button onclick="mostrarSeccion('cuenta')" class="sidebar-btn">
+      <i class="fas fa-user"></i>
+      <span>Cuenta</span>
+  </button>
     <button onclick="mostrarSeccion('panel')" class="sidebar-btn">
         <i class="fas fa-chart-line"></i> <!-- 🔹 Icono moderno -->
         <span>Panel</span>
@@ -774,6 +778,10 @@
 </div>
     
     <div class="content">
+        <div id="cuenta" class="seccion hidden">
+           <h1>👤 Cuenta</h1>
+           <p>Cuenta</p>
+         </div>
         <div id="panel" class="seccion">
             <h1>📊 Panel</h1>
             <p>Bienvenido al CRM de Camicam.</p>
