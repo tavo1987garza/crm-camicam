@@ -445,6 +445,33 @@
     background: #1565c0;
 }
 
+/* Estilos para los inputs y textarea dentro del modal */
+.modal-content input[type="text"],
+.modal-content textarea {
+    width: 100%;            /* Ocupa el ancho completo del contenedor */
+    padding: 10px;          /* Espaciado interno para mayor comodidad */
+    margin: 10px 0;         /* Separación vertical entre elementos */
+    border: 1px solid #ccc; /* Borde suave */
+    border-radius: 4px;     /* Bordes redondeados */
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box; /* Incluye padding y border en el cálculo del ancho */
+}
+
+/* Cambio de color en foco */
+.modal-content input[type="text"]:focus,
+.modal-content textarea:focus {
+    border-color: #1e88e5; /* Azul para destacar el campo activo */
+    outline: none;
+}
+
+/* Para el textarea, permitir redimensionamiento vertical y definir altura mínima */
+.modal-content textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+
 
         .notification {
             position: fixed;
@@ -822,7 +849,6 @@
 <div id="edit-lead-modal" class="modal hidden">
     <div class="modal-content">
         <button class="close-btn" onclick="cerrarModal()">✖</button>
-       <!-- <span class="close" onclick="cerrarModal()">&times;</span>-->
         <h2>✏️ Editar Lead</h2>
         <input type="hidden" id="edit-lead-id">
         <input type="text" id="edit-lead-nombre" placeholder="Nombre">
