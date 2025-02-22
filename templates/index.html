@@ -1038,7 +1038,7 @@ document.body.addEventListener("click", function () {
         }
 
           //Actualiza la lista de chats a un lado del telefono
-        function actualizarListaChats(remitente, mensaje) {
+          function actualizarListaChats(remitente, mensaje) {
             let chatLista = document.getElementById("lista-chats");
             let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
         
@@ -1047,7 +1047,7 @@ document.body.addEventListener("click", function () {
                 fetch(`/mensajes_chat?id=${remitente}`)
                     .then(response => response.json())
                     .then(data => {
-                        let nombre = data.nombre || remitente; // Usar el teléfono si no hay nombre
+                        let nombre = data.nombre || remitente; // 🔹 Usar el nombre del lead o el teléfono si no hay nombre
         
                         // Crear un nuevo chat si no existe
                         let div = document.createElement("div");
