@@ -266,23 +266,6 @@
     color: red;
 }
 
-/* 🔹 Botón de cerrar modal dentro del lead */
-.close-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: transparent;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #aaa;
-    transition: color 0.2s ease;
-}
-
-.close-btn:hover {
-    color: #000;
-}
-
 
 .lead-mensaje-nuevo {
     background: #c8e6c9 !important; /* Verde claro */
@@ -399,6 +382,7 @@
 }
 
 .modal-content {
+    position: relative;
     background: white;
     padding: 20px;
     border-radius: 8px;
@@ -406,13 +390,24 @@
     text-align: center;
 }
 
-.close {
+/* 🔹 Botón de cerrar modal dentro del lead */
+.close-btn {
     position: absolute;
-    right: 15px;
     top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    font-size: 24px;
     cursor: pointer;
-    font-size: 20px;
+    color: #aaa;
+    transition: color 0.2s ease;
 }
+
+.close-btn:hover {
+    color: #000;
+}
+
+
 
 .modal-buttons {
     display: flex;
