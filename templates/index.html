@@ -843,7 +843,7 @@
         <h2>✏️ Editar Lead</h2>
         <input type="hidden" id="edit-lead-id">
         <input type="text" id="edit-lead-nombre" placeholder="Nombre">
-        <input type="text" id="edit-lead-telefono" placeholder="Teléfono">
+        <input type="text" id="edit-lead-telefono" placeholder="Teléfono" disabled>
         <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
         
         <!-- Contenedor de botones alineados -->
@@ -851,9 +851,7 @@
             <button class="delete-btn" onclick="eliminarLeadDesdeModal()">
                 🗑️
             </button>
-            <button class="save-btn" onclick="guardarEdicionLead()">
-                💾 Guardar
-            </button>
+            
         </div>
     </div>
 </div>
@@ -1497,48 +1495,74 @@ document.body.addEventListener("click", function () {
             .catch(error => console.error("❌ Error al actualizar nota:", error));
         }
         
+       
+
         function abrirModalEditar(id, nombre, telefono, notas) {
-            document.getElementById("edit-lead-id").value = id;
-            document.getElementById("edit-lead-nombre").value = nombre;
-            document.getElementById("edit-lead-telefono").value = telefono;
-            document.getElementById("edit-lead-notas").value = notas || "";
-        
-            document.getElementById("edit-lead-modal").style.display = "flex";
-        }
-        
-        function cerrarModal() {
-            document.getElementById("edit-lead-modal").style.display = "none";
-        }
+  document.getElementById("edit-lead-id").value = id;
+  document.getElementById("edit-lead-nombre").value = nombre;
+  document.getElementById("edit-lead-telefono").value = telefono;
+  document.getElementById("edit-lead-notas").value = notas || "";
+
+  // Guarda los valores originales en el modal para comparación
+  let modal = document.getElementById("edit-lead-modal");
+  modal.dataset.originalNombre = nombre;
+  modal.dataset.originalNotas = notas || "";
+
+  // Muestra el modal (en este ejemplo, cambiamos la propiedad display)
+  modal.style.display = "flex";
+}
 
         
+       
+
+        function cerrarModal() {
+  let modal = document.getElementById("edit-lead-modal");
+  
+  let originalNombre = modal.dataset.originalNombre;
+  let originalNotas = modal.dataset.originalNotas;
+  
+  let currentNombre = document.getElementById("edit-lead-nombre").value.trim();
+  let currentNotas = document.getElementById("edit-lead-notas").value.trim();
+  
+  // Si se detecta algún cambio, guardar automáticamente
+  if (currentNombre !== originalNombre || currentNotas !== originalNotas) {
+    guardarEdicionLead();
+  }
+  
+  modal.style.display = "none";
+}
+
+
+        
+        
+
+
         function guardarEdicionLead() {
-            let id = document.getElementById("edit-lead-id").value;
-            let nombre = document.getElementById("edit-lead-nombre").value.trim();
-            let telefono = document.getElementById("edit-lead-telefono").value.trim();
-            let notas = document.getElementById("edit-lead-notas").value.trim();
-        
-            if (!id || !telefono) {
-                alert("⚠️ Error: ID y teléfono son obligatorios.");
-                return;
-            }
-        
-            fetch("/editar_lead", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, nombre, telefono, notas })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert("❌ Error: " + data.error);
-                } else {
-                    alert("✅ Lead actualizado correctamente");
-                    cargarLeads();
-                    cerrarModal();
-                }
-            })
-            .catch(error => console.error("❌ Error al actualizar lead:", error));
-        }
+  let id = document.getElementById("edit-lead-id").value;
+  let nombre = document.getElementById("edit-lead-nombre").value.trim();
+  let telefono = document.getElementById("edit-lead-telefono").value.trim(); // No se modifica
+  let notas = document.getElementById("edit-lead-notas").value.trim();
+
+  // Aquí puedes agregar validaciones adicionales para 'nombre' y 'notas' si lo consideras necesario.
+
+  fetch("/editar_lead", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, nombre, telefono, notas })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        alert("❌ Error: " + data.error);
+      } else {
+        alert("✅ Lead actualizado correctamente");
+        // Actualiza la lista de leads o lo que sea necesario
+        cargarLeads();
+      }
+    })
+    .catch(error => console.error("❌ Error al actualizar lead:", error));
+}
+
         
         
 
