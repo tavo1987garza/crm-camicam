@@ -662,16 +662,6 @@
             align-self: flex-start;
         }
 
-        /* 🔹 Icono de "visto" (✔✔) 
-.mensaje-enviado::after {
-    content: "✔✔";
-    font-size: 12px;
-    color: blue;
-    position: absolute;
-    bottom: 2px;
-    right: -18px;  /* 🔹 Mueve los checks afuera del mensaje */
-    opacity: 0.7;  /* 🔹 Hace los checks más sutiles */
-}*/  
         
         /* 🔹 Input de chat */
         .chat-input {
@@ -993,16 +983,6 @@ function mostrarNotificacion(mensaje) {
     }, 5000);
 }
 
-// 🔹 Función para reproducir sonido
-function reproducirSonido() {
-    if (sonidoActivo) {
-        let audio = new Audio("https://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
-        audio.play().catch(error => {
-            console.warn("⚠️ No se pudo reproducir el sonido.", error);
-        });
-    }
-}
-
 // 🔹 Función para actualizar el último mensaje en la sección de leads
 function actualizarUltimoMensajeLead(telefono, mensaje) {
     let leads = document.querySelectorAll(".lead");
@@ -1118,15 +1098,12 @@ function cargarMensajesChat(remitente) {
         .catch(error => console.error("❌ Error al cargar mensajes:", error));
 }
 
-
-
-
+// 🔹 Función para reproducir sonido
 function reproducirSonido() {
     if (sonidoActivo) {
         let audio = new Audio("https://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
-
         audio.play().catch(error => {
-            console.warn("⚠️ No se pudo reproducir el sonido. El usuario debe interactuar con la página.", error);
+            console.warn("⚠️ No se pudo reproducir el sonido.", error);
         });
     }
 }
@@ -1253,30 +1230,6 @@ document.body.addEventListener("click", function () {
             return div;
         }
 
-
-        function cargarMensajesChat(remitente) {
-            fetch(`/mensajes_chat?id=${remitente}`)
-                .then(response => response.json())
-                .then(data => {
-                    // Actualizar el nombre del remitente en la barra superior
-                    let nombreLead = data.nombre || remitente; // Usar el teléfono si no hay nombre
-                    document.getElementById("chat-usuario").textContent = nombreLead;
-        
-                    // Cargar los mensajes en el chat
-                    let chatBox = document.getElementById("chat-messages");
-                    chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
-        
-                    data.mensajes.forEach(msg => {
-                        let div = crearMensajeChat(msg.mensaje, msg.tipo);
-                        chatBox.appendChild(div);
-                    });
-        
-                    // Auto-scroll al último mensaje
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                })
-                .catch(error => console.error("❌ Error al cargar mensajes:", error));
-        }
-
         function cargarLeads() {
             fetch("/leads")
                 .then(response => response.json())
@@ -1362,11 +1315,7 @@ document.body.addEventListener("click", function () {
             event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
         }
         
-        // 🔹 Permitir soltar en las columnas
-        document.querySelectorAll(".leads-column").forEach(column => {
-            column.ondragover = (event) => event.preventDefault(); // 🔹 Permitir arrastrar sobre la columna
-            column.ondrop = (event) => drop(event, column.getAttribute("data-estado")); // 🔹 Manejar el drop
-        });
+      
         
         // 🔹 Manejar el evento de soltar
         function drop(event, nuevoEstado) {
@@ -1389,6 +1338,7 @@ document.body.addEventListener("click", function () {
             }
         });
 
+          // 🔹 Permitir soltar en las columnas
         document.querySelectorAll(".leads-column").forEach(column => {
             column.ondragover = (event) => event.preventDefault();
             column.ondrop = (event) => {
