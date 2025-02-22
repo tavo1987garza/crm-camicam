@@ -19,20 +19,82 @@
             display: flex;
             flex-direction: column;
         }
-        .sidebar button {
-            background: #444;
-            color: white;
-            border: none;
-            padding: 10px;
-            margin: 5px 0;
-            cursor: pointer;
-            text-align: left;
-            width: 100%;
-            transition: background 0.3s;
-        }
-        .sidebar button:hover {
-            background: #666;
-        }
+        /* 🔹 Estilos del Sidebar */
+.sidebar {
+    width: 250px;
+    background: #333;
+    color: white;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease-in-out; /* 🔹 Transición suave al colapsar/expandir */
+}
+
+/* 🔹 Botón para colapsar/expandir */
+.collapse-btn {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 20px;
+    display: none; /* 🔹 Ocultar por defecto en pantallas grandes */
+}
+
+/* 🔹 Botones del Sidebar */
+.sidebar-btn {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 10px;
+    margin: 5px 0;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px; /* 🔹 Espacio entre icono y texto */
+    transition: background 0.3s ease-in-out;
+}
+
+.sidebar-btn:hover {
+    background: #666; /* 🔹 Efecto hover */
+}
+
+.sidebar-btn.active {
+    background: #1e88e5; /* 🔹 Resaltar la sección activa */
+}
+
+/* 🔹 Iconos modernos */
+.sidebar-btn i {
+    font-size: 18px;
+}
+
+/* 🔹 Indicador de notificaciones */
+.notification-badge {
+    background: red;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-left: auto; /* 🔹 Alinear a la derecha */
+}
+
+/* 🔹 Sidebar colapsado */
+.sidebar.collapsed {
+    width: 60px; /* 🔹 Ancho reducido */
+}
+
+.sidebar.collapsed .sidebar-btn span {
+    display: none; /* 🔹 Ocultar texto cuando está colapsado */
+}
+
+.sidebar.collapsed .collapse-btn {
+    display: block; /* 🔹 Mostrar botón de colapsar/expandir */
+}
+
         .content {
             flex-grow: 1;
             padding: 20px;
@@ -684,13 +746,30 @@
 </head>
 <body>
     <div class="sidebar">
-        <h2>CRM Camicam</h2>
-        <button onclick="mostrarSeccion('panel')">📊 Panel</button>
-        <button onclick="mostrarSeccion('leads', cargarLeads)">📩 Leads</button>
-        <button onclick="mostrarSeccion('chat', cargarChat)">💬 Chat</button>
-        <button onclick="mostrarSeccion('reportes')">📈 Reportes</button>
-        <button onclick="mostrarSeccion('configuracion')">⚙️ Configuración</button>
-    </div>
+    <h2>CRM Camicam</h2>
+    <button class="collapse-btn" onclick="toggleSidebar()">&#9776;</button> <!-- 🔹 Botón para colapsar/expandir -->
+    <button onclick="mostrarSeccion('panel')" class="sidebar-btn">
+        <i class="fas fa-chart-line"></i> <!-- 🔹 Icono moderno -->
+        <span>📊 Panel</span>
+    </button>
+    <button onclick="mostrarSeccion('leads', cargarLeads)" class="sidebar-btn">
+        <i class="fas fa-envelope"></i> <!-- 🔹 Icono moderno -->
+        <span>📩 Leads</span>
+        <span class="notification-badge">3</span> <!-- 🔹 Indicador de notificaciones -->
+    </button>
+    <button onclick="mostrarSeccion('chat', cargarChat)" class="sidebar-btn">
+        <i class="fas fa-comments"></i> <!-- 🔹 Icono moderno -->
+        <span>💬 Chat</span>
+    </button>
+    <button onclick="mostrarSeccion('reportes')" class="sidebar-btn">
+        <i class="fas fa-chart-pie"></i> <!-- 🔹 Icono moderno -->
+        <span>📈 Reportes</span>
+    </button>
+    <button onclick="mostrarSeccion('configuracion')" class="sidebar-btn">
+        <i class="fas fa-cog"></i> <!-- 🔹 Icono moderno -->
+        <span>⚙️ Configuración</span>
+    </button>
+</div>
     
     <div class="content">
         <div id="panel" class="seccion">
@@ -814,30 +893,53 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            console.log("📌 DOM completamente cargado. Configurando eventos.");
-            
-            // Solo cargar leads si la sección está visible
-            let seccionLeads = document.getElementById("leads");
-            if (seccionLeads && !seccionLeads.classList.contains("hidden")) {
-                cargarLeads();
-            }
-        });
-        
 
-        function mostrarSeccion(seccion, callback = null) {
-            document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
-            let elemento = document.getElementById(seccion);
-            
-            if (elemento) {
-                elemento.classList.remove('hidden');
-                
-                // Esperar a que la sección esté visible antes de ejecutar el callback
-                setTimeout(() => {
-                    if (callback) callback();
-                }, 50); // Pequeño retraso para asegurar que el DOM se actualice
-            }
-        }
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("📌 DOM completamente cargado. Configurando eventos.");
+
+    // Solo cargar leads si la sección está visible
+    let seccionLeads = document.getElementById("leads");
+    if (seccionLeads && !seccionLeads.classList.contains("hidden")) {
+        cargarLeads();
+    }
+
+    // Cargar el estado del sidebar al iniciar
+    let sidebar = document.querySelector(".sidebar");
+    if (localStorage.getItem("sidebarCollapsed") === "true") {
+        sidebar.classList.add("collapsed");
+    }
+});
+
+// 🔹 Función para colapsar/expandir el sidebar
+function toggleSidebar() {
+    let sidebar = document.querySelector(".sidebar");
+    sidebar.classList.toggle("collapsed");
+
+    // Guardar el estado en localStorage
+    if (sidebar.classList.contains("collapsed")) {
+        localStorage.setItem("sidebarCollapsed", "true");
+    } else {
+        localStorage.setItem("sidebarCollapsed", "false");
+    }
+}
+
+// 🔹 Resaltar la sección activa
+function mostrarSeccion(seccion, callback = null) {
+    document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
+    let elemento = document.getElementById(seccion);
+
+    if (elemento) {
+        elemento.classList.remove('hidden');
+
+        // Resaltar el botón activo
+        document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`).classList.add('active');
+
+        if (callback) callback();
+    }
+}
+
+        
 
         // 🔹 Conectar con WebSockets
         let socket = io.connect(window.location.origin);
@@ -1447,6 +1549,7 @@ document.body.addEventListener("click", function () {
             })
             .catch(error => console.error("❌ Error al actualizar lead:", error));
         }
+        
         
 
     </script>
