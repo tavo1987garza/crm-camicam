@@ -351,6 +351,31 @@
             background: #d3f9d8; /* Color de fondo cuando se arrastra un lead */
         }
 
+        
+        #lead-form input[type="text"],
+#lead-form textarea {
+    width: 100%;             /* Ocupa el ancho completo del contenedor */
+    padding: 10px;           /* Espaciado interno */
+    margin: 10px 0;          /* Separación vertical entre campos */
+    border: 1px solid #ccc;  /* Borde suave */
+    border-radius: 4px;      /* Bordes redondeados */
+    font-size: 14px;         /* Tamaño de fuente */
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;  /* Incluye padding y borde en el ancho */
+}
+
+#lead-form input[type="text"]:focus,
+#lead-form textarea:focus {
+    border-color: #1e88e5;   /* Resalta el borde cuando el campo está activo */
+    outline: none;
+}
+
+#lead-form textarea {
+    resize: vertical;        /* Permite ajustar la altura verticalmente */
+    min-height: 80px;         /* Altura mínima del textarea */
+}
+
+
         /* 🔹 Estilizar el botón de agregar */
 #toggle-form {
     width: 100%;
@@ -1531,11 +1556,6 @@ document.body.addEventListener("click", function () {
   
   modal.style.display = "none";
 }
-
-
-        
-        
-
 
         function guardarEdicionLead() {
   let id = document.getElementById("edit-lead-id").value;
