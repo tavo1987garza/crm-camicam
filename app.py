@@ -7,6 +7,8 @@ from psycopg2.extras import RealDictCursor
 import requests
 import re
 import time
+from flujo_conversacion import FLUJO_CONVERSACION
+
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -50,6 +52,9 @@ def recibir_mensaje():
     # Validación de datos
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
+    
+     # Manejar la conversación
+    manejar_conversacion(remitente, mensaje)
 
     conn = conectar_db()
     if not conn:
@@ -106,6 +111,109 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
+        
+        
+# Funciones auxiliares
+# 📌 Manejar las conversaciones automaticas
+def manejar_conversacion(remitente, mensaje):
+    conn = conectar_db()
+    if not conn:
+        return
+
+    try:
+        cursor = conn.cursor()
+
+        # Obtener el estado actual del lead
+        cursor.execute("SELECT estado_conversacion, estado FROM leads WHERE telefono = %s", (remitente,))
+        estado_actual, estado_lead = cursor.fetchone()
+
+        # Buscar la respuesta correspondiente en el flujo de conversación
+        flujo = FLUJO_CONVERSACION.get(estado_actual, {})
+        respuestas = flujo.get("respuestas", {})
+
+        respuesta_automatica = None
+        siguiente_estado = None
+
+        # Buscar coincidencias en las respuestas
+        for palabra_clave, datos_respuesta in respuestas.items():
+            if palabra_clave in mensaje.lower():
+                respuesta_automatica = datos_respuesta["mensaje"]
+                siguiente_estado = datos_respuesta["siguiente_estado"]
+                break
+
+        # Si no se encontró una respuesta, usar una genérica
+        if not respuesta_automatica:
+            respuesta_automatica = "Disculpa, no entendí tu mensaje. ¿Puedes ser más específico?"
+
+        # Enviar la respuesta automática
+        enviar_mensaje_automatico(remitente, respuesta_automatica)
+
+        # Actualizar el estado de la conversación en la base de datos
+        if siguiente_estado:
+            cursor.execute("UPDATE leads SET estado_conversacion = %s WHERE telefono = %s", (siguiente_estado, remitente))
+            conn.commit()
+
+            # Mover el lead a la columna correspondiente
+            if siguiente_estado == "servicios_solicitados":
+                actualizar_estado_lead(remitente, "Seguimiento")
+            elif siguiente_estado == "confirmar_reserva":
+                actualizar_estado_lead(remitente, "Cliente")
+            elif siguiente_estado == "fecha_evento" and not verificar_disponibilidad(servicio, fecha_evento):
+                actualizar_estado_lead(remitente, "No Cliente")
+
+    except Exception as e:
+        print(f"❌ Error en manejar_conversacion: {str(e)}")
+    finally:
+        liberar_db(conn)
+        
+
+# 📌 Enviar mensaje automatico        
+def enviar_mensaje_automatico(remitente, mensaje):
+    payload = {"telefono": remitente, "mensaje": mensaje}
+    try:
+        requests.post(CAMIBOT_API_URL, json=payload, timeout=5)
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ Error al enviar mensaje automático: {str(e)}")
+                
+
+# 📌 Actualiza el estado de un lead automáticamente durante el flujo de conversación.
+def actualizar_estado_lead(remitente, nuevo_estado):
+    conn = conectar_db()
+    if not conn:
+        return
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE leads SET estado = %s WHERE telefono = %s", (nuevo_estado, remitente))
+        conn.commit()
+    except Exception as e:
+        print(f"❌ Error al actualizar estado del lead: {str(e)}")
+    finally:
+        liberar_db(conn)
+
+
+# 📌 Verificar disponibilidad
+def verificar_disponibilidad(servicio, fecha_evento):
+    conn = conectar_db()
+    if not conn:
+        return False
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM reservas 
+            WHERE servicio = %s AND fecha_evento = %s AND estado != 'cancelada'
+        """, (servicio, fecha_evento))
+        count = cursor.fetchone()[0]
+        return count == 0  # Disponible si no hay reservas para esa fecha
+    except Exception as e:
+        print(f"❌ Error al verificar disponibilidad: {str(e)}")
+        return False
+    finally:
+        liberar_db(conn)
+        
+        
 
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
@@ -161,7 +269,7 @@ def enviar_mensaje():
 
     finally:
         liberar_db(conn)
-        
+
 
 # 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
@@ -245,7 +353,7 @@ def crear_lead():
 
 
 
-# 📌 Endpoint para actualizar estado de Lead
+# 📌 Endpoint para actualizar el estado de un lead en la base de datos
 @app.route("/cambiar_estado_lead", methods=["POST"])
 def cambiar_estado_lead():
     try:
@@ -316,7 +424,6 @@ def editar_lead():
         return jsonify({"error": "ID y teléfono son obligatorios"}), 400
 
    
-
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
@@ -353,7 +460,7 @@ def obtener_mensajes():
         finally:
             liberar_db(conn)
 
-# 📌 Actualizar estado de mensaje
+# 📌 Actualiza el estado de un mensaje en la base de datos.
 @app.route("/actualizar_estado", methods=["POST"])
 def actualizar_estado():
     datos = request.json
