@@ -8,7 +8,7 @@ import requests
 import re
 import time
 from flujo_conversacion import FLUJO_CONVERSACION
-
+from servicios import SERVICIOS
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -125,7 +125,12 @@ def manejar_conversacion(remitente, mensaje):
 
         # Obtener el estado actual del lead
         cursor.execute("SELECT estado_conversacion, estado FROM leads WHERE telefono = %s", (remitente,))
-        estado_actual, estado_lead = cursor.fetchone()
+        resultado = cursor.fetchone()
+        if not resultado:
+            print(f"❌ Lead no encontrado para el teléfono: {remitente}")
+            return
+
+        estado_actual, estado_lead = resultado
 
         # Buscar la respuesta correspondiente en el flujo de conversación
         flujo = FLUJO_CONVERSACION.get(estado_actual, {})
@@ -161,11 +166,45 @@ def manejar_conversacion(remitente, mensaje):
             elif siguiente_estado == "fecha_evento" and not verificar_disponibilidad(servicio, fecha_evento):
                 actualizar_estado_lead(remitente, "No Cliente")
 
+        # Manejar el estado "servicios_solicitados"
+        if estado_actual == "servicios_solicitados":
+            servicios_solicitados = extraer_servicios(mensaje)  # Extraer servicios del mensaje
+            cotizacion = generar_cotizacion(servicios_solicitados)
+
+            # Construir el mensaje de respuesta
+            respuesta = "Aquí tienes una cotización:\n"
+            for detalle in cotizacion["detalles"]:
+                respuesta += f"- {detalle['servicio']}: {detalle['descripcion']} (${detalle['precio']})\n"
+            respuesta += f"Total: ${cotizacion['total']}\n\n"
+            respuesta += "¿Puedes decirme la fecha de tu evento para revisar disponibilidad?"
+
+            # Enviar la cotización como mensaje de texto
+            enviar_mensaje_automatico(remitente, respuesta)
+
+            # Enviar multimedia según los servicios solicitados
+            if "cabina de fotos" in servicios_solicitados:
+                enviar_multimedia(
+                    remitente,
+                    tipo="imagen",
+                    url="https://tuservidor.com/imagenes/cabina.jpg",
+                    mensaje="Aquí tienes una imagen de nuestra cabina de fotos:"
+                )
+
+            if "letras gigantes" in servicios_solicitados:
+                enviar_multimedia(
+                    remitente,
+                    tipo="video",
+                    url="https://tuservidor.com/videos/letras.mp4",
+                    mensaje="Mira este video de nuestras letras gigantes iluminadas:"
+                )
+
+            # Actualizar el estado de la conversación
+            siguiente_estado = "fecha_evento"
+
     except Exception as e:
         print(f"❌ Error en manejar_conversacion: {str(e)}")
     finally:
         liberar_db(conn)
-        
 
 # 📌 Enviar mensaje automatico        
 def enviar_mensaje_automatico(remitente, mensaje):
@@ -212,7 +251,67 @@ def verificar_disponibilidad(servicio, fecha_evento):
         return False
     finally:
         liberar_db(conn)
-        
+
+# 📌 Generar la cotizacion automatica     
+def generar_cotizacion(servicios_solicitados):
+    total = 0
+    detalles = []
+
+    for servicio in servicios_solicitados:
+        if servicio in SERVICIOS:
+            detalles.append({
+                "servicio": servicio,
+                "descripcion": SERVICIOS[servicio]["descripcion"],
+                "precio": SERVICIOS[servicio]["precio"]
+            })
+            total += SERVICIOS[servicio]["precio"]
+        else:
+            detalles.append({
+                "servicio": servicio,
+                "descripcion": "Servicio no encontrado",
+                "precio": 0
+            })
+
+    return {
+        "detalles": detalles,
+        "total": total
+    }
+
+# 📌 Extraer servicios
+def extraer_servicios(mensaje):
+    servicios_solicitados = []
+    mensaje = mensaje.lower()
+
+    for servicio in SERVICIOS:
+        if servicio in mensaje:
+            servicios_solicitados.append(servicio)
+
+    return servicios_solicitados 
+
+# 📌 Enviar archivos multimedia
+def enviar_multimedia(remitente, tipo, url, mensaje=None):
+    """
+    Envía un archivo multimedia (imagen o video) a través de la API de WhatsApp.
+    
+    :param remitente: Número de teléfono del destinatario.
+    :param tipo: Tipo de multimedia ("imagen" o "video").
+    :param url: URL del archivo multimedia.
+    :param mensaje: Mensaje opcional que acompaña al archivo.
+    """
+    payload = {
+        "telefono": remitente,
+        "mensaje": mensaje if mensaje else "Aquí tienes más información:",
+        "multimedia": {
+            "tipo": tipo,
+            "url": url
+        }
+    }
+    try:
+        response = requests.post(CAMIBOT_API_URL, json=payload, timeout=10)
+        if response.status_code != 200:
+            print(f"⚠️ Error al enviar {tipo}: {response.json().get('error')}")
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ Error de conexión al enviar {tipo}: {str(e)}")
         
 
 # 📌 Enviar respuesta a Camibot con reintento automático
