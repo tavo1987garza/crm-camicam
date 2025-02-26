@@ -53,7 +53,7 @@ def recibir_mensaje():
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
     
-     # Manejar la conversación
+    # Manejar la conversación
     manejar_conversacion(remitente, mensaje)
 
     conn = conectar_db()
@@ -76,9 +76,15 @@ def recibir_mensaje():
                 ON CONFLICT (telefono) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente))
-            lead_id = cursor.fetchone()
+            resultado = cursor.fetchone()
+            if resultado:
+                lead_id = resultado[0]  # Obtener el ID directamente
+            else:
+                # Si no se pudo crear el lead, obtener el ID del lead existente
+                cursor.execute("SELECT id FROM leads WHERE telefono = %s", (remitente,))
+                lead_id = cursor.fetchone()[0]
         else:
-            lead_id = lead[0]
+            lead_id = lead[0]  # Obtener el ID del lead existente
 
         # Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
@@ -97,7 +103,7 @@ def recibir_mensaje():
 
         if lead_id:
             socketio.emit("nuevo_lead", {
-                "id": lead_id[0],
+                "id": lead_id,  # Usar lead_id directamente
                 "nombre": nombre_por_defecto if not lead else lead[1],
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
@@ -126,12 +132,20 @@ def manejar_conversacion(remitente, mensaje):
         # Obtener el estado actual del lead
         cursor.execute("SELECT estado, estado FROM leads WHERE telefono = %s", (remitente,))
         resultado = cursor.fetchone()
+        
         if not resultado:
             print(f"❌ Lead no encontrado para el teléfono: {remitente}")
-            return
+            # Crear un nuevo lead si no existe
+            cursor.execute("""
+                INSERT INTO leads (telefono, estado)
+                VALUES (%s, 'Contacto Inicial')
+                RETURNING estado
+            """, (remitente,))
+            resultado = cursor.fetchone()
+            conn.commit()
 
-        estado_actual = resultado
-
+        estado_actual = resultado[0]  # Obtener el estado actual del lead
+        
         # Buscar la respuesta correspondiente en el flujo de conversación
         flujo = FLUJO_CONVERSACION.get(estado_actual, {})
         respuestas = flujo.get("respuestas", {})
