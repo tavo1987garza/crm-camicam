@@ -225,6 +225,13 @@ def enviar_mensaje_automatico(remitente, mensaje):
     payload = {"telefono": remitente, "mensaje": mensaje}
     try:
         requests.post(CAMIBOT_API_URL, json=payload, timeout=5)
+        
+        # Emitir el evento "nuevo_mensaje" para actualizar el frontend
+        socketio.emit("nuevo_mensaje", {
+            "remitente": remitente,
+            "mensaje": mensaje,
+            "tipo": "enviado"  # Tipo "enviado" porque el CRM lo envía
+        })
     except requests.exceptions.RequestException as e:
         print(f"⚠️ Error al enviar mensaje automático: {str(e)}")
                 
