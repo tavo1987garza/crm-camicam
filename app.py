@@ -153,9 +153,11 @@ def manejar_conversacion(remitente, mensaje):
         respuesta_automatica = None
         siguiente_estado = None
 
-        # Buscar coincidencias en las respuestas
+        
+        # Buscar coincidencias en las respuestas (insensible a mayúsculas y minúsculas)
+        mensaje_lower = mensaje.lower()
         for palabra_clave, datos_respuesta in respuestas.items():
-            if palabra_clave in mensaje.lower():
+            if palabra_clave in mensaje_lower:
                 respuesta_automatica = datos_respuesta["mensaje"]
                 siguiente_estado = datos_respuesta["siguiente_estado"]
                 break
