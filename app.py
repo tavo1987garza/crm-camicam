@@ -220,20 +220,26 @@ def manejar_conversacion(remitente, mensaje):
     finally:
         liberar_db(conn)
 
-# 📌 Enviar mensaje automatico        
+# 📌 Enviar mensaje automatico                
 def enviar_mensaje_automatico(remitente, mensaje):
     payload = {"telefono": remitente, "mensaje": mensaje}
     try:
-        requests.post(CAMIBOT_API_URL, json=payload, timeout=5)
+        # Enviar el mensaje a través de la API de Camibot
+        response = requests.post(CAMIBOT_API_URL, json=payload, timeout=5)
         
-        # Emitir el evento "nuevo_mensaje" para actualizar el frontend
-        socketio.emit("nuevo_mensaje", {
-            "remitente": remitente,
-            "mensaje": mensaje,
-            "tipo": "enviado"  # Tipo "enviado" porque el CRM lo envía
-        })
+        if response.status_code == 200:
+            # Emitir el evento "nuevo_mensaje" para actualizar el frontend
+            socketio.emit("nuevo_mensaje", {
+                "remitente": remitente,
+                "mensaje": mensaje,
+                "tipo": "enviado"  # Tipo "enviado" porque el CRM lo envía
+            })
+            print(f"📤 Emitiendo mensaje automático: {mensaje} para {remitente}")
+        else:
+            print(f"⚠️ Error al enviar mensaje automático: {response.status_code}")
     except requests.exceptions.RequestException as e:
         print(f"⚠️ Error al enviar mensaje automático: {str(e)}")
+    
                 
 
 # 📌 Actualiza el estado de un lead automáticamente durante el flujo de conversación.
