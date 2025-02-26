@@ -124,13 +124,13 @@ def manejar_conversacion(remitente, mensaje):
         cursor = conn.cursor()
 
         # Obtener el estado actual del lead
-        cursor.execute("SELECT estado_conversacion, estado FROM leads WHERE telefono = %s", (remitente,))
+        cursor.execute("SELECT estado, estado FROM leads WHERE telefono = %s", (remitente,))
         resultado = cursor.fetchone()
         if not resultado:
             print(f"❌ Lead no encontrado para el teléfono: {remitente}")
             return
 
-        estado_actual, estado_lead = resultado
+        estado_actual = resultado
 
         # Buscar la respuesta correspondiente en el flujo de conversación
         flujo = FLUJO_CONVERSACION.get(estado_actual, {})
@@ -155,7 +155,7 @@ def manejar_conversacion(remitente, mensaje):
 
         # Actualizar el estado de la conversación en la base de datos
         if siguiente_estado:
-            cursor.execute("UPDATE leads SET estado_conversacion = %s WHERE telefono = %s", (siguiente_estado, remitente))
+            cursor.execute("UPDATE leads SET estado = %s WHERE telefono = %s", (siguiente_estado, remitente))
             conn.commit()
 
             # Mover el lead a la columna correspondiente
