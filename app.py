@@ -73,7 +73,7 @@ def recibir_mensaje():
             """, (nombre_por_defecto, remitente))
             lead_id = cursor.fetchone()
         else:
-            lead_id = lead[0]
+            lead_id = lead[0] 
 
         
         # 📌 Determinar si el mensaje es "enviado" o "recibido"
