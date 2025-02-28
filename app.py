@@ -78,6 +78,9 @@ def recibir_mensaje():
         
         # 📌 Determinar si el mensaje es "enviado" o "recibido"
         tipo_mensaje = "enviado" if remitente == "CAMIBOT" else "recibido"
+        
+        # 📌 Elimina caracteres inválidos en la base de datos
+        mensaje = mensaje.encode('utf-8', 'ignore').decode('utf-8')  
 
         # 📌 Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
