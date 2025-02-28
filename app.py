@@ -58,57 +58,48 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # Verificar si el lead ya existe
-        cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
-        lead = cursor.fetchone()
-
-        if not lead:
-            # Crear nuevo lead automáticamente
-            nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
-            cursor.execute("""
-                INSERT INTO leads (nombre, telefono, estado)
-                VALUES (%s, %s, 'Contacto Inicial')
-                ON CONFLICT (telefono) DO NOTHING
-                RETURNING id
-            """, (nombre_por_defecto, remitente))
-            lead_id = cursor.fetchone()
+        # 📌 No crear un lead para Camibot
+        if remitente == "CAMIBOT":
+            lead_id = None
         else:
-            lead_id = lead[0] 
+            # Verificar si el lead ya existe
+            cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
+            lead = cursor.fetchone()
 
-        
+            if not lead:
+                # Crear nuevo lead automáticamente
+                nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
+                cursor.execute("""
+                    INSERT INTO leads (nombre, telefono, estado)
+                    VALUES (%s, %s, 'Contacto Inicial')
+                    ON CONFLICT (telefono) DO NOTHING
+                    RETURNING id
+                """, (nombre_por_defecto, remitente))
+                lead_id = cursor.fetchone()[0] if cursor.rowcount > 0 else None  # Evita errores si no se devuelve ID
+            else:
+                lead_id = lead[0]  # 🔹 Asignar el ID del lead existente
+
         # 📌 Determinar si el mensaje es "enviado" o "recibido"
         tipo_mensaje = "enviado" if remitente == "CAMIBOT" else "recibido"
-        
-        # 📌 Elimina caracteres inválidos en la base de datos
-        mensaje = mensaje.encode('utf-8', 'ignore').decode('utf-8')  
+
+        # 📌 Si el mensaje es de Camibot, usar el número del usuario como remitente
+        remitente_final = remitente if remitente != "CAMIBOT" else datos.get("telefono")
 
         # 📌 Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
             VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo_mensaje))
+        """, (plataforma, remitente_final, mensaje, tipo_mensaje))
+
         conn.commit()
-  
 
-
-        # Emitir eventos para actualizar la interfaz
-        tipo_mensaje = "enviado" if remitente == "CAMIBOT" else "recibido"
-
+        # 📌 Emitir evento para actualizar la interfaz del chat en tiempo real
         socketio.emit("nuevo_mensaje", {
-           "plataforma": plataforma,
-           "remitente": remitente,
-           "mensaje": mensaje,
-           "tipo": tipo_mensaje
+            "plataforma": plataforma,
+            "remitente": remitente_final,
+            "mensaje": mensaje,
+            "tipo": tipo_mensaje
         })
-
-
-        if lead_id:
-            socketio.emit("nuevo_lead", {
-                "id": lead_id[0],
-                "nombre": nombre_por_defecto if not lead else lead[1],
-                "telefono": remitente,
-                "estado": "Contacto Inicial"
-            })
 
         return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
 
@@ -118,6 +109,7 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
+
 
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"

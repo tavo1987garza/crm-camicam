@@ -1152,10 +1152,11 @@ function cargarMensajesChat(remitente) {
 
 
             data.mensajes.forEach(msg => {
-                let tipo = msg.tipo || (msg.remitente === "CAMIBOT" ? "enviado" : "recibido"); // Asegurar que Camibot es "enviado"
+                let tipo = msg.tipo || (msg.remitente === remitente ? "recibido" : "enviado"); // 🔹 CORREGIDO
                 let div = crearMensajeChat(msg.mensaje, tipo);
                 chatBox.appendChild(div);
             });
+
 
             // Auto-scroll al último mensaje
             chatBox.scrollTop = chatBox.scrollHeight;
