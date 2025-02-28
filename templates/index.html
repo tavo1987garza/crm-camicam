@@ -1006,45 +1006,33 @@ function mostrarSeccion(seccion, callback = null) {
 
         let sonidoActivo = true;
 
-        
-
         socket.on("nuevo_mensaje", (data) => {
-    console.log("📩 Nuevo mensaje recibido:", data);
-
-    // Actualizar la lista de chats
-    let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
-
-    // Seleccionar automáticamente el chat si no está seleccionado
-    let chatSeleccionado = document.querySelector(".chat-item.selected");
-    if (!chatSeleccionado || chatSeleccionado.getAttribute("data-remitente") !== data.remitente) {
-        // Buscar el chat correspondiente
-        let chatDiv = document.querySelector(`.chat-item[data-remitente='${data.remitente}']`);
-        if (chatDiv) {
-            seleccionarChat(chatDiv);
-            chatSeleccionado = chatDiv;
-        }
-    }
-
-    // Si el chat está abierto, agregar el mensaje al chatbox
-    if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
-        let chatBox = document.getElementById("chat-messages");
-        let divMensaje = crearMensajeChat(data.mensaje, data.tipo);
-        chatBox.appendChild(divMensaje);
-        chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll al último mensaje
-    }
-
-    // Mostrar notificación solo para mensajes recibidos
-    if (data.tipo === "recibido") {
-        mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
-        reproducirSonido();
-    }
-
-    // Actualizar el último mensaje en la sección de leads
-    actualizarUltimoMensajeLead(data.remitente, data.mensaje);
-});
-
+            console.log("📩 Nuevo mensaje recibido:", data);
         
+            // Actualizar la lista de chats
+            let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
         
+            // Agregar el mensaje al chat abierto si coincide con el remitente
+            let chatSeleccionado = document.querySelector(".chat-item.selected");
+            if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
+                let chatBox = document.getElementById("chat-messages");
+        
+                // Crear y agregar el mensaje al chat
+                let divMensaje = crearMensajeChat(data.mensaje, data.tipo);
+                chatBox.appendChild(divMensaje);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        
+            // Mostrar notificación solo para mensajes recibidos
+            if (data.tipo === "recibido") {
+                mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+                reproducirSonido();
+            }
+        
+            // Actualizar el último mensaje en la sección de leads
+            actualizarUltimoMensajeLead(data.remitente, data.mensaje);
+        });
+
     
 // 🔹 Función para mostrar notificaciones
 function mostrarNotificacion(mensaje) {
@@ -1600,3 +1588,5 @@ document.body.addEventListener("click", function () {
     </script>
 </body>
 </html>
+
+

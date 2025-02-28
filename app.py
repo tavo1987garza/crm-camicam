@@ -7,8 +7,6 @@ from psycopg2.extras import RealDictCursor
 import requests
 import re
 import time
-from flujo_conversacion import FLUJO_CONVERSACION
-from servicios import SERVICIOS
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -52,9 +50,6 @@ def recibir_mensaje():
     # Validación de datos
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
-    
-    # Manejar la conversación
-    manejar_conversacion(remitente, mensaje)
 
     conn = conectar_db()
     if not conn:
@@ -76,15 +71,9 @@ def recibir_mensaje():
                 ON CONFLICT (telefono) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente))
-            resultado = cursor.fetchone()
-            if resultado:
-                lead_id = resultado[0]  # Obtener el ID directamente
-            else:
-                # Si no se pudo crear el lead, obtener el ID del lead existente
-                cursor.execute("SELECT id FROM leads WHERE telefono = %s", (remitente,))
-                lead_id = cursor.fetchone()[0]
+            lead_id = cursor.fetchone()
         else:
-            lead_id = lead[0]  # Obtener el ID del lead existente
+            lead_id = lead[0]
 
         # Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
@@ -103,7 +92,7 @@ def recibir_mensaje():
 
         if lead_id:
             socketio.emit("nuevo_lead", {
-                "id": lead_id,  # Usar lead_id directamente
+                "id": lead_id[0],
                 "nombre": nombre_por_defecto if not lead else lead[1],
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
@@ -117,231 +106,6 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
-        
-        
-# Funciones auxiliares
-# 📌 Manejar las conversaciones automaticas
-def manejar_conversacion(remitente, mensaje):
-    conn = conectar_db()
-    if not conn:
-        return
-
-    try:
-        cursor = conn.cursor()
-
-        # Obtener el estado actual del lead
-        cursor.execute("SELECT estado, estado FROM leads WHERE telefono = %s", (remitente,))
-        resultado = cursor.fetchone()
-        
-        if not resultado:
-            print(f"❌ Lead no encontrado para el teléfono: {remitente}")
-            # Crear un nuevo lead si no existe
-            cursor.execute("""
-                INSERT INTO leads (telefono, estado)
-                VALUES (%s, 'Contacto Inicial')
-                RETURNING estado
-            """, (remitente,))
-            resultado = cursor.fetchone()
-            conn.commit()
-
-        estado_actual = resultado[0]  # Obtener el estado actual del lead
-        
-        # Buscar la respuesta correspondiente en el flujo de conversación
-        flujo = FLUJO_CONVERSACION.get(estado_actual, {})
-        respuestas = flujo.get("respuestas", {})
-
-        respuesta_automatica = None
-        siguiente_estado = None
-
-        
-        # Buscar coincidencias en las respuestas (insensible a mayúsculas y minúsculas)
-        mensaje_lower = mensaje.lower()
-        for palabra_clave, datos_respuesta in respuestas.items():
-            if palabra_clave in mensaje_lower:
-                respuesta_automatica = datos_respuesta["mensaje"]
-                siguiente_estado = datos_respuesta["siguiente_estado"]
-                break
-
-        # Si no se encontró una respuesta, usar una genérica
-        if not respuesta_automatica:
-            respuesta_automatica = "Disculpa, no entendí tu mensaje. ¿Puedes ser más específico?"
-
-        # Enviar la respuesta automática
-        enviar_mensaje_automatico(remitente, respuesta_automatica)
-
-        # Actualizar el estado de la conversación en la base de datos
-        if siguiente_estado:
-            cursor.execute("UPDATE leads SET estado = %s WHERE telefono = %s", (siguiente_estado, remitente))
-            conn.commit()
-
-            # Mover el lead a la columna correspondiente
-            if siguiente_estado == "servicios_solicitados":
-                actualizar_estado_lead(remitente, "Seguimiento")
-            elif siguiente_estado == "confirmar_reserva":
-                actualizar_estado_lead(remitente, "Cliente")
-            elif siguiente_estado == "fecha_evento" and not verificar_disponibilidad(servicio, fecha_evento):
-                actualizar_estado_lead(remitente, "No Cliente")
-
-        # Manejar el estado "servicios_solicitados"
-        if estado_actual == "servicios_solicitados":
-            servicios_solicitados = extraer_servicios(mensaje)  # Extraer servicios del mensaje
-            cotizacion = generar_cotizacion(servicios_solicitados)
-
-            # Construir el mensaje de respuesta
-            respuesta = "Aquí tienes una cotización:\n"
-            for detalle in cotizacion["detalles"]:
-                respuesta += f"- {detalle['servicio']}: {detalle['descripcion']} (${detalle['precio']})\n"
-            respuesta += f"Total: ${cotizacion['total']}\n\n"
-            respuesta += "¿Puedes decirme la fecha de tu evento para revisar disponibilidad?"
-
-            # Enviar la cotización como mensaje de texto
-            enviar_mensaje_automatico(remitente, respuesta)
-
-            # Enviar multimedia según los servicios solicitados
-            if "cabina de fotos" in servicios_solicitados:
-                enviar_multimedia(
-                    remitente,
-                    tipo="imagen",
-                    url="https://tuservidor.com/imagenes/cabina.jpg",
-                    mensaje="Aquí tienes una imagen de nuestra cabina de fotos:"
-                )
-
-            if "letras gigantes" in servicios_solicitados:
-                enviar_multimedia(
-                    remitente,
-                    tipo="video",
-                    url="https://tuservidor.com/videos/letras.mp4",
-                    mensaje="Mira este video de nuestras letras gigantes iluminadas:"
-                )
-
-            # Actualizar el estado de la conversación
-            siguiente_estado = "fecha_evento"
-
-    except Exception as e:
-        print(f"❌ Error en manejar_conversacion: {str(e)}")
-    finally:
-        liberar_db(conn)
-
-# 📌 Enviar mensaje automatico                
-def enviar_mensaje_automatico(remitente, mensaje):
-    payload = {"telefono": remitente, "mensaje": mensaje}
-    try:
-        # Enviar el mensaje a través de la API de Camibot
-        response = requests.post(CAMIBOT_API_URL, json=payload, timeout=5)
-        
-        if response.status_code == 200:
-            # Emitir el evento "nuevo_mensaje" para actualizar el frontend
-            socketio.emit("nuevo_mensaje", {
-                "remitente": remitente,
-                "mensaje": mensaje,
-                "tipo": "enviado"  # Tipo "enviado" porque el CRM lo envía
-            })
-            print(f"📤 Emitiendo mensaje automático: {mensaje} para {remitente}")
-        else:
-            print(f"⚠️ Error al enviar mensaje automático: {response.status_code}")
-    except requests.exceptions.RequestException as e:
-        print(f"⚠️ Error al enviar mensaje automático: {str(e)}")
-    
-                
-
-# 📌 Actualiza el estado de un lead automáticamente durante el flujo de conversación.
-def actualizar_estado_lead(remitente, nuevo_estado):
-    conn = conectar_db()
-    if not conn:
-        return
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute("UPDATE leads SET estado = %s WHERE telefono = %s", (nuevo_estado, remitente))
-        conn.commit()
-    except Exception as e:
-        print(f"❌ Error al actualizar estado del lead: {str(e)}")
-    finally:
-        liberar_db(conn)
-
-
-# 📌 Verificar disponibilidad
-def verificar_disponibilidad(servicio, fecha_evento):
-    conn = conectar_db()
-    if not conn:
-        return False
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT COUNT(*) 
-            FROM reservas 
-            WHERE servicio = %s AND fecha_evento = %s AND estado != 'cancelada'
-        """, (servicio, fecha_evento))
-        count = cursor.fetchone()[0]
-        return count == 0  # Disponible si no hay reservas para esa fecha
-    except Exception as e:
-        print(f"❌ Error al verificar disponibilidad: {str(e)}")
-        return False
-    finally:
-        liberar_db(conn)
-
-# 📌 Generar la cotizacion automatica     
-def generar_cotizacion(servicios_solicitados):
-    total = 0
-    detalles = []
-
-    for servicio in servicios_solicitados:
-        if servicio in SERVICIOS:
-            detalles.append({
-                "servicio": servicio,
-                "descripcion": SERVICIOS[servicio]["descripcion"],
-                "precio": SERVICIOS[servicio]["precio"]
-            })
-            total += SERVICIOS[servicio]["precio"]
-        else:
-            detalles.append({
-                "servicio": servicio,
-                "descripcion": "Servicio no encontrado",
-                "precio": 0
-            })
-
-    return {
-        "detalles": detalles,
-        "total": total
-    }
-
-# 📌 Extraer servicios
-def extraer_servicios(mensaje):
-    servicios_solicitados = []
-    mensaje = mensaje.lower()
-
-    for servicio in SERVICIOS:
-        if servicio in mensaje:
-            servicios_solicitados.append(servicio)
-
-    return servicios_solicitados 
-
-# 📌 Enviar archivos multimedia
-def enviar_multimedia(remitente, tipo, url, mensaje=None):
-    """
-    Envía un archivo multimedia (imagen o video) a través de la API de WhatsApp.
-    
-    :param remitente: Número de teléfono del destinatario.
-    :param tipo: Tipo de multimedia ("imagen" o "video").
-    :param url: URL del archivo multimedia.
-    :param mensaje: Mensaje opcional que acompaña al archivo.
-    """
-    payload = {
-        "telefono": remitente,
-        "mensaje": mensaje if mensaje else "Aquí tienes más información:",
-        "multimedia": {
-            "tipo": tipo,
-            "url": url
-        }
-    }
-    try:
-        response = requests.post(CAMIBOT_API_URL, json=payload, timeout=10)
-        if response.status_code != 200:
-            print(f"⚠️ Error al enviar {tipo}: {response.json().get('error')}")
-    except requests.exceptions.RequestException as e:
-        print(f"⚠️ Error de conexión al enviar {tipo}: {str(e)}")
-        
 
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
@@ -397,7 +161,7 @@ def enviar_mensaje():
 
     finally:
         liberar_db(conn)
-
+        
 
 # 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
@@ -481,7 +245,7 @@ def crear_lead():
 
 
 
-# 📌 Endpoint para actualizar el estado de un lead en la base de datos
+# 📌 Endpoint para actualizar estado de Lead
 @app.route("/cambiar_estado_lead", methods=["POST"])
 def cambiar_estado_lead():
     try:
@@ -588,7 +352,7 @@ def obtener_mensajes():
         finally:
             liberar_db(conn)
 
-# 📌 Actualiza el estado de un mensaje en la base de datos.
+# 📌 Actualizar estado de mensaje
 @app.route("/actualizar_estado", methods=["POST"])
 def actualizar_estado():
     datos = request.json
@@ -651,3 +415,5 @@ def dashboard():
 # 📌 Iniciar la app con WebSockets
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    
+    
