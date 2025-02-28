@@ -74,25 +74,25 @@ def recibir_mensaje():
             lead_id = cursor.fetchone()
         else:
             lead_id = lead[0]
-      
 
-        # 📌 Determinar si el mensaje es "recibido" o "enviado"
-        tipo_mensaje = "enviado" if remitente == "CAMIBOT" else "recibido"
-
-        # 📌 Guardar mensaje en la tabla "mensajes"
+        # Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo_mensaje))
-        conn.commit()
+            VALUES (%s, %s, %s, 'Nuevo', 'recibido')
+        """, (plataforma, remitente, mensaje))
+        conn.commit()        
+
 
         # Emitir eventos para actualizar la interfaz
+        tipo_mensaje = "enviado" if remitente == "CAMIBOT" else "recibido"
+
         socketio.emit("nuevo_mensaje", {
-            "plataforma": plataforma,
-            "remitente": remitente,
-            "mensaje": mensaje,
-            "tipo": "recibido"
+           "plataforma": plataforma,
+           "remitente": remitente,
+           "mensaje": mensaje,
+           "tipo": tipo_mensaje
         })
+
 
         if lead_id:
             socketio.emit("nuevo_lead", {
