@@ -46,11 +46,10 @@ def recibir_mensaje():
     plataforma = datos.get("plataforma")
     remitente = datos.get("remitente")
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")  # 🔹 Obtener el tipo de mensaje
 
     # Validación de datos
-    if not plataforma or not remitente or not mensaje or not tipo:
-        return jsonify({"error": "Faltan datos: plataforma, remitente, mensaje o tipo"}), 400
+    if not plataforma or not remitente or not mensaje:
+        return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
     conn = conectar_db()
     if not conn:
@@ -79,8 +78,8 @@ def recibir_mensaje():
         # Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo))  # 🔹 Pasar el tipo como parámetro
+            VALUES (%s, %s, %s, 'Nuevo', 'recibido')
+        """, (plataforma, remitente, mensaje))
         conn.commit()
 
         # Emitir eventos para actualizar la interfaz
@@ -88,7 +87,7 @@ def recibir_mensaje():
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": tipo  # 🔹 Usar el tipo proporcionado
+            "tipo": "recibido"
         })
 
         if lead_id:
@@ -107,8 +106,7 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
-        
-        
+
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
 

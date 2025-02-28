@@ -1006,33 +1006,32 @@ function mostrarSeccion(seccion, callback = null) {
 
         let sonidoActivo = true;
 
-
-          socket.on("nuevo_mensaje", (data) => {
+        socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
-          
+        
             // Actualizar la lista de chats
             let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
-          
+        
             // Agregar el mensaje al chat abierto si coincide con el remitente
             let chatSeleccionado = document.querySelector(".chat-item.selected");
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
-              let chatBox = document.getElementById("chat-messages");
-          
-              // Crear y agregar el mensaje al chat
-              let divMensaje = crearMensajeChat(data.mensaje, data.tipo);  // 🔹 Pasar el tipo aquí
-              chatBox.appendChild(divMensaje);
-              chatBox.scrollTop = chatBox.scrollHeight;
+                let chatBox = document.getElementById("chat-messages");
+        
+                // Crear y agregar el mensaje al chat
+                let divMensaje = crearMensajeChat(data.mensaje, data.tipo);
+                chatBox.appendChild(divMensaje);
+                chatBox.scrollTop = chatBox.scrollHeight;
             }
-          
+        
             // Mostrar notificación solo para mensajes recibidos
             if (data.tipo === "recibido") {
-              mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
-              reproducirSonido();
+                mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+                reproducirSonido();
             }
-          
+        
             // Actualizar el último mensaje en la sección de leads
             actualizarUltimoMensajeLead(data.remitente, data.mensaje);
-          });
+        });
 
     
 // 🔹 Función para mostrar notificaciones
@@ -1151,13 +1150,10 @@ function cargarMensajesChat(remitente) {
             let chatBox = document.getElementById("chat-messages");
             chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
 
-            
             data.mensajes.forEach(msg => {
-                let tipo = (msg.remitente === remitente) ? "recibido" : "enviado"; // 🔥 Corregido: Asegura que Camibot es "enviado"
-                let div = crearMensajeChat(msg.mensaje, tipo);
+                let div = crearMensajeChat(msg.mensaje, msg.tipo);
                 chatBox.appendChild(div);
             });
-
 
             // Auto-scroll al último mensaje
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -1287,16 +1283,15 @@ document.body.addEventListener("click", function () {
             let div = document.createElement("div");
             div.textContent = mensaje;
             div.classList.add("mensaje");
-          
-            // Aplicar estilos según el tipo de mensaje
+        
             if (tipo === "enviado") {
-              div.classList.add("mensaje-enviado");  // Mensaje enviado por el bot
+                div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
             } else if (tipo === "recibido") {
-              div.classList.add("mensaje-recibido");  // Mensaje recibido del usuario
+                div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
             }
-          
+        
             return div;
-          }
+        }
 
         function cargarLeads() {
             fetch("/leads")
