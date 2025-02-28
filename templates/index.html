@@ -1150,10 +1150,13 @@ function cargarMensajesChat(remitente) {
             let chatBox = document.getElementById("chat-messages");
             chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
 
+            
             data.mensajes.forEach(msg => {
-                let div = crearMensajeChat(msg.mensaje, msg.tipo);
+                let tipo = (msg.remitente === remitente) ? "recibido" : "enviado"; // 🔥 Corregido: Asegura que Camibot es "enviado"
+                let div = crearMensajeChat(msg.mensaje, tipo);
                 chatBox.appendChild(div);
             });
+
 
             // Auto-scroll al último mensaje
             chatBox.scrollTop = chatBox.scrollHeight;
