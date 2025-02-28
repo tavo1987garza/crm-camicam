@@ -182,7 +182,7 @@ def obtener_leads():
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("""
-            SELECT l.*, 
+            SELECT l.id, COALESCE(l.nombre, l.telefono) AS nombre, l.telefono, l.estado, 
                    (SELECT mensaje FROM mensajes WHERE remitente = l.telefono ORDER BY fecha DESC LIMIT 1) as ultimo_mensaje
             FROM leads l
             ORDER BY l.estado
@@ -194,6 +194,7 @@ def obtener_leads():
         return jsonify([])
     finally:
         liberar_db(conn)
+
 
 
 # 📌 Crear un nuevo lead manualmente
@@ -393,7 +394,7 @@ def obtener_mensajes_chat():
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         # Obtener el nombre del lead
-        cursor.execute("SELECT nombre FROM leads WHERE telefono = %s", (remitente,))
+        cursor.execute("SELECT COALESCE(nombre, telefono) AS nombre FROM leads WHERE telefono = %s", (remitente,))
         lead = cursor.fetchone()
         nombre_lead = lead["nombre"] if lead else remitente  # Usar el teléfono si no hay nombre
 
@@ -409,7 +410,8 @@ def obtener_mensajes_chat():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        liberar_db(conn)     
+        liberar_db(conn)
+    
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")
