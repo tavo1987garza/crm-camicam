@@ -1150,13 +1150,10 @@ function cargarMensajesChat(remitente) {
             let chatBox = document.getElementById("chat-messages");
             chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
 
-
             data.mensajes.forEach(msg => {
-                let tipo = msg.tipo || (msg.remitente === remitente ? "recibido" : "enviado"); // 🔹 CORREGIDO
-                let div = crearMensajeChat(msg.mensaje, tipo);
+                let div = crearMensajeChat(msg.mensaje, msg.tipo);
                 chatBox.appendChild(div);
             });
-
 
             // Auto-scroll al último mensaje
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -1200,7 +1197,7 @@ document.body.addEventListener("click", function () {
                 fetch(`/mensajes_chat?id=${remitente}`)
                     .then(response => response.json())
                     .then(data => {
-                        let nombre = data.nombre && data.nombre !== "null" ? data.nombre : remitente; // 🔥 Evita "null" como nombre
+                        let nombre = data.nombre || remitente; // 🔹 Usar el nombre del lead o el teléfono si no hay nombre
         
                         // Crear un nuevo chat si no existe
                         let div = document.createElement("div");
@@ -1213,7 +1210,7 @@ document.body.addEventListener("click", function () {
                         div.innerHTML = `
                             <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                             <div class="chat-info">
-                                <div class="chat-name">${nombre}</div> <!-- 🔹 Muestra el nombre o el teléfono -->
+                                <div class="chat-name">${nombre}</div> <!-- 🔹 Mostrar el nombre del lead -->
                                 <div class="chat-last-message">${mensaje}</div>
                             </div>
                             <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
@@ -1230,7 +1227,6 @@ document.body.addEventListener("click", function () {
         
             return chatExistente;
         }
-        
 
 
         function cargarChat() {
@@ -1428,7 +1424,7 @@ document.body.addEventListener("click", function () {
             };
         });
         
- 
+
         function crearLead() {
             let nombre = document.getElementById("lead-nombre").value.trim();
             let telefono = document.getElementById("lead-telefono").value.trim();
