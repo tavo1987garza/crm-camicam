@@ -116,10 +116,9 @@ def enviar_mensaje():
     datos = request.json
     telefono = datos.get("telefono")
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")          # "enviado" o "recibido"
 
-    if not telefono or not mensaje or not tipo:
-        return jsonify({"error": "Número de teléfono, mensaje y tipo son obligatorios"}), 400
+    if not telefono or not mensaje:
+        return jsonify({"error": "Número de teléfono y mensaje son obligatorios"}), 400
 
     conn = conectar_db()
     if not conn:
@@ -131,8 +130,8 @@ def enviar_mensaje():
         # Guardar mensaje en la base de datos
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, ("WhatsApp", telefono, mensaje, tipo))
+            VALUES (%s, %s, %s, 'Nuevo', 'enviado')
+        """, ("CRM", telefono, mensaje))
         conn.commit()
 
         # Enviar mensaje a través de la API de Camibot
@@ -151,17 +150,17 @@ def enviar_mensaje():
         socketio.emit("nuevo_mensaje", {
             "remitente": telefono,
             "mensaje": mensaje,
-            "tipo": tipo  # 🔹 Usar el tipo proporcionado
+            "tipo": "enviado"  # 🔹 Solo emitir como mensaje enviado
         })
 
-        return jsonify({"mensaje": "Mensaje registrado correctamente"}), 200
+        return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
     except Exception as e:
         print(f"❌ Error en /enviar_mensaje: {str(e)}")
         return jsonify({"error": "Error interno del servidor"}), 500
 
     finally:
-        liberar_db(conn)        
+        liberar_db(conn)
         
 
 # 📌 Validación de teléfono (debe tener 13 dígitos)
