@@ -87,7 +87,7 @@ def recibir_mensaje():
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": "recibido"
+            "tipo": "enviado"
         })
 
         if lead_id:
