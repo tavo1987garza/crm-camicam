@@ -79,7 +79,7 @@ def recibir_mensaje():
         # Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', %s) 
+            VALUES (%s, %s, %s, 'Nuevo', %s)
         """, (plataforma, remitente, mensaje, tipo))  # 🔹 Pasar el tipo como parámetro
         conn.commit()
 
@@ -107,7 +107,8 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
-
+        
+        
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"
 

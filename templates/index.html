@@ -1006,7 +1006,8 @@ function mostrarSeccion(seccion, callback = null) {
 
         let sonidoActivo = true;
 
-        socket.on("nuevo_mensaje", (data) => {
+
+          socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
           
             // Actualizar la lista de chats
@@ -1286,15 +1287,16 @@ document.body.addEventListener("click", function () {
             let div = document.createElement("div");
             div.textContent = mensaje;
             div.classList.add("mensaje");
-        
+          
+            // Aplicar estilos según el tipo de mensaje
             if (tipo === "enviado") {
-                div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
+              div.classList.add("mensaje-enviado");  // Mensaje enviado por el bot
             } else if (tipo === "recibido") {
-                div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
+              div.classList.add("mensaje-recibido");  // Mensaje recibido del usuario
             }
-        
+          
             return div;
-        }
+          }
 
         function cargarLeads() {
             fetch("/leads")
