@@ -46,10 +46,14 @@ def recibir_mensaje():
     plataforma = datos.get("plataforma")
     remitente = datos.get("remitente")
     mensaje = datos.get("mensaje")
+    tipo = datos.get("tipo")  # ✅ Ahora verificamos si es "enviado" o "recibido"
 
-    # Validación de datos
+    # ✅ Validaciones
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
+
+    if tipo not in ["enviado", "recibido"]:
+        tipo = "recibido"  # ✅ Si no se especifica correctamente, lo forzamos a "recibido"
 
     conn = conectar_db()
     if not conn:
@@ -58,12 +62,11 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # Verificar si el lead ya existe
+        # ✅ Verificar si el lead ya existe
         cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
         lead = cursor.fetchone()
 
         if not lead:
-            # Crear nuevo lead automáticamente
             nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
             cursor.execute("""
                 INSERT INTO leads (nombre, telefono, estado)
@@ -73,21 +76,22 @@ def recibir_mensaje():
             """, (nombre_por_defecto, remitente))
             lead_id = cursor.fetchone()
         else:
-            lead_id = lead[0]
+            lead_id = lead[0] 
 
-        # Guardar mensaje en la tabla "mensajes"
+        # ✅ Ahora guardamos correctamente el tipo de mensaje
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', 'recibido')
-        """, (plataforma, remitente, mensaje))
+            VALUES (%s, %s, %s, 'Nuevo', %s)
+        """, (plataforma, remitente, mensaje, tipo))  # ✅ Aquí usamos el tipo correcto
+
         conn.commit()
 
-        # Emitir eventos para actualizar la interfaz
+        # ✅ Emitir evento con el tipo correcto
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": "recibido"
+            "tipo": tipo  # ✅ Mostrará "enviado" o "recibido" según corresponda
         })
 
         if lead_id:
@@ -106,6 +110,7 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
+
 
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_mensaje"

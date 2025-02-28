@@ -1009,6 +1009,9 @@ function mostrarSeccion(seccion, callback = null) {
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
         
+            // ✅ Asegurarnos de que el tipo se reconozca correctamente
+            let tipoMensaje = data.tipo === "enviado" ? "enviado" : "recibido";
+        
             // Actualizar la lista de chats
             let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
         
@@ -1017,24 +1020,25 @@ function mostrarSeccion(seccion, callback = null) {
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
         
-                // Crear y agregar el mensaje al chat
-                let divMensaje = crearMensajeChat(data.mensaje, data.tipo);
+                // Crear y agregar el mensaje al chat con el tipo correcto
+                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
                 chatBox.appendChild(divMensaje);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         
-            // Mostrar notificación solo para mensajes recibidos
-            if (data.tipo === "recibido") {
+            // ✅ Solo mostrar notificación si el mensaje es "recibido"
+            if (tipoMensaje === "recibido") {
                 mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
                 reproducirSonido();
             }
         
-            // Actualizar el último mensaje en la sección de leads
+            // ✅ Actualizar correctamente el último mensaje en la lista de leads
             actualizarUltimoMensajeLead(data.remitente, data.mensaje);
         });
-
+        
     
-// 🔹 Función para mostrar notificaciones
+
+// 🔹 Función para mostrar notificaciones (solo para mensajes "recibidos")
 function mostrarNotificacion(mensaje) {
     let alerta = document.getElementById("alerta-mensaje");
     alerta.textContent = mensaje;
@@ -1045,6 +1049,7 @@ function mostrarNotificacion(mensaje) {
         alerta.style.display = "none";
     }, 5000);
 }
+
 
 // 🔹 Función para actualizar el último mensaje en la sección de leads
 function actualizarUltimoMensajeLead(telefono, mensaje) {
@@ -1193,11 +1198,10 @@ document.body.addEventListener("click", function () {
             let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
         
             if (!chatExistente) {
-                // Obtener el nombre del lead desde el backend
                 fetch(`/mensajes_chat?id=${remitente}`)
                     .then(response => response.json())
                     .then(data => {
-                        let nombre = data.nombre || remitente; // 🔹 Usar el nombre del lead o el teléfono si no hay nombre
+                        let nombre = data.nombre || remitente;
         
                         // Crear un nuevo chat si no existe
                         let div = document.createElement("div");
@@ -1210,7 +1214,7 @@ document.body.addEventListener("click", function () {
                         div.innerHTML = `
                             <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
                             <div class="chat-info">
-                                <div class="chat-name">${nombre}</div> <!-- 🔹 Mostrar el nombre del lead -->
+                                <div class="chat-name">${nombre}</div>
                                 <div class="chat-last-message">${mensaje}</div>
                             </div>
                             <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
@@ -1220,13 +1224,14 @@ document.body.addEventListener("click", function () {
                     })
                     .catch(error => console.error("❌ Error al obtener nombre del lead:", error));
             } else {
-                // Actualizar el último mensaje y la hora
+                // ✅ Si el chat ya existe, actualizar correctamente
                 chatExistente.querySelector(".chat-last-message").textContent = mensaje;
                 chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
             }
         
             return chatExistente;
         }
+        
 
 
         function cargarChat() {
@@ -1284,14 +1289,16 @@ document.body.addEventListener("click", function () {
             div.textContent = mensaje;
             div.classList.add("mensaje");
         
+            // ✅ Aplicar correctamente las clases según el tipo
             if (tipo === "enviado") {
                 div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
-            } else if (tipo === "recibido") {
+            } else {
                 div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
             }
         
             return div;
         }
+        
 
         function cargarLeads() {
             fetch("/leads")
