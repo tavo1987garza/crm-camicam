@@ -1008,30 +1008,30 @@ function mostrarSeccion(seccion, callback = null) {
 
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
-        
+          
             // Actualizar la lista de chats
             let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
-        
+          
             // Agregar el mensaje al chat abierto si coincide con el remitente
             let chatSeleccionado = document.querySelector(".chat-item.selected");
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
-                let chatBox = document.getElementById("chat-messages");
-        
-                // Crear y agregar el mensaje al chat
-                let divMensaje = crearMensajeChat(data.mensaje, data.tipo);
-                chatBox.appendChild(divMensaje);
-                chatBox.scrollTop = chatBox.scrollHeight;
+              let chatBox = document.getElementById("chat-messages");
+          
+              // Crear y agregar el mensaje al chat
+              let divMensaje = crearMensajeChat(data.mensaje, data.tipo);  // 🔹 Pasar el tipo aquí
+              chatBox.appendChild(divMensaje);
+              chatBox.scrollTop = chatBox.scrollHeight;
             }
-        
+          
             // Mostrar notificación solo para mensajes recibidos
             if (data.tipo === "recibido") {
-                mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
-                reproducirSonido();
+              mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+              reproducirSonido();
             }
-        
+          
             // Actualizar el último mensaje en la sección de leads
             actualizarUltimoMensajeLead(data.remitente, data.mensaje);
-        });
+          });
 
     
 // 🔹 Función para mostrar notificaciones

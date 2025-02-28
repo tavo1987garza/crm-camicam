@@ -46,10 +46,11 @@ def recibir_mensaje():
     plataforma = datos.get("plataforma")
     remitente = datos.get("remitente")
     mensaje = datos.get("mensaje")
+    tipo = datos.get("tipo")  # 🔹 Obtener el tipo de mensaje
 
     # Validación de datos
-    if not plataforma or not remitente or not mensaje:
-        return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
+    if not plataforma or not remitente or not mensaje or not tipo:
+        return jsonify({"error": "Faltan datos: plataforma, remitente, mensaje o tipo"}), 400
 
     conn = conectar_db()
     if not conn:
@@ -78,8 +79,8 @@ def recibir_mensaje():
         # Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', 'recibido')
-        """, (plataforma, remitente, mensaje))
+            VALUES (%s, %s, %s, 'Nuevo', %s)  # 🔹 Usar el tipo proporcionado
+        """, (plataforma, remitente, mensaje, tipo))  # 🔹 Pasar el tipo como parámetro
         conn.commit()
 
         # Emitir eventos para actualizar la interfaz
@@ -87,7 +88,7 @@ def recibir_mensaje():
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": "enviado"
+            "tipo": tipo  # 🔹 Usar el tipo proporcionado
         })
 
         if lead_id:
