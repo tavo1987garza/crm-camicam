@@ -79,7 +79,7 @@ def recibir_mensaje():
         # Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', %s)  # 🔹 Usar el tipo proporcionado
+            VALUES (%s, %s, %s, 'Nuevo', %s) 
         """, (plataforma, remitente, mensaje, tipo))  # 🔹 Pasar el tipo como parámetro
         conn.commit()
 
