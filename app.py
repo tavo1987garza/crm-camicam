@@ -75,12 +75,17 @@ def recibir_mensaje():
         else:
             lead_id = lead[0]
 
-        # Guardar mensaje en la tabla "mensajes"
+        
+        # 📌 Determinar si el mensaje es "enviado" o "recibido"
+        tipo_mensaje = "enviado" if remitente == "CAMIBOT" else "recibido"
+
+        # 📌 Guardar mensaje en la tabla "mensajes"
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', 'recibido')
-        """, (plataforma, remitente, mensaje))
-        conn.commit()        
+            VALUES (%s, %s, %s, 'Nuevo', %s)
+        """, (plataforma, remitente, mensaje, tipo_mensaje))
+        conn.commit()
+  
 
 
         # Emitir eventos para actualizar la interfaz
