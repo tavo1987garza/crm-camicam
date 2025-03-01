@@ -7,6 +7,7 @@ from psycopg2.extras import RealDictCursor
 import requests
 import re
 import time
+import json  
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
