@@ -49,7 +49,7 @@
 }
   
 
-.sidebar-btn:hover { 
+.sidebar-btn:hover {
     background: rgba(255, 255, 255, 0.1);
 }
 
@@ -1006,24 +1006,22 @@ function mostrarSeccion(seccion, callback = null) {
 
         let sonidoActivo = true;
 
-        // 🔹 El CRM escucha el tipo de mensaje que le llega
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
         
             // ✅ Asegurarnos de que el tipo se reconozca correctamente
             let tipoMensaje = data.tipo === "enviado" ? "enviado" : "recibido";
-            let extra = data.extra || {}; // ✅ Datos adicionales como imágenes, botones o listas
         
-            // ✅ Actualizar la lista de chats
+            // Actualizar la lista de chats
             let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
         
-            // ✅ Agregar mensaje al chat abierto si coincide con el remitente
+            // Agregar el mensaje al chat abierto si coincide con el remitente
             let chatSeleccionado = document.querySelector(".chat-item.selected");
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
         
-                // ✅ Crear y agregar el mensaje con el tipo correcto
-                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje, extra);
+                // Crear y agregar el mensaje al chat con el tipo correcto
+                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
                 chatBox.appendChild(divMensaje);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
@@ -1235,7 +1233,7 @@ document.body.addEventListener("click", function () {
         }
         
 
-        //Carga el historial de chats en el chatlist
+
         function cargarChat() {
             fetch("/mensajes")
                 .then(response => response.json())
@@ -1285,79 +1283,21 @@ document.body.addEventListener("click", function () {
         }
 
 
-        //Se crea el tipo de mensaje para mostrarse en el chatbox
-        function crearMensajeChat(mensaje, tipo, extra) {
+
+        function crearMensajeChat(mensaje, tipo) {
             let div = document.createElement("div");
+            div.textContent = mensaje;
             div.classList.add("mensaje");
         
-            // ✅ Asignar clases según el tipo de mensaje
+            // ✅ Aplicar correctamente las clases según el tipo
             if (tipo === "enviado") {
-                div.classList.add("mensaje-enviado");
+                div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
             } else {
-                div.classList.add("mensaje-recibido");
-            }
-        
-            // ✅ Mensajes de Texto
-            if (tipo === "text") {
-                div.textContent = mensaje;
-            }
-        
-            // ✅ Mensajes con Imagen
-            else if (tipo === "image" && extra.url) {
-                let img = document.createElement("img");
-                img.src = extra.url;
-                img.classList.add("mensaje-imagen");
-                div.appendChild(img);
-            }
-        
-            // ✅ Mensajes con Video
-            else if (tipo === "video" && extra.url) {
-                let video = document.createElement("video");
-                video.src = extra.url;
-                video.controls = true;
-                video.classList.add("mensaje-video");
-                div.appendChild(video);
-            }
-        
-            // ✅ Mensajes con Botones Interactivos
-            else if (tipo === "interactive" && extra.buttons) {
-                let texto = document.createElement("p");
-                texto.textContent = mensaje;
-                div.appendChild(texto);
-        
-                extra.buttons.forEach(button => {
-                    let btn = document.createElement("button");
-                    btn.textContent = button.text;
-                    btn.classList.add("mensaje-boton");
-                    btn.onclick = () => enviarMensajeInteractivo(button.payload);
-                    div.appendChild(btn);
-                });
-            }
-        
-            // ✅ Mensajes con Listas
-            else if (tipo === "list" && extra.items) {
-                let lista = document.createElement("ul");
-                extra.items.forEach(item => {
-                    let li = document.createElement("li");
-                    li.textContent = item.text;
-                    lista.appendChild(li);
-                });
-                div.appendChild(lista);
+                div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
             }
         
             return div;
         }
-        
-        // ✅ Función para enviar respuesta cuando se presiona un botón interactivo
-        function enviarMensajeInteractivo(payload) {
-            console.log("🔹 Enviando acción interactiva:", payload);
-            fetch("/enviar_mensaje", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ telefono: remitente, mensaje: payload })
-            });
-        }
-        
         
 
         function cargarLeads() {

@@ -40,32 +40,17 @@ def liberar_db(conn):
         db_pool.putconn(conn)
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
-import json
-
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
     datos = request.json
     plataforma = datos.get("plataforma")
     remitente = datos.get("remitente")
-    mensaje = datos.get("mensaje", "")  # ✅ Puede ser vacío si es imagen/video
-    tipo = datos.get("tipo")  # ✅ Verificamos si es "enviado" o "recibido"
-
-    # ✅ Asegurar que `extra` siempre sea un diccionario JSON
-    extra = datos.get("extra", {})
-    if not isinstance(extra, dict):  
-        try:
-            # 🔹 Si es un número o string, intenta convertirlo a JSON
-            extra = json.loads(extra)
-            if not isinstance(extra, dict):
-                extra = {}  # Si no es un diccionario, lo forzamos a `{}`.
-        except (json.JSONDecodeError, TypeError):
-            extra = {}  # Si falla la conversión, lo dejamos como `{}`.
-
-    extra_json = json.dumps(extra, ensure_ascii=False)  # ✅ Convertir `extra` a JSON seguro
+    mensaje = datos.get("mensaje")
+    tipo = datos.get("tipo")  # ✅ Ahora verificamos si es "enviado" o "recibido"
 
     # ✅ Validaciones
-    if not plataforma or not remitente:
-        return jsonify({"error": "Faltan datos: plataforma o remitente"}), 400
+    if not plataforma or not remitente or not mensaje:
+        return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
     if tipo not in ["enviado", "recibido"]:
         tipo = "recibido"  # ✅ Si no se especifica correctamente, lo forzamos a "recibido"
@@ -93,21 +78,20 @@ def recibir_mensaje():
         else:
             lead_id = lead[0] 
 
-        # ✅ Guardamos el mensaje con `extra` convertido correctamente a JSONB
+        # ✅ Ahora guardamos correctamente el tipo de mensaje
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, extra)
-            VALUES (%s, %s, %s, 'Nuevo', %s, %s::jsonb)
-        """, (plataforma, remitente, mensaje, tipo, extra_json))  # 🔹 `extra` ahora es un JSON válido
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+            VALUES (%s, %s, %s, 'Nuevo', %s)
+        """, (plataforma, remitente, mensaje, tipo))  # ✅ Aquí usamos el tipo correcto
 
         conn.commit()
 
-        # ✅ Emitir evento con la información corregida
+        # ✅ Emitir evento con el tipo correcto
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": tipo,
-            "extra": extra  # 🔹 `extra` ahora siempre es un diccionario válido
+            "tipo": tipo  # ✅ Mostrará "enviado" o "recibido" según corresponda
         })
 
         if lead_id:
@@ -126,9 +110,6 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
-
-
-
 
 
 # 📌 Enviar respuesta a Camibot con reintento automático
