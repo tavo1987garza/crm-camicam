@@ -76,9 +76,10 @@ def recibir_mensaje():
                 ON CONFLICT (telefono) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente))
-            lead_id = cursor.fetchone()
+            lead_id_result = cursor.fetchone()  # Esto devuelve una tupla (id,) o None
+            lead_id = lead_id_result[0] if lead_id_result else None  # Extraer el ID de la tupla
         else:
-            lead_id = lead[0]
+            lead_id = lead[0]  # Esto es un entero (id)
 
         # ✅ Guardar el mensaje en la base de datos (incluyendo botones si existen)
         cursor.execute("""
@@ -99,7 +100,7 @@ def recibir_mensaje():
 
         if lead_id:
             socketio.emit("nuevo_lead", {
-                "id": lead_id[0],
+                "id": lead_id,  # Usar lead_id directamente (ya no es una tupla)
                 "nombre": nombre_por_defecto if not lead else lead[1],
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
