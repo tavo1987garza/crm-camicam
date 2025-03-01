@@ -49,7 +49,13 @@ def recibir_mensaje():
     remitente = datos.get("remitente")
     mensaje = datos.get("mensaje", "")  # ✅ Puede ser vacío si es imagen/video
     tipo = datos.get("tipo")  # ✅ Verificamos si es "enviado" o "recibido"
-    extra = datos.get("extra", {})  # ✅ Información adicional (imagen, botones, lista)
+    
+    # ✅ Verificar que `extra` sea un diccionario
+    extra = datos.get("extra", {})
+    if not isinstance(extra, dict):  
+        extra = {}  # Si `extra` es un número u otro tipo, lo convertimos a un diccionario vacío
+    
+    extra_json = json.dumps(extra, ensure_ascii=False)  # ✅ Convertir `extra` a JSON
 
     # ✅ Validaciones
     if not plataforma or not remitente:
@@ -81,21 +87,21 @@ def recibir_mensaje():
         else:
             lead_id = lead[0] 
 
-        # ✅ Guardamos el mensaje con datos extra si existen
+        # ✅ Guardamos el mensaje con `extra` convertido correctamente a JSON
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, extra)
-            VALUES (%s, %s, %s, 'Nuevo', %s, %s)
-        """, (plataforma, remitente, mensaje, tipo, json.dumps(extra)))  # 🔹 `extra` almacenado como JSON
+            VALUES (%s, %s, %s, 'Nuevo', %s, %s::jsonb)
+        """, (plataforma, remitente, mensaje, tipo, extra_json))  # 🔹 `extra` ahora es un JSON válido
 
         conn.commit()
 
-        # ✅ Emitir evento con toda la información
+        # ✅ Emitir evento con la información corregida
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
             "tipo": tipo,
-            "extra": extra  # 🔹 Pasamos datos extra como imágenes, botones o listas
+            "extra": extra  # 🔹 `extra` ahora siempre es un diccionario
         })
 
         if lead_id:
@@ -114,6 +120,7 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
+
 
 
 
