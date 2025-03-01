@@ -40,17 +40,20 @@ def liberar_db(conn):
         db_pool.putconn(conn)
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
+import json
+
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
     datos = request.json
     plataforma = datos.get("plataforma")
     remitente = datos.get("remitente")
-    mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")  # ✅ Ahora verificamos si es "enviado" o "recibido"
+    mensaje = datos.get("mensaje", "")  # ✅ Puede ser vacío si es imagen/video
+    tipo = datos.get("tipo")  # ✅ Verificamos si es "enviado" o "recibido"
+    extra = datos.get("extra", {})  # ✅ Información adicional (imagen, botones, lista)
 
     # ✅ Validaciones
-    if not plataforma or not remitente or not mensaje:
-        return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
+    if not plataforma or not remitente:
+        return jsonify({"error": "Faltan datos: plataforma o remitente"}), 400
 
     if tipo not in ["enviado", "recibido"]:
         tipo = "recibido"  # ✅ Si no se especifica correctamente, lo forzamos a "recibido"
@@ -78,20 +81,21 @@ def recibir_mensaje():
         else:
             lead_id = lead[0] 
 
-        # ✅ Ahora guardamos correctamente el tipo de mensaje
+        # ✅ Guardamos el mensaje con datos extra si existen
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo))  # ✅ Aquí usamos el tipo correcto
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, extra)
+            VALUES (%s, %s, %s, 'Nuevo', %s, %s)
+        """, (plataforma, remitente, mensaje, tipo, json.dumps(extra)))  # 🔹 `extra` almacenado como JSON
 
         conn.commit()
 
-        # ✅ Emitir evento con el tipo correcto
+        # ✅ Emitir evento con toda la información
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": tipo  # ✅ Mostrará "enviado" o "recibido" según corresponda
+            "tipo": tipo,
+            "extra": extra  # 🔹 Pasamos datos extra como imágenes, botones o listas
         })
 
         if lead_id:
@@ -110,6 +114,7 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
+
 
 
 # 📌 Enviar respuesta a Camibot con reintento automático
