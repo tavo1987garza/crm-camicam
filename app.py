@@ -49,13 +49,19 @@ def recibir_mensaje():
     remitente = datos.get("remitente")
     mensaje = datos.get("mensaje", "")  # ✅ Puede ser vacío si es imagen/video
     tipo = datos.get("tipo")  # ✅ Verificamos si es "enviado" o "recibido"
-    
-    # ✅ Verificar que `extra` sea un diccionario
+
+    # ✅ Asegurar que `extra` siempre sea un diccionario JSON
     extra = datos.get("extra", {})
     if not isinstance(extra, dict):  
-        extra = {}  # Si `extra` es un número u otro tipo, lo convertimos a un diccionario vacío
-    
-    extra_json = json.dumps(extra, ensure_ascii=False)  # ✅ Convertir `extra` a JSON
+        try:
+            # 🔹 Si es un número o string, intenta convertirlo a JSON
+            extra = json.loads(extra)
+            if not isinstance(extra, dict):
+                extra = {}  # Si no es un diccionario, lo forzamos a `{}`.
+        except (json.JSONDecodeError, TypeError):
+            extra = {}  # Si falla la conversión, lo dejamos como `{}`.
+
+    extra_json = json.dumps(extra, ensure_ascii=False)  # ✅ Convertir `extra` a JSON seguro
 
     # ✅ Validaciones
     if not plataforma or not remitente:
@@ -87,7 +93,7 @@ def recibir_mensaje():
         else:
             lead_id = lead[0] 
 
-        # ✅ Guardamos el mensaje con `extra` convertido correctamente a JSON
+        # ✅ Guardamos el mensaje con `extra` convertido correctamente a JSONB
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, extra)
             VALUES (%s, %s, %s, 'Nuevo', %s, %s::jsonb)
@@ -101,7 +107,7 @@ def recibir_mensaje():
             "remitente": remitente,
             "mensaje": mensaje,
             "tipo": tipo,
-            "extra": extra  # 🔹 `extra` ahora siempre es un diccionario
+            "extra": extra  # 🔹 `extra` ahora siempre es un diccionario válido
         })
 
         if lead_id:
@@ -120,6 +126,7 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
+
 
 
 
