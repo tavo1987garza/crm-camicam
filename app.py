@@ -46,14 +46,15 @@ def recibir_mensaje():
     plataforma = datos.get("plataforma")
     remitente = datos.get("remitente")
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")  # ✅ Ahora verificamos si es "enviado" o "recibido"
+    tipo = datos.get("tipo")  # "enviado" o "recibido"
+    botones = datos.get("botones", [])  # ✅ Nuevo: Recibir botones si existen
 
     # ✅ Validaciones
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
     if tipo not in ["enviado", "recibido"]:
-        tipo = "recibido"  # ✅ Si no se especifica correctamente, lo forzamos a "recibido"
+        tipo = "recibido"  # Si no se especifica correctamente, lo forzamos a "recibido"
 
     conn = conectar_db()
     if not conn:
@@ -76,22 +77,23 @@ def recibir_mensaje():
             """, (nombre_por_defecto, remitente))
             lead_id = cursor.fetchone()
         else:
-            lead_id = lead[0] 
+            lead_id = lead[0]
 
-        # ✅ Ahora guardamos correctamente el tipo de mensaje
+        # ✅ Guardar el mensaje en la base de datos (incluyendo botones si existen)
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo))  # ✅ Aquí usamos el tipo correcto
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, botones)
+            VALUES (%s, %s, %s, 'Nuevo', %s, %s)
+        """, (plataforma, remitente, mensaje, tipo, json.dumps(botones)))  # Almacenar botones como JSON
 
         conn.commit()
 
-        # ✅ Emitir evento con el tipo correcto
+        # ✅ Emitir evento con el tipo correcto y los botones
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": tipo  # ✅ Mostrará "enviado" o "recibido" según corresponda
+            "tipo": tipo,  # "enviado" o "recibido"
+            "botones": botones  # ✅ Incluir botones si existen
         })
 
         if lead_id:
@@ -121,6 +123,7 @@ def enviar_mensaje():
     datos = request.json
     telefono = datos.get("telefono")
     mensaje = datos.get("mensaje")
+    botones = datos.get("botones", [])  # ✅ Nuevo: Recibir botones si existen
 
     if not telefono or not mensaje:
         return jsonify({"error": "Número de teléfono y mensaje son obligatorios"}), 400
@@ -132,15 +135,15 @@ def enviar_mensaje():
     try:
         cursor = conn.cursor()
 
-        # Guardar mensaje en la base de datos
+        # Guardar mensaje en la base de datos (incluyendo botones si existen)
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', 'enviado')
-        """, ("CRM", telefono, mensaje))
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, botones)
+            VALUES (%s, %s, %s, 'Nuevo', 'enviado', %s)
+        """, ("CRM", telefono, mensaje, json.dumps(botones)))
         conn.commit()
 
         # Enviar mensaje a través de la API de Camibot
-        payload = {"telefono": telefono, "mensaje": mensaje}
+        payload = {"telefono": telefono, "mensaje": mensaje, "botones": botones}
         max_intentos = 3
         for intento in range(max_intentos):
             try:
@@ -155,7 +158,8 @@ def enviar_mensaje():
         socketio.emit("nuevo_mensaje", {
             "remitente": telefono,
             "mensaje": mensaje,
-            "tipo": "enviado"  # 🔹 Solo emitir como mensaje enviado
+            "tipo": "enviado",  # 🔹 Solo emitir como mensaje enviado
+            "botones": botones  # ✅ Incluir botones si existen
         })
 
         return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200

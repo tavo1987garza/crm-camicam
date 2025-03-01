@@ -797,6 +797,26 @@
     }
 }
 
+.botones-container {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.boton-mensaje {
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.boton-mensaje:hover {
+    background-color: #0056b3;
+}
+
 
     </style>
 </head>
@@ -1020,8 +1040,8 @@ function mostrarSeccion(seccion, callback = null) {
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
         
-                // Crear y agregar el mensaje al chat con el tipo correcto
-                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
+                // Crear y agregar el mensaje al chat con el tipo correcto y los botones
+                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje, data.botones);
                 chatBox.appendChild(divMensaje);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
@@ -1284,7 +1304,7 @@ document.body.addEventListener("click", function () {
 
 
 
-        function crearMensajeChat(mensaje, tipo) {
+        function crearMensajeChat(mensaje, tipo, botones) {
             let div = document.createElement("div");
             div.textContent = mensaje;
             div.classList.add("mensaje");
@@ -1294,6 +1314,22 @@ document.body.addEventListener("click", function () {
                 div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
             } else {
                 div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
+            }
+        
+            // ✅ Si hay botones, agregarlos al mensaje
+            if (botones && botones.length > 0) {
+                let botonesDiv = document.createElement("div");
+                botonesDiv.classList.add("botones-container");
+        
+                botones.forEach(boton => {
+                    let botonElement = document.createElement("button");
+                    botonElement.textContent = boton.title; // Usar el título del botón
+                    botonElement.classList.add("boton-mensaje");
+                    botonElement.setAttribute("data-id", boton.id); // Asignar el ID del botón
+                    botonesDiv.appendChild(botonElement);
+                });
+        
+                div.appendChild(botonesDiv);
             }
         
             return div;
