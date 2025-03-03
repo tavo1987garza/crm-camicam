@@ -44,12 +44,12 @@ def liberar_db(conn):
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
     datos = request.json
+    print("Datos recibidos en el CRM:", datos)  # ✅ Verificar los datos recibidos
     plataforma = datos.get("plataforma")
     remitente = datos.get("remitente")
-    mensaje = datos.get("mensaje")
+    mensaje = datos.get("mensaje", "").encode('latin1', 'ignore').decode('utf-8')
     tipo = datos.get("tipo")  # "enviado" o "recibido"
-    botones = datos.get("botones", [])  # ✅ Nuevo: Recibir botones si existen
-
+    botones = json.dumps(datos.get("botones", {}), ensure_ascii=False)  # ✅ Asegurar que `extra` siempre esté en UTF-8
     # ✅ Validaciones
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
