@@ -49,8 +49,10 @@ def recibir_mensaje():
     remitente = datos.get("remitente")
     mensaje = datos.get("mensaje", "").encode('latin1', 'ignore').decode('utf-8')
     tipo = datos.get("tipo")  # "enviado" o "recibido"
-    botones = json.dumps(datos.get("botones", {}), ensure_ascii=False)  # ✅ Asegurar que `extra` siempre esté en UTF-8
-    # ✅ Validaciones
+    botones = datos.get("botones", [])  # ✅ Se obtiene la lista correctamente
+    botones_json = json.dumps(botones, ensure_ascii=False)  # ✅ Convertir a JSON solo si es necesario
+    
+    
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
@@ -76,11 +78,11 @@ def recibir_mensaje():
                 ON CONFLICT (telefono) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente))
-            lead_id_result = cursor.fetchone()  # Esto devuelve una tupla (id,) o None
-            lead_id = lead_id_result[0] if lead_id_result else None  # Extraer el ID de la tupla
+            lead_id = cursor.fetchone()[0]  # ✅ Siempre devuelve un ID
         else:
-            lead_id = lead[0]  # Esto es un entero (id)
-
+            lead_id = lead[0]  # ✅ Si el lead existe, usa su ID
+            
+            
         # ✅ Guardar el mensaje en la base de datos (incluyendo botones si existen)
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, botones)
@@ -88,6 +90,7 @@ def recibir_mensaje():
         """, (plataforma, remitente, mensaje, tipo, json.dumps(botones)))  # Almacenar botones como JSON
 
         conn.commit()
+
 
         # ✅ Emitir evento con el tipo correcto y los botones
         socketio.emit("nuevo_mensaje", {
@@ -137,12 +140,18 @@ def enviar_mensaje():
     try:
         cursor = conn.cursor()
 
+        # Convertir botones a JSON si existen
+        botones_json = json.dumps(botones, ensure_ascii=False) if botones else None
+
+        
         # Guardar mensaje en la base de datos (incluyendo botones si existen)
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, botones)
             VALUES (%s, %s, %s, 'Nuevo', 'enviado', %s)
-        """, ("CRM", telefono, mensaje, json.dumps(botones)))
+        """, ("CRM", telefono, mensaje, botones_json))
         conn.commit()
+        
+
 
         # Enviar mensaje a través de la API de Camibot
         payload = {"telefono": telefono, "mensaje": mensaje, "botones": botones}
@@ -161,7 +170,7 @@ def enviar_mensaje():
             "remitente": telefono,
             "mensaje": mensaje,
             "tipo": "enviado",  # 🔹 Solo emitir como mensaje enviado
-            "botones": botones  # ✅ Incluir botones si existen
+            "botones": botones if botones else []  # ✅ Incluir botones si existen
         })
 
         return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200

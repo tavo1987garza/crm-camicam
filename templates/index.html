@@ -1173,7 +1173,13 @@ function cargarMensajesChat(remitente) {
 
             // Cargar los mensajes en el chat
             let chatBox = document.getElementById("chat-messages");
-            chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
+            
+            // Limpiar el chat antes de cargar nuevos mensajes
+             // 🔹 Evitar parpadeo: solo limpiar si se cambia de conversación
+             if (chatBox.getAttribute("data-remitente") !== remitente) {
+                chatBox.innerHTML = "";
+                chatBox.setAttribute("data-remitente", remitente);
+            }
 
             data.mensajes.forEach(msg => {
                 let div = crearMensajeChat(msg.mensaje, msg.tipo);
@@ -1185,6 +1191,7 @@ function cargarMensajesChat(remitente) {
         })
         .catch(error => console.error("❌ Error al cargar mensajes:", error));
 }
+
 
 // 🔹 Función para reproducir sonido
 function reproducirSonido() {
