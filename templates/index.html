@@ -797,26 +797,6 @@
     }
 }
 
-.botones-container {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    margin-top: 10px;
-}
-
-.boton-mensaje {
-    padding: 5px 10px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.boton-mensaje:hover {
-    background-color: #0056b3;
-}
-
 
     </style>
 </head>
@@ -1040,8 +1020,8 @@ function mostrarSeccion(seccion, callback = null) {
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
         
-                // Crear y agregar el mensaje al chat con el tipo correcto y los botones
-                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje, data.botones);
+                // Crear y agregar el mensaje al chat con el tipo correcto
+                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
                 chatBox.appendChild(divMensaje);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
@@ -1167,40 +1147,24 @@ function cargarMensajesChat(remitente) {
     fetch(`/mensajes_chat?id=${remitente}`)
         .then(response => response.json())
         .then(data => {
+            // Actualizar el nombre del remitente en la barra superior del simulador de teléfono
+            let nombreLead = data.nombre || remitente; // Usar el teléfono si no hay nombre
+            document.getElementById("chat-usuario").textContent = nombreLead;
+
+            // Cargar los mensajes en el chat
             let chatBox = document.getElementById("chat-messages");
+            chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
 
-            // 🔹 Evitar parpadeo: solo limpiar si se cambia de conversación
-            if (chatBox.getAttribute("data-remitente") !== remitente) {
-                chatBox.innerHTML = "";
-                chatBox.setAttribute("data-remitente", remitente);
-            }
-
-            // 🔹 Guardar si el usuario estaba en la parte inferior antes de actualizar
-            let estabaAbajo = chatBox.scrollHeight - chatBox.scrollTop <= chatBox.clientHeight + 10;
-
-            // 🔹 Mostrar mensaje si el chat está vacío
-            if (data.mensajes.length === 0) {
-                let div = document.createElement("div");
-                div.textContent = "No hay mensajes aún.";
-                div.classList.add("mensaje-sistema");
+            data.mensajes.forEach(msg => {
+                let div = crearMensajeChat(msg.mensaje, msg.tipo);
                 chatBox.appendChild(div);
-            } else {
-                data.mensajes.forEach(msg => {
-                    let tipoMensaje = msg.tipo === "enviado" || msg.tipo === "CRM" ? "enviado" : "recibido";
-                    let div = crearMensajeChat(msg.mensaje, tipoMensaje);
-                    chatBox.appendChild(div);
-                });
-            }
+            });
 
-            // 🔹 Auto-scroll solo si el usuario estaba en la parte inferior antes de actualizar
-            if (estabaAbajo) {
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }
-        }) // ✅ Aquí se cierra correctamente el `.then()`
-        .catch(error => console.error("❌ Error al cargar mensajes:", error)); // ✅ `.catch()` debe estar al mismo nivel que `.then()`
+            // Auto-scroll al último mensaje
+            chatBox.scrollTop = chatBox.scrollHeight;
+        })
+        .catch(error => console.error("❌ Error al cargar mensajes:", error));
 }
-
-
 
 // 🔹 Función para reproducir sonido
 function reproducirSonido() {
@@ -1320,7 +1284,7 @@ document.body.addEventListener("click", function () {
 
 
 
-        function crearMensajeChat(mensaje, tipo, botones) {
+        function crearMensajeChat(mensaje, tipo) {
             let div = document.createElement("div");
             div.textContent = mensaje;
             div.classList.add("mensaje");
@@ -1332,25 +1296,8 @@ document.body.addEventListener("click", function () {
                 div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
             }
         
-            // ✅ Si hay botones, agregarlos al mensaje
-            if (botones && botones.length > 0) {
-                let botonesDiv = document.createElement("div");
-                botonesDiv.classList.add("botones-container");
-        
-                botones.forEach(boton => {
-                    let botonElement = document.createElement("button");
-                    botonElement.textContent = boton.title || boton.text || "Botón"; // Fallback en caso de que falte el título
-                    botonElement.classList.add("boton-mensaje");
-                    botonElement.setAttribute("data-id", boton.id || ""); // Manejar caso donde no hay ID
-                    botonesDiv.appendChild(botonElement);
-                });
-        
-                div.appendChild(botonesDiv);
-            }
-        
             return div;
         }
-        
         
 
         function cargarLeads() {

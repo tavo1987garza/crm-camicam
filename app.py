@@ -7,7 +7,6 @@ from psycopg2.extras import RealDictCursor
 import requests
 import re
 import time
-import json  
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -44,20 +43,17 @@ def liberar_db(conn):
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
     datos = request.json
-    print("📌 Datos recibidos en el CRM:", datos)
-
     plataforma = datos.get("plataforma")
     remitente = datos.get("remitente")
-    mensaje = datos.get("mensaje", "").encode('latin1', 'ignore').decode('utf-8')
-    tipo = datos.get("tipo")  # "enviado" o "recibido"
-    botones = datos.get("botones", [])
-    botones_json = json.dumps(botones, ensure_ascii=False) if botones else None
+    mensaje = datos.get("mensaje")
+    tipo = datos.get("tipo")  # ✅ Ahora verificamos si es "enviado" o "recibido"
 
+    # ✅ Validaciones
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
     if tipo not in ["enviado", "recibido"]:
-        tipo = "recibido"  # Si el tipo es inválido, forzarlo a "recibido"
+        tipo = "recibido"  # ✅ Si no se especifica correctamente, lo forzamos a "recibido"
 
     conn = conectar_db()
     if not conn:
@@ -78,31 +74,29 @@ def recibir_mensaje():
                 ON CONFLICT (telefono) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente))
-            lead_id_result = cursor.fetchone()
-            lead_id = lead_id_result[0] if lead_id_result else None
+            lead_id = cursor.fetchone()
         else:
-            lead_id = lead[0]
+            lead_id = lead[0] 
 
-        # ✅ Emitir evento ANTES del commit para mejorar la experiencia del usuario
+        # ✅ Ahora guardamos correctamente el tipo de mensaje
+        cursor.execute("""
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+            VALUES (%s, %s, %s, 'Nuevo', %s)
+        """, (plataforma, remitente, mensaje, tipo))  # ✅ Aquí usamos el tipo correcto
+
+        conn.commit()
+
+        # ✅ Emitir evento con el tipo correcto
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": tipo,
-            "botones": botones_json
+            "tipo": tipo  # ✅ Mostrará "enviado" o "recibido" según corresponda
         })
-
-        # ✅ Guardar mensaje en la base de datos
-        cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, botones)
-            VALUES (%s, %s, %s, 'Nuevo', %s, %s)
-        """, (plataforma, remitente, mensaje, tipo, botones_json))
-
-        conn.commit()
 
         if lead_id:
             socketio.emit("nuevo_lead", {
-                "id": lead_id,
+                "id": lead_id[0],
                 "nombre": nombre_por_defecto if not lead else lead[1],
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
@@ -112,11 +106,10 @@ def recibir_mensaje():
 
     except Exception as e:
         print(f"❌ Error en /recibir_mensaje: {str(e)}")
-        return jsonify({"error": f"Error interno: {str(e)}"}), 500
+        return jsonify({"error": "Error interno del servidor"}), 500
 
     finally:
         liberar_db(conn)
-
 
 
 # 📌 Enviar respuesta a Camibot con reintento automático
@@ -128,7 +121,6 @@ def enviar_mensaje():
     datos = request.json
     telefono = datos.get("telefono")
     mensaje = datos.get("mensaje")
-    botones = datos.get("botones", [])  # ✅ Nuevo: Recibir botones si existen
 
     if not telefono or not mensaje:
         return jsonify({"error": "Número de teléfono y mensaje son obligatorios"}), 400
@@ -140,21 +132,15 @@ def enviar_mensaje():
     try:
         cursor = conn.cursor()
 
-        # Convertir botones a JSON si existen
-        botones_json = json.dumps(botones, ensure_ascii=False) if botones else None
-
-        
-        # Guardar mensaje en la base de datos (incluyendo botones si existen)
+        # Guardar mensaje en la base de datos
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, botones)
-            VALUES (%s, %s, %s, 'Nuevo', 'enviado', %s)
-        """, ("CRM", telefono, mensaje, botones_json))
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+            VALUES (%s, %s, %s, 'Nuevo', 'enviado')
+        """, ("CRM", telefono, mensaje))
         conn.commit()
-        
-
 
         # Enviar mensaje a través de la API de Camibot
-        payload = {"telefono": telefono, "mensaje": mensaje, "botones": botones}
+        payload = {"telefono": telefono, "mensaje": mensaje}
         max_intentos = 3
         for intento in range(max_intentos):
             try:
@@ -169,8 +155,7 @@ def enviar_mensaje():
         socketio.emit("nuevo_mensaje", {
             "remitente": telefono,
             "mensaje": mensaje,
-            "tipo": "enviado",  # 🔹 Solo emitir como mensaje enviado
-            "botones": botones if botones else []  # ✅ Incluir botones si existen
+            "tipo": "enviado"  # 🔹 Solo emitir como mensaje enviado
         })
 
         return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
@@ -413,29 +398,19 @@ def obtener_mensajes_chat():
         lead = cursor.fetchone()
         nombre_lead = lead["nombre"] if lead else remitente  # Usar el teléfono si no hay nombre
 
-        # Obtener los mensajes (incluyendo los enviados por el CRM)
-        cursor.execute("""
-            SELECT * FROM mensajes 
-            WHERE remitente = %s OR (tipo = 'enviado' AND plataforma = 'CRM') 
-            ORDER BY fecha ASC
-        """, (remitente,))
+        # Obtener los mensajes del remitente
+        cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
         mensajes = cursor.fetchall()
-
-        # Convertir fechas a formato ISO 8601 para evitar errores de serialización
-        mensajes_serializados = [
-            {**mensaje, "fecha": mensaje["fecha"].isoformat()} for mensaje in mensajes
-        ]
 
         return jsonify({
             "nombre": nombre_lead,
-            "mensajes": mensajes_serializados
+            "mensajes": mensajes 
         })
 
     except Exception as e:
-        print(f"❌ Error en /mensajes_chat: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
-        liberar_db(conn)
+        liberar_db(conn)     
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")
