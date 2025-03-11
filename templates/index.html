@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1286,19 +1287,25 @@ document.body.addEventListener("click", function () {
 
         function crearMensajeChat(mensaje, tipo) {
             let div = document.createElement("div");
-            div.textContent = mensaje;
-            div.classList.add("mensaje");
-        
-            // ✅ Aplicar correctamente las clases según el tipo
-            if (tipo === "enviado") {
-                div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
+            
+            // Si el mensaje contiene etiquetas HTML, usamos innerHTML
+            if (/<[a-z][\s\S]*>/i.test(mensaje)) {
+              div.innerHTML = mensaje;
             } else {
-                div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
+              div.textContent = mensaje;
             }
-        
+            
+            div.classList.add("mensaje");
+          
+            if (tipo === "enviado") {
+              div.classList.add("mensaje-enviado");
+            } else {
+              div.classList.add("mensaje-recibido");
+            }
+            
             return div;
-        }
-        
+          }
+          
 
         function cargarLeads() {
             fetch("/leads")
