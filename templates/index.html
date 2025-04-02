@@ -1020,6 +1020,17 @@ function mostrarSeccion(seccion, callback = null) {
             let chatSeleccionado = document.querySelector(".chat-item.selected");
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
+
+                 
+            // Verificar si el último mensaje agregado es idéntico (y de tipo "enviado")
+            if (
+                data.tipo === "enviado" &&
+                chatBox.lastChild &&
+                chatBox.lastChild.textContent.trim() === data.mensaje.trim()
+              ) {
+            // Si ya se agregó, no lo agregamos de nuevo
+            return;
+            }
         
                 // Crear y agregar el mensaje al chat con el tipo correcto
                 let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
@@ -1281,7 +1292,7 @@ document.body.addEventListener("click", function () {
             // Habilitar el input y botón de envío
             document.getElementById("mensaje-input").disabled = false;
             document.querySelector(".chat-input button").disabled = false;
-        }
+        } 
 
 
 
