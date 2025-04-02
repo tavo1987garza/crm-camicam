@@ -15,7 +15,7 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 📌 Ruta raíz
-@app.route("/")
+@app.route("/") 
 def home():
     return "¡CRM de Camicam funcionando!"
 
