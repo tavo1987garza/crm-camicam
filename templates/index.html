@@ -1026,17 +1026,6 @@ function mostrarSeccion(seccion, callback = null) {
             let chatSeleccionado = document.querySelector(".chat-item.selected");
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
-
-                 
-            // Verificar si el último mensaje agregado es idéntico (y de tipo "enviado")
-            if (
-                data.tipo === "enviado" &&
-                chatBox.lastChild &&
-                chatBox.lastChild.textContent.trim() === data.mensaje.trim()
-              ) {
-            // Si ya se agregó, no lo agregamos de nuevo
-            return;
-            }
         
                 // Crear y agregar el mensaje al chat con el tipo correcto
                 let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
@@ -1301,85 +1290,21 @@ document.body.addEventListener("click", function () {
         } 
 
 
-
-        // Escuchar cuando se selecciona una imagen
-document.getElementById('imagen-input').addEventListener('change', function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const base64Data = e.target.result;
-      enviarImagen(base64Data);
-    };
-    reader.readAsDataURL(file);
-  });
-  
-  // Función para enviar la imagen al backend
-  function enviarImagen(base64Data) {
-    // Verifica que se haya seleccionado un chat
-    let chatSeleccionado = document.querySelector(".chat-item.selected");
-    if (!chatSeleccionado) {
-      alert("Selecciona un chat antes de enviar una imagen.");
-      return;
-    }
-    let remitente = chatSeleccionado.getAttribute("data-remitente");
-  
-    fetch("/enviar_imagen", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telefono: remitente, imagen: base64Data })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.error) {
-        alert("Error al enviar imagen: " + data.error);
-      } else {
-        // Opcional: limpiar el input file
-        document.getElementById('imagen-input').value = "";
-      }
-    })
-    .catch(error => console.error("❌ Error al enviar imagen:", error));
-  }
-  
-
-  // Supongamos que defines la variable currentUserPhone con el número del CRM (o el que se utiliza para enviar mensajes)
-const currentUserPhone = "5218133971595"; // Ajusta este valor según corresponda
-
-function crearMensajeChat(mensaje, tipo, remitente) {
-  let div = document.createElement("div");
-
-  // Si el mensaje es una URL de imagen (asumiendo que todas las imágenes están en /static/uploads/)
-  if (typeof mensaje === "string" && mensaje.startsWith("/static/uploads/")) {
-    let img = document.createElement("img");
-    img.src = mensaje;
-    img.style.maxWidth = "200px";
-    // Agrega la imagen al contenedor
-    div.appendChild(img); 
-
-    // Si el remitente es el usuario actual, lo consideramos "enviado"
-    if (remitente === currentUserPhone) {
-      div.classList.add("mensaje-enviado");
-    } else {
-      div.classList.add("mensaje-recibido");
-    }
-  } else {
-    // Si es un mensaje de texto normal o HTML
-    if (/<[a-z][\s\S]*>/i.test(mensaje)) {
-      div.innerHTML = mensaje;
-    } else {
-      div.textContent = mensaje;
-    }
-    // Aplica la clase basada en el tipo (enviado/recibido)
-    if (tipo === "enviado") {
-      div.classList.add("mensaje-enviado");
-    } else {
-      div.classList.add("mensaje-recibido");
-    }
-  }
-  return div;
-}
-
+        function crearMensajeChat(mensaje, tipo) {
+            let div = document.createElement("div");
+            div.textContent = mensaje;
+            div.classList.add("mensaje");
+        
+            // ✅ Aplicar correctamente las clases según el tipo
+            if (tipo === "enviado") {
+                div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
+            } else {
+                div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
+            }
+        
+            return div;
+        }
+        
   
           
 
