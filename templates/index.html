@@ -1013,47 +1013,47 @@ function mostrarSeccion(seccion, callback = null) {
 
         let sonidoActivo = true;
 
-
-
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
-          
-            // Determinar el tipo según lo recibido
+        
+            // ✅ Asegurarnos de que el tipo se reconozca correctamente
             let tipoMensaje = data.tipo === "enviado" ? "enviado" : "recibido";
-          
+        
             // Actualizar la lista de chats
             let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
-          
+        
             // Agregar el mensaje al chat abierto si coincide con el remitente
             let chatSeleccionado = document.querySelector(".chat-item.selected");
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
-              let chatBox = document.getElementById("chat-messages");
-          
-              // Verificar si el último mensaje agregado es idéntico (y de tipo "enviado")
-              if (
+                let chatBox = document.getElementById("chat-messages");
+
+                 
+            // Verificar si el último mensaje agregado es idéntico (y de tipo "enviado")
+            if (
                 data.tipo === "enviado" &&
                 chatBox.lastChild &&
                 chatBox.lastChild.textContent.trim() === data.mensaje.trim()
               ) {
-                // Si ya se agregó, no lo agregamos de nuevo
-                return;
-              }
-          
-              // Crear y agregar el mensaje, pasando además el remitente
-              let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje, data.remitente);
-              chatBox.appendChild(divMensaje);
-              chatBox.scrollTop = chatBox.scrollHeight;
+            // Si ya se agregó, no lo agregamos de nuevo
+            return;
             }
-          
-            // Mostrar notificación si el mensaje es "recibido"
+        
+                // Crear y agregar el mensaje al chat con el tipo correcto
+                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
+                chatBox.appendChild(divMensaje);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        
+            // ✅ Solo mostrar notificación si el mensaje es "recibido"
             if (tipoMensaje === "recibido") {
-              mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
-              reproducirSonido();
+                mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+                reproducirSonido();
             }
-          
-            // Actualizar el último mensaje en la lista de leads
+        
+            // ✅ Actualizar correctamente el último mensaje en la lista de leads
             actualizarUltimoMensajeLead(data.remitente, data.mensaje);
-          });
+        });
+        
     
 
 // 🔹 Función para mostrar notificaciones (solo para mensajes "recibidos")
