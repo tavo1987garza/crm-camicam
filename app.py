@@ -6,7 +6,10 @@ from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 import requests
 import re
-import time
+import time 
+import base64
+import uuid
+from flask import send_from_directory
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -171,6 +174,66 @@ def enviar_mensaje():
 # 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
     return len(telefono) == 13 and telefono.startswith("521")
+
+
+# 📌 Endpoint para enviar imagen desde el chatbox
+@app.route("/enviar_imagen", methods=["POST"])
+def enviar_imagen():
+    data = request.get_json()
+    telefono = data.get("telefono")
+    imagen_data = data.get("imagen")
+    
+    if not telefono or not imagen_data:
+        return jsonify({"error": "Faltan datos"}), 400
+    
+    # La imagen viene en formato Data URL, separamos el encabezado y la parte base64
+    try:
+        header, encoded = imagen_data.split(",", 1)
+        img_bytes = base64.b64decode(encoded)
+    except Exception as e:
+        return jsonify({"error": "Error decodificando imagen: " + str(e)}), 400
+    
+    # Determinar la extensión a partir del header (por ejemplo, png o jpg)
+    ext = "png"
+    if "jpeg" in header or "jpg" in header:
+        ext = "jpg"
+    
+    # Generar un nombre de archivo único
+    filename = f"{uuid.uuid4()}.{ext}"
+    upload_folder = os.path.join(os.getcwd(), "static", "uploads")
+    os.makedirs(upload_folder, exist_ok=True)
+    file_path = os.path.join(upload_folder, filename)
+    
+    # Guardar el archivo
+    with open(file_path, "wb") as f:
+        f.write(img_bytes)
+    
+    # Construir el URL para acceder a la imagen (Flask sirve por defecto la carpeta /static)
+    image_url = f"/static/uploads/{filename}"
+    
+    # Registrar el mensaje en la base de datos (similar a /enviar_mensaje)
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
+            VALUES (%s, %s, %s, 'Nuevo', 'imagen')
+        """, ("CRM", telefono, image_url))
+        conn.commit()
+        # Emitir el evento con SocketIO
+        socketio.emit("nuevo_mensaje", {
+            "remitente": telefono,
+            "mensaje": image_url,
+            "tipo": "imagen"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+    
+    return jsonify({"mensaje": "Imagen enviada correctamente", "url": image_url}), 200
 
 
 # 📌 Ruta para obtener Leads        

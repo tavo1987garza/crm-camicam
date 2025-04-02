@@ -931,6 +931,12 @@
         
                     <!-- 🔹 Input para enviar mensajes -->
                     <div class="chat-input">
+                        <!-- Botón para adjuntar imagen -->
+                        <button id="adjuntar-imagen-btn" onclick="document.getElementById('imagen-input').click(); return false;">
+                        <i class="fas fa-paperclip"></i>
+                        </button>
+                        <!-- Input file oculto -->
+                        <input type="file" id="imagen-input" accept="image/*" style="display: none;">
                         <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..." disabled>
                         <button onclick="enviarMensaje()" disabled>📤</button>
                     </div>
@@ -1296,26 +1302,76 @@ document.body.addEventListener("click", function () {
 
 
 
-        function crearMensajeChat(mensaje, tipo) {
-            let div = document.createElement("div");
-            
-            // Si el mensaje contiene etiquetas HTML, usamos innerHTML
-            if (/<[a-z][\s\S]*>/i.test(mensaje)) {
-              div.innerHTML = mensaje;
-            } else {
-              div.textContent = mensaje;
-            }
-            
-            div.classList.add("mensaje");
-          
-            if (tipo === "enviado") {
-              div.classList.add("mensaje-enviado");
-            } else {
-              div.classList.add("mensaje-recibido");
-            }
-            
-            return div;
-          }
+        // Escuchar cuando se selecciona una imagen
+document.getElementById('imagen-input').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const base64Data = e.target.result;
+      enviarImagen(base64Data);
+    };
+    reader.readAsDataURL(file);
+  });
+  
+  // Función para enviar la imagen al backend
+  function enviarImagen(base64Data) {
+    // Verifica que se haya seleccionado un chat
+    let chatSeleccionado = document.querySelector(".chat-item.selected");
+    if (!chatSeleccionado) {
+      alert("Selecciona un chat antes de enviar una imagen.");
+      return;
+    }
+    let remitente = chatSeleccionado.getAttribute("data-remitente");
+  
+    fetch("/enviar_imagen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telefono: remitente, imagen: base64Data })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        alert("Error al enviar imagen: " + data.error);
+      } else {
+        // Opcional: limpiar el input file
+        document.getElementById('imagen-input').value = "";
+      }
+    })
+    .catch(error => console.error("❌ Error al enviar imagen:", error));
+  }
+  
+  // Modificar la función para crear mensajes en el chat (para mensajes de imagen)
+  function crearMensajeChat(mensaje, tipo) {
+    let div = document.createElement("div");
+    
+    if (tipo === "imagen") {
+      // Crear una etiqueta img para mostrar la imagen
+      let img = document.createElement("img");
+      img.src = mensaje;
+      img.style.maxWidth = "200px"; // Limitar el tamaño
+      div.appendChild(img);
+    } else {
+      // Para mensajes de texto o que contengan HTML
+      if (/<[a-z][\s\S]*>/i.test(mensaje)) {
+        div.innerHTML = mensaje;
+      } else {
+        div.textContent = mensaje;
+      }
+    }
+    
+    div.classList.add("mensaje");
+    if (tipo === "enviado") {
+      div.classList.add("mensaje-enviado");
+    } else if (tipo === "recibido") {
+      div.classList.add("mensaje-recibido");
+    } else if (tipo === "imagen") {
+      // Puedes aplicar un estilo específico si lo deseas
+    }
+    return div;
+  }
+  
           
 
         function cargarLeads() {
