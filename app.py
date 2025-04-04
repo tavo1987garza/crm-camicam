@@ -49,16 +49,18 @@ def liberar_db(conn):
 def recibir_mensaje():
     datos = request.json
     plataforma = datos.get("plataforma")
-    remitente = datos.get("remitente")
+    # 🔸 Convertir remitente a string para poder hacer slicing o concatenar
+    remitente = str(datos.get("remitente", ""))
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")  # ✅ Ahora verificamos si es "enviado" o "recibido"
+    tipo = datos.get("tipo")  # podría ser "enviado", "recibido", "recibido_imagen", etc.
 
     # ✅ Validaciones
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
+    # Ejemplo: si solo aceptas "enviado" y "recibido", forzas "recibido" si no coincide
     if tipo not in ["enviado", "recibido"]:
-        tipo = "recibido"  # ✅ Si no se especifica correctamente, lo forzamos a "recibido"
+        tipo = "recibido"
 
     conn = conectar_db()
     if not conn:
@@ -67,11 +69,12 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # ✅ Verificar si el lead ya existe
+        # 🔸 Verificar si existe un lead con ese teléfono
         cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
-        lead = cursor.fetchone()
+        lead = cursor.fetchone()   # lead será None si no hay fila, o una tupla (id, nombre)
 
         if not lead:
+            # Si no hay lead, creamos uno con nombre por defecto
             nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
             cursor.execute("""
                 INSERT INTO leads (nombre, telefono, estado)
@@ -79,30 +82,42 @@ def recibir_mensaje():
                 ON CONFLICT (telefono) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente))
-            lead_id = cursor.fetchone()
+            lead_id_row = cursor.fetchone()  # Esto será una tupla con el nuevo id (o None si no se insertó)
+            if lead_id_row:
+                lead_id = lead_id_row[0]  # Extraemos el entero id
+            else:
+                lead_id = None
         else:
-            lead_id = lead[0] 
+            # Si sí existe, lead[0] es el id, lead[1] es nombre
+            lead_id = lead[0]
+            nombre_por_defecto = None  # porque ya tenemos el lead existente
 
-        # ✅ Ahora guardamos correctamente el tipo de mensaje
+        # 🔸 Insertar el nuevo mensaje en la tabla `mensajes`
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
             VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo))  # ✅ Aquí usamos el tipo correcto
-
+        """, (plataforma, remitente, mensaje, tipo))
         conn.commit()
 
-        # ✅ Emitir evento con el tipo correcto
+        # 🔸 Emitir evento socket.io para el frontend
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
             "mensaje": mensaje,
-            "tipo": tipo  # ✅ Mostrará "enviado" o "recibido" según corresponda
+            "tipo": tipo
         })
 
+        # 🔸 Si se creó / existe un lead_id, emitimos 'nuevo_lead'
         if lead_id:
+            # Definimos nombre del lead
+            if not lead:  # Si recién lo creamos, usamos nombre_por_defecto
+                lead_nombre = nombre_por_defecto
+            else:
+                lead_nombre = lead[1]  # lead[1] es el nombre que ya estaba en la DB
+
             socketio.emit("nuevo_lead", {
-                "id": lead_id[0],
-                "nombre": nombre_por_defecto if not lead else lead[1],
+                "id": lead_id,  # 🔸 Aquí usamos directamente lead_id (entero), no lead_id[0]
+                "nombre": lead_nombre if lead_nombre else "",
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
             })
@@ -115,6 +130,7 @@ def recibir_mensaje():
 
     finally:
         liberar_db(conn)
+
 
 
 # 📌 Enviar respuesta a Camibot con reintento automático
