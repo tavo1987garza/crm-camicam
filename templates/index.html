@@ -1017,7 +1017,7 @@ function mostrarSeccion(seccion, callback = null) {
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data); 
         
-            // 1) Determinar si es 'enviado', 'recibido', 'enviado_imagen', etc.
+            // 1) Determinar si es 'enviado', 'recibido', 'enviado_imagen', etc. 
             let tipoMensaje;
             if (data.tipo === "enviado") {
                 tipoMensaje = "enviado";

@@ -121,7 +121,7 @@ def recibir_mensaje():
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com"  # Ajusta la URL base de tu bot
 # Podrías tener algo como /enviar_imagen específico o un endpoint distinto.
 
-@app.route("/enviar_mensaje", methods=["POST"]) 
+@app.route("/enviar_mensaje", methods=["POST"])  
 def enviar_mensaje():
     datos = request.json
     telefono = datos.get("telefono")
