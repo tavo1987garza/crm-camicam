@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1014,34 +1015,71 @@ function mostrarSeccion(seccion, callback = null) {
         let sonidoActivo = true;
 
         socket.on("nuevo_mensaje", (data) => {
-            console.log("📩 Nuevo mensaje recibido:", data);
+            console.log("📩 Nuevo mensaje recibido:", data); 
         
-            // ✅ Asegurarnos de que el tipo se reconozca correctamente
-            let tipoMensaje = data.tipo === "enviado" ? "enviado" : "recibido";
+            // 1) Determinar si es 'enviado', 'recibido', 'enviado_imagen', etc.
+            let tipoMensaje;
+            if (data.tipo === "enviado") {
+                tipoMensaje = "enviado";
+            } else if (data.tipo === "enviado_imagen") {
+                tipoMensaje = "enviado_imagen";
+            } else if (data.tipo === "recibido_imagen") {
+                tipoMensaje = "recibido_imagen";
+            } else {
+                tipoMensaje = "recibido"; // Si no es 'enviado' ni 'enviado_imagen', asumimos que es recibido (texto)
+            }
         
-            // Actualizar la lista de chats
-            let chatExistente = actualizarListaChats(data.remitente, data.mensaje);
+            // 2) Actualizar la lista de chats (mostrar último mensaje, etc.)
+            //    Si es imagen, podemos mostrar 'Foto' en la lista en lugar del URL.
+            let textoParaLista = (tipoMensaje.includes("imagen")) ? "Foto" : data.mensaje;
+            let chatExistente = actualizarListaChats(data.remitente, textoParaLista);
         
-            // Agregar el mensaje al chat abierto si coincide con el remitente
+            // 3) Agregar el mensaje al chat abierto si coincide el remitente
             let chatSeleccionado = document.querySelector(".chat-item.selected");
             if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
                 let chatBox = document.getElementById("chat-messages");
         
-                // Crear y agregar el mensaje al chat con el tipo correcto
-                let divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
+                // Crear y agregar el mensaje según el tipo
+                let divMensaje;
+                if (tipoMensaje === "enviado_imagen" || tipoMensaje === "recibido_imagen") {
+                    // Creamos un div contenedor con la clase "mensaje"
+                    divMensaje = document.createElement("div");
+                    divMensaje.classList.add("mensaje");
+                    if (tipoMensaje === "enviado_imagen") {
+                        // Alinear a la derecha
+                        divMensaje.classList.add("mensaje-enviado");
+                    } else {
+                        // Alinear a la izquierda
+                        divMensaje.classList.add("mensaje-recibido");
+                    }
+        
+                    // Insertar la imagen
+                    let img = document.createElement("img");
+                    img.src = data.mensaje;  // Recordemos que en el backend, 'data.mensaje' = URL de la imagen
+                    img.style.maxWidth = "200px";      // Ajusta a tu gusto
+                    img.style.borderRadius = "8px";    // Algo de estilo
+        
+                    divMensaje.appendChild(img);
+                } else {
+                    // Texto normal
+                    divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
+                }
+        
                 chatBox.appendChild(divMensaje);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         
-            // ✅ Solo mostrar notificación si el mensaje es "recibido"
-            if (tipoMensaje === "recibido") {
+            // 4) Mostrar notificación si es recibido (texto o imagen).
+            if (tipoMensaje === "recibido" || tipoMensaje === "recibido_imagen") {
                 mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
                 reproducirSonido();
             }
         
-            // ✅ Actualizar correctamente el último mensaje en la lista de leads
-            actualizarUltimoMensajeLead(data.remitente, data.mensaje);
+            // 5) Actualizar correctamente el último mensaje en la lista de leads
+            //    Puedes poner "Foto" si es imagen, como hicimos arriba
+            actualizarUltimoMensajeLead(data.remitente, textoParaLista);
         });
+        
         
     
 
@@ -1104,8 +1142,9 @@ socket.on("nuevo_lead", (data) => {
     }
 });
 
-
-//Responder a los mensajes  UNIFICADO
+/*====================================
+//RESPONDER A LOS MENSAJES UNIFICADO
+=====================================*/
 function enviarMensaje() {
     let input = document.getElementById("mensaje-input");
     let mensaje = input.value.trim();
@@ -1140,8 +1179,69 @@ function enviarMensaje() {
     .catch(error => console.error("❌ Error al enviar mensaje:", error));
 }
 
+/*====================================
+//ADJUNTAR IMAGEN DESDE EL CRM 
+=====================================*/
+document.getElementById("imagen-input").addEventListener("change", async function (event) {
+    const file = event.target.files[0];
+    if (!file) return; // Si el usuario canceló.
 
+    // 1) Subir la imagen al backend Flask para obtener la URL.
+    const formData = new FormData();
+    formData.append("imagen", file); // "imagen" será la key que leeremos en Flask
+
+    try {
+        const resp = await fetch("/subir_imagen", {
+            method: "POST",
+            body: formData
+        });
+        const data = await resp.json();
+        if (data.error) {
+            alert("Error al subir imagen: " + data.error);
+            return;
+        }
+
+        // data.url será la ruta/URL pública de la imagen
+        const imagenUrl = data.url;
+
+        // 2) Ahora enviamos el mensaje al endpoint /enviar_mensaje de Flask
+        const telefono = document.querySelector(".chat-item.selected")?.getAttribute("data-remitente");
+
+        if (!telefono) {
+            alert("Selecciona un chat antes de enviar una imagen.");
+            return;
+        }
+
+        // Llamamos a /enviar_mensaje para que reenvíe como imagen
+        const resp2 = await fetch("/enviar_mensaje", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                telefono: telefono,
+                tipo: "imagen",
+                url: imagenUrl,
+                caption: "Foto enviada desde el CRM" // Opcional
+            })
+        });
+        const data2 = await resp2.json();
+        if (data2.error) {
+            alert("Error al enviar la imagen: " + data2.error);
+        } else {
+            console.log("Imagen enviada correctamente al bot.");
+        }
+
+    } catch (error) {
+        console.error("Error subiendo/enviando imagen:", error);
+    } finally {
+        // Limpiamos el input para permitir volver a adjuntar
+        event.target.value = "";
+    }
+});
+
+
+/*======================================================================
 // Detectar cuando se presiona "Enter" en el campo de entrada de mensaje
+======================================================================*/
 document.getElementById("mensaje-input").addEventListener("keydown", function (event) {
     if (event.key === "Enter") { // Verifica si la tecla presionada es "Enter"
         event.preventDefault(); // Evita que se haga un salto de línea en el input
