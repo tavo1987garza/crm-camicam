@@ -1012,7 +1012,7 @@ function mostrarSeccion(seccion, callback = null) {
             console.error("❌ Error en la conexión WebSocket:", error);
         });
 
-        let sonidoActivo = true;
+        let sonidoActivo = true; 
 
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data); 
