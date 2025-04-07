@@ -253,58 +253,6 @@ def validar_telefono(telefono):
     return len(telefono) == 13 and telefono.startswith("521")
 
 
-# 📌 Endpoint para enviar imagenes al whatsapp
-@app.route("/subir_imagen", methods=["POST"])
-def subir_imagen():
-    from uuid import uuid4
-    import boto3  # Asegúrate de hacer pip install boto3
-    from botocore.exceptions import ClientError
-
-    try:
-        if "imagen" not in request.files:
-            return jsonify({"error": "No se envió ninguna imagen"}), 400
-
-        file = request.files["imagen"]
-        if file.filename == "":
-            return jsonify({"error": "Nombre de archivo vacío"}), 400
-
-        # Convertir en binario
-        file_content = file.read()
-
-        # Nombre único para el archivo
-        filename = str(uuid4()) + "_" + file.filename
-
-        # Crear cliente S3 con credenciales en variables de entorno o config
-        s3 = boto3.client('s3',
-                          aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                          aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-                          region_name=os.getenv("AWS_REGION"))
-
-        bucket_name = os.getenv("S3_BUCKET_NAME")
-
-        # Subir a S3
-        s3.put_object(
-            Bucket=bucket_name,
-            Key=filename,
-            Body=file_content,
-            ContentType=file.mimetype
-            # Si tu bucket policy lo requiere, o si usas Bucket Owner Enforced,
-            # no necesitas ACL. De lo contrario, podrías usar ACL='public-read'.
-        )
-
-        # Dependiendo de la config de tu Bucket Policy, la URL final puede ser así:
-        url_imagen = f"https://{bucket_name}.s3.amazonaws.com/{filename}"
-
-        return jsonify({"url": url_imagen})
-
-    except ClientError as e:
-        return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-
-
 # 📌 Ruta para obtener Leads        
 @app.route("/leads", methods=["GET"])
 def obtener_leads():

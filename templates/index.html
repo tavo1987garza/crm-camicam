@@ -1184,73 +1184,44 @@ function enviarMensaje() {
 =====================================*/
 document.getElementById("imagen-input").addEventListener("change", async function (event) {
     const file = event.target.files[0];
-    if (!file) return; // Si el usuario canceló o no seleccionó nada
+    if (!file) return;
 
-    // 1) Subir la imagen al backend Flask para obtener la URL.
     const formData = new FormData();
-    formData.append("imagen", file); // "imagen" será la key que leeremos en Flask
+    formData.append("imagen", file);
 
     try {
-        // a) Hacer fetch al endpoint /subir_imagen
-        const resp = await fetch("/subir_imagen", {
+        // Cambia la URL a la del bot (Node)
+        const botURL = "https://cami-bot-7d4110f9197c.herokuapp.com/upload_imagen";
+        const resp = await fetch(botURL, {
             method: "POST",
             body: formData
         });
-
-        // b) Manejo de errores HTTP (no 2xx)
         if (!resp.ok) {
-            // Leemos el cuerpo en texto (por si es HTML o JSON de error)
             const errorText = await resp.text();
             throw new Error(`Error al subir imagen: ${resp.status}, ${errorText}`);
         }
-
-        // c) Intentar parsear JSON
         const data = await resp.json();
         if (data.error) {
             alert("Error al subir imagen: " + data.error);
             return;
         }
 
-        // data.url será la ruta/URL pública de la imagen
+        // data.url -> la URL en S3
         const imagenUrl = data.url;
+        console.log("URL de la imagen:", imagenUrl);
 
-        // 2) Ahora enviamos el mensaje al endpoint /enviar_mensaje de Flask
-        const telefono = document.querySelector(".chat-item.selected")?.getAttribute("data-remitente");
-        if (!telefono) {
-            alert("Selecciona un chat antes de enviar una imagen.");
-            return;
-        }
-
-        // Llamamos a /enviar_mensaje para que reenvíe como imagen
-        const resp2 = await fetch("/enviar_mensaje", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                telefono: telefono,
-                tipo: "imagen",
-                url: imagenUrl,
-                caption: "Foto enviada desde el CRM" // Opcional
-            })
-        });
-
-        // Manejo de errores en la segunda petición
-        if (!resp2.ok) {
-            const errorText2 = await resp2.text();
-            throw new Error(`Error al enviar la imagen: ${resp2.status}, ${errorText2}`);
-        }
-
-        const data2 = await resp2.json();
-        if (data2.error) {
-            alert("Error al enviar la imagen: " + data2.error);
-        } else {
-            console.log("Imagen enviada correctamente al bot.");
-        }
-
+        // 2) Enviar a WhatsApp usando tu CRM (Flask) o directamente al Bot
+        // Si tu CRM todavía maneja /enviar_mensaje => 
+        // fetch("/enviar_mensaje", { ... }) 
+        //   con { tipo: 'imagen', url: imagenUrl, ... }
+        //   y tu CRM a su vez llama /enviar_imagen del bot. 
+        // O si preferieses, llamas directamente al bot /enviar_imagen. 
+        // Depende de tu arquitectura.
+        
     } catch (error) {
-        console.error("Error subiendo/enviando imagen:", error);
-        alert(`Ocurrió un error: ${error.message}`);
+        console.error("Error subiendo imagen al bot:", error);
+        alert(error.message);
     } finally {
-        // Limpiamos el input para permitir volver a adjuntar en el futuro
         event.target.value = "";
     }
 });
