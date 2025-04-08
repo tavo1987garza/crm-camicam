@@ -49,17 +49,17 @@ def liberar_db(conn):
 def recibir_mensaje():
     datos = request.json
     plataforma = datos.get("plataforma")
-    # 🔸 Convertir remitente a string para poder hacer slicing o concatenar
+    # Convertir remitente a string para poder hacer slicing o concatenar
     remitente = str(datos.get("remitente", ""))
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")  # podría ser "enviado", "recibido", "recibido_imagen", etc.
+    tipo = datos.get("tipo")  # podría ser "enviado", "recibido", "recibido_imagen", "enviado_imagen", etc.
 
-    # ✅ Validaciones
+    # ✅ Validaciones: asegurarse de tener plataforma, remitente y mensaje
     if not plataforma or not remitente or not mensaje:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
-    # Ejemplo: si solo aceptas "enviado" y "recibido", forzas "recibido" si no coincide
-    if tipo not in ["enviado", "recibido"]:
+    # Permitir valores para mensajes de texto y de imagen
+    if tipo not in ["enviado", "recibido", "recibido_imagen", "enviado_imagen"]:
         tipo = "recibido"
 
     conn = conectar_db()
@@ -88,7 +88,7 @@ def recibir_mensaje():
             else:
                 lead_id = None
         else:
-            # Si sí existe, lead[0] es el id, lead[1] es nombre
+            # Si sí existe, lead[0] es el id, lead[1] es el nombre
             lead_id = lead[0]
             nombre_por_defecto = None  # porque ya tenemos el lead existente
 
@@ -96,7 +96,7 @@ def recibir_mensaje():
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
             VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo))
+        """, (plataforma, remitente, mensaje, tipo))  # Aquí usamos el tipo correcto sin sobreescribir imágenes
         conn.commit()
 
         # 🔸 Emitir evento socket.io para el frontend
@@ -109,14 +109,13 @@ def recibir_mensaje():
 
         # 🔸 Si se creó / existe un lead_id, emitimos 'nuevo_lead'
         if lead_id:
-            # Definimos nombre del lead
             if not lead:  # Si recién lo creamos, usamos nombre_por_defecto
                 lead_nombre = nombre_por_defecto
             else:
                 lead_nombre = lead[1]  # lead[1] es el nombre que ya estaba en la DB
 
             socketio.emit("nuevo_lead", {
-                "id": lead_id,  # 🔸 Aquí usamos directamente lead_id (entero), no lead_id[0]
+                "id": lead_id,  # Usamos directamente lead_id (entero)
                 "nombre": lead_nombre if lead_nombre else "",
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
