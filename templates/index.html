@@ -1015,7 +1015,9 @@ function mostrarSeccion(seccion, callback = null) {
         let sonidoActivo = true; 
 
         
-        
+/*============================================
+//RECIBE MENSAJE DESDE EL BOT (TEXTO O IMAGEN)
+=============================================*/
         socket.on("nuevo_mensaje", (data) => {
             console.log("📩 Nuevo mensaje recibido:", data);
           
@@ -1180,47 +1182,83 @@ function enviarMensaje() {
 =====================================*/
 document.getElementById("imagen-input").addEventListener("change", async function (event) {
     const file = event.target.files[0];
-    if (!file) return;
-
+    if (!file) return; // Si el usuario cancela o no selecciona ningún archivo.
+  
+    // Crear FormData y añadir el archivo con la key "imagen"
     const formData = new FormData();
     formData.append("imagen", file);
-
+  
     try {
-        // Cambia la URL a la del bot (Node)
-        const botURL = "https://cami-bot-7d4110f9197c.herokuapp.com/upload_imagen";
-        const resp = await fetch(botURL, {
-            method: "POST",
-            body: formData
-        });
-        if (!resp.ok) {
-            const errorText = await resp.text();
-            throw new Error(`Error al subir imagen: ${resp.status}, ${errorText}`);
-        }
-        const data = await resp.json();
-        if (data.error) {
-            alert("Error al subir imagen: " + data.error);
-            return;
-        }
-
-        // data.url -> la URL en S3
-        const imagenUrl = data.url;
-        console.log("URL de la imagen:", imagenUrl);
-
-        // 2) Enviar a WhatsApp usando tu CRM (Flask) o directamente al Bot
-        // Si tu CRM todavía maneja /enviar_mensaje => 
-        // fetch("/enviar_mensaje", { ... }) 
-        //   con { tipo: 'imagen', url: imagenUrl, ... }
-        //   y tu CRM a su vez llama /enviar_imagen del bot. 
-        // O si preferieses, llamas directamente al bot /enviar_imagen. 
-        // Depende de tu arquitectura.
-        
+      // 1) Llamada al endpoint del Bot para subir la imagen a S3.
+      // La URL debe apuntar al endpoint '/upload_imagen' que implementaste en el Bot.
+      const botUploadURL = "https://cami-bot-7d4110f9197c.herokuapp.com/upload_imagen";
+      const uploadResp = await fetch(botUploadURL, {
+        method: "POST",
+        body: formData
+      });
+  
+      // Verificar si la respuesta HTTP es exitosa
+      if (!uploadResp.ok) {
+        const errorText = await uploadResp.text();
+        throw new Error(`Error al subir imagen: ${uploadResp.status}, ${errorText}`);
+      }
+  
+      // Parsear la respuesta JSON
+      const uploadData = await uploadResp.json();
+      if (uploadData.error) {
+        alert("Error al subir imagen: " + uploadData.error);
+        return;
+      }
+  
+      // La respuesta debe incluir la URL pública de la imagen en S3.
+      const imagenUrl = uploadData.url;
+      console.log("URL de la imagen:", imagenUrl);
+  
+      // 2) Ahora, realizar la segunda llamada fetch para enviar la imagen
+      // al endpoint que envía el mensaje a WhatsApp. Puedes hacerlo directamente
+      // llamando al endpoint del Bot, por ejemplo: "/enviar_imagen".
+      const botSendURL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_imagen";
+      // Obtener el teléfono del chat seleccionado.
+      const telefono = document.querySelector(".chat-item.selected")?.getAttribute("data-remitente");
+      if (!telefono) {
+        alert("Selecciona un chat antes de enviar una imagen.");
+        return;
+      }
+  
+      // Construir el payload para enviar la imagen
+      const payload = {
+        telefono: telefono,
+        imageUrl: imagenUrl,
+        caption: "Foto enviada desde el CRM" // Puedes personalizar el caption o quitarlo
+      };
+  
+      // Enviar la imagen al Bot
+      const sendResp = await fetch(botSendURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+  
+      // Verificar si la respuesta HTTP es exitosa
+      if (!sendResp.ok) {
+        const errorText2 = await sendResp.text();
+        throw new Error(`Error al enviar imagen: ${sendResp.status}, ${errorText2}`);
+      }
+      const sendData = await sendResp.json();
+      if (sendData.error) {
+        alert("Error al enviar imagen: " + sendData.error);
+      } else {
+        console.log("Imagen enviada correctamente al bot.");
+      }
+  
     } catch (error) {
-        console.error("Error subiendo imagen al bot:", error);
-        alert(error.message);
+      console.error("Error subiendo/enviando imagen:", error);
+      alert(error.message);
     } finally {
-        event.target.value = "";
+      // Limpiar el input para permitir volver a adjuntar una imagen
+      event.target.value = "";
     }
-});
+  });  
 
 
 /*======================================================================
