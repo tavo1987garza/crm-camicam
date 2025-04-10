@@ -194,7 +194,8 @@ def enviar_mensaje():
             socketio.emit("nuevo_mensaje", {
                 "remitente": telefono,
                 "mensaje": url_imagen,  # en 'mensaje' guardamos la URL
-                "tipo": "enviado_imagen"
+                "tipo": "enviado_imagen",
+                "origen": "CRM"  # Indica que es un mensaje enviado desde el CRM
             })
 
             return jsonify({"mensaje": "Imagen enviada correctamente"}), 200
@@ -234,7 +235,8 @@ def enviar_mensaje():
             socketio.emit("nuevo_mensaje", {
                 "remitente": telefono,
                 "mensaje": mensaje_texto,
-                "tipo": "enviado"
+                "tipo": "enviado",
+                "origen": "CRM"  # Indica que es un mensaje enviado desde el CRM
             })
 
             return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
