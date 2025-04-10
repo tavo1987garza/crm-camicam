@@ -131,122 +131,62 @@ def recibir_mensaje():
         liberar_db(conn)
 
 
-
 # 📌 Enviar respuesta a Camibot con reintento automático
-CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com"  # Ajusta la URL base de tu bot
-# Podrías tener algo como /enviar_imagen específico o un endpoint distinto.
+CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com"
 
 @app.route("/enviar_mensaje", methods=["POST"])  
 def enviar_mensaje():
     datos = request.json
     telefono = datos.get("telefono")
-    tipo = datos.get("tipo", "texto")   # 'texto' por defecto si no viene nada
+    tipo = datos.get("tipo", "texto")   # 'texto' por defecto
     url_imagen = datos.get("url")       # solo relevante si es imagen
-    caption = datos.get("caption", "")  # texto opcional para la imagen
-    mensaje_texto = datos.get("mensaje")# para mensajes de texto
+    caption = datos.get("caption", "")
+    mensaje_texto = datos.get("mensaje")
 
     if not telefono:
         return jsonify({"error": "Número de teléfono es obligatorio"}), 400
 
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+    # 🔴 No guardamos nada en DB aquí.
+    # 🔴 No emitimos nada a SocketIO aquí.
 
-    try:
-        cursor = conn.cursor()
+    # En su lugar, solo enviamos la orden al bot:
+    if tipo == "imagen":
+        if not url_imagen:
+            return jsonify({"error": "Falta la URL de la imagen"}), 400
 
-        # -----------------------------------------
-        # 1) CASO: ENVIO DE IMAGEN
-        # -----------------------------------------
-        if tipo == "imagen":
-            if not url_imagen:
-                return jsonify({"error": "Falta la URL de la imagen"}), 400
+        payload = {"telefono": telefono, "imageUrl": url_imagen, "caption": caption}
+        max_intentos = 3
+        for intento in range(max_intentos):
+            try:
+                respuesta = requests.post(f"{CAMIBOT_API_URL}/enviar_imagen",
+                                          json=payload,
+                                          timeout=5)
+                if respuesta.status_code == 200:
+                    break
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
+                time.sleep(2)
+        return jsonify({"mensaje": "Imagen enviada correctamente"}), 200
 
-            # 1A) Guardamos en DB con tipo = 'enviado_imagen'
-            cursor.execute("""
-                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-                VALUES (%s, %s, %s, 'Nuevo', 'enviado_imagen')
-            """, ("CRM", telefono, url_imagen))
-            conn.commit()
+    else:
+        # Caso: Texto
+        if not mensaje_texto:
+            return jsonify({"error": "Falta el 'mensaje' de texto"}), 400
 
-            # 1B) Enviamos la imagen a través de Camibot (endpoint /enviar_imagen)
-            payload = {
-                "telefono": telefono,
-                "imageUrl": url_imagen,
-                "caption": caption  # opcional
-            }
-            max_intentos = 3
-            for intento in range(max_intentos):
-                try:
-                    # Asumiendo que tu bot tenga /enviar_imagen
-                    respuesta = requests.post(
-                        f"{CAMIBOT_API_URL}/enviar_imagen",
-                        json=payload,
-                        timeout=5
-                    )
-                    if respuesta.status_code == 200:
-                        break
-                except requests.exceptions.RequestException as e:
-                    print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
-                    time.sleep(2)  # Espera 2s y reintenta
+        payload = {"telefono": telefono, "mensaje": mensaje_texto}
+        max_intentos = 3
+        for intento in range(max_intentos):
+            try:
+                respuesta = requests.post(f"{CAMIBOT_API_URL}/enviar_mensaje",
+                                          json=payload,
+                                          timeout=5)
+                if respuesta.status_code == 200:
+                    break
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
+                time.sleep(2)
+        return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
-            # 1C) Emitimos el evento a Socket.io para refrescar interfaz
-            socketio.emit("nuevo_mensaje", {
-                "remitente": telefono,
-                "mensaje": url_imagen,  # en 'mensaje' guardamos la URL
-                "tipo": "enviado_imagen",
-                "origen": "CRM"  # Indica que es un mensaje enviado desde el CRM
-            })
-
-            return jsonify({"mensaje": "Imagen enviada correctamente"}), 200
-
-        # -----------------------------------------
-        # 2) CASO: ENVIO DE TEXTO
-        # -----------------------------------------
-        else:
-            # Validar que haya 'mensaje' en caso de texto
-            if not mensaje_texto:
-                return jsonify({"error": "Falta el campo 'mensaje' para texto"}), 400
-
-            # 2A) Guardar mensaje en DB
-            cursor.execute("""
-                INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-                VALUES (%s, %s, %s, 'Nuevo', 'enviado')
-            """, ("CRM", telefono, mensaje_texto))
-            conn.commit()
-
-            # 2B) Enviar mensaje de texto a Camibot (/enviar_mensaje)
-            payload = {"telefono": telefono, "mensaje": mensaje_texto}
-            max_intentos = 3
-            for intento in range(max_intentos):
-                try:
-                    respuesta = requests.post(
-                        f"{CAMIBOT_API_URL}/enviar_mensaje",
-                        json=payload,
-                        timeout=5
-                    )
-                    if respuesta.status_code == 200:
-                        break
-                except requests.exceptions.RequestException as e:
-                    print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
-                    time.sleep(2)
-
-            # 2C) Emitir evento Socket.io
-            socketio.emit("nuevo_mensaje", {
-                "remitente": telefono,
-                "mensaje": mensaje_texto,
-                "tipo": "enviado",
-                "origen": "CRM"  # Indica que es un mensaje enviado desde el CRM
-            })
-
-            return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
-
-    except Exception as e:
-        print(f"❌ Error en /enviar_mensaje: {str(e)}")
-        return jsonify({"error": "Error interno del servidor"}), 500
-
-    finally:
-        liberar_db(conn)
  
 
 # 📌 Validación de teléfono (debe tener 13 dígitos)
