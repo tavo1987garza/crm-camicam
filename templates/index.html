@@ -1018,66 +1018,44 @@ function mostrarSeccion(seccion, callback = null) {
 /*============================================
 //RECIBE MENSAJE DESDE EL BOT (TEXTO O IMAGEN)
 =============================================*/
-        socket.on("nuevo_mensaje", (data) => {
-            console.log("📩 Nuevo mensaje recibido:", data);
-          
-            // 1) Determinar el tipo de mensaje
-            let tipoMensaje;
-            if (data.tipo === "enviado") {
-              tipoMensaje = "enviado";
-            } else if (data.tipo === "enviado_imagen") {
-              tipoMensaje = "enviado_imagen";
-            } else if (data.tipo === "recibido_imagen") {
-              tipoMensaje = "recibido_imagen";
-            } else {
-              // Por defecto, asumimos un mensaje de texto recibido
-              tipoMensaje = "recibido";
-            }
-          
-            // 2) Actualizar la lista de chats; si es imagen, mostramos "Foto" en lugar de la URL
-            const textoParaLista = (tipoMensaje.includes("imagen")) ? "Foto" : data.mensaje;
-            actualizarListaChats(data.remitente, textoParaLista);
-          
-            // 3) Agregar el mensaje al chat abierto (si coincide el remitente)
-            const chatSeleccionado = document.querySelector(".chat-item.selected");
-            if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
-              const chatBox = document.getElementById("chat-messages");
-              let divMensaje = document.createElement("div");
-              divMensaje.classList.add("mensaje");
-          
-              if (tipoMensaje === "enviado_imagen" || tipoMensaje === "recibido_imagen") {
-                // Configurar alineación del mensaje de imagen
-                if (tipoMensaje === "enviado_imagen") {
-                  divMensaje.classList.add("mensaje-enviado");
-                } else {
-                  divMensaje.classList.add("mensaje-recibido");
-                }
-                // Crear el elemento <img> y configurar atributos
-                const img = document.createElement("img");
-                img.src = data.mensaje; // data.mensaje contiene la URL de la imagen
-                img.alt = "Imagen enviada";
-                img.style.maxWidth = "200px"; // ajustar el tamaño
-                img.style.borderRadius = "8px"; // estilo opcional
-                divMensaje.appendChild(img);
-              } else {
-                // Para mensajes de texto, utiliza la función ya existente
-                divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
-              }
-          
-              chatBox.appendChild(divMensaje);
-              chatBox.scrollTop = chatBox.scrollHeight;
-            }
-          
-            // 4) Mostrar notificación y reproducir sonido en caso de mensaje recibido
-            if (tipoMensaje === "recibido" || tipoMensaje === "recibido_imagen") {
-              mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
-              reproducirSonido();
-            }
-          
-            // 5) Actualizar el último mensaje en la lista de leads
-            actualizarUltimoMensajeLead(data.remitente, textoParaLista);
-          });
-          
+socket.on("nuevo_mensaje", (data) => {
+    console.log("📩 Nuevo mensaje recibido:", data);
+  
+    // Determinar el tipo de mensaje
+    let tipoMensaje;
+    if (data.tipo === "enviado") {
+      tipoMensaje = "enviado";
+    } else if (data.tipo === "enviado_imagen") {
+      tipoMensaje = "enviado_imagen";
+    } else if (data.tipo === "recibido_imagen") {
+      tipoMensaje = "recibido_imagen";
+    } else {
+      tipoMensaje = "recibido";
+    }
+  
+    // Actualizar la lista de chats: si es imagen, mostramos "Foto"
+    const textoParaLista = tipoMensaje.includes("imagen") ? "Foto" : data.mensaje;
+    actualizarListaChats(data.remitente, textoParaLista);
+  
+    // Agregar el mensaje al chat abierto (si coincide el remitente)
+    const chatSeleccionado = document.querySelector(".chat-item.selected");
+    if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
+      const chatBox = document.getElementById("chat-messages");
+      const divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
+      chatBox.appendChild(divMensaje);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  
+    // Mostrar notificación para mensajes recibidos (texto o imagen)
+    if (tipoMensaje === "recibido" || tipoMensaje === "recibido_imagen") {
+      mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+      reproducirSonido();
+    }
+  
+    // Actualizar el último mensaje en la lista de leads
+    actualizarUltimoMensajeLead(data.remitente, textoParaLista);
+  });
+  
         
     
 
@@ -1412,21 +1390,46 @@ document.body.addEventListener("click", function () {
         } 
 
 
-        function crearMensajeChat(mensaje, tipo) {
-            let div = document.createElement("div");
-            div.textContent = mensaje;
-            div.classList.add("mensaje");
         
-            // ✅ Aplicar correctamente las clases según el tipo
-            if (tipo === "enviado") {
-                div.classList.add("mensaje-enviado"); // Mensaje alineado a la derecha
-            } else {
-                div.classList.add("mensaje-recibido"); // Mensaje alineado a la izquierda
-            }
-        
-            return div;
-        }
-        
+        /**
+ * Crea el elemento HTML que representa un mensaje, ya sea de texto o de imagen.
+ * @param {string} mensaje - El contenido del mensaje. Para imágenes, es la URL.
+ * @param {string} tipo - El tipo de mensaje ("enviado", "recibido", "enviado_imagen", "recibido_imagen").
+ * @returns {HTMLElement} El elemento HTML que contiene el mensaje.
+ */
+function crearMensajeChat(mensaje, tipo) {
+  let div = document.createElement("div");
+  div.classList.add("mensaje");
+
+  if (tipo === "enviado" || tipo === "recibido") {
+    // Si es un mensaje de texto, asigna el texto.
+    div.textContent = mensaje;
+    if (tipo === "enviado") {
+      div.classList.add("mensaje-enviado");
+    } else {
+      div.classList.add("mensaje-recibido");
+    }
+  } else if (tipo === "enviado_imagen" || tipo === "recibido_imagen") {
+    // Si es un mensaje de imagen, crea un elemento <img>.
+    let img = document.createElement("img");
+    img.src = mensaje;  // El contenido de mensaje es la URL de la imagen.
+    img.alt = "Imagen enviada";
+    img.style.maxWidth = "200px";
+    img.style.borderRadius = "8px";
+    div.appendChild(img);
+
+    if (tipo === "enviado_imagen") {
+      div.classList.add("mensaje-enviado");
+    } else {
+      div.classList.add("mensaje-recibido");
+    }
+  } else {
+    // Caso por defecto: tratamos el contenido como texto.
+    div.textContent = mensaje;
+  }
+  return div;
+}
+
   
           
 
