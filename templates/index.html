@@ -1391,44 +1391,51 @@ document.body.addEventListener("click", function () {
 
 
         
-        /**
+/**
  * Crea el elemento HTML que representa un mensaje, ya sea de texto o de imagen.
  * @param {string} mensaje - El contenido del mensaje. Para imágenes, es la URL.
  * @param {string} tipo - El tipo de mensaje ("enviado", "recibido", "enviado_imagen", "recibido_imagen").
  * @returns {HTMLElement} El elemento HTML que contiene el mensaje.
  */
-function crearMensajeChat(mensaje, tipo) {
-  let div = document.createElement("div");
-  div.classList.add("mensaje");
-
-  if (tipo === "enviado" || tipo === "recibido") {
-    // Si es un mensaje de texto, asigna el texto.
-    div.textContent = mensaje;
-    if (tipo === "enviado") {
-      div.classList.add("mensaje-enviado");
+ function crearMensajeChat(mensaje, tipo) {
+    const div = document.createElement("div");
+    div.classList.add("mensaje");
+  
+    if (tipo === "enviado_imagen" || tipo === "recibido_imagen") {
+      // Para mensajes de imagen: crear un <img> con la URL
+      const img = document.createElement("img");
+      img.src = mensaje;  // Aquí 'mensaje' es la URL de la imagen.
+      img.alt = "Imagen enviada";
+      img.style.maxWidth = "200px";
+      img.style.borderRadius = "8px";
+      div.appendChild(img);
+  
+      // Asignar clase según la alineación deseada
+      if (tipo === "enviado_imagen") {
+        div.classList.add("mensaje-enviado");
+      } else {
+        div.classList.add("mensaje-recibido");
+      }
     } else {
-      div.classList.add("mensaje-recibido");
+      // Para mensajes de texto: 
+      // Si el contenido parece contener HTML (por ejemplo, comienza con una etiqueta)
+      if (/<[a-z][\s\S]*>/i.test(mensaje.trim())) {
+        // Insertamos el HTML directamente
+        div.innerHTML = mensaje;
+      } else {
+        // Caso de texto plano, usar textContent
+        div.textContent = mensaje;
+      }
+      // Asignar clases para mensajes de texto
+      if (tipo === "enviado") {
+        div.classList.add("mensaje-enviado");
+      } else {
+        div.classList.add("mensaje-recibido");
+      }
     }
-  } else if (tipo === "enviado_imagen" || tipo === "recibido_imagen") {
-    // Si es un mensaje de imagen, crea un elemento <img>.
-    let img = document.createElement("img");
-    img.src = mensaje;  // El contenido de mensaje es la URL de la imagen.
-    img.alt = "Imagen enviada";
-    img.style.maxWidth = "200px";
-    img.style.borderRadius = "8px";
-    div.appendChild(img);
-
-    if (tipo === "enviado_imagen") {
-      div.classList.add("mensaje-enviado");
-    } else {
-      div.classList.add("mensaje-recibido");
-    }
-  } else {
-    // Caso por defecto: tratamos el contenido como texto.
-    div.textContent = mensaje;
+    return div;
   }
-  return div;
-}
+  
 
   
           
