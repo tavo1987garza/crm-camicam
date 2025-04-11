@@ -1200,13 +1200,19 @@
         <div id="calendario" class="seccion hidden">
             <h1>📅 Calendario</h1>
           
-            <h2>Fechas Ocupadas</h2>
+         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Fechas Ocupadas</h2>
+            <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
+         </div>
+            
             <ul id="lista-fechas-ocupadas"></ul>
           
-            <hr>
-          
-            <h2>Agregar Fecha Manualmente</h2>
-            <label for="fecha-input">Fecha (YYYY-MM-DD):</label>
+            
+            <!-- Formulario para agregar fecha (inicialmente oculto) -->
+            <div id="formulario-fecha" class="hidden" style="margin-top: 20px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+               <h3>Agregar Fecha Manualmente</h3>
+        
+            <label for="fecha-input">Fecha:</label>
             <input type="date" id="fecha-input" />
           
             <br><br>
@@ -1291,8 +1297,10 @@
               <br>
           
             </div>
-          
-            <button onclick="agregarFechaManual()">Agregar Fecha</button>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="agregarFechaManual()" class="save-btn">Guardar</button>
+                <button onclick="ocultarFormularioFecha()" class="cancel-btn">Cancelar</button>
+            </div>
         </div>
         
         <!-- MODAL para EDITAR Fechas Ocupadas -->
