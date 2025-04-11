@@ -375,7 +375,7 @@ def obtener_mensajes():
         finally:
             liberar_db(conn)
 
-# 📌 Actualizar estado de mensaje
+# 📌 Actualizar estado de mensaje 
 @app.route("/actualizar_estado", methods=["POST"])
 def actualizar_estado():
     datos = request.json
