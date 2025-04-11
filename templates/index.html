@@ -2208,42 +2208,43 @@ function cargarCalendario() {
         }
         const ul = document.getElementById("lista-fechas-ocupadas");
         ul.innerHTML = "";
-  
+
         if (!data.fechas || data.fechas.length === 0) {
           let li = document.createElement("li");
           li.textContent = "No hay fechas ocupadas.";
           ul.appendChild(li);
           return;
         }
-  
+
         data.fechas.forEach(item => {
           const li = document.createElement("li");
-          // por ejemplo: "ID: 1 - 2025-08-09 - Boda de Daniel"
-          let texto = `ID: ${item.id} - ${item.fecha}`;
+          // Estilo para hacerlo clickeable
+          li.style.cursor = "pointer";
+          li.style.padding = "10px";
+          li.style.margin = "5px 0";
+          li.style.borderRadius = "5px";
+          li.style.backgroundColor = "#f8f9fa";
+          li.style.transition = "background-color 0.2s";
+          
+          // Efecto hover
+          li.onmouseover = () => li.style.backgroundColor = "#e9ecef";
+          li.onmouseout = () => li.style.backgroundColor = "#f8f9fa";
+          
+          // Texto del item (ejemplo: "ID: 1 - 2025-08-09 - Boda de Daniel")
+          let texto = `${item.fecha}`;
           if (item.titulo) {
             texto += ` - ${item.titulo}`;
           }
-          li.textContent = texto + " ";
-  
-          // Botón Editar/Detalle
-          const btnEditar = document.createElement("button");
-          btnEditar.textContent = "Editar";
-          btnEditar.onclick = () => abrirModalFecha(item.id);
-          li.appendChild(btnEditar);
-  
-          // Botón Eliminar directo
-          const btnEliminar = document.createElement("button");
-          btnEliminar.textContent = "Eliminar";
-          btnEliminar.style.marginLeft = "10px";
-          btnEliminar.onclick = () => eliminarCalendario(item.id);
-          li.appendChild(btnEliminar);
-  
+          li.textContent = texto;
+
+          // Hacer que al hacer clic se abra el modal de edición
+          li.onclick = () => abrirModalFecha(item.id);
+
           ul.appendChild(li);
         });
       })
       .catch(e => console.error("Error en cargarCalendario", e));
-  }
-    
+}
     /*=========================================
        2) CARGAR LEADS PARA EL <select> LEAD
     =========================================*/
