@@ -640,6 +640,27 @@ def detalle_calendario(cal_id):
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+        
+
+@app.route("/calendario/eliminar/<int:cal_id>", methods=["POST"])
+def eliminar_calendario(cal_id):
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No DB"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM calendario WHERE id = %s", (cal_id,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            return jsonify({"error": "No se encontró ese ID"}), 404
+
+        return jsonify({"ok": True, "mensaje": "Fecha eliminada"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
 
         
         
