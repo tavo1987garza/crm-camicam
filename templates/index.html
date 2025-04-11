@@ -1028,8 +1028,13 @@
               <!-- Scrapbook (checkbox) -->
               <input type="checkbox" id="scrapbook" />
               <label for="scrapbook">Scrapbook:</label>
+              <br>  
+
+              <!-- Audio Guest Book (checkbox) -->
+              <input type="checkbox" id="audioGuestBook" />
+              <label for="audioGuestBook">Audio Guest Book:</label>
               <br>
-        
+
               <!-- Letras Gigantes (numérico) -->
               <label for="letrasGigantes">Letras Gigantes:</label>
               <input type="number" id="letrasGigantes" min="0" value="0" />
@@ -1106,6 +1111,11 @@
                     <!-- Scrapbook (checkbox) -->
                     <input type="checkbox" id="edit-scrapbook" />
                     <label for="edit-scrapbook">Scrapbook</label>
+                    <br><br>  
+
+                    <!-- Audio Guest Book (checkbox) -->
+                    <input type="checkbox" id="edit-audioGuestBook" />
+                    <label for="edit-audioGuestBook">Audio Guest Book</label>
                     <br><br>
         
                     <!-- Letras Gigantes (numérico) -->
@@ -2033,9 +2043,10 @@ function agregarFechaManual() {
     const caritoDeShotsSinAlcohol = document.getElementById("caritoDeShotsSinAlcohol").checked ? 1 : 0;
     const caritoDeShotsConAlcohol = document.getElementById("caritoDeShotsConAlcohol").checked ? 1 : 0;
     const lluviaDeMariposas = document.getElementById("lluviaDeMariposas").checked ? 1 : 0;
-    const lluviaMetalica = document.getElementById("lluviaMetalica").checked ? 1 : 0; // Cambiado aquí
+    const lluviaMetalica = document.getElementById("lluviaMetalica").checked ? 1 : 0; 
     const nieblaDePiso = document.getElementById("nieblaDePiso").checked ? 1 : 0;
     const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
+    const audioGuestBook = document.getElementById("audioGuestBook").checked ? 1 : 0;
   
     // Construir el objeto "servicios" con todas las propiedades
     const serviciosObj = {
@@ -2046,9 +2057,10 @@ function agregarFechaManual() {
       caritoDeShotsSinAlcohol,
       caritoDeShotsConAlcohol,
       lluviaDeMariposas,
-      lluviaMetalica, // Cambiado aquí
+      lluviaMetalica,
       nieblaDePiso,
-      scrapbook
+      scrapbook,
+      audioGuestBook
     };
   
     const payload = {
@@ -2091,6 +2103,7 @@ function agregarFechaManual() {
           document.getElementById("lluviaMetalica").checked = false; // Cambiado aquí
           document.getElementById("nieblaDePiso").checked = false;
           document.getElementById("scrapbook").checked = false;
+          document.getElementById("audioGuestBook").checked = false;
   
           // 🔹 Refrescar lista
           cargarCalendario();
@@ -2132,6 +2145,7 @@ function abrirModalFecha(calId) {
             document.getElementById("edit-lluviaMetalica").checked = (serv.lluviaMetalica === 1); // Corregido aquí
             document.getElementById("edit-nieblaDePiso").checked = (serv.nieblaDePiso === 1);
             document.getElementById("edit-scrapbook").checked = (serv.scrapbook === 1);
+            document.getElementById("edit-audioGuestBook").checked = (serv.audioGuestBook === 1);
             document.getElementById("edit-letrasGigantes").value = serv.letrasGigantes || 0;
             document.getElementById("edit-chisperos").value = serv.chisperos || 0;
 
@@ -2198,7 +2212,8 @@ function setupModalCloseEvents() {
             lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
             lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, // Corregido aquí
             nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
-            scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0
+            scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0,  
+            audioGuestBook: document.getElementById("edit-audioGuestBook").checked ? 1 : 0
         }
     };
     
@@ -2245,7 +2260,8 @@ function setupModalCloseEvents() {
                 lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
                 lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, // Corregido aquí
                 nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
-                scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0
+                scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0, 
+                audioGuestBook: document.getElementById("edit-audioGuestBook").checked ? 1 : 0
             };
             
             let payload = {
@@ -2370,7 +2386,8 @@ function setupModalCloseEvents() {
                         <li>Lluvia de Mariposas: ${data.lluviaDeMariposas}</li>
                         <li>Lluvia Metálica: ${data.lluviaMetalica}</li> <!-- Corregido aquí -->
                         <li>Niebla de Piso: ${data.nieblaDePiso}</li>
-                        <li>Scrapbook: ${data.scrapbook}</li>
+                        <li>Scrapbook: ${data.scrapbook}</li> 
+                        <li>Audio Guest Book: ${data.audioGuestBook}</li>
                     </ul>
                     <p>Eventos contados: ${data.eventosContados}</p>
                 `;
