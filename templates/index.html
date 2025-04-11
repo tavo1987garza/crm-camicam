@@ -946,72 +946,114 @@
         </div>
 
         <div id="calendario" class="seccion hidden">
-           <h1>📅 Calendario</h1>
-           
-  <!-- Botón para refrescar la lista de fechas ocupadas -->
-  <button onclick="cargarCalendario()">Refrescar Fechas Ocupadas</button>
-
-  <h2>Fechas Ocupadas</h2>
-  <ul id="lista-fechas-ocupadas"></ul>
-
-  <hr>
-
-  <h2>Agregar Fecha Manualmente</h2>
-
-<label for="fecha-input">Fecha (YYYY-MM-DD):</label>
-<input type="date" id="fecha-input" />
-
-<br><br>
-
-<label for="lead-select">Asignar a Lead (opcional):</label>
-<select id="lead-select">
-  <option value="">-- Sin Lead --</option>
-</select>
-
-<br><br>
-
-<label for="titulo-input">Título del evento:</label>
-<input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
-
-<br><br>
-
-<label for="notas-textarea">Notas:</label>
-<textarea id="notas-textarea" rows="2" placeholder="Observaciones..."></textarea>
-
-<br><br>
-
-<label for="ticket-input">Ticket de venta ($):</label>
-<input type="number" id="ticket-input" min="0" step="0.01" />
-
-<br><br>
-
-<h3>Servicios Contratados</h3>
-  <div style="margin-left: 20px;">
-    <!-- Letras Gigantes (numérico) -->
-    <label for="letrasGigantes">Letras Gigantes:</label>
-    <input type="number" id="letrasGigantes" min="0" value="0" />
-    <br><br>
-
-    <!-- Chisperos (numérico) -->
-    <label for="chisperos">Chisperos:</label>
-    <input type="number" id="chisperos" min="0" value="0" />
-    <br><br>
-
-    <!-- Cabina de Fotos (checkbox) -->
-    <label for="cabinaFotos">Cabina de Fotos:</label>
-    <input type="checkbox" id="cabinaFotos" />
-    <br><br>
-
-    <!-- Scrapbook (checkbox) -->
-    <label for="scrapbook">Scrapbook:</label>
-    <input type="checkbox" id="scrapbook" />
-    <br><br>
-
-    <!-- Agrega más servicios con checkboxes si deseas -->
-  </div>
-
-<button onclick="agregarFechaManual()">Agregar Fecha</button>
-         </div>
+            <h1>📅 Calendario</h1>
+            
+            <!-- Botón para refrescar la lista de fechas ocupadas -->
+            <button onclick="cargarCalendario()">Refrescar Fechas Ocupadas</button>
+          
+            <h2>Fechas Ocupadas</h2>
+            <ul id="lista-fechas-ocupadas"></ul>
+          
+            <hr>
+          
+            <h2>Agregar Fecha Manualmente</h2>
+            <label for="fecha-input">Fecha (YYYY-MM-DD):</label>
+            <input type="date" id="fecha-input" />
+          
+            <br><br>
+          
+            <label for="lead-select">Asignar a Lead (opcional):</label>
+            <select id="lead-select">
+              <option value="">-- Sin Lead --</option>
+            </select>
+          
+            <br><br>
+          
+            <label for="titulo-input">Título del evento:</label>
+            <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
+          
+            <br><br>
+          
+            <label for="notas-textarea">Notas:</label>
+            <textarea id="notas-textarea" rows="2" placeholder="Observaciones..."></textarea>
+          
+            <br><br>
+          
+            <label for="ticket-input">Ticket de venta ($):</label>
+            <input type="number" id="ticket-input" min="0" step="0.01" />
+          
+            <br><br>
+          
+            <h3>Servicios Contratados</h3>
+            <div style="margin-left: 20px;">
+              <!-- Letras Gigantes (numérico) -->
+              <label for="letrasGigantes">Letras Gigantes:</label>
+              <input type="number" id="letrasGigantes" min="0" value="0" />
+              <br><br>
+          
+              <!-- Chisperos (numérico) -->
+              <label for="chisperos">Chisperos:</label>
+              <input type="number" id="chisperos" min="0" value="0" />
+              <br><br>
+          
+              <!-- Cabina de Fotos (checkbox) -->
+              <label for="cabinaFotos">Cabina de Fotos:</label>
+              <input type="checkbox" id="cabinaFotos" />
+              <br><br>
+          
+              <!-- Scrapbook (checkbox) -->
+              <label for="scrapbook">Scrapbook:</label>
+              <input type="checkbox" id="scrapbook" />
+              <br><br>
+            </div>
+          
+            <button onclick="agregarFechaManual()">Agregar Fecha</button>
+          </div>
+          
+          <!-- MODAL para EDITAR Fechas Ocupadas -->
+          <div id="edit-fecha-modal" class="modal hidden">
+            <div class="modal-content">
+              <button class="close-btn" onclick="cerrarModalFecha()">✖</button>
+              <h2>✏️ Editar Fecha Ocupada</h2>
+          
+              <!-- id de la fila -->
+              <input type="hidden" id="edit-fecha-id">
+          
+              <label>Fecha (deshabilitada):</label>
+              <input type="date" id="edit-fecha-input" disabled />
+          
+              <label>Título:</label>
+              <input type="text" id="edit-fecha-titulo" />
+          
+              <label>Notas:</label>
+              <textarea id="edit-fecha-notas"></textarea>
+          
+              <label>Ticket:</label>
+              <input type="number" id="edit-fecha-ticket" step="0.01" />
+          
+              <h3>Servicios</h3>
+              <div style="margin-left:20px;">
+                <label>Letras Gigantes:</label>
+                <input type="number" id="edit-fecha-letrasGigantes" min="0" value="0" />
+          
+                <label>Chisperos:</label>
+                <input type="number" id="edit-fecha-chisperos" min="0" value="0" />
+          
+                <label>Cabina Fotos:</label>
+                <input type="checkbox" id="edit-fecha-cabinaFotos" />
+          
+                <label>Scrapbook:</label>
+                <input type="checkbox" id="edit-fecha-scrapbook" />
+              </div>
+          
+              <div class="modal-buttons" style="margin-top:10px;">
+                <!-- Botón de eliminar -->
+                <button class="delete-btn" onclick="eliminarFechaDesdeModal()">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
 
          <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
@@ -1822,47 +1864,52 @@ document.body.addEventListener("click", function () {
     /*=========================================
        1) MOSTRAR FECHAS OCUPADAS EN UNA LISTA
     =========================================*/
-    function cargarCalendario() {
-      fetch("/calendario/fechas_ocupadas")
-        .then(resp => resp.json())
-        .then(data => {
-          if (data.error) {
-            console.error("Error al cargar calendario:", data.error);
-            return;
+    // ============== 1) CARGAR LISTA DE FECHAS ==============
+function cargarCalendario() {
+    fetch("/calendario/fechas_ocupadas")
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          console.error("Error al cargar calendario:", data.error);
+          return;
+        }
+        const ul = document.getElementById("lista-fechas-ocupadas");
+        ul.innerHTML = "";
+  
+        if (!data.fechas || data.fechas.length === 0) {
+          let li = document.createElement("li");
+          li.textContent = "No hay fechas ocupadas.";
+          ul.appendChild(li);
+          return;
+        }
+  
+        data.fechas.forEach(item => {
+          const li = document.createElement("li");
+          // por ejemplo: "ID: 1 - 2025-08-09 - Boda de Daniel"
+          let texto = `ID: ${item.id} - ${item.fecha}`;
+          if (item.titulo) {
+            texto += ` - ${item.titulo}`;
           }
-    
-          const ul = document.getElementById("lista-fechas-ocupadas");
-          ul.innerHTML = ""; // Limpiar la lista
-    
-          if (!data.fechas || data.fechas.length === 0) {
-            let li = document.createElement("li");
-            li.textContent = "No hay fechas ocupadas.";
-            ul.appendChild(li);
-            return;
-          }
-    
-          // data.fechas es un array de objetos: 
-          // [ { id, fecha, lead_id, titulo, notas, lead_nombre }, ... ]
-          data.fechas.forEach(item => {
-            const li = document.createElement("li");
-    
-            // Por ejemplo: "2025-08-09 (Boda de Daniel) - Lead: Carlos"
-            let texto = `${item.fecha}`;
-            if (item.titulo) {
-              texto += ` - ${item.titulo}`;
-            }
-            if (item.lead_nombre) {
-              texto += ` (Lead: ${item.lead_nombre})`;
-            }
-    
-            li.textContent = texto;
-            ul.appendChild(li);
-          });
-        })
-        .catch(err => {
-          console.error("Error fetch calendario/fechas_ocupadas:", err);
+          li.textContent = texto + " ";
+  
+          // Botón Editar/Detalle
+          const btnEditar = document.createElement("button");
+          btnEditar.textContent = "Editar";
+          btnEditar.onclick = () => abrirModalFecha(item.id);
+          li.appendChild(btnEditar);
+  
+          // Botón Eliminar directo
+          const btnEliminar = document.createElement("button");
+          btnEliminar.textContent = "Eliminar";
+          btnEliminar.style.marginLeft = "10px";
+          btnEliminar.onclick = () => eliminarCalendario(item.id);
+          li.appendChild(btnEliminar);
+  
+          ul.appendChild(li);
         });
-    }
+      })
+      .catch(e => console.error("Error en cargarCalendario", e));
+  }
     
     /*=========================================
        2) CARGAR LEADS PARA EL <select> LEAD
@@ -1891,76 +1938,236 @@ document.body.addEventListener("click", function () {
     /*=========================================
        3) AGREGAR FECHA MANUALMENTE
     =========================================*/
-    function agregarFechaManual() {
-        // 1) Capturar valores del formulario
-        const fecha = document.getElementById("fecha-input").value; 
-        const lead_id = document.getElementById("lead-select").value;
-        const titulo = document.getElementById("titulo-input").value.trim();
-        const notas = document.getElementById("notas-textarea").value.trim();
-        
-        const ticketStr = document.getElementById("ticket-input").value;
-        const ticketNum = parseFloat(ticketStr) || 0;
-      
-        // 2) Capturar cantidad (números)
-        const letrasGigantes = parseInt(document.getElementById("letrasGigantes").value) || 0;
-        const chisperos = parseInt(document.getElementById("chisperos").value) || 0;
-      
-        // 3) Capturar checkboxes (0 = no contratado, 1 = sí contratado)
-        const cabinaFotos = document.getElementById("cabinaFotos").checked ? 1 : 0;
-        const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
-      
-        // 4) Construir objeto JSON de servicios
-        const serviciosObj = {
-          letrasGigantes: letrasGigantes,
-          chisperos: chisperos,
-          cabinaFotos: cabinaFotos,
-          scrapbook: scrapbook
-          // Agrega más si tienes otros servicios
-        };
-      
-        // 5) Construir el payload
-        const payload = {
-          fecha,                  // "2025-08-09"
-          lead_id: lead_id ? parseInt(lead_id) : null,
-          titulo,
-          notas,
-          ticket: ticketNum,
-          servicios: serviciosObj
-        };
-      
-        // 6) Enviar al endpoint /calendario/agregar_manual
-        fetch("/calendario/agregar_manual", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        })
-          .then(resp => resp.json())
-          .then(data => {
-            if (data.ok) {
-              alert(data.mensaje);
-      
-              // Limpiar el formulario
-              document.getElementById("fecha-input").value = "";
-              document.getElementById("lead-select").value = "";
-              document.getElementById("titulo-input").value = "";
-              document.getElementById("notas-textarea").value = "";
-              document.getElementById("ticket-input").value = "0.00";
-              document.getElementById("letrasGigantes").value = "0";
-              document.getElementById("chisperos").value = "0";
-              document.getElementById("cabinaFotos").checked = false;
-              document.getElementById("scrapbook").checked = false;
-      
-              // Recargar la lista de fechas
-              cargarCalendario();
-            } else {
-              alert(data.mensaje || data.error);
-            }
-          })
-          .catch(err => {
-            console.error("Error en agregarFechaManual:", err);
-            alert("Error al agregar fecha.");
-          });
-      }
+    
+// ============== 2) AGREGAR NUEVA FECHA MANUAL ==============
+function agregarFechaManual() {
+    const fecha = document.getElementById("fecha-input").value; 
+    const lead_id = document.getElementById("lead-select").value;
+    const titulo = document.getElementById("titulo-input").value.trim();
+    const notas = document.getElementById("notas-textarea").value.trim();
+  
+    const ticketStr = document.getElementById("ticket-input").value;
+    const ticketNum = parseFloat(ticketStr) || 0;
+  
+    // Servicios
+    const letrasGigantes = parseInt(document.getElementById("letrasGigantes").value) || 0;
+    const chisperos = parseInt(document.getElementById("chisperos").value) || 0;
+    const cabinaFotos = document.getElementById("cabinaFotos").checked ? 1 : 0;
+    const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
+  
+    const serviciosObj = {
+      letrasGigantes,
+      chisperos,
+      cabinaFotos,
+      scrapbook
+    };
+  
+    const payload = {
+      fecha,
+      lead_id: lead_id ? parseInt(lead_id) : null,
+      titulo,
+      notas,
+      ticket: ticketNum,
+      servicios: serviciosObj
+    };
+  
+    fetch("/calendario/agregar_manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          alert("Error: " + data.error);
+          return;
+        }
+        if (data.ok) {
+          alert(data.mensaje);
+          // limpiar
+          document.getElementById("fecha-input").value = "";
+          document.getElementById("lead-select").value = "";
+          document.getElementById("titulo-input").value = "";
+          document.getElementById("notas-textarea").value = "";
+          document.getElementById("ticket-input").value = "";
+          document.getElementById("letrasGigantes").value = "0";
+          document.getElementById("chisperos").value = "0";
+          document.getElementById("cabinaFotos").checked = false;
+          document.getElementById("scrapbook").checked = false;
+  
+          // refrescar lista
+          cargarCalendario();
+        } else {
+          // data.ok == false
+          alert(data.mensaje);
+        }
+      })
+      .catch(err => {
+        console.error("Error al agregar fecha manual:", err);
+        alert("Error al agregar fecha.");
+      });
+  }
+
+  
+// ============== 3) ABRIR MODAL DE EDICIÓN ==============
+function abrirModalFecha(calId) {
+    // Llamar a un endpoint, por ejemplo /calendario/detalle/<id> 
+    fetch(`/calendario/detalle/${calId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          alert("Error: " + data.error);
+          return;
+        }
+        // Llenar inputs
+        document.getElementById("edit-fecha-id").value = data.id;
+        document.getElementById("edit-fecha-input").value = data.fecha; 
+        document.getElementById("edit-fecha-titulo").value = data.titulo || "";
+        document.getElementById("edit-fecha-notas").value = data.notas || "";
+        document.getElementById("edit-fecha-ticket").value = data.ticket || 0;
+  
+        // Servicios
+        const serv = data.servicios || {};
+        document.getElementById("edit-fecha-letrasGigantes").value = serv.letrasGigantes || 0;
+        document.getElementById("edit-fecha-chisperos").value = serv.chisperos || 0;
+        document.getElementById("edit-fecha-cabinaFotos").checked = (serv.cabinaFotos === 1);
+        document.getElementById("edit-fecha-scrapbook").checked = (serv.scrapbook === 1);
+  
+        // Guardar valores originales en dataset, para detectar cambios si quieres
+        let modal = document.getElementById("edit-fecha-modal");
+        modal.dataset.originalTitulo = data.titulo || "";
+        modal.dataset.originalNotas = data.notas || "";
+        modal.dataset.originalTicket = String(data.ticket || "0");
+        modal.dataset.originalServicios = JSON.stringify(serv);
+  
+        // Mostrar el modal
+        modal.style.display = "flex";
+      })
+      .catch(err => console.error("Error abrirModalFecha:", err));
+  }
+  
+  // ============== 4) CERRAR MODAL: DETECTAR CAMBIOS (opcional) ==============
+  function cerrarModalFecha() {
+    let modal = document.getElementById("edit-fecha-modal");
+  
+    // 1) Recuperar originales
+    let originalTitulo = modal.dataset.originalTitulo || "";
+    let originalNotas = modal.dataset.originalNotas || "";
+    let originalTicket = modal.dataset.originalTicket || "0";
+    let originalServiciosStr = modal.dataset.originalServicios || "{}";
+  
+    // 2) Tomar valores actuales
+    let tituloActual = document.getElementById("edit-fecha-titulo").value.trim();
+    let notasActual = document.getElementById("edit-fecha-notas").value.trim();
+    let ticketStr = document.getElementById("edit-fecha-ticket").value.trim() || "0";
+    
+    let letrasGigantes = parseInt(document.getElementById("edit-fecha-letrasGigantes").value) || 0;
+    let chisperos = parseInt(document.getElementById("edit-fecha-chisperos").value) || 0;
+    let cabinaFotos = document.getElementById("edit-fecha-cabinaFotos").checked ? 1 : 0;
+    let scrapbook = document.getElementById("edit-fecha-scrapbook").checked ? 1 : 0;
+    let serviciosActual = {
+      letrasGigantes,
+      chisperos,
+      cabinaFotos,
+      scrapbook
+    };
+  
+    // 3) Comparar
+    let serviciosOriginal = JSON.parse(originalServiciosStr);
+    let huboCambio = (
+      tituloActual !== originalTitulo ||
+      notasActual !== originalNotas ||
+      ticketStr !== originalTicket ||
+      JSON.stringify(serviciosActual) !== JSON.stringify(serviciosOriginal)
+    );
+  
+    if (huboCambio) {
+      guardarEdicionFecha();
+    }
+  
+    // Ocultar modal
+    modal.style.display = "none";
+  }
+  
+  // ============== 5) GUARDAR EDICIÓN (POST /calendario/editar/<id>) ==============
+  function guardarEdicionFecha() {
+    let calId = document.getElementById("edit-fecha-id").value;
+    let titulo = document.getElementById("edit-fecha-titulo").value.trim();
+    let notas = document.getElementById("edit-fecha-notas").value.trim();
+    let ticketStr = document.getElementById("edit-fecha-ticket").value.trim();
+    let ticketNum = parseFloat(ticketStr) || 0;
+  
+    let letrasGigantes = parseInt(document.getElementById("edit-fecha-letrasGigantes").value) || 0;
+    let chisperos = parseInt(document.getElementById("edit-fecha-chisperos").value) || 0;
+    let cabinaFotos = document.getElementById("edit-fecha-cabinaFotos").checked ? 1 : 0;
+    let scrapbook = document.getElementById("edit-fecha-scrapbook").checked ? 1 : 0;
+    let serviciosActual = { letrasGigantes, chisperos, cabinaFotos, scrapbook };
+  
+    let payload = {
+      titulo,
+      notas,
+      ticket: ticketNum,
+      servicios: serviciosActual
+    };
+  
+    fetch(`/calendario/editar/${calId}`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          alert("❌ Error: " + data.error);
+        } else if (data.ok) {
+          alert("✅ Fecha actualizada correctamente");
+          cargarCalendario(); // refrescar
+        }
+      })
+      .catch(err => console.error("Error al actualizar fecha:", err));
+  }
+  
+  // ============== 6) ELIMINAR DIRECTO DESDE LISTA ==============
+  function eliminarCalendario(calId) {
+    if (!confirm("¿Seguro que quieres eliminar esta fecha?")) return;
+    fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          alert("Error: " + data.error);
+          return;
+        }
+        if (data.ok) {
+          alert(data.mensaje);
+          cargarCalendario();
+        }
+      })
+      .catch(err => console.error(err));
+  }
+  
+  // ============== 7) ELIMINAR DESDE MODAL (Botón 🗑️) ==============
+  function eliminarFechaDesdeModal() {
+    let calId = document.getElementById("edit-fecha-id").value;
+    if (!confirm("¿Seguro que quieres eliminar esta fecha?")) return;
+  
+    fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          alert("Error: " + data.error);
+          return;
+        }
+        if (data.ok) {
+          alert("Fecha eliminada correctamente");
+          document.getElementById("edit-fecha-modal").style.display = "none";
+          cargarCalendario();
+        }
+      })
+      .catch(err => console.error(err));
+  }
+
+
+
 
 
       function verReporteIngresos() {
