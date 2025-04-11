@@ -434,14 +434,19 @@ def obtener_mensajes_chat():
 @app.route("/calendario/agregar_manual", methods=["POST"])
 def agregar_fecha_manual():
     data = request.json
-    fecha_str = data.get("fecha")      # formato "YYYY-MM-DD"
-    lead_id = data.get("lead_id")      # puede ser None
-    titulo = data.get("titulo", "")    # opcional
-    notas = data.get("notas", "")      # opcional
+    fecha_str = data.get("fecha")      # "YYYY-MM-DD"
+    lead_id = data.get("lead_id")      # int o None
+    titulo = data.get("titulo", "")
+    notas = data.get("notas", "")
+
+    # Nuevos campos:
+    ticket = data.get("ticket", 0)             # numérico
+    servicios_input = data.get("servicios")    # string con JSON o ya un dict
 
     if not fecha_str:
         return jsonify({"error": "Falta la fecha en formato YYYY-MM-DD"}), 400
 
+    # Conexión a DB
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
@@ -449,18 +454,41 @@ def agregar_fecha_manual():
     try:
         cursor = conn.cursor()
 
-        # Inserta la fecha
-        # Si quieres forzar a que lead_id no sea obligatorio, puedes usar COALESCE
-        # o simplemente mandar None en caso de no tenerlo
+        # Convertir ticket a float o decimal
+        # (Si te llega como string, lo conviertes con float(...). Podrías usar Decimal de Python.
+        ticket_value = float(ticket) if ticket else 0.0
+
+        # Manejar el JSON de servicios
+        # Si el front te manda ya un objeto JSON, en Python lo recibes como dict.
+        # O si te manda un string JSON, hay que parsearlo:
+        import json
+        if isinstance(servicios_input, str):
+            try:
+                servicios_json = json.loads(servicios_input)  # parsea string a dict
+            except:
+                servicios_json = {}
+        elif isinstance(servicios_input, dict):
+            servicios_json = servicios_input
+        else:
+            servicios_json = {}
+
+        # Insertar en la tabla calendario
         cursor.execute("""
-            INSERT INTO calendario (fecha, lead_id, titulo, notas)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO calendario (fecha, lead_id, titulo, notas, ticket, servicios)
+            VALUES (%s, %s, %s, %s, %s, %s::jsonb)
             ON CONFLICT (fecha) DO NOTHING
-        """, (fecha_str, lead_id, titulo, notas))
+        """, (
+            fecha_str,
+            lead_id,
+            titulo,
+            notas,
+            ticket_value,
+            json.dumps(servicios_json)  # serializar dict a string JSON
+        ))
         conn.commit()
 
         if cursor.rowcount == 0:
-            # Significa que la fecha ya existía en la tabla (si tienes UNIQUE en 'fecha')
+            # Significa que la fecha ya existía en la tabla (si UNIQUE(fecha))
             return jsonify({
                 "ok": False,
                 "mensaje": f"La fecha {fecha_str} ya está ocupada o existe en el calendario."
@@ -477,7 +505,7 @@ def agregar_fecha_manual():
 
     finally:
         liberar_db(conn)
-        
+
         
 @app.route("/calendario/fechas_ocupadas", methods=["GET"])
 def fechas_ocupadas():
@@ -577,6 +605,81 @@ def reservar_fecha():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+        
+        
+@app.route("/reportes/ingresos", methods=["GET"])
+def reporte_ingresos():
+    mes = request.args.get("mes")
+    anio = request.args.get("anio")
+    if not mes or not anio:
+        return jsonify({"error": "Falta mes o año"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar DB"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COALESCE(SUM(ticket), 0)
+            FROM calendario
+            WHERE EXTRACT(MONTH FROM fecha) = %s
+              AND EXTRACT(YEAR FROM fecha) = %s
+        """, (mes, anio))
+        total = cursor.fetchone()[0] or 0
+        return jsonify({
+            "mes": int(mes),
+            "anio": int(anio),
+            "total_ventas": float(total)
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+        
+        
+
+@app.route("/reportes/servicios_mes", methods=["GET"])
+def reporte_servicios_mes():
+    mes = request.args.get("mes")
+    anio = request.args.get("anio")
+    if not mes or not anio:
+        return jsonify({"error": "Falta mes o año"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar DB"}), 500
+
+    try:
+        cursor = conn.cursor()
+        # Ajusta los nombres a tus keys reales en el JSON:
+        cursor.execute("""
+            SELECT 
+              COALESCE(SUM((servicios->>'letrasGigantes')::int), 0) as total_letras,
+              COALESCE(SUM((servicios->>'chisperos')::int), 0) as total_chisperos,
+              COALESCE(SUM((servicios->>'cabinaFotos')::int), 0) as total_cabinas,
+              COALESCE(SUM((servicios->>'scrapbook')::int), 0) as total_scrapbook,
+              COUNT(*) as total_eventos
+            FROM calendario
+            WHERE EXTRACT(MONTH FROM fecha) = %s
+              AND EXTRACT(YEAR FROM fecha) = %s
+        """, (mes, anio))
+        row = cursor.fetchone()
+
+        return jsonify({
+            "mes": int(mes),
+            "anio": int(anio),
+            "letrasGigantes": row[0],
+            "chisperos": row[1],
+            "cabinaFotos": row[2],
+            "scrapbook": row[3],
+            "eventosContados": row[4]
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
 
 
 

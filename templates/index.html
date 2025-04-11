@@ -957,35 +957,58 @@
   <hr>
 
   <h2>Agregar Fecha Manualmente</h2>
-  <label for="fecha-input">Fecha (YYYY-MM-DD):</label>
-  <input type="date" id="fecha-input" />
 
-  <br><br>
+<label for="fecha-input">Fecha (YYYY-MM-DD):</label>
+<input type="date" id="fecha-input" />
 
-  <label for="lead-select">Asignar a Lead (opcional):</label>
-  <select id="lead-select">
-    <option value="">-- Sin Lead --</option>
-    <!-- Aquí se llenarán los leads desde cargarLeadsEnSelect() -->
-  </select>
+<br><br>
 
-  <br><br>
+<label for="lead-select">Asignar a Lead (opcional):</label>
+<select id="lead-select">
+  <option value="">-- Sin Lead --</option>
+</select>
 
-  <label for="titulo-input">Título del evento:</label>
-  <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
+<br><br>
 
-  <br><br>
+<label for="titulo-input">Título del evento:</label>
+<input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
 
-  <label for="notas-textarea">Notas:</label>
-  <textarea id="notas-textarea" rows="3" placeholder="Observaciones, etc."></textarea>
+<br><br>
 
-  <br><br>
+<label for="notas-textarea">Notas:</label>
+<textarea id="notas-textarea" rows="2" placeholder="Observaciones..."></textarea>
 
-  <button onclick="agregarFechaManual()">Agregar Fecha</button>
+<br><br>
+
+<label for="ticket-input">Ticket de venta ($):</label>
+<input type="number" id="ticket-input" min="0" step="0.01" />
+
+<br><br>
+
+<label for="servicios-json">Servicios contratados (JSON):</label>
+<textarea id="servicios-json" rows="4" placeholder='{"letrasGigantes": 6, "chisperos": 2, "cabinaFotos": 1}'></textarea>
+
+<br><br>
+
+<button onclick="agregarFechaManual()">Agregar Fecha</button>
          </div>
 
          <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
-            <p>Sección de reportes y estadísticas.</p>
+            <h2>Ingresos (Ticket) por mes</h2>
+  <label>Mes:</label>
+  <input type="number" id="reporte-mes" placeholder="1-12" />
+  <label>Año:</label>
+  <input type="number" id="reporte-anio" placeholder="2025" />
+
+  <button onclick="verReporteIngresos()">Ver Ingresos</button>
+  <div id="resultado-ingresos"></div>
+
+  <hr>
+
+  <h2>Servicios contratados (mes)</h2>
+  <button onclick="verReporteServicios()">Ver Servicios</button>
+  <div id="resultado-servicios"></div>
          </div>
         
         <div id="configuracion" class="seccion hidden">
@@ -1849,59 +1872,116 @@ document.body.addEventListener("click", function () {
        3) AGREGAR FECHA MANUALMENTE
     =========================================*/
     function agregarFechaManual() {
-      const fecha = document.getElementById("fecha-input").value; // "2025-08-09"
-      const lead_id = document.getElementById("lead-select").value; // string o ""
-      const titulo = document.getElementById("titulo-input").value.trim();
-      const notas = document.getElementById("notas-textarea").value.trim();
-    
-      // Validación mínima
-      if (!fecha) {
-        alert("Por favor, selecciona la fecha en formato YYYY-MM-DD");
-        return;
-      }
-    
-      // Convertir el lead_id a número (o null si vacío)
-      const leadIdParsed = lead_id ? parseInt(lead_id) : null;
-    
-      // Construir el payload
-      const payload = {
-        fecha: fecha,      // "2025-08-09"
-        lead_id: leadIdParsed, 
-        titulo: titulo,
-        notas: notas
-      };
-    
-      fetch("/calendario/agregar_manual", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-        .then(resp => resp.json())
-        .then(data => {
-          if (data.error) {
-            alert("Error: " + data.error);
-            return;
-          }
-          if (data.ok) {
-            alert(data.mensaje);
-            // limpiar campos
-            document.getElementById("fecha-input").value = "";
-            document.getElementById("lead-select").value = "";
-            document.getElementById("titulo-input").value = "";
-            document.getElementById("notas-textarea").value = "";
-            // refrescar el listado
-            cargarCalendario();
-          } else {
-            // data.ok === false
-            alert(data.mensaje);
-          }
+        const fecha = document.getElementById("fecha-input").value; 
+        const lead_id = document.getElementById("lead-select").value;
+        const titulo = document.getElementById("titulo-input").value.trim();
+        const notas = document.getElementById("notas-textarea").value.trim();
+      
+        const ticketStr = document.getElementById("ticket-input").value; // "5000.00"
+        const serviciosStr = document.getElementById("servicios-json").value.trim();
+      
+        const ticketNum = parseFloat(ticketStr) || 0;
+      
+        // Puedes pasar 'serviciosStr' tal cual, o parsearlo a objeto
+        // Ejemplo: si quieres enviarlo como dict, parsea:
+        let serviciosObj = {};
+        try {
+          serviciosObj = JSON.parse(serviciosStr);
+        } catch (e) {
+          // si hay error en parseo, lo dejas vacío
+          alert("El JSON de servicios tiene un formato inválido.");
+          return;
+        }
+      
+        const payload = {
+          fecha,
+          lead_id: lead_id ? parseInt(lead_id) : null,
+          titulo,
+          notas,
+          ticket: ticketNum,
+          servicios: serviciosObj  // mandamos como dict
+        };
+      
+        fetch("/calendario/agregar_manual", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         })
-        .catch(err => {
-          console.error("Error al agregar fecha manual:", err);
-          alert("Error al agregar fecha. Revisa la consola.");
-        });
-    }
-    
+          .then(r => r.json())
+          .then(data => {
+            if (data.ok) {
+              alert(data.mensaje);
+              // limpiar
+              document.getElementById("fecha-input").value = "";
+              document.getElementById("lead-select").value = "";
+              document.getElementById("titulo-input").value = "";
+              document.getElementById("notas-textarea").value = "";
+              document.getElementById("ticket-input").value = "";
+              document.getElementById("servicios-json").value = "";
+      
+              // refrescar la lista de fechas
+              cargarCalendario();
+            } else {
+              alert(data.mensaje || data.error);
+            }
+          })
+          .catch(err => console.error("Error en agregarFechaManual:", err));
+      }
+
+
+      function verReporteIngresos() {
+        const mes = document.getElementById("reporte-mes").value;
+        const anio = document.getElementById("reporte-anio").value;
+        if (!mes || !anio) {
+          alert("Ingresa mes y año");
+          return;
+        }
+      
+        fetch(`/reportes/ingresos?mes=${mes}&anio=${anio}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              alert("Error: " + data.error);
+              return;
+            }
+            const div = document.getElementById("resultado-ingresos");
+            div.textContent = `Total de ventas en ${data.mes}/${data.anio}: $${data.total_ventas.toFixed(2)}`;
+          })
+          .catch(err => console.error("Error reporte_ingresos:", err));
+      }
+
+      
+      function verReporteServicios() {
+        const mes = document.getElementById("reporte-mes").value;
+        const anio = document.getElementById("reporte-anio").value;
+        if (!mes || !anio) {
+          alert("Ingresa mes y año");
+          return;
+        }
+      
+        fetch(`/reportes/servicios_mes?mes=${mes}&anio=${anio}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              alert("Error: " + data.error);
+              return;
+            }
+            const div = document.getElementById("resultado-servicios");
+            div.innerHTML = `
+              <p>Servicios en ${data.mes}/${data.anio}:</p>
+              <ul>
+                <li>Letras Gigantes: ${data.letrasGigantes}</li>
+                <li>Chisperos: ${data.chisperos}</li>
+                <li>Cabina Fotos: ${data.cabinaFotos}</li>
+                <li>Scrapbook: ${data.scrapbook}</li>
+              </ul>
+              <p>Eventos contados: ${data.eventosContados}</p>
+            `;
+          })
+          .catch(err => console.error("Error reporte_servicios:", err));
+      }
+      
+      
   
 
         
