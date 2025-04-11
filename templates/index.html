@@ -1016,8 +1016,8 @@
               <br>
 
               <!-- Lluvia de Metálica (checkbox) -->
-              <input type="checkbox" id="lluviaDeMetálica" />
-              <label for="lluviaDeMetálica">Lluvia de Metálica:</label>
+              <input type="checkbox" id="lluviaDeMetalica" />
+              <label for="lluviaDeMetalica">Lluvia de Metálica:</label>
               <br>
 
               <!-- Niebla de Piso (checkbox) -->
@@ -1094,8 +1094,8 @@
       <br><br>
 
       <!-- Lluvia de Metálica (checkbox) -->
-      <input type="checkbox" id="edit-lluviaDeMetálica" />
-      <label for="edit-lluviaDeMetálica">Lluvia de Metálica</label>
+      <input type="checkbox" id="edit-lluviaDeMetalica" />
+      <label for="edit-lluviaDeMetalica">Lluvia de Metálica</label>
       <br><br>
 
       <!-- Niebla de Piso (checkbox) -->
@@ -2022,16 +2022,31 @@ function agregarFechaManual() {
     const ticketStr = document.getElementById("ticket-input").value;
     const ticketNum = parseFloat(ticketStr) || 0;
   
-    // Servicios
+    // === Numericos ===
     const letrasGigantes = parseInt(document.getElementById("letrasGigantes").value) || 0;
     const chisperos = parseInt(document.getElementById("chisperos").value) || 0;
+  
+    // === Checkboxes (1 si checked, 0 si no) ===
     const cabinaFotos = document.getElementById("cabinaFotos").checked ? 1 : 0;
+    const cabina360 = document.getElementById("cabina360").checked ? 1 : 0;
+    const caritoDeShotsSinAlcohol = document.getElementById("caritoDeShotsSinAlcohol").checked ? 1 : 0;
+    const caritoDeShotsConAlcohol = document.getElementById("caritoDeShotsConAlcohol").checked ? 1 : 0;
+    const lluviaDeMariposas = document.getElementById("lluviaDeMariposas").checked ? 1 : 0;
+    const lluviaDeMetalica = document.getElementById("lluviaDeMetalica").checked ? 1 : 0;
+    const nieblaDePiso = document.getElementById("nieblaDePiso").checked ? 1 : 0;
     const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
   
+    // Construir el objeto "servicios" con todas las propiedades
     const serviciosObj = {
       letrasGigantes,
       chisperos,
       cabinaFotos,
+      cabina360,
+      caritoDeShotsSinAlcohol,
+      caritoDeShotsConAlcohol,
+      lluviaDeMariposas,
+      lluviaDeMetalica,
+      nieblaDePiso,
       scrapbook
     };
   
@@ -2057,21 +2072,28 @@ function agregarFechaManual() {
         }
         if (data.ok) {
           alert(data.mensaje);
-          // limpiar
+          
+          // 🔹 Limpiar los campos
           document.getElementById("fecha-input").value = "";
           document.getElementById("lead-select").value = "";
           document.getElementById("titulo-input").value = "";
           document.getElementById("notas-textarea").value = "";
           document.getElementById("ticket-input").value = "";
+  
           document.getElementById("letrasGigantes").value = "0";
           document.getElementById("chisperos").value = "0";
           document.getElementById("cabinaFotos").checked = false;
+          document.getElementById("cabina360").checked = false;
+          document.getElementById("caritoDeShotsSinAlcohol").checked = false;
+          document.getElementById("caritoDeShotsConAlcohol").checked = false;
+          document.getElementById("lluviaDeMariposas").checked = false;
+          document.getElementById("lluviaDeMetalica").checked = false;
+          document.getElementById("nieblaDePiso").checked = false;
           document.getElementById("scrapbook").checked = false;
   
-          // refrescar lista
+          // 🔹 Refrescar lista
           cargarCalendario();
         } else {
-          // data.ok == false
           alert(data.mensaje);
         }
       })
@@ -2080,6 +2102,7 @@ function agregarFechaManual() {
         alert("Error al agregar fecha.");
       });
   }
+  
 
   
 // ============== 3) ABRIR MODAL DE EDICIÓN ==============
@@ -2107,7 +2130,7 @@ function abrirModalFecha(calId) {
       document.getElementById("edit-caritoDeShotsSinAlcohol").checked = (serv.caritoDeShotsSinAlcohol === 1);
       document.getElementById("edit-caritoDeShotsConAlcohol").checked = (serv.caritoDeShotsConAlcohol === 1);
       document.getElementById("edit-lluviaDeMariposas").checked = (serv.lluviaDeMariposas === 1);
-      document.getElementById("edit-lluviaDeMetálica").checked = (serv.lluviaDeMetálica === 1);
+      document.getElementById("edit-lluviaDeMetalica").checked = (serv.lluviaDeMetálica === 1);
       document.getElementById("edit-nieblaDePiso").checked = (serv.nieblaDePiso === 1);
       document.getElementById("edit-scrapbook").checked = (serv.scrapbook === 1);
       document.getElementById("edit-letrasGigantes").value = serv.letrasGigantes || 0;
@@ -2151,7 +2174,7 @@ function abrirModalFecha(calId) {
     let caritoDeShotsSinAlcohol = document.getElementById("edit-fecha-caritoDeShotsSinAlcohol").checked ? 1 : 0;
     let caritoDeShotsConAlcohol = document.getElementById("edit-fecha-caritoDeShotsConAlcohol").checked ? 1 : 0;
     let lluviaDeMariposas = document.getElementById("edit-fecha-lluviaDeMariposas").checked ? 1 : 0;
-    let lluviaDeMetalica = document.getElementById("edit-fecha-lluviaDeMetálica").checked ? 1 : 0;
+    let lluviaDeMetalica = document.getElementById("edit-fecha-lluviaDeMetalica").checked ? 1 : 0;
     let nieblaDePiso = document.getElementById("edit-fecha-nieblaDePiso").checked ? 1 : 0;
     let scrapbook = document.getElementById("edit-fecha-scrapbook").checked ? 1 : 0;
   
@@ -2196,21 +2219,21 @@ function abrirModalFecha(calId) {
         let ticketStr = document.getElementById("edit-fecha-ticket").value.trim();
         let ticketNum = parseFloat(ticketStr) || 0;
       
-        // === Checkboxes (1 si checked, 0 si no) ===
+        // Checkboxes
         let cabinaFotos = document.getElementById("edit-fecha-cabinaFotos").checked ? 1 : 0;
         let cabina360 = document.getElementById("edit-fecha-cabina360").checked ? 1 : 0;
         let caritoDeShotsSinAlcohol = document.getElementById("edit-fecha-caritoDeShotsSinAlcohol").checked ? 1 : 0;
         let caritoDeShotsConAlcohol = document.getElementById("edit-fecha-caritoDeShotsConAlcohol").checked ? 1 : 0;
         let lluviaDeMariposas = document.getElementById("edit-fecha-lluviaDeMariposas").checked ? 1 : 0;
-        let lluviaDeMetálica = document.getElementById("edit-fecha-lluviaDeMetálica").checked ? 1 : 0;
+        let lluviaDeMetalica = document.getElementById("edit-fecha-lluviaDeMetalica").checked ? 1 : 0;
         let nieblaDePiso = document.getElementById("edit-fecha-nieblaDePiso").checked ? 1 : 0;
         let scrapbook = document.getElementById("edit-fecha-scrapbook").checked ? 1 : 0;
-
-        // === Numericos ===
+      
+        // Numéricos
         let letrasGigantes = parseInt(document.getElementById("edit-fecha-letrasGigantes").value) || 0;
         let chisperos = parseInt(document.getElementById("edit-fecha-chisperos").value) || 0;
       
-        // === Construir objeto servicios con todas las propiedades ===
+        // Armar objeto
         let serviciosActual = {
           letrasGigantes,
           chisperos,
@@ -2219,7 +2242,7 @@ function abrirModalFecha(calId) {
           caritoDeShotsSinAlcohol,
           caritoDeShotsConAlcohol,
           lluviaDeMariposas,
-          lluviaDeMetálica,
+          lluviaDeMetalica,
           nieblaDePiso,
           scrapbook
         };
@@ -2336,6 +2359,12 @@ function abrirModalFecha(calId) {
                 <li>Letras Gigantes: ${data.letrasGigantes}</li>
                 <li>Chisperos: ${data.chisperos}</li>
                 <li>Cabina Fotos: ${data.cabinaFotos}</li>
+                <li>Cabina 360: ${data.cabina360}</li>
+                <li>Shots Sin Alcohol: ${data.caritoDeShotsSinAlcohol}</li>
+                <li>Shots Con Alcohol: ${data.caritoDeShotsConAlcohol}</li>
+                <li>Lluvia de Mariposas: ${data.lluviaDeMariposas}</li>
+                <li>Lluvia de Metálica: ${data.lluviaDeMetalica}</li>
+                <li>Niebla de Piso: ${data.nieblaDePiso}</li>
                 <li>Scrapbook: ${data.scrapbook}</li>
               </ul>
               <p>Eventos contados: ${data.eventosContados}</p>

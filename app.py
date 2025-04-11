@@ -758,13 +758,22 @@ def reporte_servicios_mes():
 
     try:
         cursor = conn.cursor()
-        # Ajusta los nombres a tus keys reales en el JSON:
+        # Ajusta para sumar cada campo. Ejemplo:
         cursor.execute("""
             SELECT 
               COALESCE(SUM((servicios->>'letrasGigantes')::int), 0) as total_letras,
               COALESCE(SUM((servicios->>'chisperos')::int), 0) as total_chisperos,
-              COALESCE(SUM((servicios->>'cabinaFotos')::int), 0) as total_cabinas,
+              COALESCE(SUM((servicios->>'cabinaFotos')::int), 0) as total_cabinaFotos,
               COALESCE(SUM((servicios->>'scrapbook')::int), 0) as total_scrapbook,
+              
+              /* Agrega lo nuevo */
+              COALESCE(SUM((servicios->>'cabina360')::int), 0) as total_cabina360,
+              COALESCE(SUM((servicios->>'caritoDeShotsSinAlcohol')::int), 0) as total_caritoShotsSinAlcohol,
+              COALESCE(SUM((servicios->>'caritoDeShotsConAlcohol')::int), 0) as total_caritoShotsConAlcohol,
+              COALESCE(SUM((servicios->>'lluviaDeMariposas')::int), 0) as total_lluviaMariposas,
+              COALESCE(SUM((servicios->>'lluviaDeMetalica')::int), 0) as total_lluviaMetalica,
+              COALESCE(SUM((servicios->>'nieblaDePiso')::int), 0) as total_nieblaDePiso,
+
               COUNT(*) as total_eventos
             FROM calendario
             WHERE EXTRACT(MONTH FROM fecha) = %s
@@ -772,6 +781,8 @@ def reporte_servicios_mes():
         """, (mes, anio))
         row = cursor.fetchone()
 
+        # row tendrá todos los valores en orden: 
+        # (total_letras, total_chisperos, total_cabinaFotos, total_scrapbook, total_cabina360, total_caritoShotsSinAlcohol, ...)
         return jsonify({
             "mes": int(mes),
             "anio": int(anio),
@@ -779,12 +790,21 @@ def reporte_servicios_mes():
             "chisperos": row[1],
             "cabinaFotos": row[2],
             "scrapbook": row[3],
-            "eventosContados": row[4]
+
+            "cabina360": row[4],
+            "caritoDeShotsSinAlcohol": row[5],
+            "caritoDeShotsConAlcohol": row[6],
+            "lluviaDeMariposas": row[7],
+            "lluviaDeMetalica": row[8],
+            "nieblaDePiso": row[9],
+
+            "eventosContados": row[10]
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+
 
 
 
