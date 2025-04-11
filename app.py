@@ -607,6 +607,42 @@ def reservar_fecha():
         liberar_db(conn)
         
         
+@app.route("/calendario/detalle/<int:cal_id>", methods=["GET"])
+def detalle_calendario(cal_id):
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a DB"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, fecha, lead_id, titulo, notas, ticket, servicios
+            FROM calendario
+            WHERE id = %s
+        """, (cal_id,))
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({"error": "Registro no encontrado"}), 404
+
+        # row = (1, datetime.date(2025,8,9), 3, "Boda", "notas...", Decimal('5000.00'), {...} )
+        respuesta = {
+            "id": row[0],
+            "fecha": str(row[1]),  
+            "lead_id": row[2],
+            "titulo": row[3] or "",
+            "notas": row[4] or "",
+            "ticket": float(row[5]) if row[5] else 0.0,
+            "servicios": row[6] if row[6] else {}
+        }
+        return jsonify(respuesta), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+        
+        
 @app.route("/reportes/ingresos", methods=["GET"])
 def reporte_ingresos():
     mes = request.args.get("mes")
