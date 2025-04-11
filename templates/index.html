@@ -1025,6 +1025,32 @@
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
+/* Estilos para la lista de servicios en reportes */
+#resultado-servicios ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    padding: 0;
+}
+
+#resultado-servicios li {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    list-style: none;
+}
+
+#resultado-servicios li:nth-child(odd) {
+    background: #f8f9fa;
+}
+
+#resultado-servicios p:first-child {
+    font-weight: bold;
+    color: #1e88e5;
+    margin-bottom: 10px;
+}
+
 
     </style>
 </head>
@@ -2322,7 +2348,7 @@ function agregarFechaManual() {
           document.getElementById("caritoDeShotsSinAlcohol").checked = false;
           document.getElementById("caritoDeShotsConAlcohol").checked = false;
           document.getElementById("lluviaDeMariposas").checked = false;
-          document.getElementById("lluviaMetalica").checked = false; // Cambiado aquí
+          document.getElementById("lluviaMetalica").checked = false; 
           document.getElementById("nieblaDePiso").checked = false;
           document.getElementById("scrapbook").checked = false;
           document.getElementById("audioGuestBook").checked = false;
@@ -2364,7 +2390,7 @@ function abrirModalFecha(calId) {
             document.getElementById("edit-caritoDeShotsSinAlcohol").checked = (serv.caritoDeShotsSinAlcohol === 1);
             document.getElementById("edit-caritoDeShotsConAlcohol").checked = (serv.caritoDeShotsConAlcohol === 1);
             document.getElementById("edit-lluviaDeMariposas").checked = (serv.lluviaDeMariposas === 1);
-            document.getElementById("edit-lluviaMetalica").checked = (serv.lluviaMetalica === 1); // Corregido aquí
+            document.getElementById("edit-lluviaMetalica").checked = (serv.lluviaMetalica === 1); 
             document.getElementById("edit-nieblaDePiso").checked = (serv.nieblaDePiso === 1);
             document.getElementById("edit-scrapbook").checked = (serv.scrapbook === 1);
             document.getElementById("edit-audioGuestBook").checked = (serv.audioGuestBook === 1);
@@ -2432,7 +2458,7 @@ function setupModalCloseEvents() {
             caritoDeShotsSinAlcohol: document.getElementById("edit-caritoDeShotsSinAlcohol").checked ? 1 : 0,
             caritoDeShotsConAlcohol: document.getElementById("edit-caritoDeShotsConAlcohol").checked ? 1 : 0,
             lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
-            lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, // Corregido aquí
+            lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, 
             nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
             scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0,  
             audioGuestBook: document.getElementById("edit-audioGuestBook").checked ? 1 : 0
@@ -2480,7 +2506,7 @@ function setupModalCloseEvents() {
                 caritoDeShotsSinAlcohol: document.getElementById("edit-caritoDeShotsSinAlcohol").checked ? 1 : 0,
                 caritoDeShotsConAlcohol: document.getElementById("edit-caritoDeShotsConAlcohol").checked ? 1 : 0,
                 lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
-                lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, // Corregido aquí
+                lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, 
                 nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
                 scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0, 
                 audioGuestBook: document.getElementById("edit-audioGuestBook").checked ? 1 : 0
@@ -2606,7 +2632,7 @@ function setupModalCloseEvents() {
                         <li>Shots Sin Alcohol: ${data.caritoDeShotsSinAlcohol}</li>
                         <li>Shots Con Alcohol: ${data.caritoDeShotsConAlcohol}</li>
                         <li>Lluvia de Mariposas: ${data.lluviaDeMariposas}</li>
-                        <li>Lluvia Metálica: ${data.lluviaMetalica}</li> <!-- Corregido aquí -->
+                        <li>Lluvia Metálica: ${data.lluviaMetalica}</li> 
                         <li>Niebla de Piso: ${data.nieblaDePiso}</li>
                         <li>Scrapbook: ${data.scrapbook}</li> 
                         <li>Audio Guest Book: ${data.audioGuestBook}</li>

@@ -771,8 +771,9 @@ def reporte_servicios_mes():
               COALESCE(SUM((servicios->>'caritoDeShotsSinAlcohol')::int), 0) as total_caritoShotsSinAlcohol,
               COALESCE(SUM((servicios->>'caritoDeShotsConAlcohol')::int), 0) as total_caritoShotsConAlcohol,
               COALESCE(SUM((servicios->>'lluviaDeMariposas')::int), 0) as total_lluviaMariposas,
-              COALESCE(SUM((servicios->>'lluviaDeMetalica')::int), 0) as total_lluviaMetalica,
+              COALESCE(SUM((servicios->>'lluviaMetalica')::int), 0) as total_lluviaMetalica,
               COALESCE(SUM((servicios->>'nieblaDePiso')::int), 0) as total_nieblaDePiso,
+              COALESCE(SUM((servicios->>'audioGuestBook')::int), 0) as total_audioGuestBook,
 
               COUNT(*) as total_eventos
             FROM calendario
@@ -795,10 +796,11 @@ def reporte_servicios_mes():
             "caritoDeShotsSinAlcohol": row[5],
             "caritoDeShotsConAlcohol": row[6],
             "lluviaDeMariposas": row[7],
-            "lluviaDeMetalica": row[8],
+            "lluviaMetalica": row[8],
             "nieblaDePiso": row[9],
+            "audioGuestBook": row[10],
 
-            "eventosContados": row[10]
+            "eventosContados": row[11]
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
