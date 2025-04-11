@@ -994,43 +994,43 @@
               <input type="checkbox" id="cabinaFotos" />
               <label for="cabinaFotos">Cabina de Fotos:</label>
               <br>
-
+        
               <!-- Cabina 360 (checkbox) -->
               <input type="checkbox" id="cabina360" />
               <label for="cabina360">Cabina 360:</label>
               <br>
-
+        
               <!-- Carrito de Shots sin Alcohol (checkbox) -->
               <input type="checkbox" id="caritoDeShotsSinAlcohol" />
               <label for="caritoDeShotsSinAlcohol">Carito De Shots Sin Alcohol:</label>
               <br>
-
+        
               <!-- Carrito de Shots con Alcohol (checkbox) -->
               <input type="checkbox" id="caritoDeShotsConAlcohol" />
               <label for="caritoDeShotsConAlcohol">Carito De Shots Con Alcohol:</label>
               <br>
-
+        
               <!-- Lluvia de Mariposas (checkbox) -->
               <input type="checkbox" id="lluviaDeMariposas" />
               <label for="lluviaDeMariposas">Lluvia de Mariposas:</label>
               <br>
-
-              <!-- Lluvia de Metálica (checkbox) -->
-              <input type="checkbox" id="lluviaDeMetalica" />
-              <label for="lluviaDeMetalica">Lluvia de Metálica:</label>
+        
+              <!-- Lluvia Metálica (checkbox) - CORREGIDO -->
+              <input type="checkbox" id="lluviaMetalica" />
+              <label for="lluviaMetalica">Lluvia Metálica:</label>
               <br>
-
+        
               <!-- Niebla de Piso (checkbox) -->
               <input type="checkbox" id="nieblaDePiso" />
               <label for="nieblaDePiso">Niebla de Piso:</label>
               <br>
-
+        
               <!-- Scrapbook (checkbox) -->
               <input type="checkbox" id="scrapbook" />
               <label for="scrapbook">Scrapbook:</label>
               <br>
-
-                <!-- Letras Gigantes (numérico) -->
+        
+              <!-- Letras Gigantes (numérico) -->
               <label for="letrasGigantes">Letras Gigantes:</label>
               <input type="number" id="letrasGigantes" min="0" value="0" />
               <br>
@@ -1043,90 +1043,91 @@
             </div>
           
             <button onclick="agregarFechaManual()">Agregar Fecha</button>
-          </div>
-          
-          <!-- MODAL para EDITAR Fechas Ocupadas -->
-          <div id="edit-fecha-modal" class="modal hidden">
+        </div>
+        
+        <!-- MODAL para EDITAR Fechas Ocupadas -->
+        <div id="edit-fecha-modal" class="modal hidden">
             <div class="modal-content">
-              <button class="close-btn" onclick="cerrarModalFecha()">✖</button>
-              <h2>✏️ Editar Fecha Ocupada</h2>
-          
-              <!-- id de la fila -->
-              <input type="hidden" id="edit-fecha-id">
-          
-              <label>Fecha (deshabilitada):</label>
-              <input type="date" id="edit-fecha-input" disabled />
-          
-              <label>Título:</label>
-              <input type="text" id="edit-fecha-titulo" />
-          
-              <label>Notas:</label>
-              <textarea id="edit-fecha-notas"></textarea>
-          
-              <label>Ticket:</label>
-              <input type="number" id="edit-fecha-ticket" step="0.01" />
-          
-              <h3>Servicios</h3>
-              <div style="margin-left:20px;">
-      <!-- Cabina de Fotos (checkbox) -->
-      <input type="checkbox" id="edit-cabinaFotos" />
-      <label for="edit-cabinaFotos">Cabina de Fotos</label>
-      <br><br>
-
-      <!-- Cabina 360 (checkbox) -->
-      <input type="checkbox" id="edit-cabina360" />
-      <label for="edit-cabina360">Cabina 360</label>
-      <br><br>
-
-      <!-- Carrito de Shots sin Alcohol (checkbox) -->
-      <input type="checkbox" id="edit-caritoDeShotsSinAlcohol" />
-      <label for="edit-caritoDeShotsSinAlcohol">Carito De Shots Sin Alcohol</label>
-      <br><br>
-
-      <!-- Carrito de Shots con Alcohol (checkbox) -->
-      <input type="checkbox" id="edit-caritoDeShotsConAlcohol" />
-      <label for="edit-caritoDeShotsConAlcohol">Carito De Shots Con Alcohol</label>
-      <br><br>
-
-      <!-- Lluvia de Mariposas (checkbox) -->
-      <input type="checkbox" id="edit-lluviaDeMariposas" />
-      <label for="edit-lluviaDeMariposas">Lluvia de Mariposas</label>
-      <br><br>
-
-      <!-- Lluvia de Metálica (checkbox) -->
-      <input type="checkbox" id="edit-lluviaDeMetalica" />
-      <label for="edit-lluviaDeMetalica">Lluvia de Metálica</label>
-      <br><br>
-
-      <!-- Niebla de Piso (checkbox) -->
-      <input type="checkbox" id="edit-nieblaDePiso" />
-      <label for="edit-nieblaDePiso">Niebla de Piso</label>
-      <br><br>
-
-      <!-- Scrapbook (checkbox) -->
-      <input type="checkbox" id="edit-scrapbook" />
-      <label for="edit-scrapbook">Scrapbook</label>
-      <br><br>
-
-      <!-- Letras Gigantes (numérico) -->
-      <label for="edit-letrasGigantes">Letras Gigantes:</label>
-      <input type="number" id="edit-letrasGigantes" min="0" value="0" />
-      <br><br>
-
-      <!-- Chisperos (numérico) -->
-      <label for="edit-chisperos">Chisperos:</label>
-      <input type="number" id="edit-chisperos" min="0" value="0" />
-      <br><br>
-    </div>
-          
-              <div class="modal-buttons" style="margin-top:10px;">
-                <!-- Botón de eliminar -->
-                <button class="delete-btn" onclick="eliminarFechaDesdeModal()">
-                  🗑️
-                </button>
-              </div>
+                <span class="modal-close" onclick="checkChangesBeforeClose()">✖</span>
+                <h2>✏️ Editar Fecha Ocupada</h2>
+            
+                <!-- id de la fila -->
+                <input type="hidden" id="edit-fecha-id">
+            
+                <label>Fecha (deshabilitada):</label>
+                <input type="date" id="edit-fecha-input" disabled />
+            
+                <label>Título:</label>
+                <input type="text" id="edit-fecha-titulo" />
+            
+                <label>Notas:</label>
+                <textarea id="edit-fecha-notas"></textarea>
+            
+                <label>Ticket:</label>
+                <input type="number" id="edit-fecha-ticket" step="0.01" />
+            
+                <h3>Servicios</h3>
+                <div style="margin-left:20px;">
+                    <!-- Cabina de Fotos (checkbox) -->
+                    <input type="checkbox" id="edit-cabinaFotos" />
+                    <label for="edit-cabinaFotos">Cabina de Fotos</label>
+                    <br><br>
+        
+                    <!-- Cabina 360 (checkbox) -->
+                    <input type="checkbox" id="edit-cabina360" />
+                    <label for="edit-cabina360">Cabina 360</label>
+                    <br><br>
+        
+                    <!-- Carrito de Shots sin Alcohol (checkbox) -->
+                    <input type="checkbox" id="edit-caritoDeShotsSinAlcohol" />
+                    <label for="edit-caritoDeShotsSinAlcohol">Carito De Shots Sin Alcohol</label>
+                    <br><br>
+        
+                    <!-- Carrito de Shots con Alcohol (checkbox) -->
+                    <input type="checkbox" id="edit-caritoDeShotsConAlcohol" />
+                    <label for="edit-caritoDeShotsConAlcohol">Carito De Shots Con Alcohol</label>
+                    <br><br>
+        
+                    <!-- Lluvia de Mariposas (checkbox) -->
+                    <input type="checkbox" id="edit-lluviaDeMariposas" />
+                    <label for="edit-lluviaDeMariposas">Lluvia de Mariposas</label>
+                    <br><br>
+        
+                    <!-- Lluvia Metálica (checkbox) - CORREGIDO -->
+                    <input type="checkbox" id="edit-lluviaMetalica" />
+                    <label for="edit-lluviaMetalica">Lluvia Metálica</label>
+                    <br><br>
+        
+                    <!-- Niebla de Piso (checkbox) -->
+                    <input type="checkbox" id="edit-nieblaDePiso" />
+                    <label for="edit-nieblaDePiso">Niebla de Piso</label>
+                    <br><br>
+        
+                    <!-- Scrapbook (checkbox) -->
+                    <input type="checkbox" id="edit-scrapbook" />
+                    <label for="edit-scrapbook">Scrapbook</label>
+                    <br><br>
+        
+                    <!-- Letras Gigantes (numérico) -->
+                    <label for="edit-letrasGigantes">Letras Gigantes:</label>
+                    <input type="number" id="edit-letrasGigantes" min="0" value="0" />
+                    <br><br>
+        
+                    <!-- Chisperos (numérico) -->
+                    <label for="edit-chisperos">Chisperos:</label>
+                    <input type="number" id="edit-chisperos" min="0" value="0" />
+                    <br><br>
+                </div>
+            
+                <div class="modal-buttons" style="margin-top:10px;">
+                    <button onclick="guardarEdicionFecha()">Guardar</button>
+                    <!-- Botón de eliminar -->
+                    <button class="delete-btn" onclick="eliminarFechaDesdeModal()">
+                        🗑️ Eliminar
+                    </button>
+                </div>
             </div>
-          </div>
+        </div>
 
          <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
@@ -1920,7 +1921,7 @@ document.body.addEventListener("click", function () {
     .catch(error => console.error("❌ Error al actualizar lead:", error));
 }
 
-
+ 
 
     function initCalendario() {
       // Cargar la lista inicial de leads en el <select>
@@ -2032,7 +2033,7 @@ function agregarFechaManual() {
     const caritoDeShotsSinAlcohol = document.getElementById("caritoDeShotsSinAlcohol").checked ? 1 : 0;
     const caritoDeShotsConAlcohol = document.getElementById("caritoDeShotsConAlcohol").checked ? 1 : 0;
     const lluviaDeMariposas = document.getElementById("lluviaDeMariposas").checked ? 1 : 0;
-    const lluviaDeMetalica = document.getElementById("lluviaDeMetalica").checked ? 1 : 0;
+    const lluviaMetalica = document.getElementById("lluviaMetalica").checked ? 1 : 0; // Cambiado aquí
     const nieblaDePiso = document.getElementById("nieblaDePiso").checked ? 1 : 0;
     const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
   
@@ -2045,7 +2046,7 @@ function agregarFechaManual() {
       caritoDeShotsSinAlcohol,
       caritoDeShotsConAlcohol,
       lluviaDeMariposas,
-      lluviaDeMetalica,
+      lluviaMetalica, // Cambiado aquí
       nieblaDePiso,
       scrapbook
     };
@@ -2087,7 +2088,7 @@ function agregarFechaManual() {
           document.getElementById("caritoDeShotsSinAlcohol").checked = false;
           document.getElementById("caritoDeShotsConAlcohol").checked = false;
           document.getElementById("lluviaDeMariposas").checked = false;
-          document.getElementById("lluviaDeMetalica").checked = false;
+          document.getElementById("lluviaMetalica").checked = false; // Cambiado aquí
           document.getElementById("nieblaDePiso").checked = false;
           document.getElementById("scrapbook").checked = false;
   
@@ -2101,176 +2102,181 @@ function agregarFechaManual() {
         console.error("Error al agregar fecha manual:", err);
         alert("Error al agregar fecha.");
       });
-  }
-  
+}
 
   
 // ============== 3) ABRIR MODAL DE EDICIÓN ==============
 function abrirModalFecha(calId) {
-    // Llamar a un endpoint, por ejemplo /calendario/detalle/<id> 
     fetch(`/calendario/detalle/${calId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          alert("Error: " + data.error);
-          return;
-        }
-        // Llenar inputs
-        document.getElementById("edit-fecha-id").value = data.id;
-        document.getElementById("edit-fecha-input").value = data.fecha; 
-        document.getElementById("edit-fecha-titulo").value = data.titulo || "";
-        document.getElementById("edit-fecha-notas").value = data.notas || "";
-        document.getElementById("edit-fecha-ticket").value = data.ticket || 0;
-  
-        // Servicios
-        const serv = data.servicios || {};
-      // Para cada checkbox, convierte 1 -> checked, 0 -> unchecked
-      document.getElementById("edit-cabinaFotos").checked = (serv.cabinaFotos === 1);
-      document.getElementById("edit-cabina360").checked = (serv.cabina360 === 1);
-      document.getElementById("edit-caritoDeShotsSinAlcohol").checked = (serv.caritoDeShotsSinAlcohol === 1);
-      document.getElementById("edit-caritoDeShotsConAlcohol").checked = (serv.caritoDeShotsConAlcohol === 1);
-      document.getElementById("edit-lluviaDeMariposas").checked = (serv.lluviaDeMariposas === 1);
-      document.getElementById("edit-lluviaDeMetalica").checked = (serv.lluviaDeMetálica === 1);
-      document.getElementById("edit-nieblaDePiso").checked = (serv.nieblaDePiso === 1);
-      document.getElementById("edit-scrapbook").checked = (serv.scrapbook === 1);
-      document.getElementById("edit-letrasGigantes").value = serv.letrasGigantes || 0;
-      document.getElementById("edit-chisperos").value = serv.chisperos || 0;
-  
-        // Guardar valores originales en dataset, para detectar cambios si quieres
-        let modal = document.getElementById("edit-fecha-modal");
-        modal.dataset.originalTitulo = data.titulo || "";
-        modal.dataset.originalNotas = data.notas || "";
-        modal.dataset.originalTicket = String(data.ticket || "0");
-        modal.dataset.originalServicios = JSON.stringify(serv);
-  
-        // Mostrar el modal
-        modal.style.display = "flex";
-      })
-      .catch(err => console.error("Error abrirModalFecha:", err));
-  }
-  
-  // ============== 4) CERRAR MODAL: DETECTAR CAMBIOS (opcional) ==============
-  function cerrarModalFecha() {
-    let modal = document.getElementById("edit-fecha-modal");
-  
-    // 1) Recuperar originales
-    let originalTitulo = modal.dataset.originalTitulo || "";
-    let originalNotas = modal.dataset.originalNotas || "";
-    let originalTicket = modal.dataset.originalTicket || "0";
-    let originalServiciosStr = modal.dataset.originalServicios || "{}";
-  
-    // 2) Tomar valores actuales (inputs)
-    let tituloActual = document.getElementById("edit-fecha-titulo").value.trim();
-    let notasActual = document.getElementById("edit-fecha-notas").value.trim();
-    let ticketStr = document.getElementById("edit-fecha-ticket").value.trim() || "0";
-  
-    // Servicios numéricos
-    let letrasGigantes = parseInt(document.getElementById("edit-fecha-letrasGigantes").value) || 0;
-    let chisperos = parseInt(document.getElementById("edit-fecha-chisperos").value) || 0;
-  
-    // Servicios checkboxes
-    let cabinaFotos = document.getElementById("edit-fecha-cabinaFotos").checked ? 1 : 0;
-    let cabina360 = document.getElementById("edit-fecha-cabina360").checked ? 1 : 0;
-    let caritoDeShotsSinAlcohol = document.getElementById("edit-fecha-caritoDeShotsSinAlcohol").checked ? 1 : 0;
-    let caritoDeShotsConAlcohol = document.getElementById("edit-fecha-caritoDeShotsConAlcohol").checked ? 1 : 0;
-    let lluviaDeMariposas = document.getElementById("edit-fecha-lluviaDeMariposas").checked ? 1 : 0;
-    let lluviaDeMetalica = document.getElementById("edit-fecha-lluviaDeMetalica").checked ? 1 : 0;
-    let nieblaDePiso = document.getElementById("edit-fecha-nieblaDePiso").checked ? 1 : 0;
-    let scrapbook = document.getElementById("edit-fecha-scrapbook").checked ? 1 : 0;
-  
-    // Construir el objeto servicios
-    let serviciosActual = {
-      letrasGigantes,
-      chisperos,
-      cabinaFotos,
-      cabina360,
-      caritoDeShotsSinAlcohol,
-      caritoDeShotsConAlcohol,
-      lluviaDeMariposas,
-      lluviaDeMetalica,
-      nieblaDePiso,
-      scrapbook
-    };
-  
-    // 3) Comparar con lo original
-    let serviciosOriginal = JSON.parse(originalServiciosStr);
-    let huboCambio = (
-      tituloActual !== originalTitulo ||
-      notasActual !== originalNotas ||
-      ticketStr !== originalTicket ||
-      JSON.stringify(serviciosActual) !== JSON.stringify(serviciosOriginal)
-    );
-  
-    // 4) Si hay cambios, llama a guardarEdicionFecha
-    if (huboCambio) {
-      guardarEdicionFecha(); 
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
+
+            // Llenar inputs
+            document.getElementById("edit-fecha-id").value = data.id;
+            document.getElementById("edit-fecha-input").value = data.fecha; 
+            document.getElementById("edit-fecha-titulo").value = data.titulo || "";
+            document.getElementById("edit-fecha-notas").value = data.notas || "";
+            document.getElementById("edit-fecha-ticket").value = data.ticket || 0;
+
+            // Servicios
+            const serv = data.servicios || {};
+            document.getElementById("edit-cabinaFotos").checked = (serv.cabinaFotos === 1);
+            document.getElementById("edit-cabina360").checked = (serv.cabina360 === 1);
+            document.getElementById("edit-caritoDeShotsSinAlcohol").checked = (serv.caritoDeShotsSinAlcohol === 1);
+            document.getElementById("edit-caritoDeShotsConAlcohol").checked = (serv.caritoDeShotsConAlcohol === 1);
+            document.getElementById("edit-lluviaDeMariposas").checked = (serv.lluviaDeMariposas === 1);
+            document.getElementById("edit-lluviaMetalica").checked = (serv.lluviaMetalica === 1); // Corregido aquí
+            document.getElementById("edit-nieblaDePiso").checked = (serv.nieblaDePiso === 1);
+            document.getElementById("edit-scrapbook").checked = (serv.scrapbook === 1);
+            document.getElementById("edit-letrasGigantes").value = serv.letrasGigantes || 0;
+            document.getElementById("edit-chisperos").value = serv.chisperos || 0;
+
+            // Guardar valores originales para comparar después
+            let modal = document.getElementById("edit-fecha-modal");
+            modal.dataset.originalData = JSON.stringify({
+                titulo: data.titulo || "",
+                notas: data.notas || "",
+                ticket: String(data.ticket || "0"),
+                servicios: serv
+            });
+
+            // Configurar eventos para cerrar el modal
+            setupModalCloseEvents();
+
+            // Mostrar el modal
+            modal.style.display = "flex";
+        })
+        .catch(err => console.error("Error abrirModalFecha:", err));
+}
+
+function setupModalCloseEvents() {
+    const modal = document.getElementById("edit-fecha-modal");
+    
+    // Cerrar al hacer clic en la X
+    const closeBtn = modal.querySelector(".modal-close");
+    if (closeBtn) {
+        closeBtn.onclick = () => checkChangesBeforeClose();
     }
-  
-    // 5) Ocultar modal
-    modal.style.display = "none";
-  }
-  
+    
+    // Cerrar al hacer clic fuera del modal
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            checkChangesBeforeClose();
+        }
+    };
+    
+    // Cerrar con ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            checkChangesBeforeClose();
+        }
+    });
+}
+
+
+  // ============== 4) CERRAR MODAL: DETECTAR CAMBIOS ANTES DE CERRAR ==============
+  function checkChangesBeforeClose() {
+    const modal = document.getElementById("edit-fecha-modal");
+    const originalData = JSON.parse(modal.dataset.originalData || "{}");
+    
+    // Obtener datos actuales del formulario
+    const currentData = {
+        titulo: document.getElementById("edit-fecha-titulo").value.trim(),
+        notas: document.getElementById("edit-fecha-notas").value.trim(),
+        ticket: document.getElementById("edit-fecha-ticket").value.trim() || "0",
+        servicios: {
+            letrasGigantes: parseInt(document.getElementById("edit-letrasGigantes").value) || 0,
+            chisperos: parseInt(document.getElementById("edit-chisperos").value) || 0,
+            cabinaFotos: document.getElementById("edit-cabinaFotos").checked ? 1 : 0,
+            cabina360: document.getElementById("edit-cabina360").checked ? 1 : 0,
+            caritoDeShotsSinAlcohol: document.getElementById("edit-caritoDeShotsSinAlcohol").checked ? 1 : 0,
+            caritoDeShotsConAlcohol: document.getElementById("edit-caritoDeShotsConAlcohol").checked ? 1 : 0,
+            lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
+            lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, // Corregido aquí
+            nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
+            scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0
+        }
+    };
+    
+    // Comparar datos originales con los actuales
+    const hasChanges = (
+        currentData.titulo !== originalData.titulo ||
+        currentData.notas !== originalData.notas ||
+        currentData.ticket !== originalData.ticket ||
+        JSON.stringify(currentData.servicios) !== JSON.stringify(originalData.servicios)
+    );
+    
+    if (hasChanges) {
+        if (confirm("¿Deseas guardar los cambios antes de cerrar?")) {
+            guardarEdicionFecha().finally(() => {
+                modal.style.display = "none";
+                // Limpiar eventos
+                document.removeEventListener('keydown', checkChangesBeforeClose);
+            });
+        } else {
+            modal.style.display = "none";
+        }
+    } else {
+        modal.style.display = "none";
+    }
+}
   
   // ============== 5) GUARDAR EDICIÓN (POST /calendario/editar/<id>) ==============
     function guardarEdicionFecha() {
-        let calId = document.getElementById("edit-fecha-id").value;
-        let titulo = document.getElementById("edit-fecha-titulo").value.trim();
-        let notas = document.getElementById("edit-fecha-notas").value.trim();
-        let ticketStr = document.getElementById("edit-fecha-ticket").value.trim();
-        let ticketNum = parseFloat(ticketStr) || 0;
-      
-        // Checkboxes
-        let cabinaFotos = document.getElementById("edit-fecha-cabinaFotos").checked ? 1 : 0;
-        let cabina360 = document.getElementById("edit-fecha-cabina360").checked ? 1 : 0;
-        let caritoDeShotsSinAlcohol = document.getElementById("edit-fecha-caritoDeShotsSinAlcohol").checked ? 1 : 0;
-        let caritoDeShotsConAlcohol = document.getElementById("edit-fecha-caritoDeShotsConAlcohol").checked ? 1 : 0;
-        let lluviaDeMariposas = document.getElementById("edit-fecha-lluviaDeMariposas").checked ? 1 : 0;
-        let lluviaDeMetalica = document.getElementById("edit-fecha-lluviaDeMetalica").checked ? 1 : 0;
-        let nieblaDePiso = document.getElementById("edit-fecha-nieblaDePiso").checked ? 1 : 0;
-        let scrapbook = document.getElementById("edit-fecha-scrapbook").checked ? 1 : 0;
-      
-        // Numéricos
-        let letrasGigantes = parseInt(document.getElementById("edit-fecha-letrasGigantes").value) || 0;
-        let chisperos = parseInt(document.getElementById("edit-fecha-chisperos").value) || 0;
-      
-        // Armar objeto
-        let serviciosActual = {
-          letrasGigantes,
-          chisperos,
-          cabinaFotos,
-          cabina360,
-          caritoDeShotsSinAlcohol,
-          caritoDeShotsConAlcohol,
-          lluviaDeMariposas,
-          lluviaDeMetalica,
-          nieblaDePiso,
-          scrapbook
-        };
-      
-        let payload = {
-          titulo,
-          notas,
-          ticket: ticketNum,
-          servicios: serviciosActual
-        };
-      
-        fetch(`/calendario/editar/${calId}`, {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify(payload)
-        })
-          .then(r => r.json())
-          .then(data => {
-            if (data.error) {
-              alert("❌ Error: " + data.error);
-            } else if (data.ok) {
-              alert("✅ Fecha actualizada correctamente");
-              cargarCalendario(); // refrescar lista
-            }
-          })
-          .catch(err => console.error("Error al actualizar fecha:", err));
-      }
-      
+        return new Promise((resolve, reject) => {
+            let calId = document.getElementById("edit-fecha-id").value;
+            let titulo = document.getElementById("edit-fecha-titulo").value.trim();
+            let notas = document.getElementById("edit-fecha-notas").value.trim();
+            let ticketStr = document.getElementById("edit-fecha-ticket").value.trim();
+            let ticketNum = parseFloat(ticketStr) || 0;
+            
+            // Obtener valores de servicios
+            let serviciosActual = {
+                letrasGigantes: parseInt(document.getElementById("edit-letrasGigantes").value) || 0,
+                chisperos: parseInt(document.getElementById("edit-chisperos").value) || 0,
+                cabinaFotos: document.getElementById("edit-cabinaFotos").checked ? 1 : 0,
+                cabina360: document.getElementById("edit-cabina360").checked ? 1 : 0,
+                caritoDeShotsSinAlcohol: document.getElementById("edit-caritoDeShotsSinAlcohol").checked ? 1 : 0,
+                caritoDeShotsConAlcohol: document.getElementById("edit-caritoDeShotsConAlcohol").checked ? 1 : 0,
+                lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
+                lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, // Corregido aquí
+                nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
+                scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0
+            };
+            
+            let payload = {
+                titulo,
+                notas,
+                ticket: ticketNum,
+                servicios: serviciosActual
+            };
+            
+            fetch(`/calendario/editar/${calId}`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        alert("❌ Error: " + data.error);
+                        reject(data.error);
+                    } else if (data.ok) {
+                        alert("✅ Fecha actualizada correctamente");
+                        cargarCalendario();
+                        resolve();
+                    }
+                })
+                .catch(err => {
+                    console.error("Error al actualizar fecha:", err);
+                    reject(err);
+                });
+        });
+    }
   
   // ============== 6) ELIMINAR DIRECTO DESDE LISTA ==============
   function eliminarCalendario(calId) {
@@ -2294,23 +2300,22 @@ function abrirModalFecha(calId) {
   function eliminarFechaDesdeModal() {
     let calId = document.getElementById("edit-fecha-id").value;
     if (!confirm("¿Seguro que quieres eliminar esta fecha?")) return;
-  
-    fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          alert("Error: " + data.error);
-          return;
-        }
-        if (data.ok) {
-          alert("Fecha eliminada correctamente");
-          document.getElementById("edit-fecha-modal").style.display = "none";
-          cargarCalendario();
-        }
-      })
-      .catch(err => console.error(err));
-  }
 
+    fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
+            if (data.ok) {
+                alert("Fecha eliminada correctamente");
+                document.getElementById("edit-fecha-modal").style.display = "none";
+                cargarCalendario();
+            }
+        })
+        .catch(err => console.error(err));
+}
 
 
 
@@ -2341,38 +2346,40 @@ function abrirModalFecha(calId) {
         const mes = document.getElementById("reporte-mes").value;
         const anio = document.getElementById("reporte-anio").value;
         if (!mes || !anio) {
-          alert("Ingresa mes y año");
-          return;
+            alert("Ingresa mes y año");
+            return;
         }
       
         fetch(`/reportes/servicios_mes?mes=${mes}&anio=${anio}`)
-          .then(r => r.json())
-          .then(data => {
-            if (data.error) {
-              alert("Error: " + data.error);
-              return;
-            }
-            const div = document.getElementById("resultado-servicios");
-            div.innerHTML = `
-              <p>Servicios en ${data.mes}/${data.anio}:</p>
-              <ul>
-                <li>Letras Gigantes: ${data.letrasGigantes}</li>
-                <li>Chisperos: ${data.chisperos}</li>
-                <li>Cabina Fotos: ${data.cabinaFotos}</li>
-                <li>Cabina 360: ${data.cabina360}</li>
-                <li>Shots Sin Alcohol: ${data.caritoDeShotsSinAlcohol}</li>
-                <li>Shots Con Alcohol: ${data.caritoDeShotsConAlcohol}</li>
-                <li>Lluvia de Mariposas: ${data.lluviaDeMariposas}</li>
-                <li>Lluvia de Metálica: ${data.lluviaDeMetalica}</li>
-                <li>Niebla de Piso: ${data.nieblaDePiso}</li>
-                <li>Scrapbook: ${data.scrapbook}</li>
-              </ul>
-              <p>Eventos contados: ${data.eventosContados}</p>
-            `;
-          })
-          .catch(err => console.error("Error reporte_servicios:", err));
-      }
-      
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Error: " + data.error);
+                    return;
+                }
+                const div = document.getElementById("resultado-servicios");
+                div.innerHTML = `
+                    <p>Servicios en ${data.mes}/${data.anio}:</p>
+                    <ul>
+                        <li>Letras Gigantes: ${data.letrasGigantes}</li>
+                        <li>Chisperos: ${data.chisperos}</li>
+                        <li>Cabina Fotos: ${data.cabinaFotos}</li>
+                        <li>Cabina 360: ${data.cabina360}</li>
+                        <li>Shots Sin Alcohol: ${data.caritoDeShotsSinAlcohol}</li>
+                        <li>Shots Con Alcohol: ${data.caritoDeShotsConAlcohol}</li>
+                        <li>Lluvia de Mariposas: ${data.lluviaDeMariposas}</li>
+                        <li>Lluvia Metálica: ${data.lluviaMetalica}</li> <!-- Corregido aquí -->
+                        <li>Niebla de Piso: ${data.nieblaDePiso}</li>
+                        <li>Scrapbook: ${data.scrapbook}</li>
+                    </ul>
+                    <p>Eventos contados: ${data.eventosContados}</p>
+                `;
+            })
+            .catch(err => {
+                console.error("Error reporte_servicios:", err);
+                alert("Error al obtener el reporte de servicios");
+            });
+    }
       
   
 
