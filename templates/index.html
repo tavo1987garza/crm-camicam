@@ -947,7 +947,40 @@
 
         <div id="calendario" class="seccion hidden">
            <h1>📅 Calendario</h1>
-            <p>Sección para Calendario</p>
+           
+  <!-- Botón para refrescar la lista de fechas ocupadas -->
+  <button onclick="cargarCalendario()">Refrescar Fechas Ocupadas</button>
+
+  <h2>Fechas Ocupadas</h2>
+  <ul id="lista-fechas-ocupadas"></ul>
+
+  <hr>
+
+  <h2>Agregar Fecha Manualmente</h2>
+  <label for="fecha-input">Fecha (YYYY-MM-DD):</label>
+  <input type="date" id="fecha-input" />
+
+  <br><br>
+
+  <label for="lead-select">Asignar a Lead (opcional):</label>
+  <select id="lead-select">
+    <option value="">-- Sin Lead --</option>
+    <!-- Aquí se llenarán los leads desde cargarLeadsEnSelect() -->
+  </select>
+
+  <br><br>
+
+  <label for="titulo-input">Título del evento:</label>
+  <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
+
+  <br><br>
+
+  <label for="notas-textarea">Notas:</label>
+  <textarea id="notas-textarea" rows="3" placeholder="Observaciones, etc."></textarea>
+
+  <br><br>
+
+  <button onclick="agregarFechaManual()">Agregar Fecha</button>
          </div>
 
          <div id="reportes" class="seccion hidden">
@@ -1728,6 +1761,148 @@ document.body.addEventListener("click", function () {
     })
     .catch(error => console.error("❌ Error al actualizar lead:", error));
 }
+
+
+
+    function initCalendario() {
+      // Cargar la lista inicial de leads en el <select>
+      cargarLeadsEnSelect();
+      // Cargar la lista de fechas ocupadas
+      cargarCalendario();
+    }
+    
+    /**
+     * Llamado cuando abrimos la sección Calendario
+     * con: mostrarSeccion('calendario', initCalendario).
+     */
+    
+    /*=========================================
+       1) MOSTRAR FECHAS OCUPADAS EN UNA LISTA
+    =========================================*/
+    function cargarCalendario() {
+      fetch("/calendario/fechas_ocupadas")
+        .then(resp => resp.json())
+        .then(data => {
+          if (data.error) {
+            console.error("Error al cargar calendario:", data.error);
+            return;
+          }
+    
+          const ul = document.getElementById("lista-fechas-ocupadas");
+          ul.innerHTML = ""; // Limpiar la lista
+    
+          if (!data.fechas || data.fechas.length === 0) {
+            let li = document.createElement("li");
+            li.textContent = "No hay fechas ocupadas.";
+            ul.appendChild(li);
+            return;
+          }
+    
+          // data.fechas es un array de objetos: 
+          // [ { id, fecha, lead_id, titulo, notas, lead_nombre }, ... ]
+          data.fechas.forEach(item => {
+            const li = document.createElement("li");
+    
+            // Por ejemplo: "2025-08-09 (Boda de Daniel) - Lead: Carlos"
+            let texto = `${item.fecha}`;
+            if (item.titulo) {
+              texto += ` - ${item.titulo}`;
+            }
+            if (item.lead_nombre) {
+              texto += ` (Lead: ${item.lead_nombre})`;
+            }
+    
+            li.textContent = texto;
+            ul.appendChild(li);
+          });
+        })
+        .catch(err => {
+          console.error("Error fetch calendario/fechas_ocupadas:", err);
+        });
+    }
+    
+    /*=========================================
+       2) CARGAR LEADS PARA EL <select> LEAD
+    =========================================*/
+    function cargarLeadsEnSelect() {
+      fetch("/leads")
+        .then(resp => resp.json())
+        .then(leads => {
+          // leads es un array de objetos, 
+          // por ejemplo: [ {id: 1, nombre: "Carlos", telefono: "...", ...}, ... ]
+          const select = document.getElementById("lead-select");
+          select.innerHTML = '<option value="">-- Sin Lead --</option>';
+    
+          leads.forEach(ld => {
+            const option = document.createElement("option");
+            option.value = ld.id;
+            option.textContent = ld.nombre;
+            select.appendChild(option);
+          });
+        })
+        .catch(err => {
+          console.error("Error fetch /leads:", err);
+        });
+    }
+    
+    /*=========================================
+       3) AGREGAR FECHA MANUALMENTE
+    =========================================*/
+    function agregarFechaManual() {
+      const fecha = document.getElementById("fecha-input").value; // "2025-08-09"
+      const lead_id = document.getElementById("lead-select").value; // string o ""
+      const titulo = document.getElementById("titulo-input").value.trim();
+      const notas = document.getElementById("notas-textarea").value.trim();
+    
+      // Validación mínima
+      if (!fecha) {
+        alert("Por favor, selecciona la fecha en formato YYYY-MM-DD");
+        return;
+      }
+    
+      // Convertir el lead_id a número (o null si vacío)
+      const leadIdParsed = lead_id ? parseInt(lead_id) : null;
+    
+      // Construir el payload
+      const payload = {
+        fecha: fecha,      // "2025-08-09"
+        lead_id: leadIdParsed, 
+        titulo: titulo,
+        notas: notas
+      };
+    
+      fetch("/calendario/agregar_manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+        .then(resp => resp.json())
+        .then(data => {
+          if (data.error) {
+            alert("Error: " + data.error);
+            return;
+          }
+          if (data.ok) {
+            alert(data.mensaje);
+            // limpiar campos
+            document.getElementById("fecha-input").value = "";
+            document.getElementById("lead-select").value = "";
+            document.getElementById("titulo-input").value = "";
+            document.getElementById("notas-textarea").value = "";
+            // refrescar el listado
+            cargarCalendario();
+          } else {
+            // data.ok === false
+            alert(data.mensaje);
+          }
+        })
+        .catch(err => {
+          console.error("Error al agregar fecha manual:", err);
+          alert("Error al agregar fecha. Revisa la consola.");
+        });
+    }
+    
+  
 
         
         

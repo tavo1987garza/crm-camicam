@@ -146,10 +146,7 @@ def enviar_mensaje():
     if not telefono:
         return jsonify({"error": "Número de teléfono es obligatorio"}), 400
 
-    # 🔴 No guardamos nada en DB aquí.
-    # 🔴 No emitimos nada a SocketIO aquí.
-
-    # En su lugar, solo enviamos la orden al bot:
+    # Enviamos la orden al bot:
     if tipo == "imagen":
         if not url_imagen:
             return jsonify({"error": "Falta la URL de la imagen"}), 400
@@ -432,6 +429,156 @@ def obtener_mensajes_chat():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)     
+    
+# 📌 Endpoint para agregar fechas al Calendario    
+@app.route("/calendario/agregar_manual", methods=["POST"])
+def agregar_fecha_manual():
+    data = request.json
+    fecha_str = data.get("fecha")      # formato "YYYY-MM-DD"
+    lead_id = data.get("lead_id")      # puede ser None
+    titulo = data.get("titulo", "")    # opcional
+    notas = data.get("notas", "")      # opcional
+
+    if not fecha_str:
+        return jsonify({"error": "Falta la fecha en formato YYYY-MM-DD"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+
+        # Inserta la fecha
+        # Si quieres forzar a que lead_id no sea obligatorio, puedes usar COALESCE
+        # o simplemente mandar None en caso de no tenerlo
+        cursor.execute("""
+            INSERT INTO calendario (fecha, lead_id, titulo, notas)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (fecha) DO NOTHING
+        """, (fecha_str, lead_id, titulo, notas))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            # Significa que la fecha ya existía en la tabla (si tienes UNIQUE en 'fecha')
+            return jsonify({
+                "ok": False,
+                "mensaje": f"La fecha {fecha_str} ya está ocupada o existe en el calendario."
+            }), 200
+
+        return jsonify({
+            "ok": True,
+            "mensaje": f"Fecha {fecha_str} agregada correctamente al calendario."
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error en /calendario/agregar_manual: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        liberar_db(conn)
+        
+        
+@app.route("/calendario/fechas_ocupadas", methods=["GET"])
+def fechas_ocupadas():
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No hay DB"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT c.id, c.fecha, c.lead_id, 
+                   COALESCE(c.titulo, '') as titulo,
+                   COALESCE(c.notas, '') as notas,
+                   l.nombre as lead_nombre
+            FROM calendario c
+            LEFT JOIN leads l ON c.lead_id = l.id
+            ORDER BY c.fecha ASC
+        """)
+        rows = cursor.fetchall()
+        
+        # rows es una lista de tuplas, e.g. (1, datetime.date(2025,8,9), 3, "Boda", "notas...", "Daniel")
+        # Conviértelo a objetos
+        data = []
+        for r in rows:
+            fecha_str = r[1].strftime("%Y-%m-%d")  # conv. date -> "2025-08-09"
+            data.append({
+                "id": r[0],
+                "fecha": fecha_str,
+                "lead_id": r[2],
+                "titulo": r[3],
+                "notas": r[4],
+                "lead_nombre": r[5]
+            })
+
+        return jsonify({"fechas": data}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+@app.route("/calendario/check", methods=["GET"])
+def check_disponibilidad():
+    fecha_str = request.args.get("fecha")  # "2025-08-09" (YYYY-MM-DD)
+    if not fecha_str:
+        return jsonify({"error": "Falta parámetro fecha"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM calendario WHERE fecha = %s", (fecha_str,))
+        existe = cursor.fetchone()[0]
+        disponible = (existe == 0)  # True si no está en la tabla
+        return jsonify({"available": disponible}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/calendario/reservar", methods=["POST"])
+def reservar_fecha():
+    data = request.json
+    fecha_str = data.get("fecha")     # "YYYY-MM-DD"
+    lead_id = data.get("lead_id")     # int
+
+    if not fecha_str:
+        return jsonify({"error": "No se especificó la fecha"}), 400
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        # Intentar insertar
+        cursor.execute("""
+            INSERT INTO calendario (fecha, lead_id)
+            VALUES (%s, %s)
+            ON CONFLICT (fecha) DO NOTHING
+        """, (fecha_str, lead_id))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({
+                "ok": False,
+                "mensaje": f"La fecha {fecha_str} ya está ocupada"
+            }), 200
+
+        return jsonify({
+            "ok": True,
+            "mensaje": f"Reserva creada para {fecha_str}"
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")
