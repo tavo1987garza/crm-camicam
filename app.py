@@ -661,6 +661,55 @@ def eliminar_calendario(cal_id):
     finally:
         liberar_db(conn)
 
+@app.route("/calendario/editar/<int:cal_id>", methods=["POST"])
+def editar_calendario(cal_id):
+    data = request.json
+    titulo = data.get("titulo", "")
+    notas = data.get("notas", "")
+    ticket = data.get("ticket", 0)
+    servicios_input = data.get("servicios", {})
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        # Convertir ticket
+        ticket_value = float(ticket) if ticket else 0.0
+
+        import json
+        # Convertir servicios a un JSON string
+        if not isinstance(servicios_input, dict):
+            servicios_input = {}
+
+        cursor.execute("""
+            UPDATE calendario
+            SET titulo = %s,
+                notas = %s,
+                ticket = %s,
+                servicios = %s::jsonb
+            WHERE id = %s
+        """, (
+            titulo,
+            notas,
+            ticket_value,
+            json.dumps(servicios_input),
+            cal_id
+        ))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            # Significa que no se actualizó nada: puede que no exista ese ID
+            return jsonify({"error": "No se encontró esa fecha o no se modificó nada"}), 404
+
+        return jsonify({"ok": True, "mensaje": "Fecha actualizada correctamente"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
 
         
         
