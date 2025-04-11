@@ -2136,23 +2136,40 @@ function abrirModalFecha(calId) {
     let originalTicket = modal.dataset.originalTicket || "0";
     let originalServiciosStr = modal.dataset.originalServicios || "{}";
   
-    // 2) Tomar valores actuales
+    // 2) Tomar valores actuales (inputs)
     let tituloActual = document.getElementById("edit-fecha-titulo").value.trim();
     let notasActual = document.getElementById("edit-fecha-notas").value.trim();
     let ticketStr = document.getElementById("edit-fecha-ticket").value.trim() || "0";
-    
+  
+    // Servicios numéricos
     let letrasGigantes = parseInt(document.getElementById("edit-fecha-letrasGigantes").value) || 0;
     let chisperos = parseInt(document.getElementById("edit-fecha-chisperos").value) || 0;
+  
+    // Servicios checkboxes
     let cabinaFotos = document.getElementById("edit-fecha-cabinaFotos").checked ? 1 : 0;
+    let cabina360 = document.getElementById("edit-fecha-cabina360").checked ? 1 : 0;
+    let caritoDeShotsSinAlcohol = document.getElementById("edit-fecha-caritoDeShotsSinAlcohol").checked ? 1 : 0;
+    let caritoDeShotsConAlcohol = document.getElementById("edit-fecha-caritoDeShotsConAlcohol").checked ? 1 : 0;
+    let lluviaDeMariposas = document.getElementById("edit-fecha-lluviaDeMariposas").checked ? 1 : 0;
+    let lluviaDeMetalica = document.getElementById("edit-fecha-lluviaDeMetálica").checked ? 1 : 0;
+    let nieblaDePiso = document.getElementById("edit-fecha-nieblaDePiso").checked ? 1 : 0;
     let scrapbook = document.getElementById("edit-fecha-scrapbook").checked ? 1 : 0;
+  
+    // Construir el objeto servicios
     let serviciosActual = {
       letrasGigantes,
       chisperos,
       cabinaFotos,
+      cabina360,
+      caritoDeShotsSinAlcohol,
+      caritoDeShotsConAlcohol,
+      lluviaDeMariposas,
+      lluviaDeMetalica,
+      nieblaDePiso,
       scrapbook
     };
   
-    // 3) Comparar
+    // 3) Comparar con lo original
     let serviciosOriginal = JSON.parse(originalServiciosStr);
     let huboCambio = (
       tituloActual !== originalTitulo ||
@@ -2161,13 +2178,15 @@ function abrirModalFecha(calId) {
       JSON.stringify(serviciosActual) !== JSON.stringify(serviciosOriginal)
     );
   
+    // 4) Si hay cambios, llama a guardarEdicionFecha
     if (huboCambio) {
-      guardarEdicionFecha();
+      guardarEdicionFecha(); 
     }
   
-    // Ocultar modal
+    // 5) Ocultar modal
     modal.style.display = "none";
   }
+  
   
   // ============== 5) GUARDAR EDICIÓN (POST /calendario/editar/<id>) ==============
     function guardarEdicionFecha() {
