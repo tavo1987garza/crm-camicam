@@ -804,6 +804,228 @@
 }
 
 
+/* =========================================
+   ESTILOS PARA LA SECCIÓN DE CALENDARIO
+   ========================================= */
+
+#calendario {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Fechas ocupadas */
+#lista-fechas-ocupadas {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+#lista-fechas-ocupadas li {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid #1e88e5;
+    transition: all 0.2s ease;
+}
+
+#lista-fechas-ocupadas li:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+#lista-fechas-ocupadas button {
+    padding: 5px 10px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+#lista-fechas-ocupadas button:first-of-type {
+    background: #1e88e5;
+    color: white;
+}
+
+#lista-fechas-ocupadas button:last-of-type {
+    background: #dc3545;
+    color: white;
+}
+
+#lista-fechas-ocupadas button:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
+}
+
+/* Formulario para agregar fechas */
+#calendario label {
+    display: block;
+    margin: 15px 0 5px;
+    font-weight: 600;
+    color: #495057;
+}
+
+#calendario input[type="date"],
+#calendario input[type="text"],
+#calendario input[type="number"],
+#calendario select,
+#calendario textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+#calendario input[type="date"]:focus,
+#calendario input[type="text"]:focus,
+#calendario input[type="number"]:focus,
+#calendario select:focus,
+#calendario textarea:focus {
+    border-color: #1e88e5;
+    outline: none;
+}
+
+/* Checkboxes de servicios */
+#calendario h3 {
+    margin: 20px 0 10px;
+    color: #495057;
+}
+
+.service-checkbox {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.service-checkbox input[type="checkbox"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+    accent-color: #1e88e5;
+}
+
+.service-checkbox label {
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* Botón para agregar fecha */
+#calendario > button {
+    background: #1e88e5;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+    width: 100%;
+    transition: background 0.3s;
+}
+
+#calendario > button:hover {
+    background: #1565c0;
+}
+
+/* =========================================
+   ESTILOS PARA LA SECCIÓN DE REPORTES
+   ========================================= */
+
+.reportes-container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Filtros de reportes */
+.report-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.report-filters label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.report-filters select,
+.report-filters input {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.report-filters button {
+    background: #1e88e5;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.report-filters button:hover {
+    background: #1565c0;
+}
+
+/* Resultados de reportes */
+#resultado-ingresos,
+#resultado-servicios {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 20px;
+    border-left: 4px solid #1e88e5;
+}
+
+#resultado-servicios ul {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+#resultado-servicios li {
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#resultado-servicios p:last-child {
+    font-weight: 600;
+    margin-top: 10px;
+    color: #1e88e5;
+}
+
+/* Estilos para el modal de edición (ya existente) */
+#edit-fecha-modal {
+    /* Tus estilos existentes */
+}
+
+/* Añadir Audio Guest Book al grid de servicios */
+#resultado-servicios ul {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+
     </style>
 </head>
 <body>
