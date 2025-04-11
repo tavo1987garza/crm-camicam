@@ -939,7 +939,7 @@
 
 /* =========================================
    ESTILOS PARA LA SECCIÓN DE REPORTES
-   ========================================= */
+   ========================================= */ 
 
 .reportes-container {
     background: white;
@@ -1301,85 +1301,84 @@
         <!-- MODAL para EDITAR Fechas Ocupadas -->
         <div id="edit-fecha-modal" class="modal hidden">
             <div class="modal-content">
-                <span class="modal-close" onclick="checkChangesBeforeClose()">✖</span>
+                <button class="close-btn" onclick="cerrarModalFecha()">✖</button>
                 <h2>✏️ Editar Fecha Ocupada</h2>
             
                 <!-- id de la fila -->
                 <input type="hidden" id="edit-fecha-id">
             
-                <label>Fecha (deshabilitada):</label>
+                <label>Fecha:</label>
                 <input type="date" id="edit-fecha-input" disabled />
             
                 <label>Título:</label>
-                <input type="text" id="edit-fecha-titulo" />
+                <input type="text" id="edit-fecha-titulo" class="auto-save-input"/>
             
                 <label>Notas:</label>
-                <textarea id="edit-fecha-notas"></textarea>
+                <textarea id="edit-fecha-notas" class="auto-save-input"></textarea>
             
                 <label>Ticket:</label>
-                <input type="number" id="edit-fecha-ticket" step="0.01" />
+                <input type="number" id="edit-fecha-ticket" step="0.01" class="auto-save-input" />
             
                 <h3>Servicios</h3>
                 <div style="margin-left:20px;">
+                    <!-- Todos los checkboxes y inputs numéricos deben tener la clase auto-save-input -->
                     <!-- Cabina de Fotos (checkbox) -->
-                    <input type="checkbox" id="edit-cabinaFotos" />
+                    <input type="checkbox" id="edit-cabinaFotos" class="auto-save-input"/>
                     <label for="edit-cabinaFotos">Cabina de Fotos</label>
                     <br><br>
         
                     <!-- Cabina 360 (checkbox) -->
-                    <input type="checkbox" id="edit-cabina360" />
+                    <input type="checkbox" id="edit-cabina360" class="auto-save-input"/>
                     <label for="edit-cabina360">Cabina 360</label>
                     <br><br>
         
                     <!-- Carrito de Shots sin Alcohol (checkbox) -->
-                    <input type="checkbox" id="edit-caritoDeShotsSinAlcohol" />
+                    <input type="checkbox" id="edit-caritoDeShotsSinAlcohol" class="auto-save-input"/>
                     <label for="edit-caritoDeShotsSinAlcohol">Carito De Shots Sin Alcohol</label>
                     <br><br>
         
                     <!-- Carrito de Shots con Alcohol (checkbox) -->
-                    <input type="checkbox" id="edit-caritoDeShotsConAlcohol" />
+                    <input type="checkbox" id="edit-caritoDeShotsConAlcohol" class="auto-save-input"/>
                     <label for="edit-caritoDeShotsConAlcohol">Carito De Shots Con Alcohol</label>
                     <br><br>
         
                     <!-- Lluvia de Mariposas (checkbox) -->
-                    <input type="checkbox" id="edit-lluviaDeMariposas" />
+                    <input type="checkbox" id="edit-lluviaDeMariposas" class="auto-save-input"/>
                     <label for="edit-lluviaDeMariposas">Lluvia de Mariposas</label>
                     <br><br>
         
                     <!-- Lluvia Metálica (checkbox) - CORREGIDO -->
-                    <input type="checkbox" id="edit-lluviaMetalica" />
+                    <input type="checkbox" id="edit-lluviaMetalica" class="auto-save-input"/>
                     <label for="edit-lluviaMetalica">Lluvia Metálica</label>
                     <br><br>
         
                     <!-- Niebla de Piso (checkbox) -->
-                    <input type="checkbox" id="edit-nieblaDePiso" />
+                    <input type="checkbox" id="edit-nieblaDePiso" class="auto-save-input"/>
                     <label for="edit-nieblaDePiso">Niebla de Piso</label>
                     <br><br>
         
                     <!-- Scrapbook (checkbox) -->
-                    <input type="checkbox" id="edit-scrapbook" />
+                    <input type="checkbox" id="edit-scrapbook" class="auto-save-input"/>
                     <label for="edit-scrapbook">Scrapbook</label>
                     <br><br>  
 
                     <!-- Audio Guest Book (checkbox) -->
-                    <input type="checkbox" id="edit-audioGuestBook" />
+                    <input type="checkbox" id="edit-audioGuestBook" class="auto-save-input"/>
                     <label for="edit-audioGuestBook">Audio Guest Book</label>
                     <br><br>
         
                     <!-- Letras Gigantes (numérico) -->
                     <label for="edit-letrasGigantes">Letras Gigantes:</label>
-                    <input type="number" id="edit-letrasGigantes" min="0" value="0" />
+                    <input type="number" id="edit-letrasGigantes" min="0" value="0" class="auto-save-input"/>
                     <br><br>
         
                     <!-- Chisperos (numérico) -->
                     <label for="edit-chisperos">Chisperos:</label>
-                    <input type="number" id="edit-chisperos" min="0" value="0" />
+                    <input type="number" id="edit-chisperos" min="0" value="0" class="auto-save-input"/>
                     <br><br>
                 </div>
             
-                <div class="modal-buttons" style="margin-top:10px;">
-                    <button onclick="guardarEdicionFecha()">Guardar</button>
-                    <!-- Botón de eliminar -->
+                <div class="modal-buttons">
                     <button class="delete-btn" onclick="eliminarFechaDesdeModal()">
                         🗑️ Eliminar
                     </button>
@@ -2397,189 +2396,111 @@ function abrirModalFecha(calId) {
             document.getElementById("edit-letrasGigantes").value = serv.letrasGigantes || 0;
             document.getElementById("edit-chisperos").value = serv.chisperos || 0;
 
-            // Guardar valores originales para comparar después
-            let modal = document.getElementById("edit-fecha-modal");
-            modal.dataset.originalData = JSON.stringify({
-                titulo: data.titulo || "",
-                notas: data.notas || "",
-                ticket: String(data.ticket || "0"),
-                servicios: serv
-            });
+        // Configurar eventos de auto-guardado
+        configurarAutoGuardado();
 
-            // Configurar eventos para cerrar el modal
-            setupModalCloseEvents();
-
-            // Mostrar el modal
-            modal.style.display = "flex";
-        })
-        .catch(err => console.error("Error abrirModalFecha:", err));
+        // Mostrar el modal
+        document.getElementById("edit-fecha-modal").style.display = "flex";
+    })
+    .catch(err => console.error("Error abrirModalFecha:", err));
 }
 
-function setupModalCloseEvents() {
-    const modal = document.getElementById("edit-fecha-modal");
-    
-    // Cerrar al hacer clic en la X
-    const closeBtn = modal.querySelector(".modal-close");
-    if (closeBtn) {
-        closeBtn.onclick = () => checkChangesBeforeClose();
-    }
-    
-    // Cerrar al hacer clic fuera del modal
-    modal.onclick = (e) => {
-        if (e.target === modal) {
-            checkChangesBeforeClose();
-        }
-    };
-    
-    // Cerrar con ESC
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            checkChangesBeforeClose();
+function configurarAutoGuardado() {
+    // Agregar event listeners a todos los inputs con clase auto-save-input
+    document.querySelectorAll('.auto-save-input').forEach(input => {
+        input.addEventListener('change', guardarEdicionFecha);
+        // Para inputs de texto que no disparan 'change' hasta perder foco
+        if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+            input.addEventListener('blur', guardarEdicionFecha);
         }
     });
 }
 
-
-  // ============== 4) CERRAR MODAL: DETECTAR CAMBIOS ANTES DE CERRAR ==============
-  function checkChangesBeforeClose() {
-    const modal = document.getElementById("edit-fecha-modal");
-    const originalData = JSON.parse(modal.dataset.originalData || "{}");
-    
-    // Obtener datos actuales del formulario
-    const currentData = {
-        titulo: document.getElementById("edit-fecha-titulo").value.trim(),
-        notas: document.getElementById("edit-fecha-notas").value.trim(),
-        ticket: document.getElementById("edit-fecha-ticket").value.trim() || "0",
-        servicios: {
-            letrasGigantes: parseInt(document.getElementById("edit-letrasGigantes").value) || 0,
-            chisperos: parseInt(document.getElementById("edit-chisperos").value) || 0,
-            cabinaFotos: document.getElementById("edit-cabinaFotos").checked ? 1 : 0,
-            cabina360: document.getElementById("edit-cabina360").checked ? 1 : 0,
-            caritoDeShotsSinAlcohol: document.getElementById("edit-caritoDeShotsSinAlcohol").checked ? 1 : 0,
-            caritoDeShotsConAlcohol: document.getElementById("edit-caritoDeShotsConAlcohol").checked ? 1 : 0,
-            lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
-            lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, 
-            nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
-            scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0,  
-            audioGuestBook: document.getElementById("edit-audioGuestBook").checked ? 1 : 0
+// Función para cerrar el modal
+function cerrarModalFecha() {
+    // Primero removemos los event listeners para evitar memory leaks
+    document.querySelectorAll('.auto-save-input').forEach(input => {
+        input.removeEventListener('change', guardarEdicionFecha);
+        if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+            input.removeEventListener('blur', guardarEdicionFecha);
         }
+    });
+    
+    document.getElementById("edit-fecha-modal").style.display = "none";
+}
+
+// Función modificada para guardar cambios
+function guardarEdicionFecha() {
+    let calId = document.getElementById("edit-fecha-id").value;
+    let titulo = document.getElementById("edit-fecha-titulo").value.trim();
+    let notas = document.getElementById("edit-fecha-notas").value.trim();
+    let ticketStr = document.getElementById("edit-fecha-ticket").value.trim();
+    let ticketNum = parseFloat(ticketStr) || 0;
+    
+    // Obtener valores de servicios
+    let serviciosActual = {
+        letrasGigantes: parseInt(document.getElementById("edit-letrasGigantes").value) || 0,
+        chisperos: parseInt(document.getElementById("edit-chisperos").value) || 0,
+        cabinaFotos: document.getElementById("edit-cabinaFotos").checked ? 1 : 0,
+        cabina360: document.getElementById("edit-cabina360").checked ? 1 : 0,
+        caritoDeShotsSinAlcohol: document.getElementById("edit-caritoDeShotsSinAlcohol").checked ? 1 : 0,
+        caritoDeShotsConAlcohol: document.getElementById("edit-caritoDeShotsConAlcohol").checked ? 1 : 0,
+        lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
+        lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, 
+        nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
+        scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0, 
+        audioGuestBook: document.getElementById("edit-audioGuestBook").checked ? 1 : 0
     };
     
-    // Comparar datos originales con los actuales
-    const hasChanges = (
-        currentData.titulo !== originalData.titulo ||
-        currentData.notas !== originalData.notas ||
-        currentData.ticket !== originalData.ticket ||
-        JSON.stringify(currentData.servicios) !== JSON.stringify(originalData.servicios)
-    );
+    let payload = {
+        titulo,
+        notas,
+        ticket: ticketNum,
+        servicios: serviciosActual
+    };
     
-    if (hasChanges) {
-        if (confirm("¿Deseas guardar los cambios antes de cerrar?")) {
-            guardarEdicionFecha().finally(() => {
-                modal.style.display = "none";
-                // Limpiar eventos
-                document.removeEventListener('keydown', checkChangesBeforeClose);
-            });
-        } else {
-            modal.style.display = "none";
-        }
-    } else {
-        modal.style.display = "none";
-    }
-}
-  
-  // ============== 5) GUARDAR EDICIÓN (POST /calendario/editar/<id>) ==============
-    function guardarEdicionFecha() {
-        return new Promise((resolve, reject) => {
-            let calId = document.getElementById("edit-fecha-id").value;
-            let titulo = document.getElementById("edit-fecha-titulo").value.trim();
-            let notas = document.getElementById("edit-fecha-notas").value.trim();
-            let ticketStr = document.getElementById("edit-fecha-ticket").value.trim();
-            let ticketNum = parseFloat(ticketStr) || 0;
-            
-            // Obtener valores de servicios
-            let serviciosActual = {
-                letrasGigantes: parseInt(document.getElementById("edit-letrasGigantes").value) || 0,
-                chisperos: parseInt(document.getElementById("edit-chisperos").value) || 0,
-                cabinaFotos: document.getElementById("edit-cabinaFotos").checked ? 1 : 0,
-                cabina360: document.getElementById("edit-cabina360").checked ? 1 : 0,
-                caritoDeShotsSinAlcohol: document.getElementById("edit-caritoDeShotsSinAlcohol").checked ? 1 : 0,
-                caritoDeShotsConAlcohol: document.getElementById("edit-caritoDeShotsConAlcohol").checked ? 1 : 0,
-                lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
-                lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, 
-                nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
-                scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0, 
-                audioGuestBook: document.getElementById("edit-audioGuestBook").checked ? 1 : 0
-            };
-            
-            let payload = {
-                titulo,
-                notas,
-                ticket: ticketNum,
-                servicios: serviciosActual
-            };
-            
-            fetch(`/calendario/editar/${calId}`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(payload)
+    // Usamos un pequeño timeout para evitar múltiples llamadas rápidas
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    
+    this.debounceTimer = setTimeout(() => {
+        fetch(`/calendario/editar/${calId}`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    console.error("Error al guardar:", data.error);
+                } else if (data.ok) {
+                    console.log("Cambios guardados automáticamente");
+                    cargarCalendario();
+                }
             })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.error) {
-                        alert("❌ Error: " + data.error);
-                        reject(data.error);
-                    } else if (data.ok) {
-                        alert("✅ Fecha actualizada correctamente");
-                        cargarCalendario();
-                        resolve();
-                    }
-                })
-                .catch(err => {
-                    console.error("Error al actualizar fecha:", err);
-                    reject(err);
-                });
-        });
-    }
-  
-  // ============== 6) ELIMINAR DIRECTO DESDE LISTA ==============
-  function eliminarCalendario(calId) {
-    if (!confirm("¿Seguro que quieres eliminar esta fecha?")) return;
-    fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          alert("Error: " + data.error);
-          return;
-        }
-        if (data.ok) {
-          alert(data.mensaje);
-          cargarCalendario();
-        }
-      })
-      .catch(err => console.error(err));
-  }
-  
-  // ============== 7) ELIMINAR DESDE MODAL (Botón 🗑️) ==============
-  function eliminarFechaDesdeModal() {
-    let calId = document.getElementById("edit-fecha-id").value;
-    if (!confirm("¿Seguro que quieres eliminar esta fecha?")) return;
+            .catch(err => console.error("Error al guardar:", err));
+    }, 500); // 500ms de delay
+}
 
+// Función para eliminar (se mantiene igual)
+function eliminarFechaDesdeModal() {
+    if (!confirm("¿Seguro que quieres eliminar esta fecha?")) return;
+    
+    let calId = document.getElementById("edit-fecha-id").value;
     fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
         .then(r => r.json())
         .then(data => {
             if (data.error) {
                 alert("Error: " + data.error);
-                return;
-            }
-            if (data.ok) {
-                alert("Fecha eliminada correctamente");
-                document.getElementById("edit-fecha-modal").style.display = "none";
+            } else if (data.ok) {
                 cargarCalendario();
+                cerrarModalFecha();
             }
         })
         .catch(err => console.error(err));
 }
+
+
+
 
 
 
