@@ -2277,9 +2277,29 @@ function cargarCalendario() {
         });
     }
     
+
     /*=========================================
        3) AGREGAR FECHA MANUALMENTE
     =========================================*/
+    
+// ============== 2) ABRIR AGREGAR NUEVA FECHA  ==============
+    function mostrarFormularioFecha() {
+        document.getElementById('formulario-fecha').classList.remove('hidden');
+        // Opcional: Resetear el formulario al mostrarlo
+        document.getElementById('fecha-input').value = '';
+        document.getElementById('titulo-input').value = '';
+        // ... resetear otros campos
+    }
+    
+    function ocultarFormularioFecha() {
+        document.getElementById('formulario-fecha').classList.add('hidden');
+    }
+    
+    function cerrarModalFecha() {
+        document.getElementById('edit-fecha-modal').classList.add('hidden');
+    }
+
+
     
 // ============== 2) AGREGAR NUEVA FECHA MANUAL ==============
 function agregarFechaManual() {
