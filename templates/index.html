@@ -1199,9 +1199,6 @@
 
         <div id="calendario" class="seccion hidden">
             <h1>📅 Calendario</h1>
-            
-            <!-- Botón para refrescar la lista de fechas ocupadas -->
-            <button onclick="cargarCalendario()">Refrescar Fechas Ocupadas</button>
           
             <h2>Fechas Ocupadas</h2>
             <ul id="lista-fechas-ocupadas"></ul>
@@ -1445,10 +1442,15 @@ function mostrarSeccion(seccion, callback = null) {
         document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`).classList.add('active');
 
+        // Cargar automáticamente el calendario si es la sección correspondiente
+        if (seccion === 'calendario') {
+            cargarCalendario();
+            cargarLeadsEnSelect(); // También cargamos los leads para el select
+        }
+
         if (callback) callback();
     }
 }
-
         
 
         // 🔹 Conectar con WebSockets
