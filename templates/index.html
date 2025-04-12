@@ -2324,22 +2324,31 @@ function cargarCalendario() {
     =========================================*/
 
 // ============== 2) ABRIR AGREGAR NUEVA FECHA  ==============
-    function mostrarFormularioFecha() {
-        document.getElementById('formulario-fecha').classList.remove('hidden');
-        // Opcional: Resetear el formulario al mostrarlo
+      function mostrarFormularioFecha() {
+        // Cargar leads en el select cada vez que se abre
+        cargarLeadsEnSelect();
+        document.getElementById('add-fecha-modal').style.display = 'flex';
+        
+        // Resetear formulario
         document.getElementById('fecha-input').value = '';
         document.getElementById('titulo-input').value = '';
-        // ... resetear otros campos
+        document.getElementById('notas-textarea').value = '';
+        document.getElementById('ticket-input').value = '';
+        // Resetear checkboxes...
     }
     
-    function ocultarFormularioFecha() {
-        document.getElementById('formulario-fecha').classList.add('hidden');
+    function cerrarAddFechaModal() {
+        document.getElementById('add-fecha-modal').style.display = 'none';
     }
     
-    function cerrarModalFecha() {
-        document.getElementById('edit-fecha-modal').classList.add('hidden');
+    // Modificar agregarFechaManual para cerrar el modal después de guardar
+    function agregarFechaManual() {
+        // Tu lógica actual de guardado...
+        
+        // Después de guardar exitosamente:
+        cerrarAddFechaModal();
+        cargarCalendario(); // Refrescar la lista
     }
-
 
     
 // ============== 2) AGREGAR NUEVA FECHA MANUAL ==============
