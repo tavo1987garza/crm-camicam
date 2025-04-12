@@ -1098,6 +1098,24 @@
     margin-top: 20px;
 }
 
+
+.currency-input-container {
+    position: relative;
+}
+
+.currency-symbol {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(20%);
+    pointer-events: none;
+}
+
+.currency-formatted {
+    padding-left: 25px; /* Espacio para el símbolo */
+    width: calc(100% - 25px);
+}
+
     </style>
 </head>
 <body>
@@ -1273,9 +1291,12 @@
                     <label for="notas-textarea">Notas:</label>
                     <textarea id="notas-textarea" rows="3" placeholder="Observaciones..."></textarea>
                     
-                    <label for="ticket-input">Ticket de venta ($):</label>
-                    <input type="number" id="ticket-input" min="0" step="0.01" />
-        
+                    <div class="currency-input-container">
+                        <label for="ticket-input">Ticket de venta:</label>
+                        <input type="number" id="ticket-input" min="0" step="0.01" class="currency-formatted" placeholder="0.00">
+                        <span class="currency-symbol">$</span>
+                    </div>
+
                     <h3>Servicios Contratados</h3>
                     <div class="services-grid">
                         <!-- Fila 1 -->
@@ -1499,7 +1520,7 @@ function mostrarSeccion(seccion, callback = null) {
 
         if (callback) callback();
     }
-}
+
         
 
         // 🔹 Conectar con WebSockets
@@ -2449,6 +2470,27 @@ function agregarFechaManual() {
       });
 }
 
+
+// Formatear al perder foco
+document.querySelectorAll('.currency-formatted').forEach(input => {
+    input.addEventListener('blur', function() {
+        if (this.value) {
+            const value = parseFloat(this.value).toFixed(2);
+            this.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+    });
+    
+    // Quitar formato al enfocar
+    input.addEventListener('focus', function() {
+        this.value = this.value.replace(/[^0-9.]/g, '');
+    });
+});
+
+// Función para obtener el valor numérico
+function getTicketValue() {
+    const value = document.getElementById('ticket-input').value.replace(/[^0-9.]/g, '');
+    return parseFloat(value) || 0;
+}
   
 // ============== 3) ABRIR MODAL DE EDICIÓN ==============
 function abrirModalFecha(calId) {
