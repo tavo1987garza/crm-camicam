@@ -1273,8 +1273,11 @@
                     <label for="notas-textarea">Notas:</label>
                     <textarea id="notas-textarea" rows="3" placeholder="Observaciones..."></textarea>
                     
+                    
+
                     <label for="ticket-input">Ticket de venta ($):</label>
-                    <input type="number" id="ticket-input" min="0" step="0.01" />
+                    <input type="text" id="ticket-input" placeholder="0" />
+
         
                     <h3>Servicios Contratados</h3>
                     <div class="services-grid">
@@ -1362,9 +1365,11 @@
                 <label>Notas:</label>
                 <textarea id="edit-fecha-notas" class="auto-save-input"></textarea>
             
-                <label>Ticket:</label>
-                <input type="number" id="edit-fecha-ticket" step="0.01" class="auto-save-input" />
             
+                
+                <label>Ticket:</label>
+                <input type="text" id="edit-fecha-ticket" class="auto-save-input" placeholder="0" />
+
                 <h3>Servicios</h3>
                 <div style="margin-left:20px;">
                     <!-- Todos los checkboxes y inputs numéricos deben tener la clase auto-save-input -->
@@ -2352,59 +2357,73 @@ function cargarCalendario() {
 
     
 // ============== 2) AGREGAR NUEVA FECHA MANUAL ==============
-function agregarFechaManual() {
-    const fecha = document.getElementById("fecha-input").value; 
-    const lead_id = document.getElementById("lead-select").value;
-    const titulo = document.getElementById("titulo-input").value.trim();
-    const notas = document.getElementById("notas-textarea").value.trim();
+// Agregar evento para formatear el input cuando pierde el foco
+document.getElementById("ticket-input").addEventListener("blur", function() {
+    // Extraer solo los dígitos y el punto decimal
+    let numericValue = parseFloat(this.value.replace(/[^0-9.]/g, ''));
+    if (!isNaN(numericValue)) {
+      this.value = numericValue.toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+    }
+  });
   
-    const ticketStr = document.getElementById("ticket-input").value;
-    const ticketNum = parseFloat(ticketStr) || 0;
+  function agregarFechaManual() {
+      const fecha = document.getElementById("fecha-input").value; 
+      const lead_id = document.getElementById("lead-select").value;
+      const titulo = document.getElementById("titulo-input").value.trim();
+      const notas = document.getElementById("notas-textarea").value.trim();
+      
+      // Obtener el valor del ticket y quitar el formato
+      const ticketInput = document.getElementById("ticket-input").value;
+      const ticketStr = ticketInput.replace(/[^0-9.]/g, '');
+      const ticketNum = parseFloat(ticketStr) || 0;
   
-    // === Numericos ===
-    const letrasGigantes = parseInt(document.getElementById("letrasGigantes").value) || 0;
-    const chisperos = parseInt(document.getElementById("chisperos").value) || 0;
+      // Procesar valores numéricos y checkboxes para servicios...
+      const letrasGigantes = parseInt(document.getElementById("letrasGigantes").value) || 0;
+      const chisperos = parseInt(document.getElementById("chisperos").value) || 0;
+      const cabinaFotos = document.getElementById("cabinaFotos").checked ? 1 : 0;
+      const cabina360 = document.getElementById("cabina360").checked ? 1 : 0;
+      const caritoDeShotsSinAlcohol = document.getElementById("caritoDeShotsSinAlcohol").checked ? 1 : 0;
+      const caritoDeShotsConAlcohol = document.getElementById("caritoDeShotsConAlcohol").checked ? 1 : 0;
+      const lluviaDeMariposas = document.getElementById("lluviaDeMariposas").checked ? 1 : 0;
+      const lluviaMetalica = document.getElementById("lluviaMetalica").checked ? 1 : 0; 
+      const nieblaDePiso = document.getElementById("nieblaDePiso").checked ? 1 : 0;
+      const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
+      const audioGuestBook = document.getElementById("audioGuestBook").checked ? 1 : 0;
   
-    // === Checkboxes (1 si checked, 0 si no) ===
-    const cabinaFotos = document.getElementById("cabinaFotos").checked ? 1 : 0;
-    const cabina360 = document.getElementById("cabina360").checked ? 1 : 0;
-    const caritoDeShotsSinAlcohol = document.getElementById("caritoDeShotsSinAlcohol").checked ? 1 : 0;
-    const caritoDeShotsConAlcohol = document.getElementById("caritoDeShotsConAlcohol").checked ? 1 : 0;
-    const lluviaDeMariposas = document.getElementById("lluviaDeMariposas").checked ? 1 : 0;
-    const lluviaMetalica = document.getElementById("lluviaMetalica").checked ? 1 : 0; 
-    const nieblaDePiso = document.getElementById("nieblaDePiso").checked ? 1 : 0;
-    const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
-    const audioGuestBook = document.getElementById("audioGuestBook").checked ? 1 : 0;
+      // Construir el objeto "servicios"
+      const serviciosObj = {
+        letrasGigantes,
+        chisperos,
+        cabinaFotos,
+        cabina360,
+        caritoDeShotsSinAlcohol,
+        caritoDeShotsConAlcohol,
+        lluviaDeMariposas,
+        lluviaMetalica,
+        nieblaDePiso,
+        scrapbook,
+        audioGuestBook
+      };
   
-    // Construir el objeto "servicios" con todas las propiedades
-    const serviciosObj = {
-      letrasGigantes,
-      chisperos,
-      cabinaFotos,
-      cabina360,
-      caritoDeShotsSinAlcohol,
-      caritoDeShotsConAlcohol,
-      lluviaDeMariposas,
-      lluviaMetalica,
-      nieblaDePiso,
-      scrapbook,
-      audioGuestBook
-    };
+      const payload = {
+        fecha,
+        lead_id: lead_id ? parseInt(lead_id) : null,
+        titulo,
+        notas,
+        ticket: ticketNum,
+        servicios: serviciosObj
+      };
   
-    const payload = {
-      fecha,
-      lead_id: lead_id ? parseInt(lead_id) : null,
-      titulo,
-      notas,
-      ticket: ticketNum,
-      servicios: serviciosObj
-    };
-  
-    fetch("/calendario/agregar_manual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
+      fetch("/calendario/agregar_manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
       .then(r => r.json())
       .then(data => {
         if (data.error) {
@@ -2412,10 +2431,9 @@ function agregarFechaManual() {
           return;
         }
         if (data.ok) {
-          // 🔹 Envía mensaje de agregado
           alert(data.mensaje);
           
-          // 🔹 Limpiar los campos
+          // Limpiar campos
           document.getElementById("fecha-input").value = "";
           document.getElementById("lead-select").value = "";
           document.getElementById("titulo-input").value = "";
@@ -2434,10 +2452,7 @@ function agregarFechaManual() {
           document.getElementById("scrapbook").checked = false;
           document.getElementById("audioGuestBook").checked = false;
   
-          // 🔹 Cerrar el modal
           cerrarAddFechaModal();
-
-          // 🔹 Refrescar lista
           cargarCalendario();
         } else {
           alert(data.mensaje);
@@ -2447,8 +2462,8 @@ function agregarFechaManual() {
         console.error("Error al agregar fecha manual:", err);
         alert("Error al agregar fecha.");
       });
-}
-
+  }
+  
   
 // ============== 3) ABRIR MODAL DE EDICIÓN ==============
 function abrirModalFecha(calId) {
@@ -2465,7 +2480,31 @@ function abrirModalFecha(calId) {
             document.getElementById("edit-fecha-input").value = data.fecha; 
             document.getElementById("edit-fecha-titulo").value = data.titulo || "";
             document.getElementById("edit-fecha-notas").value = data.notas || "";
-            document.getElementById("edit-fecha-ticket").value = data.ticket || 0;
+               // Aquí, para el ticket, antes de formatearlo, se asigna su valor
+      // Suponiendo que data.ticket sea numérico
+      const editTicket = document.getElementById("edit-fecha-ticket");
+      // Puedes asignar el valor crudo o ya formateado, según lo que desees
+      editTicket.value = data.ticket ? parseFloat(data.ticket).toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }) : '';
+
+      // Asignar el event listener para formatear al perder el foco
+      editTicket.addEventListener("blur", function() {
+        let numericValue = parseFloat(this.value.replace(/[^0-9.]/g, ''));
+        if (!isNaN(numericValue)) {
+          this.value = numericValue.toLocaleString('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          });
+        }
+      });
+
+
 
             // Servicios
             const serv = data.servicios || {};
@@ -2519,8 +2558,12 @@ function guardarEdicionFecha() {
     let calId = document.getElementById("edit-fecha-id").value;
     let titulo = document.getElementById("edit-fecha-titulo").value.trim();
     let notas = document.getElementById("edit-fecha-notas").value.trim();
-    let ticketStr = document.getElementById("edit-fecha-ticket").value.trim();
-    let ticketNum = parseFloat(ticketStr) || 0;
+
+     // Extraer y transformar el valor del ticket
+     let ticketInput = document.getElementById("edit-fecha-ticket").value.trim();
+     let ticketStr = ticketInput.replace(/[^0-9.]/g, '');
+     let ticketNum = parseFloat(ticketStr) || 0;
+
     
     // Obtener valores de servicios
     let serviciosActual = {
@@ -2590,26 +2633,36 @@ function eliminarFechaDesdeModal() {
 
 
 
-      function verReporteIngresos() {
-        const mes = document.getElementById("reporte-mes").value;
-        const anio = document.getElementById("reporte-anio").value;
-        if (!mes || !anio) {
-          alert("Ingresa mes y año");
+function verReporteIngresos() {
+    const mes = document.getElementById("reporte-mes").value;
+    const anio = document.getElementById("reporte-anio").value;
+    if (!mes || !anio) {
+      alert("Ingresa mes y año");
+      return;
+    }
+  
+    fetch(`/reportes/ingresos?mes=${mes}&anio=${anio}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          alert("Error: " + data.error);
           return;
         }
-      
-        fetch(`/reportes/ingresos?mes=${mes}&anio=${anio}`)
-          .then(r => r.json())
-          .then(data => {
-            if (data.error) {
-              alert("Error: " + data.error);
-              return;
-            }
-            const div = document.getElementById("resultado-ingresos");
-            div.textContent = `Total de ventas en ${data.mes}/${data.anio}: $${data.total_ventas.toFixed(2)}`;
-          })
-          .catch(err => console.error("Error reporte_ingresos:", err));
-      }
+        const div = document.getElementById("resultado-ingresos");
+  
+        // Formatear el monto como pesos mexicanos sin decimales
+        const formateado = data.total_ventas.toLocaleString('es-MX', {
+          style: 'currency',
+          currency: 'MXN',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        });
+  
+        div.textContent = `Total de ventas en ${data.mes}/${data.anio}: ${formateado}`;
+      })
+      .catch(err => console.error("Error reporte_ingresos:", err));
+}
+
 
       
       function verReporteServicios() {
