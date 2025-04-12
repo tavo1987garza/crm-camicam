@@ -1052,6 +1052,52 @@
 }
 
 
+
+
+/* =========================================
+   ESTILOS PARA MODAL DE AGREGAR FECHA
+   ========================================= */ 
+
+/* Estilos para el grid de servicios */
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 15px 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.service-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: white;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.service-item input[type="checkbox"] {
+    transform: scale(1.2);
+    margin-right: 8px;
+}
+
+/* Para los inputs numéricos */
+.service-item input[type="number"] {
+    width: 60px;
+    padding: 5px;
+    margin-left: 8px;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
     </style>
 </head>
 <body>
@@ -1199,110 +1245,105 @@
 
         <div id="calendario" class="seccion hidden">
             <h1>📅 Calendario</h1>
-          
-         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0;">Fechas Ocupadas</h2>
-            <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
-         </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Fechas Ocupadas</h2>
+                <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
+            </div>
             
             <ul id="lista-fechas-ocupadas"></ul>
-          
-            
-            <!-- Formulario para agregar fecha (inicialmente oculto) -->
-            <div id="formulario-fecha" class="hidden" style="margin-top: 20px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
-               <h3>Agregar Fecha Manualmente</h3>
         
-            <label for="fecha-input">Fecha:</label>
-            <input type="date" id="fecha-input" />
-          
-            <br><br>
-          
-            <label for="lead-select">Asignar a Lead (opcional):</label>
-            <select id="lead-select">
-              <option value="">-- Sin Lead --</option>
-            </select>
-          
-            <br><br>
-          
-            <label for="titulo-input">Título del evento:</label>
-            <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
-          
-            <br><br>
-          
-            <label for="notas-textarea">Notas:</label>
-            <textarea id="notas-textarea" rows="2" placeholder="Observaciones..."></textarea>
-          
-            <br><br>
-          
-            <label for="ticket-input">Ticket de venta ($):</label>
-            <input type="number" id="ticket-input" min="0" step="0.01" />
-          
-            <br><br>
-          
-            <h3>Servicios Contratados</h3>
-            <div style="margin-left: 20px;">
-              <!-- Cabina de Fotos (checkbox) -->
-              <input type="checkbox" id="cabinaFotos" />
-              <label for="cabinaFotos">Cabina de Fotos:</label>
-              <br>
+            <!-- Modal para Agregar Fecha -->
+            <div id="add-fecha-modal" class="modal hidden">
+                <div class="modal-content">
+                    <button class="close-btn" onclick="cerrarAddFechaModal()">✖</button>
+                    <h2>➕ Agregar Nueva Fecha</h2>
+                    
+                    <label for="fecha-input">Fecha:</label>
+                    <input type="date" id="fecha-input" />
+                    
+                    <label for="lead-select">Asignar a Lead (opcional):</label>
+                    <select id="lead-select">
+                        <option value="">-- Sin Lead --</option>
+                    </select>
+                    
+                    <label for="titulo-input">Título del evento:</label>
+                    <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
+                    
+                    <label for="notas-textarea">Notas:</label>
+                    <textarea id="notas-textarea" rows="3" placeholder="Observaciones..."></textarea>
+                    
+                    <label for="ticket-input">Ticket de venta ($):</label>
+                    <input type="number" id="ticket-input" min="0" step="0.01" />
         
-              <!-- Cabina 360 (checkbox) -->
-              <input type="checkbox" id="cabina360" />
-              <label for="cabina360">Cabina 360:</label>
-              <br>
-        
-              <!-- Carrito de Shots sin Alcohol (checkbox) -->
-              <input type="checkbox" id="caritoDeShotsSinAlcohol" />
-              <label for="caritoDeShotsSinAlcohol">Carito De Shots Sin Alcohol:</label>
-              <br>
-        
-              <!-- Carrito de Shots con Alcohol (checkbox) -->
-              <input type="checkbox" id="caritoDeShotsConAlcohol" />
-              <label for="caritoDeShotsConAlcohol">Carito De Shots Con Alcohol:</label>
-              <br>
-        
-              <!-- Lluvia de Mariposas (checkbox) -->
-              <input type="checkbox" id="lluviaDeMariposas" />
-              <label for="lluviaDeMariposas">Lluvia de Mariposas:</label>
-              <br>
-        
-              <!-- Lluvia Metálica (checkbox) - CORREGIDO -->
-              <input type="checkbox" id="lluviaMetalica" />
-              <label for="lluviaMetalica">Lluvia Metálica:</label>
-              <br>
-        
-              <!-- Niebla de Piso (checkbox) -->
-              <input type="checkbox" id="nieblaDePiso" />
-              <label for="nieblaDePiso">Niebla de Piso:</label>
-              <br>
-        
-              <!-- Scrapbook (checkbox) -->
-              <input type="checkbox" id="scrapbook" />
-              <label for="scrapbook">Scrapbook:</label>
-              <br>  
-
-              <!-- Audio Guest Book (checkbox) -->
-              <input type="checkbox" id="audioGuestBook" />
-              <label for="audioGuestBook">Audio Guest Book:</label>
-              <br>
-
-              <!-- Letras Gigantes (numérico) -->
-              <label for="letrasGigantes">Letras Gigantes:</label>
-              <input type="number" id="letrasGigantes" min="0" value="0" />
-              <br>
-          
-              <!-- Chisperos (numérico) -->
-              <label for="chisperos">Chisperos:</label>
-              <input type="number" id="chisperos" min="0" value="0" />
-              <br>
-          
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button onclick="agregarFechaManual()" class="save-btn">Guardar</button>
-                <button onclick="ocultarFormularioFecha()" class="cancel-btn">Cancelar</button>
+                    <h3>Servicios Contratados</h3>
+                    <div class="services-grid">
+                        <!-- Fila 1 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="cabinaFotos" />
+                            <label for="cabinaFotos">Cabina de Fotos</label>
+                        </div>
+                        <div class="service-item">
+                            <input type="checkbox" id="cabina360" />
+                            <label for="cabina360">Cabina 360</label>
+                        </div>
+                        
+                        <!-- Fila 2 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="caritoDeShotsSinAlcohol" />
+                            <label for="caritoDeShotsSinAlcohol">Shots Sin Alcohol</label>
+                        </div>
+                        <div class="service-item">
+                            <input type="checkbox" id="caritoDeShotsConAlcohol" />
+                            <label for="caritoDeShotsConAlcohol">Shots Con Alcohol</label>
+                        </div>
+                        
+                        <!-- Fila 3 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="lluviaDeMariposas" />
+                            <label for="lluviaDeMariposas">Lluvia de Mariposas</label>
+                        </div>
+                        <div class="service-item">
+                            <input type="checkbox" id="lluviaMetalica" />
+                            <label for="lluviaMetalica">Lluvia Metálica</label>
+                        </div>
+                        
+                        <!-- Fila 4 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="nieblaDePiso" />
+                            <label for="nieblaDePiso">Niebla de Piso</label>
+                        </div>
+                        <div class="service-item">
+                            <input type="checkbox" id="scrapbook" />
+                            <label for="scrapbook">Scrapbook</label>
+                        </div>
+                        
+                        <!-- Fila 5 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="audioGuestBook" />
+                            <label for="audioGuestBook">Audio Guest Book</label>
+                        </div>
+                        
+                        <!-- Inputs numéricos -->
+                        <div class="service-item">
+                            <label for="letrasGigantes">Letras Gigantes:</label>
+                            <input type="number" id="letrasGigantes" min="0" value="0" />
+                        </div>
+                        
+                        <div class="service-item">
+                            <label for="chisperos">Chisperos:</label>
+                            <input type="number" id="chisperos" min="0" value="0" />
+                        </div>
+                    </div>
+                    
+                    <div class="modal-buttons">
+                        <button onclick="agregarFechaManual()" class="save-btn">Guardar</button>
+                        <button onclick="cerrarAddFechaModal()" class="cancel-btn">Cancelar</button>
+                    </div>
+                </div>
             </div>
         </div>
-        
+
         <!-- MODAL para EDITAR Fechas Ocupadas -->
         <div id="edit-fecha-modal" class="modal hidden">
             <div class="modal-content">
@@ -2281,7 +2322,7 @@ function cargarCalendario() {
     /*=========================================
        3) AGREGAR FECHA MANUALMENTE
     =========================================*/
-    
+
 // ============== 2) ABRIR AGREGAR NUEVA FECHA  ==============
     function mostrarFormularioFecha() {
         document.getElementById('formulario-fecha').classList.remove('hidden');
