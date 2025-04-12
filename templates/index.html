@@ -1098,6 +1098,34 @@
     margin-top: 20px;
 }
 
+
+.form-group {
+    margin-bottom: 10px;
+  }
+  
+  .reporte-card {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  table, th, td {
+    border: 1px solid #ccc;
+  }
+  
+  th, td {
+    padding: 8px;
+    text-align: left;
+  }
+  
+
     </style>
 </head>
 <body>
@@ -1437,23 +1465,51 @@
             </div>
         </div>
 
-         <div id="reportes" class="seccion hidden">
+        <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
-            <h2>Ingresos (Ticket) por mes</h2>
-  <label>Mes:</label>
-  <input type="number" id="reporte-mes" placeholder="1-12" />
-  <label>Año:</label>
-  <input type="number" id="reporte-anio" placeholder="2025" />
-
-  <button onclick="verReporteIngresos()">Ver Ingresos</button>
-  <div id="resultado-ingresos"></div>
-
-  <hr>
-
-  <h2>Servicios contratados (mes)</h2>
-  <button onclick="verReporteServicios()">Ver Servicios</button>
-  <div id="resultado-servicios"></div>
-         </div>
+            
+            <!-- Reporte de Ingresos -->
+            <section id="reporte-ingresos">
+              <h2>Ingresos (Ticket) por mes</h2>
+              <div class="form-group">
+                <label for="reporte-mes">Mes:</label>
+                <select id="reporte-mes">
+                  <option value="">Selecciona un mes</option>
+                  <option value="1">Enero</option>
+                  <option value="2">Febrero</option>
+                  <option value="3">Marzo</option>
+                  <option value="4">Abril</option>
+                  <option value="5">Mayo</option>
+                  <option value="6">Junio</option>
+                  <option value="7">Julio</option>
+                  <option value="8">Agosto</option>
+                  <option value="9">Septiembre</option>
+                  <option value="10">Octubre</option>
+                  <option value="11">Noviembre</option>
+                  <option value="12">Diciembre</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="reporte-anio">Año:</label>
+                <input type="number" id="reporte-anio" placeholder="2025" min="2000" />
+              </div>
+              
+              <button onclick="verReporteIngresos()">Ver Ingresos</button>
+              <div id="resultado-ingresos" class="reporte-card"></div>
+            </section>
+            
+            <hr>
+            
+            <!-- Reporte de Servicios -->
+            <section id="reporte-servicios">
+              <h2>Servicios contratados (mes)</h2>
+              <!-- Se reutilizan los mismos inputs o se pueden duplicar si deseas separar los filtros -->
+              <button onclick="verReporteServicios()">Ver Servicios</button>
+              <div id="resultado-servicios" class="reporte-card"></div>
+            </section>
+          </div>
+          
         
         <div id="configuracion" class="seccion hidden">
             <h1>⚙️ Configuración</h1>
@@ -2626,84 +2682,104 @@ function eliminarFechaDesdeModal() {
         })
         .catch(err => console.error(err));
 }
+  
 
 
-
-
-
-
-
-function verReporteIngresos() {
+async function verReporteIngresos() {
     const mes = document.getElementById("reporte-mes").value;
     const anio = document.getElementById("reporte-anio").value;
+    const resultadoDiv = document.getElementById("resultado-ingresos");
+    
+    // Validación básica
     if (!mes || !anio) {
-      alert("Ingresa mes y año");
+      resultadoDiv.textContent = "Por favor, selecciona un mes y un año válidos.";
       return;
     }
+    
+    // Indicar que se está cargando la información
+    resultadoDiv.textContent = "Cargando ingresos...";
+    
+    try {
+      const response = await fetch(`/reportes/ingresos?mes=${mes}&anio=${anio}`);
+      const data = await response.json();
+      
+      if (data.error) {
+        resultadoDiv.textContent = "Error: " + data.error;
+        return;
+      }
+      
+      // Formatear el total de ventas a pesos mexicanos sin decimales
+      const formateado = data.total_ventas.toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+      
+      resultadoDiv.innerHTML = `<p>Total de ventas en ${data.mes}/${data.anio}: <strong>${formateado}</strong></p>`;
+      
+    } catch (err) {
+      console.error("Error reporte_ingresos:", err);
+      resultadoDiv.textContent = "Error al obtener los ingresos.";
+    }
+  }
   
-    fetch(`/reportes/ingresos?mes=${mes}&anio=${anio}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          alert("Error: " + data.error);
-          return;
-        }
-        const div = document.getElementById("resultado-ingresos");
-  
-        // Formatear el monto como pesos mexicanos sin decimales
-        const formateado = data.total_ventas.toLocaleString('es-MX', {
-          style: 'currency',
-          currency: 'MXN',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        });
-  
-        div.textContent = `Total de ventas en ${data.mes}/${data.anio}: ${formateado}`;
-      })
-      .catch(err => console.error("Error reporte_ingresos:", err));
-}
-
 
       
-      function verReporteServicios() {
+    async function verReporteServicios() {
         const mes = document.getElementById("reporte-mes").value;
         const anio = document.getElementById("reporte-anio").value;
+        const resultadoDiv = document.getElementById("resultado-servicios");
+        
         if (!mes || !anio) {
-            alert("Ingresa mes y año");
-            return;
+          resultadoDiv.textContent = "Por favor, selecciona un mes y un año válidos.";
+          return;
         }
-      
-        fetch(`/reportes/servicios_mes?mes=${mes}&anio=${anio}`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.error) {
-                    alert("Error: " + data.error);
-                    return;
-                }
-                const div = document.getElementById("resultado-servicios");
-                div.innerHTML = `
-                    <p>Servicios en ${data.mes}/${data.anio}:</p>
-                    <ul>
-                        <li>Letras Gigantes: ${data.letrasGigantes}</li>
-                        <li>Chisperos: ${data.chisperos}</li>
-                        <li>Cabina Fotos: ${data.cabinaFotos}</li>
-                        <li>Cabina 360: ${data.cabina360}</li>
-                        <li>Shots Sin Alcohol: ${data.caritoDeShotsSinAlcohol}</li>
-                        <li>Shots Con Alcohol: ${data.caritoDeShotsConAlcohol}</li>
-                        <li>Lluvia de Mariposas: ${data.lluviaDeMariposas}</li>
-                        <li>Lluvia Metálica: ${data.lluviaMetalica}</li> 
-                        <li>Niebla de Piso: ${data.nieblaDePiso}</li>
-                        <li>Scrapbook: ${data.scrapbook}</li> 
-                        <li>Audio Guest Book: ${data.audioGuestBook}</li>
-                    </ul>
-                    <p>Eventos contados: ${data.eventosContados}</p>
-                `;
-            })
-            .catch(err => {
-                console.error("Error reporte_servicios:", err);
-                alert("Error al obtener el reporte de servicios");
-            });
-    }
+        
+        resultadoDiv.textContent = "Cargando servicios...";
+        
+        try {
+          const response = await fetch(`/reportes/servicios_mes?mes=${mes}&anio=${anio}`);
+          const data = await response.json();
+          
+          if (data.error) {
+            resultadoDiv.textContent = "Error: " + data.error;
+            return;
+          }
+          
+          // Construir la tabla con los datos de servicios
+          let tableHTML = `
+            <table>
+              <thead>
+                <tr>
+                  <th>Servicio</th>
+                  <th>Cantidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Letras Gigantes</td><td>${data.letrasGigantes}</td></tr>
+                <tr><td>Chisperos</td><td>${data.chisperos}</td></tr>
+                <tr><td>Cabina Fotos</td><td>${data.cabinaFotos}</td></tr>
+                <tr><td>Cabina 360</td><td>${data.cabina360}</td></tr>
+                <tr><td>Shots Sin Alcohol</td><td>${data.caritoDeShotsSinAlcohol}</td></tr>
+                <tr><td>Shots Con Alcohol</td><td>${data.caritoDeShotsConAlcohol}</td></tr>
+                <tr><td>Lluvia de Mariposas</td><td>${data.lluviaDeMariposas}</td></tr>
+                <tr><td>Lluvia Metálica</td><td>${data.lluviaMetalica}</td></tr>
+                <tr><td>Niebla de Piso</td><td>${data.nieblaDePiso}</td></tr>
+                <tr><td>Scrapbook</td><td>${data.scrapbook}</td></tr>
+                <tr><td>Audio Guest Book</td><td>${data.audioGuestBook}</td></tr>
+              </tbody>
+            </table>
+            <p>Eventos contados: ${data.eventosContados}</p>
+          `;
+          
+          resultadoDiv.innerHTML = tableHTML;
+          
+        } catch (err) {
+          console.error("Error reporte_servicios:", err);
+          resultadoDiv.textContent = "Error al obtener el reporte de servicios.";
+        }
+      }
       
   
 
