@@ -1468,7 +1468,7 @@
         <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
             
-            <!-- Reporte de Ingresos -->
+            <!-- Reporte de Ingresos por Mes (Reporte Mensual) -->
             <section id="reporte-ingresos">
               <h2>Ingresos (Ticket) por mes</h2>
               <div class="form-group">
@@ -1489,14 +1489,25 @@
                   <option value="12">Diciembre</option>
                 </select>
               </div>
-              
               <div class="form-group">
-                <label for="reporte-anio">Año:</label>
-                <input type="number" id="reporte-anio" placeholder="2025" min="2000" />
+                <label for="reporte-anio-mensual">Año:</label>
+                <input type="number" id="reporte-anio-mensual" placeholder="2025" min="2000">
               </div>
-              
-              <button onclick="verReporteIngresos()">Ver Ingresos</button>
+              <button onclick="verReporteIngresos()">Ver Ingresos Mensuales</button>
               <div id="resultado-ingresos" class="reporte-card"></div>
+            </section>
+            
+            <hr>
+            
+            <!-- Reporte Anual Desglosado por Mes -->
+            <section id="reporte-ingresos-anual">
+              <h2>Reporte Anual Desglosado por Mes</h2>
+              <div class="form-group">
+                <label for="reporte-anio-anual">Año:</label>
+                <input type="number" id="reporte-anio-anual" placeholder="2025" min="2000">
+              </div>
+              <button onclick="verReporteIngresosAnual()">Ver Reporte Anual</button>
+              <div id="resultado-ingresos-anual" class="reporte-card"></div>
             </section>
             
             <hr>
@@ -2721,6 +2732,60 @@ async function verReporteIngresos() {
     } catch (err) {
       console.error("Error reporte_ingresos:", err);
       resultadoDiv.textContent = "Error al obtener los ingresos.";
+    }
+  }
+  
+
+  async function verReporteIngresosAnual() {
+    // Obtener el año desde el input correspondiente
+    const anio = document.getElementById("reporte-anio-anual").value;
+    const resultadoDiv = document.getElementById("resultado-ingresos-anual");
+    
+    if (!anio) {
+      resultadoDiv.textContent = "Ingresa un año válido.";
+      return;
+    }
+    
+    resultadoDiv.textContent = "Cargando reporte anual...";
+    
+    try {
+      const response = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
+      const data = await response.json();
+      
+      if (data.error) {
+        resultadoDiv.textContent = "Error: " + data.error;
+        return;
+      }
+      
+      // data.ingresos_anual es un objeto con claves del 1 al 12.
+      // Se puede construir una tabla para mostrar el desglose.
+      let html = `<h3>Ingresos del año ${data.anio}</h3>`;
+      html += "<table>";
+      html += "<thead><tr><th>Mes</th><th>Ingresos</th></tr></thead>";
+      html += "<tbody>";
+      const meses = {
+        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+      };
+      for (let mes = 1; mes <= 12; mes++) {
+        // Formatear el valor como pesos mexicanos
+        const ingreso = data.ingresos_anual[mes] || 0;
+        const ingresoFormateado = ingreso.toLocaleString('es-MX', {
+          style: 'currency',
+          currency: 'MXN',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        });
+        html += `<tr><td>${meses[mes]}</td><td>${ingresoFormateado}</td></tr>`;
+      }
+      html += "</tbody></table>";
+      
+      resultadoDiv.innerHTML = html;
+      
+    } catch (err) {
+      console.error("Error en verReporteIngresosAnual:", err);
+      resultadoDiv.textContent = "Error al obtener el reporte anual.";
     }
   }
   

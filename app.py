@@ -744,6 +744,50 @@ def reporte_ingresos():
         liberar_db(conn)
         
         
+        
+@app.route("/reportes/ingresos_anual", methods=["GET"])
+def reporte_ingresos_anual():
+    # Se obtiene el parámetro 'anio' enviado mediante la query string.
+    anio = request.args.get("anio")
+    if not anio:
+        return jsonify({"error": "Falta el parámetro año"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        # Se consulta la suma de tickets agrupados por mes para el año indicado.
+        cursor.execute("""
+            SELECT EXTRACT(MONTH FROM fecha) AS mes, COALESCE(SUM(ticket), 0) AS total
+            FROM calendario
+            WHERE EXTRACT(YEAR FROM fecha) = %s
+            GROUP BY mes
+            ORDER BY mes
+        """, (anio,))
+        rows = cursor.fetchall()
+
+        # Se inicializa un diccionario con los 12 meses establecidos en 0.0,
+        # para que en caso de que algún mes no tenga registros se retorne 0.
+        ingresos_por_mes = {mes: 0.0 for mes in range(1, 13)}
+        for row in rows:
+            mes = int(row[0])
+            total = float(row[1])
+            ingresos_por_mes[mes] = total
+
+        return jsonify({
+            "anio": int(anio),
+            "ingresos_anual": ingresos_por_mes
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
+
 
 @app.route("/reportes/servicios_mes", methods=["GET"])
 def reporte_servicios_mes():
