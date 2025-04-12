@@ -2412,6 +2412,7 @@ function agregarFechaManual() {
           return;
         }
         if (data.ok) {
+          // 🔹 Envía mensaje de agregado
           alert(data.mensaje);
           
           // 🔹 Limpiar los campos
@@ -2433,6 +2434,9 @@ function agregarFechaManual() {
           document.getElementById("scrapbook").checked = false;
           document.getElementById("audioGuestBook").checked = false;
   
+          // 🔹 Cerrar el modal
+          cerrarAddFechaModal();
+
           // 🔹 Refrescar lista
           cargarCalendario();
         } else {
