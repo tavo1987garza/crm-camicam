@@ -2737,7 +2737,6 @@ async function verReporteIngresos() {
   
 
   async function verReporteIngresosAnual() {
-    // Obtener el año desde el input correspondiente
     const anio = document.getElementById("reporte-anio-anual").value;
     const resultadoDiv = document.getElementById("resultado-ingresos-anual");
     
@@ -2757,9 +2756,11 @@ async function verReporteIngresos() {
         return;
       }
       
-      // data.ingresos_anual es un objeto con claves del 1 al 12.
-      // Se puede construir una tabla para mostrar el desglose.
-      let html = `<h3>Ingresos del año ${data.anio}</h3>`;
+      // data.ingresos_anual es un objeto con claves de 1 a 12 y data.total_eventos es el total de eventos.
+      let html = `<h3>Reporte del año ${data.anio}</h3>`;
+      html += `<p>Total de eventos contratados: <strong>${data.total_eventos}</strong></p>`;
+      
+      // Crear tabla con desglose de ingresos mensuales
       html += "<table>";
       html += "<thead><tr><th>Mes</th><th>Ingresos</th></tr></thead>";
       html += "<tbody>";
@@ -2769,7 +2770,6 @@ async function verReporteIngresos() {
         9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
       };
       for (let mes = 1; mes <= 12; mes++) {
-        // Formatear el valor como pesos mexicanos
         const ingreso = data.ingresos_anual[mes] || 0;
         const ingresoFormateado = ingreso.toLocaleString('es-MX', {
           style: 'currency',
@@ -2788,6 +2788,7 @@ async function verReporteIngresos() {
       resultadoDiv.textContent = "Error al obtener el reporte anual.";
     }
   }
+  
   
 
       

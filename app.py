@@ -747,7 +747,6 @@ def reporte_ingresos():
         
 @app.route("/reportes/ingresos_anual", methods=["GET"])
 def reporte_ingresos_anual():
-    # Se obtiene el parámetro 'anio' enviado mediante la query string.
     anio = request.args.get("anio")
     if not anio:
         return jsonify({"error": "Falta el parámetro año"}), 400
@@ -758,7 +757,7 @@ def reporte_ingresos_anual():
 
     try:
         cursor = conn.cursor()
-        # Se consulta la suma de tickets agrupados por mes para el año indicado.
+        # Consulta para obtener el total de ingresos agrupados por mes
         cursor.execute("""
             SELECT EXTRACT(MONTH FROM fecha) AS mes, COALESCE(SUM(ticket), 0) AS total
             FROM calendario
@@ -768,17 +767,25 @@ def reporte_ingresos_anual():
         """, (anio,))
         rows = cursor.fetchall()
 
-        # Se inicializa un diccionario con los 12 meses establecidos en 0.0,
-        # para que en caso de que algún mes no tenga registros se retorne 0.
+        # Inicializar diccionario con los 12 meses en 0.0
         ingresos_por_mes = {mes: 0.0 for mes in range(1, 13)}
         for row in rows:
             mes = int(row[0])
             total = float(row[1])
             ingresos_por_mes[mes] = total
 
+        # Consulta para contar el total de eventos en el año
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM calendario
+            WHERE EXTRACT(YEAR FROM fecha) = %s
+        """, (anio,))
+        total_eventos = cursor.fetchone()[0] or 0
+
         return jsonify({
             "anio": int(anio),
-            "ingresos_anual": ingresos_por_mes
+            "ingresos_anual": ingresos_por_mes,
+            "total_eventos": total_eventos
         }), 200
 
     except Exception as e:
