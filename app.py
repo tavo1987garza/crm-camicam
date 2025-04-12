@@ -446,7 +446,7 @@ def agregar_fecha_manual():
     if not fecha_str:
         return jsonify({"error": "Falta la fecha en formato YYYY-MM-DD"}), 400
 
-    # Conexión a DB
+    # Conexión a DB 
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
