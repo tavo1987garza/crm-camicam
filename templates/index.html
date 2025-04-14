@@ -1124,6 +1124,78 @@
     padding: 8px;
     text-align: left;
   }
+
+
+
+
+
+
+  /* =========================================
+  ESTILOS PARA ETIQUETAS
+  ========================================= */ 
+
+  /* Contenedor de etiquetas */
+.etiquetas-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.etiqueta-item {
+  padding: 8px 12px;
+  background: #f0f0f0;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.2s;
+}
+
+.etiqueta-item:hover {
+  background-color: #e0e0e0;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+}
+
+.close-btn {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.hidden {
+  display: none;
+}
+
+.form-group {
+  margin-bottom: 10px;
+}
+
   
 
     </style>
@@ -1560,6 +1632,36 @@
             
             <!-- Aquí se puede listar los gastos registrados (opcional) -->
             <div id="lista-gastos"></div>
+            <!-- Contenedor donde se mostrarán las etiquetas -->
+<div id="lista-etiquetas" class="etiquetas-container">
+    <!-- Se llenará dinámicamente con cada etiqueta obtenida del backend -->
+  </div>
+  
+  <!-- Modal para visualizar los gastos de una etiqueta y agregar nuevos gastos -->
+  <div id="modal-etiqueta" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarModalEtiqueta()">✖</span>
+      <h2>
+        Gastos de la etiqueta: <span id="etiqueta-nombre"></span>
+      </h2>
+      <div id="modal-etiqueta-contenido">
+        <!-- Aquí se listarán los gastos asociados a la etiqueta -->
+      </div>
+      <button onclick="mostrarFormularioAgregarGastoEtiqueta()">Agregar Gasto a esta etiqueta</button>
+      <div id="form-agregar-gasto-etiqueta" class="hidden">
+        <div class="form-group">
+          <label for="gasto-etiqueta-monto">Monto:</label>
+          <input type="text" id="gasto-etiqueta-monto" placeholder="$0">
+        </div>
+        <div class="form-group">
+          <label for="gasto-etiqueta-descripcion">Descripción:</label>
+          <input type="text" id="gasto-etiqueta-descripcion" placeholder="Descripción del gasto">
+        </div>
+        <button onclick="agregarGastoPorEtiqueta()">Registrar Gasto</button>
+      </div>
+    </div>
+  </div>
+  
           </div>
           
 
@@ -3038,6 +3140,125 @@ async function verReporteIngresosAnual() {
         }
       }
       
+
+// Cargar las etiquetas y mostrarlas en la vista
+async function cargarEtiquetasEnVista() {
+    try {
+      const response = await fetch("/gastos/etiquetas");
+      const data = await response.json();
+      const container = document.getElementById("lista-etiquetas");
+      container.innerHTML = "";
+      data.etiquetas.forEach(etiqueta => {
+        // Crear un elemento para la etiqueta con icono y nombre
+        const divEtiqueta = document.createElement("div");
+        divEtiqueta.classList.add("etiqueta-item");
+        // Utilizando Font Awesome para un icono moderno (asegúrate de incluir la librería)
+        divEtiqueta.innerHTML = `<i class="fas fa-tag"></i> <span>${etiqueta}</span>`;
+        // Al hacer clic, se abre el modal para esa etiqueta
+        divEtiqueta.addEventListener("click", () => {
+          abrirModalEtiqueta(etiqueta);
+        });
+        container.appendChild(divEtiqueta);
+      });
+    } catch (err) {
+      console.error("Error al cargar etiquetas:", err);
+    }
+  }
+  
+  // Abrir el modal y cargar los gastos asociados a una etiqueta
+  async function abrirModalEtiqueta(etiqueta) {
+    // Mostrar el nombre de la etiqueta en el modal
+    document.getElementById("etiqueta-nombre").textContent = etiqueta;
+    // Solicitar al backend los gastos asociados a esta etiqueta
+    try {
+      const response = await fetch(`/gastos/por_etiqueta?etiqueta=${encodeURIComponent(etiqueta)}`);
+      const data = await response.json();
+      const contenido = document.getElementById("modal-etiqueta-contenido");
+      if (data.error) {
+        contenido.textContent = "No se pudo obtener los gastos para esta etiqueta.";
+      } else {
+        if (data.gastos && data.gastos.length > 0) {
+          let html = "<ul>";
+          data.gastos.forEach(gasto => {
+            // Se asume que cada gasto tiene: monto, descripcion y fecha
+            const montoFormateado = parseFloat(gasto.monto).toLocaleString('es-MX', {
+              style: 'currency',
+              currency: 'MXN',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            });
+            html += `<li>${montoFormateado} - ${gasto.descripcion} <em>(${gasto.fecha})</em></li>`;
+          });
+          html += "</ul>";
+          contenido.innerHTML = html;
+        } else {
+          contenido.textContent = "No hay gastos registrados para esta etiqueta.";
+        }
+      }
+    } catch (err) {
+      console.error("Error al obtener gastos por etiqueta:", err);
+      document.getElementById("modal-etiqueta-contenido").textContent = "Error al obtener los gastos.";
+    }
+    
+    // Mostrar el modal
+    document.getElementById("modal-etiqueta").classList.remove("hidden");
+  }
+  
+  // Cerrar el modal
+  function cerrarModalEtiqueta() {
+    document.getElementById("modal-etiqueta").classList.add("hidden");
+  }
+  
+  // Mostrar o ocultar el formulario de agregar gasto en el modal
+  function mostrarFormularioAgregarGastoEtiqueta() {
+    const form = document.getElementById("form-agregar-gasto-etiqueta");
+    form.classList.toggle("hidden");
+  }
+  
+  // Registrar un gasto para la etiqueta desde el modal
+  async function agregarGastoPorEtiqueta() {
+    const etiqueta = document.getElementById("etiqueta-nombre").textContent;
+    const montoInput = document.getElementById("gasto-etiqueta-monto").value;
+    const montoStr = montoInput.replace(/[^0-9.]/g, '');
+    const monto = parseFloat(montoStr) || 0;
+    const descripcion = document.getElementById("gasto-etiqueta-descripcion").value.trim();
+    
+    const payload = {
+      monto: monto,
+      etiqueta: etiqueta,
+      descripcion: descripcion
+    };
+    
+    try {
+      const response = await fetch("/gastos/agregar", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+      alert("Gasto agregado para la etiqueta " + etiqueta);
+      // Refrescar el contenido del modal para ver el gasto agregado
+      abrirModalEtiqueta(etiqueta);
+      // Limpiar el formulario
+      document.getElementById("gasto-etiqueta-monto").value = "";
+      document.getElementById("gasto-etiqueta-descripcion").value = "";
+      // Ocultar el formulario
+      document.getElementById("form-agregar-gasto-etiqueta").classList.add("hidden");
+    } catch(err) {
+      console.error("Error al agregar gasto por etiqueta:", err);
+      alert("Error al agregar gasto.");
+    }
+  }
+  
+  // Llamar a esta función al iniciar la vista para cargar las etiquetas
+  document.addEventListener("DOMContentLoaded", () => {
+    cargarEtiquetasEnVista();
+  });
+  
   
 
         

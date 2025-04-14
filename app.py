@@ -953,6 +953,40 @@ def obtener_etiquetas():
         liberar_db(conn)
 
 
+@app.route("/gastos/por_etiqueta", methods=["GET"])
+def gastos_por_etiqueta():
+    etiqueta = request.args.get("etiqueta")
+    if not etiqueta:
+        return jsonify({"error": "Falta el parámetro 'etiqueta'"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        # Se obtiene la lista de gastos para la etiqueta solicitada
+        cursor.execute("""
+            SELECT monto, descripcion, fecha
+            FROM gastos
+            WHERE etiqueta = %s
+            ORDER BY fecha DESC
+        """, (etiqueta,))
+        rows = cursor.fetchall()
+        gastos = []
+        for row in rows:
+            gastos.append({
+                "monto": float(row[0]),
+                "descripcion": row[1],
+                "fecha": row[2].strftime("%Y-%m-%d %H:%M:%S")  # o el formato que prefieras
+            })
+        return jsonify({"gastos": gastos}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
 
 
 
