@@ -2968,7 +2968,17 @@ async function verReporteIngresosAnual() {
         }
       });
 
-    
+
+// Abre modal para nueva etiqueta
+function abrirModalNuevaEtiqueta() {
+    document.getElementById('modal-nueva-etiqueta').classList.remove("hidden");
+  }
+  
+  // Cerrar modal nueva etiqueta
+  function cerrarModalNuevaEtiqueta() {
+    document.getElementById('modal-nueva-etiqueta').classList.add("hidden");
+  }
+  
 // Reutilizamos la misma lógica para crear la etiqueta
 async function agregarNuevaEtiqueta() {
     const nuevaEtiqueta = document.getElementById("nueva-etiqueta-input").value.trim();
