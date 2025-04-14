@@ -1154,6 +1154,10 @@
         <i class="fas fa-chart-pie"></i> <!-- 🔹 Icono moderno -->
         <span>Reportes</span>
     </button>
+    <button onclick="mostrarSeccion('gastos')" class="sidebar-btn">
+        <i class="fas fa-cash-register"></i> <!-- 🔹 Icono moderno -->
+        <span>Gastos</span>
+    </button>
     <button onclick="mostrarSeccion('configuracion')" class="sidebar-btn">
         <i class="fas fa-cog"></i> <!-- 🔹 Icono moderno -->
         <span>Configuración</span>
@@ -1521,7 +1525,11 @@
             </section>
           </div>
           
-        
+          <div id="gastos" class="seccion hidden">
+            <h1>💸 Gastos</h1>
+            <p>Documenta todos los gastos.</p>
+        </div>
+
         <div id="configuracion" class="seccion hidden">
             <h1>⚙️ Configuración</h1>
             <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
