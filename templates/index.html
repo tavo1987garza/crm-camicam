@@ -3028,6 +3028,7 @@ async function verReporteIngresosAnual() {
       });
 
 
+      
       async function agregarGasto() {
         // Extraer el monto y quitar el formato
         const montoInput = document.getElementById("gasto-monto").value;
@@ -3056,7 +3057,6 @@ async function verReporteIngresosAnual() {
             return;
           }
           
-          // Si llega aquí, el gasto se registró correctamente.
           alert("Gasto registrado correctamente");
           document.getElementById("form-gasto").reset();
       
@@ -3066,21 +3066,19 @@ async function verReporteIngresosAnual() {
           return;
         }
       
-        // Actualizamos la interfaz; si ocurre un error aquí, se trata por separado.
         try {
           await cargarEtiquetas();
         } catch (err) {
           console.error("Error al cargar etiquetas:", err);
-          // Puedes decidir si mostrar o no un alerta específico para las etiquetas.
         }
       
         try {
           await listarGastos();
         } catch (err) {
           console.error("Error al listar gastos:", err);
-          // De igual forma, muestra un mensaje o maneja el error según convenga.
         }
       }
+      
       
 
       function mostrarNuevoGastoEtiqueta() {
