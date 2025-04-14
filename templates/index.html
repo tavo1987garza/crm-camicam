@@ -3010,31 +3010,26 @@ function abrirModalNuevaEtiqueta() {
   
       
 // Listar etiquetas en la vista
-
-
-
-  async function cargarEtiquetasEnVista() {
+async function cargarEtiquetasEnVista() {
     try {
       const response = await fetch("/gastos/etiquetas");
       const data = await response.json();
-      
-      // Contenedor donde se muestran
       const container = document.getElementById("lista-etiquetas");
       container.innerHTML = "";
-  
-      data.etiquetas.forEach(et => {
+      data.etiquetas.forEach(etiqueta => {
         const divEtiqueta = document.createElement("div");
         divEtiqueta.classList.add("etiqueta-item");
-        divEtiqueta.textContent = et;
-        // Al hacer clic en la etiqueta, abrimos un modal, etc...
-        divEtiqueta.onclick = () => abrirModalEtiqueta(et);
-  
+        divEtiqueta.innerHTML = `<i class="fas fa-tag"></i> <span>${etiqueta}</span>`;
+        divEtiqueta.style.cursor = "pointer";
+        divEtiqueta.onclick = () => abrirModalEtiqueta(etiqueta);
         container.appendChild(divEtiqueta);
       });
     } catch (err) {
       console.error("Error al cargar etiquetas:", err);
     }
   }
+
+
   
   // Abre el modal para una etiqueta existente
 async function abrirModalEtiqueta(etiqueta) {
