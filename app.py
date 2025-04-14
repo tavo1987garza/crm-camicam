@@ -430,6 +430,9 @@ def obtener_mensajes_chat():
     finally:
         liberar_db(conn)     
     
+    
+    
+    
 # 📌 Endpoint para agregar fechas al Calendario    
 @app.route("/calendario/agregar_manual", methods=["POST"])
 def agregar_fecha_manual():
@@ -810,14 +813,11 @@ def reporte_ingresos_anual():
 
 
 
-
-
-@app.route("/reportes/servicios_mes", methods=["GET"])
-def reporte_servicios_mes():
-    mes = request.args.get("mes")
+@app.route("/reportes/servicios_anual", methods=["GET"])
+def reporte_servicios_anual():
     anio = request.args.get("anio")
-    if not mes or not anio:
-        return jsonify({"error": "Falta mes o año"}), 400
+    if not anio:
+        return jsonify({"error": "Falta año"}), 400
 
     conn = conectar_db()
     if not conn:
@@ -825,54 +825,49 @@ def reporte_servicios_mes():
 
     try:
         cursor = conn.cursor()
-        # Ajusta para sumar cada campo. Ejemplo:
         cursor.execute("""
             SELECT 
-              COALESCE(SUM((servicios->>'letrasGigantes')::int), 0) as total_letras,
-              COALESCE(SUM((servicios->>'chisperos')::int), 0) as total_chisperos,
-              COALESCE(SUM((servicios->>'cabinaFotos')::int), 0) as total_cabinaFotos,
-              COALESCE(SUM((servicios->>'scrapbook')::int), 0) as total_scrapbook,
-              
-              /* Agrega lo nuevo */
-              COALESCE(SUM((servicios->>'cabina360')::int), 0) as total_cabina360,
-              COALESCE(SUM((servicios->>'caritoDeShotsSinAlcohol')::int), 0) as total_caritoShotsSinAlcohol,
-              COALESCE(SUM((servicios->>'caritoDeShotsConAlcohol')::int), 0) as total_caritoShotsConAlcohol,
-              COALESCE(SUM((servicios->>'lluviaDeMariposas')::int), 0) as total_lluviaMariposas,
-              COALESCE(SUM((servicios->>'lluviaMetalica')::int), 0) as total_lluviaMetalica,
-              COALESCE(SUM((servicios->>'nieblaDePiso')::int), 0) as total_nieblaDePiso,
-              COALESCE(SUM((servicios->>'audioGuestBook')::int), 0) as total_audioGuestBook,
-
-              COUNT(*) as total_eventos
+                COALESCE(SUM((servicios->>'letrasGigantes')::int), 0),
+                COALESCE(SUM((servicios->>'chisperos')::int), 0),
+                COALESCE(SUM((servicios->>'cabinaFotos')::int), 0),
+                COALESCE(SUM((servicios->>'cabina360')::int), 0),
+                COALESCE(SUM((servicios->>'caritoDeShotsSinAlcohol')::int), 0),
+                COALESCE(SUM((servicios->>'caritoDeShotsConAlcohol')::int), 0),
+                COALESCE(SUM((servicios->>'lluviaDeMariposas')::int), 0),
+                COALESCE(SUM((servicios->>'lluviaMetalica')::int), 0),
+                COALESCE(SUM((servicios->>'nieblaDePiso')::int), 0),
+                COALESCE(SUM((servicios->>'scrapbook')::int), 0),
+                COALESCE(SUM((servicios->>'audioGuestBook')::int), 0),
+                COUNT(*)
             FROM calendario
-            WHERE EXTRACT(MONTH FROM fecha) = %s
-              AND EXTRACT(YEAR FROM fecha) = %s
-        """, (mes, anio))
+            WHERE EXTRACT(YEAR FROM fecha) = %s
+        """, (anio,))
         row = cursor.fetchone()
-
-        # row tendrá todos los valores en orden: 
-        # (total_letras, total_chisperos, total_cabinaFotos, total_scrapbook, total_cabina360, total_caritoShotsSinAlcohol, ...)
+        
+        # row = (letrasGigantes, chisperos, cabinaFotos, cabina360, shotsSin, shotsCon, lluviaM, lluviaMetalica, niebla, scrapbook, audioGB, totalEventos)
         return jsonify({
-            "mes": int(mes),
             "anio": int(anio),
             "letrasGigantes": row[0],
             "chisperos": row[1],
             "cabinaFotos": row[2],
-            "scrapbook": row[3],
-
-            "cabina360": row[4],
-            "caritoDeShotsSinAlcohol": row[5],
-            "caritoDeShotsConAlcohol": row[6],
-            "lluviaDeMariposas": row[7],
-            "lluviaMetalica": row[8],
-            "nieblaDePiso": row[9],
+            "cabina360": row[3],
+            "caritoDeShotsSinAlcohol": row[4],
+            "caritoDeShotsConAlcohol": row[5],
+            "lluviaDeMariposas": row[6],
+            "lluviaMetalica": row[7],
+            "nieblaDePiso": row[8],
+            "scrapbook": row[9],
             "audioGuestBook": row[10],
-
             "eventosContados": row[11]
         }), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+
+
+
 
 
 @app.route("/gastos/agregar", methods=["POST"])
@@ -978,7 +973,8 @@ def gastos_por_etiqueta():
             gastos.append({
                 "monto": float(row[0]),
                 "descripcion": row[1],
-                "fecha": row[2].strftime("%Y-%m-%d %H:%M:%S")  # o el formato que prefieras
+                "fecha": row[4].strftime("%Y-%m-%d")  # o el formato que prefieras
+
             })
         return jsonify({"gastos": gastos}), 200
     except Exception as e:
@@ -986,6 +982,50 @@ def gastos_por_etiqueta():
     finally:
         liberar_db(conn)
 
+# 📌 Endpoint para eliminar un registro individual
+@app.route("/gastos/eliminar/<int:gasto_id>", methods=["POST"])
+def eliminar_gasto(gasto_id):
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la BD"}), 500
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM gastos WHERE id = %s", (gasto_id,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            return jsonify({"error": "No existe gasto con ese id"}), 404
+        return jsonify({"ok": True, "mensaje": "Gasto eliminado"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+# 📌 Endpoint para eliminar la etiqueta completa
+@app.route("/gastos/eliminar_etiqueta", methods=["POST"])
+def eliminar_etiqueta():
+    data = request.json
+    etiqueta = data.get("etiqueta")
+    if not etiqueta:
+        return jsonify({"error": "No se indicó la etiqueta"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar"}), 500
+
+    try:
+        cursor = conn.cursor()
+        # primero borrar gastos con esa etiqueta
+        cursor.execute("DELETE FROM gastos WHERE etiqueta = %s", (etiqueta,))
+        # luego borrar la etiqueta de la tabla gasto_etiquetas
+        cursor.execute("DELETE FROM gasto_etiquetas WHERE etiqueta = %s", (etiqueta,))
+        conn.commit()
+        return jsonify({"ok": True, "mensaje": f"Etiqueta {etiqueta} eliminada"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
 
 
 

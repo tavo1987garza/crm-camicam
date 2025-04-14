@@ -1543,39 +1543,8 @@
 
         <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
-            
-            <!-- Reporte de Ingresos por Mes (Reporte Mensual) -->
-            <section id="reporte-ingresos">
-              <h2>Ingresos (Ticket) por mes</h2>
-              <div class="form-group">
-                <label for="reporte-mes">Mes:</label>
-                <select id="reporte-mes">
-                  <option value="">Selecciona un mes</option>
-                  <option value="1">Enero</option>
-                  <option value="2">Febrero</option>
-                  <option value="3">Marzo</option>
-                  <option value="4">Abril</option>
-                  <option value="5">Mayo</option>
-                  <option value="6">Junio</option>
-                  <option value="7">Julio</option>
-                  <option value="8">Agosto</option>
-                  <option value="9">Septiembre</option>
-                  <option value="10">Octubre</option>
-                  <option value="11">Noviembre</option>
-                  <option value="12">Diciembre</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="reporte-anio-mensual">Año:</label>
-                <input type="number" id="reporte-anio-mensual" placeholder="2025" min="2000">
-              </div>
-              <button onclick="verReporteIngresos()">Ver Ingresos Mensuales</button>
-              <div id="resultado-ingresos" class="reporte-card"></div>
-            </section>
-            
-            <hr>
-            
-            <!-- Reporte Anual Desglosado por Mes -->
+          
+            <!-- SOLO dejamos la parte de Reporte Anual -->
             <section id="reporte-ingresos-anual">
               <h2>Reporte Anual Desglosado por Mes</h2>
               <div class="form-group">
@@ -1586,85 +1555,75 @@
               <div id="resultado-ingresos-anual" class="reporte-card"></div>
             </section>
             
-            <hr>
-            
-            <!-- Reporte de Servicios -->
-            <section id="reporte-servicios">
-              <h2>Servicios contratados (mes)</h2>
-              <!-- Se reutilizan los mismos inputs o se pueden duplicar si deseas separar los filtros -->
-              <button onclick="verReporteServicios()">Ver Servicios</button>
-              <div id="resultado-servicios" class="reporte-card"></div>
-            </section>
+            <!-- Debajo, la sección de servicios anuales, sin botón -->
+            <div id="resultado-servicios" class="reporte-card"></div>
           </div>
           
           <div id="gastos" class="seccion hidden">
             <h1>💸 Gastos</h1>
-            <p>Documenta todos los gastos.</p>
-            
-            <form id="form-gasto">
-              <div class="form-group">
-                <label for="gasto-monto">Monto:</label>
-                <input type="text" id="gasto-monto" placeholder="$0" />
-              </div>
-              <div class="form-group">
-                <label for="gasto-etiqueta">Etiqueta:</label>
-                <!-- Puede ser un dropdown con etiquetas existentes -->
-                <select id="gasto-etiqueta">
-                  <option value="">Selecciona una etiqueta</option>
-                </select>
-                <!-- Botón para agregar una nueva etiqueta -->
-                <button type="button" onclick="mostrarNuevoGastoEtiqueta()">Agregar Etiqueta</button>
-              </div>
-              <div class="form-group">
-                <label for="gasto-descripcion">Descripción:</label>
-                <input type="text" id="gasto-descripcion" placeholder="Detalle del gasto" />
-              </div>
-              <!-- La fecha se registra automáticamente en el backend -->
-              <button type="button" onclick="agregarGasto()">Registrar Gasto</button>
-            </form>
-            
-            <!-- Sección para agregar nueva etiqueta (oculta inicialmente) -->
-            <div id="nueva-etiqueta" class="hidden">
-              <h3>Nueva Etiqueta</h3>
-              <input type="text" id="nueva-etiqueta-input" placeholder="Nombre de la etiqueta">
-              <button type="button" onclick="agregarNuevaEtiqueta()">Crear Etiqueta</button>
-            </div>
-            
-            <!-- Aquí se puede listar los gastos registrados (opcional) -->
-            <div id="lista-gastos"></div>
-            <!-- Contenedor donde se mostrarán las etiquetas -->
-<div id="lista-etiquetas" class="etiquetas-container">
-    <!-- Se llenará dinámicamente con cada etiqueta obtenida del backend -->
-  </div>
+          
+            <!-- Botón/ícono para agregar nueva etiqueta -->
+            <button class="icon-btn" onclick="abrirModalNuevaEtiqueta()">
+              ➕ Nueva Etiqueta
+            </button>
+          
+            <!-- Contenedor donde se listarán las etiquetas existentes -->
+            <div id="lista-etiquetas" class="etiquetas-container"></div>
+          </div>
+ 
+          <!-- MODAL para Crear Etiqueta -->
+<div id="modal-nueva-etiqueta" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarModalNuevaEtiqueta()">✖</span>
+      <h2>Crear Nueva Etiqueta</h2>
   
-  <!-- Modal para visualizar los gastos de una etiqueta y agregar nuevos gastos -->
-  <div id="modal-etiqueta" class="modal hidden">
+      <input type="text" id="nueva-etiqueta-input" placeholder="Nombre de la etiqueta" />
+      <button onclick="agregarNuevaEtiqueta()">Crear Etiqueta</button>
+    </div>
+  </div>
+
+  <!-- Modal para ver/editar una etiqueta existente -->
+<div id="modal-etiqueta" class="modal hidden">
     <div class="modal-content">
       <span class="close-btn" onclick="cerrarModalEtiqueta()">✖</span>
-      <h2>
-        Gastos de la etiqueta: <span id="etiqueta-nombre"></span>
-      </h2>
-      <div id="modal-etiqueta-contenido">
-        <!-- Aquí se listarán los gastos asociados a la etiqueta -->
+      
+      <!-- Encabezado con título de la etiqueta y botón/basura para borrarla -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>
+          Etiqueta: <span id="etiqueta-nombre"></span>
+        </h2>
+        <!-- Icono para borrar la etiqueta completa -->
+        <button class="delete-btn" onclick="eliminarEtiquetaCompleta()">
+          🗑️ Eliminar Etiqueta
+        </button>
       </div>
-      <button onclick="mostrarFormularioAgregarGastoEtiqueta()">Agregar Gasto a esta etiqueta</button>
+      
+      <!-- Aquí se listarán los gastos de esta etiqueta -->
+      <div id="modal-etiqueta-contenido"></div>
+  
+      <!-- Botón para agregar gasto a la etiqueta -->
+      <button onclick="toggleFormularioAgregarGastoEtiqueta()">
+        ➕ Agregar gasto a esta etiqueta
+      </button>
+  
+      <!-- Formulario oculto para añadir gasto -->
       <div id="form-agregar-gasto-etiqueta" class="hidden">
         <div class="form-group">
           <label for="gasto-etiqueta-monto">Monto:</label>
-          <input type="text" id="gasto-etiqueta-monto" placeholder="$0">
+          <input type="text" id="gasto-etiqueta-monto" placeholder="$0" />
         </div>
         <div class="form-group">
           <label for="gasto-etiqueta-descripcion">Descripción:</label>
-          <input type="text" id="gasto-etiqueta-descripcion" placeholder="Descripción del gasto">
+          <input type="text" id="gasto-etiqueta-descripcion" placeholder="Descripción del gasto" />
         </div>
-        <button onclick="agregarGastoPorEtiqueta()">Registrar Gasto</button>
+        <button onclick="agregarGastoPorEtiqueta()">
+          Registrar Gasto
+        </button>
       </div>
     </div>
   </div>
   
-          </div>
           
-
         <div id="configuracion" class="seccion hidden">
             <h1>⚙️ Configuración</h1>
             <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
@@ -2839,22 +2798,20 @@ function eliminarFechaDesdeModal() {
   
 
 
-async function verReporteIngresos() {
-    const mes = document.getElementById("reporte-mes").value;
-    const anio = document.getElementById("reporte-anio").value;
-    const resultadoDiv = document.getElementById("resultado-ingresos");
-    
-    // Validación básica
-    if (!mes || !anio) {
-      resultadoDiv.textContent = "Por favor, selecciona un mes y un año válidos.";
+  
+
+async function verReporteIngresosAnual() {
+    const anio = document.getElementById("reporte-anio-anual").value;
+    const resultadoDiv = document.getElementById("resultado-ingresos-anual");
+    if (!anio) {
+      resultadoDiv.textContent = "Ingresa un año válido.";
       return;
     }
-    
-    // Indicar que se está cargando la información
-    resultadoDiv.textContent = "Cargando ingresos...";
-    
+  
+    resultadoDiv.textContent = "Cargando reporte anual...";
+  
     try {
-      const response = await fetch(`/reportes/ingresos?mes=${mes}&anio=${anio}`);
+      const response = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
       const data = await response.json();
       
       if (data.error) {
@@ -2862,155 +2819,139 @@ async function verReporteIngresos() {
         return;
       }
       
-      // Formatear el total de ventas a pesos mexicanos sin decimales
-      const formateado = data.total_ventas.toLocaleString('es-MX', {
-        style: 'currency',
-        currency: 'MXN',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      });
+      // Construir la tabla con el reporte anual
+      let html = `<h3>Reporte del año ${data.anio}</h3>`;
+      html += `<p>Total de eventos contratados: <strong>${data.total_eventos}</strong></p>`;
+      html += "<table>";
+      html += "<thead><tr><th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th></tr></thead>";
+      html += "<tbody>";
       
-      resultadoDiv.innerHTML = `<p>Total de ventas en ${data.mes}/${data.anio}: <strong>${formateado}</strong></p>`;
-      
-    } catch (err) {
-      console.error("Error reporte_ingresos:", err);
-      resultadoDiv.textContent = "Error al obtener los ingresos.";
-    }
-  }
+      const meses = {
+        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+      };
   
-
-async function verReporteIngresosAnual() {
-  const anio = document.getElementById("reporte-anio-anual").value;
-  const resultadoDiv = document.getElementById("resultado-ingresos-anual");
+      let totalIngresos = 0;
+      let totalCostos = 0;
+      let totalUtilidad = 0;
   
-  if (!anio) {
-    resultadoDiv.textContent = "Ingresa un año válido.";
-    return;
-  }
-  
-  resultadoDiv.textContent = "Cargando reporte anual...";
-  
-  try {
-    const response = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
-    const data = await response.json();
-    
-    if (data.error) {
-      resultadoDiv.textContent = "Error: " + data.error;
-      return;
-    }
-    
-    // Construir la tabla con el reporte anual
-    let html = `<h3>Reporte del año ${data.anio}</h3>`;
-    html += `<p>Total de eventos contratados: <strong>${data.total_eventos}</strong></p>`;
-    html += "<table>";
-    html += "<thead><tr><th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th></tr></thead>";
-    html += "<tbody>";
-    
-    const meses = {
-      1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-      5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-      9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
-    };
-
-    for (let mes = 1; mes <= 12; mes++) {
-      const ingreso = data.ingresos_anual[mes] || 0;
-      const costo = data.costos_anual ? (data.costos_anual[mes] || 0) : 0;
-      const utilidad = ingreso - costo;
-      
-      const ingresoFormateado = ingreso.toLocaleString('es-MX', {
-        style: 'currency',
-        currency: 'MXN',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      });
-      const costoFormateado = costo.toLocaleString('es-MX', {
-        style: 'currency',
-        currency: 'MXN',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      });
-      const utilidadFormateada = utilidad.toLocaleString('es-MX', {
-        style: 'currency',
-        currency: 'MXN',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      });
-      
-      html += `<tr>
-                <td>${meses[mes]}</td>
-                <td>${ingresoFormateado}</td>
-                <td>${costoFormateado}</td>
-                <td>${utilidadFormateada}</td>
-              </tr>`;
-    }
-    
-    html += "</tbody></table>";
-    resultadoDiv.innerHTML = html;
-    
-  } catch (err) {
-    console.error("Error en verReporteIngresosAnual:", err);
-    resultadoDiv.textContent = "Error al obtener el reporte anual.";
-  }
-}
-
-  
-  
-
-      
-    async function verReporteServicios() {
-        const mes = document.getElementById("reporte-mes").value;
-        const anio = document.getElementById("reporte-anio").value;
-        const resultadoDiv = document.getElementById("resultado-servicios");
+      for (let mes = 1; mes <= 12; mes++) {
+        const ingreso = data.ingresos_anual[mes] || 0;
+        const costo = data.costos_anual ? (data.costos_anual[mes] || 0) : 0;
+        const utilidad = ingreso - costo;
         
-        if (!mes || !anio) {
-          resultadoDiv.textContent = "Por favor, selecciona un mes y un año válidos.";
-          return;
-        }
+        totalIngresos += ingreso;
+        totalCostos += costo;
+        totalUtilidad += utilidad;
+  
+        const ingresoFormateado = ingreso.toLocaleString('es-MX', {
+          style: 'currency',
+          currency: 'MXN',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        });
+        const costoFormateado = costo.toLocaleString('es-MX', {
+          style: 'currency',
+          currency: 'MXN',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        });
+        const utilidadFormateada = utilidad.toLocaleString('es-MX', {
+          style: 'currency',
+          currency: 'MXN',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        });
         
-        resultadoDiv.textContent = "Cargando servicios...";
-        
-        try {
-          const response = await fetch(`/reportes/servicios_mes?mes=${mes}&anio=${anio}`);
-          const data = await response.json();
-          
-          if (data.error) {
-            resultadoDiv.textContent = "Error: " + data.error;
-            return;
-          }
-          
-          // Construir la tabla con los datos de servicios
-          let tableHTML = `
-            <table>
-              <thead>
-                <tr>
-                  <th>Servicio</th>
-                  <th>Cantidad</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>Letras Gigantes</td><td>${data.letrasGigantes}</td></tr>
-                <tr><td>Chisperos</td><td>${data.chisperos}</td></tr>
-                <tr><td>Cabina Fotos</td><td>${data.cabinaFotos}</td></tr>
-                <tr><td>Cabina 360</td><td>${data.cabina360}</td></tr>
-                <tr><td>Shots Sin Alcohol</td><td>${data.caritoDeShotsSinAlcohol}</td></tr>
-                <tr><td>Shots Con Alcohol</td><td>${data.caritoDeShotsConAlcohol}</td></tr>
-                <tr><td>Lluvia de Mariposas</td><td>${data.lluviaDeMariposas}</td></tr>
-                <tr><td>Lluvia Metálica</td><td>${data.lluviaMetalica}</td></tr>
-                <tr><td>Niebla de Piso</td><td>${data.nieblaDePiso}</td></tr>
-                <tr><td>Scrapbook</td><td>${data.scrapbook}</td></tr>
-                <tr><td>Audio Guest Book</td><td>${data.audioGuestBook}</td></tr>
-              </tbody>
-            </table>
-            <p>Eventos contados: ${data.eventosContados}</p>
-          `;
-          
-          resultadoDiv.innerHTML = tableHTML;
-          
-        } catch (err) {
-          console.error("Error reporte_servicios:", err);
-          resultadoDiv.textContent = "Error al obtener el reporte de servicios.";
-        }
+        html += `<tr>
+                  <td>${meses[mes]}</td>
+                  <td>${ingresoFormateado}</td>
+                  <td>${costoFormateado}</td>
+                  <td>${utilidadFormateada}</td>
+                </tr>`;
       }
+      
+      // Agregar fila de totales
+      const totalIngresosFmt = totalIngresos.toLocaleString('es-MX', {style:'currency', currency:'MXN', minimumFractionDigits:0});
+      const totalCostosFmt = totalCostos.toLocaleString('es-MX', {style:'currency', currency:'MXN', minimumFractionDigits:0});
+      const totalUtilidadFmt = totalUtilidad.toLocaleString('es-MX', {style:'currency', currency:'MXN', minimumFractionDigits:0});
+  
+      html += `
+        <tr style="font-weight: bold;">
+          <td>TOTALES</td>
+          <td>${totalIngresosFmt}</td>
+          <td>${totalCostosFmt}</td>
+          <td>${totalUtilidadFmt}</td>
+        </tr>
+      `;
+  
+      html += "</tbody></table>";
+  
+      // Inyectamos al DIV
+      resultadoDiv.innerHTML = html;
+  
+      // Después de mostrar el reporte anual, mostramos debajo los servicios:
+      verReporteServiciosAnual(anio);
+  
+    } catch (err) {
+      console.error("Error en verReporteIngresosAnual:", err);
+      resultadoDiv.textContent = "Error al obtener el reporte anual.";
+    }
+  }
+  
+
+  
+  
+  async function verReporteServiciosAnual(anio) {
+    const resultadoDiv = document.getElementById("resultado-servicios"); // Un contenedor debajo del reporte anual
+    resultadoDiv.textContent = "Cargando servicios anuales...";
+  
+    try {
+      const response = await fetch(`/reportes/servicios_anual?anio=${anio}`);
+      const data = await response.json();
+  
+      if (data.error) {
+        resultadoDiv.textContent = "Error: " + data.error;
+        return;
+      }
+  
+      // Construir la tabla con los datos de servicios para TODO el año
+      let tableHTML = `
+        <h3>Servicios Contratados en ${data.anio}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Servicio</th>
+              <th>Cantidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Letras Gigantes</td><td>${data.letrasGigantes}</td></tr>
+            <tr><td>Chisperos</td><td>${data.chisperos}</td></tr>
+            <tr><td>Cabina Fotos</td><td>${data.cabinaFotos}</td></tr>
+            <tr><td>Cabina 360</td><td>${data.cabina360}</td></tr>
+            <tr><td>Shots Sin Alcohol</td><td>${data.caritoDeShotsSinAlcohol}</td></tr>
+            <tr><td>Shots Con Alcohol</td><td>${data.caritoDeShotsConAlcohol}</td></tr>
+            <tr><td>Lluvia de Mariposas</td><td>${data.lluviaDeMariposas}</td></tr>
+            <tr><td>Lluvia Metálica</td><td>${data.lluviaMetalica}</td></tr>
+            <tr><td>Niebla de Piso</td><td>${data.nieblaDePiso}</td></tr>
+            <tr><td>Scrapbook</td><td>${data.scrapbook}</td></tr>
+            <tr><td>Audio Guest Book</td><td>${data.audioGuestBook}</td></tr>
+          </tbody>
+        </table>
+        <p>Eventos contados: ${data.eventosContados}</p>
+      `;
+  
+      resultadoDiv.innerHTML = tableHTML;
+    } catch (err) {
+      console.error("Error reporte_servicios_anual:", err);
+      resultadoDiv.textContent = "Error al obtener el reporte de servicios anuales.";
+    }
+  }
+  
+      
+
       
 
 
@@ -3027,119 +2968,39 @@ async function verReporteIngresosAnual() {
         }
       });
 
-
-      
-      async function agregarGasto() {
-        // Extraer el monto y quitar el formato
-        const montoInput = document.getElementById("gasto-monto").value;
-        const montoStr = montoInput.replace(/[^0-9.]/g, '');
-        const monto = parseFloat(montoStr) || 0;
-      
-        const etiqueta = document.getElementById("gasto-etiqueta").value;
-        const descripcion = document.getElementById("gasto-descripcion").value.trim();
-      
-        const payload = {
-          monto: monto,
-          etiqueta: etiqueta,
-          descripcion: descripcion
-        };
-      
-        try {
-          const response = await fetch("/gastos/agregar", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-          const data = await response.json();
-          
-          if (data.error) {
-            alert("Error: " + data.error);
-            return;
-          }
-          
-          alert("Gasto registrado correctamente");
-          document.getElementById("form-gasto").reset();
-      
-        } catch (err) {
-          console.error("Error al registrar gasto:", err);
-          alert("Error al registrar el gasto.");
-          return;
-        }
-      
-        try {
-          await cargarEtiquetas();
-        } catch (err) {
-          console.error("Error al cargar etiquetas:", err);
-        }
-      
-        try {
-          await listarGastos();
-        } catch (err) {
-          console.error("Error al listar gastos:", err);
-        }
+    
+// Reutilizamos la misma lógica para crear la etiqueta
+async function agregarNuevaEtiqueta() {
+    const nuevaEtiqueta = document.getElementById("nueva-etiqueta-input").value.trim();
+    if (!nuevaEtiqueta) {
+      alert("Ingresa el nombre de la etiqueta");
+      return;
+    }
+  
+    try {
+      const response = await fetch("/gastos/agregar_etiqueta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ etiqueta: nuevaEtiqueta })
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
       }
+  
+      alert("Etiqueta creada correctamente.");
+      cerrarModalNuevaEtiqueta();
+      document.getElementById("nueva-etiqueta-input").value = '';
+      // recargar la lista de etiquetas
+      cargarEtiquetasEnVista();
+  
+    } catch (err) {
+      console.error("Error al agregar etiqueta:", err);
+    }
+  }
       
-      
-
-      function mostrarNuevoGastoEtiqueta() {
-        const div = document.getElementById("nueva-etiqueta");
-        div.classList.toggle("hidden");
-      }
-      
-      async function agregarNuevaEtiqueta() {
-        const nuevaEtiqueta = document.getElementById("nueva-etiqueta-input").value.trim();
-        if (!nuevaEtiqueta) {
-          alert("Ingresa el nombre de la etiqueta");
-          return;
-        }
-      
-        try {
-          const response = await fetch("/gastos/agregar_etiqueta", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ etiqueta: nuevaEtiqueta })
-          });
-          const data = await response.json();
-          
-          if (data.error) {
-            alert("Error: " + data.error);
-            return;
-          }
-          
-          alert("Etiqueta creada correctamente.");
-          // Recargar la lista de etiquetas en el dropdown
-          cargarEtiquetas();
-          // Ocultar el formulario de nueva etiqueta
-          document.getElementById("nueva-etiqueta").classList.add("hidden");
-          document.getElementById("nueva-etiqueta-input").value = '';
-          
-        } catch (err) {
-          console.error("Error al agregar etiqueta:", err);
-        }
-      }
-      
-      // Función para cargar las etiquetas en el dropdown (implementa según tu API)
-      async function cargarEtiquetas() {
-        try {
-          const response = await fetch("/gastos/etiquetas"); // endpoint para obtener etiquetas
-          const data = await response.json();
-          const select = document.getElementById("gasto-etiqueta");
-          
-          // Limpiar y agregar opción predeterminada
-          select.innerHTML = "<option value=''>Selecciona una etiqueta</option>";
-          data.etiquetas.forEach(et => {
-            const option = document.createElement("option");
-            option.value = et;
-            option.textContent = et;
-            select.appendChild(option);
-          });
-        } catch (err) {
-          console.error("Error al cargar etiquetas:", err);
-        }
-      }
-      
-
-// Cargar las etiquetas y mostrarlas en la vista
+// Listar etiquetas en la vista
 async function cargarEtiquetasEnVista() {
     try {
       const response = await fetch("/gastos/etiquetas");
@@ -3147,27 +3008,21 @@ async function cargarEtiquetasEnVista() {
       const container = document.getElementById("lista-etiquetas");
       container.innerHTML = "";
       data.etiquetas.forEach(etiqueta => {
-        // Crear un elemento para la etiqueta con icono y nombre
         const divEtiqueta = document.createElement("div");
         divEtiqueta.classList.add("etiqueta-item");
-        // Utilizando Font Awesome para un icono moderno (asegúrate de incluir la librería)
         divEtiqueta.innerHTML = `<i class="fas fa-tag"></i> <span>${etiqueta}</span>`;
-        // Al hacer clic, se abre el modal para esa etiqueta
-        divEtiqueta.addEventListener("click", () => {
-          abrirModalEtiqueta(etiqueta);
-        });
+        divEtiqueta.style.cursor = "pointer";
+        divEtiqueta.onclick = () => abrirModalEtiqueta(etiqueta);
         container.appendChild(divEtiqueta);
       });
     } catch (err) {
       console.error("Error al cargar etiquetas:", err);
     }
   }
-  
-  // Abrir el modal y cargar los gastos asociados a una etiqueta
-  async function abrirModalEtiqueta(etiqueta) {
-    // Mostrar el nombre de la etiqueta en el modal
+
+  // Abre el modal para una etiqueta existente
+async function abrirModalEtiqueta(etiqueta) {
     document.getElementById("etiqueta-nombre").textContent = etiqueta;
-    // Solicitar al backend los gastos asociados a esta etiqueta
     try {
       const response = await fetch(`/gastos/por_etiqueta?etiqueta=${encodeURIComponent(etiqueta)}`);
       const data = await response.json();
@@ -3178,14 +3033,19 @@ async function cargarEtiquetasEnVista() {
         if (data.gastos && data.gastos.length > 0) {
           let html = "<ul>";
           data.gastos.forEach(gasto => {
-            // Se asume que cada gasto tiene: monto, descripcion y fecha
+            // Debes tener un ID en la tabla de gastos para poder eliminarlo individualmente
+            // p.e. gasto.id
             const montoFormateado = parseFloat(gasto.monto).toLocaleString('es-MX', {
-              style: 'currency',
-              currency: 'MXN',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
+              style: 'currency', currency: 'MXN', minimumFractionDigits: 0
             });
-            html += `<li>${montoFormateado} - ${gasto.descripcion} <em>(${gasto.fecha})</em></li>`;
+            html += `
+              <li>
+                ${montoFormateado} - ${gasto.descripcion} 
+                <em>(${gasto.fecha})</em> 
+                <span style="color:red; margin-left:10px; cursor:pointer;" 
+                      onclick="eliminarGasto('${gasto.id}','${etiqueta}')">X</span>
+              </li>
+            `;
           });
           html += "</ul>";
           contenido.innerHTML = html;
@@ -3198,34 +3058,29 @@ async function cargarEtiquetasEnVista() {
       document.getElementById("modal-etiqueta-contenido").textContent = "Error al obtener los gastos.";
     }
     
-    // Mostrar el modal
     document.getElementById("modal-etiqueta").classList.remove("hidden");
   }
   
-  // Cerrar el modal
+  // Cierra el modal de etiqueta
   function cerrarModalEtiqueta() {
     document.getElementById("modal-etiqueta").classList.add("hidden");
   }
-  
-  // Mostrar o ocultar el formulario de agregar gasto en el modal
-  function mostrarFormularioAgregarGastoEtiqueta() {
+
+  // Muestra/oculta el form de agregar gasto a la etiqueta
+function toggleFormularioAgregarGastoEtiqueta() {
     const form = document.getElementById("form-agregar-gasto-etiqueta");
     form.classList.toggle("hidden");
   }
   
-  // Registrar un gasto para la etiqueta desde el modal
+  // Agrega un gasto a la etiqueta actual
   async function agregarGastoPorEtiqueta() {
     const etiqueta = document.getElementById("etiqueta-nombre").textContent;
     const montoInput = document.getElementById("gasto-etiqueta-monto").value;
     const montoStr = montoInput.replace(/[^0-9.]/g, '');
     const monto = parseFloat(montoStr) || 0;
     const descripcion = document.getElementById("gasto-etiqueta-descripcion").value.trim();
-    
-    const payload = {
-      monto: monto,
-      etiqueta: etiqueta,
-      descripcion: descripcion
-    };
+  
+    const payload = { monto, etiqueta, descripcion };
     
     try {
       const response = await fetch("/gastos/agregar", {
@@ -3238,29 +3093,71 @@ async function cargarEtiquetasEnVista() {
         alert("Error: " + data.error);
         return;
       }
-      alert("Gasto agregado para la etiqueta " + etiqueta);
-      // Refrescar el contenido del modal para ver el gasto agregado
-      abrirModalEtiqueta(etiqueta);
-      // Limpiar el formulario
+      alert(`Gasto agregado para la etiqueta: ${etiqueta}`);
+  
+      // Limpiar formulario
       document.getElementById("gasto-etiqueta-monto").value = "";
       document.getElementById("gasto-etiqueta-descripcion").value = "";
-      // Ocultar el formulario
       document.getElementById("form-agregar-gasto-etiqueta").classList.add("hidden");
+  
+      // Refrescar el contenido del modal
+      abrirModalEtiqueta(etiqueta);
+  
     } catch(err) {
       console.error("Error al agregar gasto por etiqueta:", err);
       alert("Error al agregar gasto.");
     }
   }
   
-  // Llamar a esta función al iniciar la vista para cargar las etiquetas
+  // Eliminar un gasto individual
+  async function eliminarGasto(gastoId, etiqueta) {
+    if (!confirm("¿Deseas eliminar este gasto?")) return;
+    
+    try {
+      const response = await fetch(`/gastos/eliminar/${gastoId}`, {
+        method: "POST"
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+      // Recargamos la lista de gastos para la etiqueta
+      abrirModalEtiqueta(etiqueta);
+    } catch(err) {
+      console.error("Error al eliminar gasto:", err);
+    }
+  }
+  
+  // Eliminar la etiqueta completa (y sus gastos)
+  async function eliminarEtiquetaCompleta() {
+    const etiqueta = document.getElementById("etiqueta-nombre").textContent;
+    if (!confirm(`¿Seguro que deseas eliminar la etiqueta "${etiqueta}" con todos sus gastos?`)) return;
+  
+    try {
+      const response = await fetch("/gastos/eliminar_etiqueta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ etiqueta })
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+      alert(`Etiqueta "${etiqueta}" eliminada`);
+      cerrarModalEtiqueta();
+      // recargar la lista principal
+      cargarEtiquetasEnVista();
+    } catch (err) {
+      console.error("Error al eliminar etiqueta:", err);
+    }
+  }
+  
+  // Al cargar la sección, listamos las etiquetas
   document.addEventListener("DOMContentLoaded", () => {
     cargarEtiquetasEnVista();
   });
-  
-  
-
-        
-        
 
     </script>
 </body>
