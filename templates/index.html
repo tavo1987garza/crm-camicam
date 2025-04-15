@@ -941,6 +941,58 @@
    ESTILOS PARA LA SECCIÓN DE REPORTES
    ========================================= */ 
 
+   /* Ocultar secciones por defecto */
+.seccion.hidden {
+  display: none;
+}
+
+/* Estilos para la vista de años */
+#calendario-anios {
+  margin: 20px;
+}
+
+#lista-anios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.anio-btn {
+  background-color: #f8f9fa;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.anio-btn:hover {
+  background-color: #e9ecef;
+}
+
+/* Vista de eventos (para el año) */
+#calendario-eventos {
+  margin: 20px;
+}
+
+.header-anio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.volver-btn {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Si ya tienes estilos para .add-button, se reutilizan aquí */
+
+
 .reportes-container {
     background: white;
     padding: 20px;
