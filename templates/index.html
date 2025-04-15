@@ -1528,7 +1528,40 @@
           <div id="gastos" class="seccion hidden">
             <h1>💸 Gastos</h1>
             <p>Documenta todos los gastos.</p>
-        </div>
+            
+            <form id="form-gasto">
+              <div class="form-group">
+                <label for="gasto-monto">Monto:</label>
+                <input type="text" id="gasto-monto" placeholder="$0" />
+              </div>
+              <div class="form-group">
+                <label for="gasto-etiqueta">Etiqueta:</label>
+                <!-- Puede ser un dropdown con etiquetas existentes -->
+                <select id="gasto-etiqueta">
+                  <option value="">Selecciona una etiqueta</option>
+                </select>
+                <!-- Botón para agregar una nueva etiqueta -->
+                <button type="button" onclick="mostrarNuevoGastoEtiqueta()">Agregar Etiqueta</button>
+              </div>
+              <div class="form-group">
+                <label for="gasto-descripcion">Descripción:</label>
+                <input type="text" id="gasto-descripcion" placeholder="Detalle del gasto" />
+              </div>
+              <!-- La fecha se registra automáticamente en el backend -->
+              <button type="button" onclick="agregarGasto()">Registrar Gasto</button>
+            </form>
+            
+            <!-- Sección para agregar nueva etiqueta (oculta inicialmente) -->
+            <div id="nueva-etiqueta" class="hidden">
+              <h3>Nueva Etiqueta</h3>
+              <input type="text" id="nueva-etiqueta-input" placeholder="Nombre de la etiqueta">
+              <button type="button" onclick="agregarNuevaEtiqueta()">Crear Etiqueta</button>
+            </div>
+            
+            <!-- Aquí se puede listar los gastos registrados (opcional) -->
+            <div id="lista-gastos"></div>
+          </div>
+          
 
         <div id="configuracion" class="seccion hidden">
             <h1>⚙️ Configuración</h1>
@@ -2744,58 +2777,80 @@ async function verReporteIngresos() {
   }
   
 
-  async function verReporteIngresosAnual() {
-    const anio = document.getElementById("reporte-anio-anual").value;
-    const resultadoDiv = document.getElementById("resultado-ingresos-anual");
+async function verReporteIngresosAnual() {
+  const anio = document.getElementById("reporte-anio-anual").value;
+  const resultadoDiv = document.getElementById("resultado-ingresos-anual");
+  
+  if (!anio) {
+    resultadoDiv.textContent = "Ingresa un año válido.";
+    return;
+  }
+  
+  resultadoDiv.textContent = "Cargando reporte anual...";
+  
+  try {
+    const response = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
+    const data = await response.json();
     
-    if (!anio) {
-      resultadoDiv.textContent = "Ingresa un año válido.";
+    if (data.error) {
+      resultadoDiv.textContent = "Error: " + data.error;
       return;
     }
     
-    resultadoDiv.textContent = "Cargando reporte anual...";
+    // Construir la tabla con el reporte anual
+    let html = `<h3>Reporte del año ${data.anio}</h3>`;
+    html += `<p>Total de eventos contratados: <strong>${data.total_eventos}</strong></p>`;
+    html += "<table>";
+    html += "<thead><tr><th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th></tr></thead>";
+    html += "<tbody>";
     
-    try {
-      const response = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
-      const data = await response.json();
+    const meses = {
+      1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+      5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+      9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+    };
+
+    for (let mes = 1; mes <= 12; mes++) {
+      const ingreso = data.ingresos_anual[mes] || 0;
+      const costo = data.costos_anual ? (data.costos_anual[mes] || 0) : 0;
+      const utilidad = ingreso - costo;
       
-      if (data.error) {
-        resultadoDiv.textContent = "Error: " + data.error;
-        return;
-      }
+      const ingresoFormateado = ingreso.toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+      const costoFormateado = costo.toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+      const utilidadFormateada = utilidad.toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
       
-      // data.ingresos_anual es un objeto con claves de 1 a 12 y data.total_eventos es el total de eventos.
-      let html = `<h3>Reporte del año ${data.anio}</h3>`;
-      html += `<p>Total de eventos contratados: <strong>${data.total_eventos}</strong></p>`;
-      
-      // Crear tabla con desglose de ingresos mensuales
-      html += "<table>";
-      html += "<thead><tr><th>Mes</th><th>Ingresos</th></tr></thead>";
-      html += "<tbody>";
-      const meses = {
-        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
-      };
-      for (let mes = 1; mes <= 12; mes++) {
-        const ingreso = data.ingresos_anual[mes] || 0;
-        const ingresoFormateado = ingreso.toLocaleString('es-MX', {
-          style: 'currency',
-          currency: 'MXN',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        });
-        html += `<tr><td>${meses[mes]}</td><td>${ingresoFormateado}</td></tr>`;
-      }
-      html += "</tbody></table>";
-      
-      resultadoDiv.innerHTML = html;
-      
-    } catch (err) {
-      console.error("Error en verReporteIngresosAnual:", err);
-      resultadoDiv.textContent = "Error al obtener el reporte anual.";
+      html += `<tr>
+                <td>${meses[mes]}</td>
+                <td>${ingresoFormateado}</td>
+                <td>${costoFormateado}</td>
+                <td>${utilidadFormateada}</td>
+              </tr>`;
     }
+    
+    html += "</tbody></table>";
+    resultadoDiv.innerHTML = html;
+    
+  } catch (err) {
+    console.error("Error en verReporteIngresosAnual:", err);
+    resultadoDiv.textContent = "Error al obtener el reporte anual.";
   }
+}
+
   
   
 
@@ -2852,6 +2907,121 @@ async function verReporteIngresos() {
         } catch (err) {
           console.error("Error reporte_servicios:", err);
           resultadoDiv.textContent = "Error al obtener el reporte de servicios.";
+        }
+      }
+      
+
+
+
+      document.getElementById("gasto-monto").addEventListener("blur", function() {
+        let numericValue = parseFloat(this.value.replace(/[^0-9.]/g, ''));
+        if (!isNaN(numericValue)) {
+          this.value = numericValue.toLocaleString('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          });
+        }
+      });
+
+      async function agregarGasto() {
+        // Extraer y limpiar el monto (quitar el formato de moneda)
+        const montoInput = document.getElementById("gasto-monto").value;
+        const montoStr = montoInput.replace(/[^0-9.]/g, '');
+        const monto = parseFloat(montoStr) || 0;
+      
+        const etiqueta = document.getElementById("gasto-etiqueta").value;
+        const descripcion = document.getElementById("gasto-descripcion").value.trim();
+      
+        // Armar el payload; la fecha se asigna en el backend usando CURRENT_TIMESTAMP
+        const payload = {
+          monto: monto,
+          etiqueta: etiqueta,
+          descripcion: descripcion
+        };
+      
+        try {
+          const response = await fetch("/gastos/agregar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json();
+          
+          if (data.error) {
+            alert("Error: " + data.error);
+            return;
+          }
+          
+          alert("Gasto registrado correctamente");
+          
+          // Opcional: Limpiar el formulario
+          document.getElementById("form-gasto").reset();
+          // Actualiza la lista de etiquetas si es que cambió o la lista de gastos
+          cargarEtiquetas();
+          listarGastos();
+          
+        } catch (err) {
+          console.error("Error al registrar gasto:", err);
+          alert("Error al registrar el gasto.");
+        }
+      }
+
+      function mostrarNuevoGastoEtiqueta() {
+        const div = document.getElementById("nueva-etiqueta");
+        div.classList.toggle("hidden");
+      }
+      
+      async function agregarNuevaEtiqueta() {
+        const nuevaEtiqueta = document.getElementById("nueva-etiqueta-input").value.trim();
+        if (!nuevaEtiqueta) {
+          alert("Ingresa el nombre de la etiqueta");
+          return;
+        }
+      
+        try {
+          const response = await fetch("/gastos/agregar_etiqueta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ etiqueta: nuevaEtiqueta })
+          });
+          const data = await response.json();
+          
+          if (data.error) {
+            alert("Error: " + data.error);
+            return;
+          }
+          
+          alert("Etiqueta creada correctamente.");
+          // Recargar la lista de etiquetas en el dropdown
+          cargarEtiquetas();
+          // Ocultar el formulario de nueva etiqueta
+          document.getElementById("nueva-etiqueta").classList.add("hidden");
+          document.getElementById("nueva-etiqueta-input").value = '';
+          
+        } catch (err) {
+          console.error("Error al agregar etiqueta:", err);
+        }
+      }
+      
+      // Función para cargar las etiquetas en el dropdown (implementa según tu API)
+      async function cargarEtiquetas() {
+        try {
+          const response = await fetch("/gastos/etiquetas"); // endpoint para obtener etiquetas
+          const data = await response.json();
+          const select = document.getElementById("gasto-etiqueta");
+          
+          // Limpiar y agregar opción predeterminada
+          select.innerHTML = "<option value=''>Selecciona una etiqueta</option>";
+          data.etiquetas.forEach(et => {
+            const option = document.createElement("option");
+            option.value = et;
+            option.textContent = et;
+            select.appendChild(option);
+          });
+        } catch (err) {
+          console.error("Error al cargar etiquetas:", err);
         }
       }
       

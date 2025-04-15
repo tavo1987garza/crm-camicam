@@ -757,24 +757,38 @@ def reporte_ingresos_anual():
 
     try:
         cursor = conn.cursor()
-        # Consulta para obtener el total de ingresos agrupados por mes
+        
+        # Consulta para obtener ingresos desglosados por mes
         cursor.execute("""
-            SELECT EXTRACT(MONTH FROM fecha) AS mes, COALESCE(SUM(ticket), 0) AS total
+            SELECT EXTRACT(MONTH FROM fecha) AS mes, COALESCE(SUM(ticket), 0) AS total_ingresos
             FROM calendario
             WHERE EXTRACT(YEAR FROM fecha) = %s
             GROUP BY mes
             ORDER BY mes
         """, (anio,))
-        rows = cursor.fetchall()
-
-        # Inicializar diccionario con los 12 meses en 0.0
+        rows_ing = cursor.fetchall()
         ingresos_por_mes = {mes: 0.0 for mes in range(1, 13)}
-        for row in rows:
+        for row in rows_ing:
             mes = int(row[0])
             total = float(row[1])
             ingresos_por_mes[mes] = total
 
-        # Consulta para contar el total de eventos en el año
+        # Consulta para obtener gastos (costos) desglosados por mes
+        cursor.execute("""
+            SELECT EXTRACT(MONTH FROM fecha) AS mes, COALESCE(SUM(monto), 0) AS total_gastos
+            FROM gastos
+            WHERE EXTRACT(YEAR FROM fecha) = %s
+            GROUP BY mes
+            ORDER BY mes
+        """, (anio,))
+        rows_gas = cursor.fetchall()
+        gastos_por_mes = {mes: 0.0 for mes in range(1, 13)}
+        for row in rows_gas:
+            mes = int(row[0])
+            total = float(row[1])
+            gastos_por_mes[mes] = total
+
+        # Consulta para contar el total de eventos registrados en el año
         cursor.execute("""
             SELECT COUNT(*)
             FROM calendario
@@ -785,6 +799,7 @@ def reporte_ingresos_anual():
         return jsonify({
             "anio": int(anio),
             "ingresos_anual": ingresos_por_mes,
+            "costos_anual": gastos_por_mes,
             "total_eventos": total_eventos
         }), 200
 
@@ -792,6 +807,7 @@ def reporte_ingresos_anual():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+
 
 
 
@@ -853,6 +869,84 @@ def reporte_servicios_mes():
 
             "eventosContados": row[11]
         }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/gastos/agregar", methods=["POST"])
+def agregar_gasto():
+    data = request.json
+    monto = data.get("monto", 0)
+    etiqueta = data.get("etiqueta", "")
+    descripcion = data.get("descripcion", "")
+
+    # Validación básica: monto debe ser mayor que 0
+    if not monto or float(monto) <= 0:
+        return jsonify({"error": "El monto debe ser mayor que 0"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO gastos (monto, etiqueta, descripcion, fecha)
+            VALUES (%s, %s, %s, NOW())
+        """, (monto, etiqueta, descripcion))
+        conn.commit()
+
+        return jsonify({"ok": True, "mensaje": "Gasto registrado correctamente."}), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/gastos/agregar_etiqueta", methods=["POST"])
+def agregar_etiqueta():
+    data = request.json
+    etiqueta = data.get("etiqueta")
+    if not etiqueta:
+        return jsonify({"error": "Falta el nombre de la etiqueta"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO gasto_etiquetas (etiqueta)
+            VALUES (%s)
+            ON CONFLICT (etiqueta) DO NOTHING
+        """, (etiqueta,))
+        conn.commit()
+
+        return jsonify({"ok": True, "mensaje": "Etiqueta creada correctamente."}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+@app.route("/gastos/etiquetas", methods=["GET"])
+def obtener_etiquetas():
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT etiqueta FROM gasto_etiquetas ORDER BY etiqueta")
+        rows = cursor.fetchall()
+        etiquetas = [row[0] for row in rows]
+        return jsonify({"etiquetas": etiquetas}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
