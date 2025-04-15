@@ -1339,15 +1339,40 @@
             </div>
         </div>
 
-        <div id="calendario" class="seccion hidden">
-            <h1>📅 Calendario</h1>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">Fechas Ocupadas</h2>
-                <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
-            </div>
-            
-            <ul id="lista-fechas-ocupadas"></ul>
+        
+            <div id="calendario" class="seccion hidden">
+                <h1>📅 Calendario</h1>
+              
+                <!-- Vista de años -->
+                <div id="calendario-anios">
+                  <!-- Botón para agregar un nuevo año -->
+                  <button id="btn-agregar-anio" onclick="abrirModalAgregarAnio()">+ Agregar Año</button>
+                  <!-- Aquí se mostrarán los años ya existentes -->
+                  <div id="lista-anios">
+                    <!-- Ejemplo de botón para un año existente -->
+                    <!-- Estos botones se pueden generar dinámicamente o de manera manual -->
+                    <button class="anio-btn" onclick="mostrarEventosAnio(2025)">2025</button>
+                    <!-- Puedes agregar más botones según se necesiten -->
+                  </div>
+                </div>
+              
+                <!-- Vista de eventos para un año específico -->
+                <div id="calendario-eventos" class="hidden">
+                  <div class="header-anio">
+                    <!-- Botón para volver a la vista de años -->
+                    <button class="volver-btn" onclick="volverAnios()">← Volver</button>
+                    <!-- Título con el año seleccionado -->
+                    <h2 id="anio-seleccionado"></h2>
+                  </div>
+                  
+                  <!-- Botón para agregar una nueva fecha dentro del año seleccionado -->
+                  <button onclick="mostrarFormularioFecha()" class="add-button">+ Agregar Fecha</button>
+                  
+                  <!-- Lista de eventos filtrados por el año seleccionado -->
+                  <ul id="lista-fechas-ocupadas"></ul>
+                </div>
+              </div>
+              
         
             <!-- Modal para Agregar Fecha -->
             <div id="add-fecha-modal" class="modal hidden">
