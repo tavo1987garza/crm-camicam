@@ -972,9 +972,9 @@ def gastos_por_etiqueta():
         for row in rows:
             gastos.append({
                 "id": row[0],
-                "monto": float(row[0]),
-                "descripcion": row[1],
-                "fecha": row[4].strftime("%Y-%m-%d")  # o el formato que prefieras
+                "monto": float(row[1]),
+                "descripcion": row[2],
+                "fecha": row[3].strftime("%Y-%m-%d")  # o el formato que prefieras
 
             })
         return jsonify({"gastos": gastos}), 200
