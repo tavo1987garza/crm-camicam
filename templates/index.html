@@ -941,58 +941,6 @@
    ESTILOS PARA LA SECCIÓN DE REPORTES
    ========================================= */ 
 
-   /* Ocultar secciones por defecto */
-.seccion.hidden {
-  display: none;
-}
-
-/* Estilos para la vista de años */
-#calendario-anios {
-  margin: 20px;
-}
-
-#lista-anios {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.anio-btn {
-  background-color: #f8f9fa;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.anio-btn:hover {
-  background-color: #e9ecef;
-}
-
-/* Vista de eventos (para el año) */
-#calendario-eventos {
-  margin: 20px;
-}
-
-.header-anio {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.volver-btn {
-  background: transparent;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-/* Si ya tienes estilos para .add-button, se reutilizan aquí */
-
-
 .reportes-container {
     background: white;
     padding: 20px;
@@ -1393,38 +1341,13 @@
 
         <div id="calendario" class="seccion hidden">
             <h1>📅 Calendario</h1>
-          
-            <!-- Vista de años -->
-            <div id="calendario-anios">
-              <!-- Botón para agregar un nuevo año -->
-              <button id="btn-agregar-anio" onclick="abrirModalAgregarAnio()">+ Agregar Año</button>
-              <!-- Aquí se mostrarán los años ya existentes -->
-              <div id="lista-anios">
-                <!-- Ejemplo de botón para un año existente -->
-                <!-- Estos botones se pueden generar dinámicamente o de manera manual -->
-                <button class="anio-btn" onclick="mostrarEventosAnio(2025)">2025</button>
-                <!-- Puedes agregar más botones según se necesiten -->
-              </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Fechas Ocupadas</h2>
+                <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
             </div>
-          
-            <!-- Vista de eventos para un año específico -->
-            <div id="calendario-eventos" class="hidden">
-              <div class="header-anio">
-                <!-- Botón para volver a la vista de años -->
-                <button class="volver-btn" onclick="volverAnios()">← Volver</button>
-                <!-- Título con el año seleccionado -->
-                <h2 id="anio-seleccionado"></h2>
-              </div>
-              
-              <!-- Botón para agregar una nueva fecha dentro del año seleccionado -->
-              <button onclick="mostrarFormularioFecha()" class="add-button">+ Agregar Fecha</button>
-              
-              <!-- Lista de eventos filtrados por el año seleccionado -->
-              <ul id="lista-fechas-ocupadas"></ul>
-            </div>
-          </div>
-          
-               
+            
+            <ul id="lista-fechas-ocupadas"></ul>
         
             <!-- Modal para Agregar Fecha -->
             <div id="add-fecha-modal" class="modal hidden">
