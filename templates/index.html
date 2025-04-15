@@ -2925,8 +2925,9 @@ async function verReporteIngresosAnual() {
         }
       });
 
+
       async function agregarGasto() {
-        // Extraer y limpiar el monto (quitar el formato de moneda)
+        // Extraer el monto y quitar el formato
         const montoInput = document.getElementById("gasto-monto").value;
         const montoStr = montoInput.replace(/[^0-9.]/g, '');
         const monto = parseFloat(montoStr) || 0;
@@ -2934,7 +2935,6 @@ async function verReporteIngresosAnual() {
         const etiqueta = document.getElementById("gasto-etiqueta").value;
         const descripcion = document.getElementById("gasto-descripcion").value.trim();
       
-        // Armar el payload; la fecha se asigna en el backend usando CURRENT_TIMESTAMP
         const payload = {
           monto: monto,
           etiqueta: etiqueta,
@@ -2954,19 +2954,32 @@ async function verReporteIngresosAnual() {
             return;
           }
           
+          // Si llega aquí, el gasto se registró correctamente.
           alert("Gasto registrado correctamente");
-          
-          // Opcional: Limpiar el formulario
           document.getElementById("form-gasto").reset();
-          // Actualiza la lista de etiquetas si es que cambió o la lista de gastos
-          cargarEtiquetas();
-          listarGastos();
-          
+      
         } catch (err) {
           console.error("Error al registrar gasto:", err);
           alert("Error al registrar el gasto.");
+          return;
+        }
+      
+        // Actualizamos la interfaz; si ocurre un error aquí, se trata por separado.
+        try {
+          await cargarEtiquetas();
+        } catch (err) {
+          console.error("Error al cargar etiquetas:", err);
+          // Puedes decidir si mostrar o no un alerta específico para las etiquetas.
+        }
+      
+        try {
+          await listarGastos();
+        } catch (err) {
+          console.error("Error al listar gastos:", err);
+          // De igual forma, muestra un mensaje o maneja el error según convenga.
         }
       }
+      
 
       function mostrarNuevoGastoEtiqueta() {
         const div = document.getElementById("nueva-etiqueta");
