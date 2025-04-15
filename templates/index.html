@@ -1590,12 +1590,9 @@
       <!-- Encabezado con título de la etiqueta y botón/basura para borrarla -->
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2>
-          Etiqueta: <span id="etiqueta-nombre"></span>
+          <span id="etiqueta-nombre"></span>
         </h2>
-        <!-- Icono para borrar la etiqueta completa -->
-        <button class="delete-btn" onclick="eliminarEtiquetaCompleta()">
-          🗑️ Eliminar Etiqueta
-        </button>
+        
       </div>
       
       <!-- Aquí se listarán los gastos de esta etiqueta -->
@@ -1620,8 +1617,16 @@
           Registrar Gasto
         </button>
       </div>
+       <!-- Icono para borrar la etiqueta completa -->
+       <button class="delete-btn" onclick="eliminarEtiquetaCompleta()">
+        🗑️ 
+      </button>
     </div>
   </div>
+
+
+
+  
   
           
         <div id="configuracion" class="seccion hidden">
