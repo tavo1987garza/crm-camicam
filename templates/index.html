@@ -1226,7 +1226,7 @@
         <i class="fas fa-chart-pie"></i> <!-- 🔹 Icono moderno -->
         <span>Reportes</span>
     </button>
-    <button onclick="mostrarSeccion('gastos')" class="sidebar-btn">
+    <button onclick="mostrarSeccion('gastos', initGastos)" class="sidebar-btn">
         <i class="fas fa-cash-register"></i> <!-- 🔹 Icono moderno -->
         <span>Gastos</span>
     </button>
@@ -1669,6 +1669,11 @@ function mostrarSeccion(seccion, callback = null) {
         if (seccion === 'calendario') {
             cargarCalendario();
             cargarLeadsEnSelect(); // También cargamos los leads para el select
+        }
+
+          // Cargar etiquetas cuando se muestra la sección de gastos
+          if (seccion === 'gastos') {
+            cargarEtiquetasEnVista();
         }
 
         if (callback) callback();
