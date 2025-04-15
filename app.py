@@ -962,7 +962,7 @@ def gastos_por_etiqueta():
         cursor = conn.cursor()
         # Se obtiene la lista de gastos para la etiqueta solicitada
         cursor.execute("""
-            SELECT monto, descripcion, fecha
+            SELECT id, monto, descripcion, fecha
             FROM gastos
             WHERE etiqueta = %s
             ORDER BY fecha DESC
@@ -971,6 +971,7 @@ def gastos_por_etiqueta():
         gastos = []
         for row in rows:
             gastos.append({
+                "id": row[0],
                 "monto": float(row[0]),
                 "descripcion": row[1],
                 "fecha": row[4].strftime("%Y-%m-%d")  # o el formato que prefieras
