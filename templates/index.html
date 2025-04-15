@@ -3066,94 +3066,45 @@ function abrirModalNuevaEtiqueta() {
   }
   
   // Abre el modal para una etiqueta existente
-
-
-
-  async function abrirModalEtiqueta(etiqueta) {
+async function abrirModalEtiqueta(etiqueta) {
     document.getElementById("etiqueta-nombre").textContent = etiqueta;
-    
     try {
-        const response = await fetch(`/gastos/por_etiqueta?etiqueta=${encodeURIComponent(etiqueta)}`);
-        const data = await response.json();
-        const contenido = document.getElementById("modal-etiqueta-contenido");
-        
-        contenido.innerHTML = ""; // Limpiar contenido previo
-        
-        if (data.error) {
-            contenido.textContent = "Error: " + data.error;
-            return;
-        }
-
+      const response = await fetch(`/gastos/por_etiqueta?etiqueta=${encodeURIComponent(etiqueta)}`);
+      const data = await response.json();
+      const contenido = document.getElementById("modal-etiqueta-contenido");
+      if (data.error) {
+        contenido.textContent = "No se pudo obtener los gastos para esta etiqueta.";
+      } else {
         if (data.gastos && data.gastos.length > 0) {
-            const listaGastos = document.createElement('ul');
-            listaGastos.className = 'lista-gastos';
-            
-            data.gastos.forEach(gasto => {
-                const itemGasto = document.createElement('li');
-                itemGasto.className = 'gasto-item';
-                
-                // Formatear el monto
-                const montoFormateado = parseFloat(gasto.monto).toLocaleString('es-MX', {
-                    style: 'currency', 
-                    currency: 'MXN', 
-                    minimumFractionDigits: 2
-                });
-                
-                // Crear elemento de fecha (si existe)
-                const fechaElement = gasto.fecha ? 
-                    document.createElement('span') : 
-                    null;
-                if (fechaElement) {
-                    fechaElement.className = 'gasto-fecha';
-                    fechaElement.textContent = ` (${gasto.fecha})`;
-                }
-
-                // Crear estructura del gasto
-                itemGasto.innerHTML = `
-                    <span class="gasto-monto">${montoFormateado}</span>
-                    <span class="gasto-descripcion">${gasto.descripcion || 'Sin descripción'}</span>
-                `;
-                
-                // Agregar fecha si existe
-                if (fechaElement) {
-                    itemGasto.appendChild(fechaElement);
-                }
-                
-                // Botón para eliminar
-                const eliminarBtn = document.createElement('span');
-                eliminarBtn.className = 'eliminar-gasto';
-                eliminarBtn.innerHTML = ' 🗑️';
-                eliminarBtn.onclick = () => eliminarGasto(gasto.id, etiqueta);
-                
-                itemGasto.appendChild(eliminarBtn);
-                listaGastos.appendChild(itemGasto);
+          let html = "<ul>";
+          data.gastos.forEach(gasto => {
+            // Debes tener un ID en la tabla de gastos para poder eliminarlo individualmente
+            // p.e. gasto.id
+            const montoFormateado = parseFloat(gasto.monto).toLocaleString('es-MX', {
+              style: 'currency', currency: 'MXN', minimumFractionDigits: 0
             });
-            
-            contenido.appendChild(listaGastos);
-            
-            // Agregar total si hay gastos
-            const total = data.gastos.reduce((sum, gasto) => sum + parseFloat(gasto.monto), 0);
-            const totalElement = document.createElement('div');
-            totalElement.className = 'gasto-total';
-            totalElement.textContent = `Total: ${total.toLocaleString('es-MX', {
-                style: 'currency',
-                currency: 'MXN',
-                minimumFractionDigits: 2
-            })}`;
-            
-            contenido.appendChild(totalElement);
+            html += `
+              <li>
+                ${montoFormateado} - ${gasto.descripcion} 
+                <em>(${gasto.fecha})</em> 
+                <span style="color:red; margin-left:10px; cursor:pointer;" 
+                      onclick="eliminarGasto('${gasto.id}','${etiqueta}')">X</span>
+              </li>
+            `;
+          });
+          html += "</ul>";
+          contenido.innerHTML = html;
         } else {
-            contenido.textContent = "No hay gastos registrados para esta etiqueta.";
+          contenido.textContent = "No hay gastos registrados para esta etiqueta.";
         }
+      }
     } catch (err) {
-        console.error("Error al obtener gastos por etiqueta:", err);
-        document.getElementById("modal-etiqueta-contenido").textContent = 
-            "Error al cargar los gastos. Intenta nuevamente.";
+      console.error("Error al obtener gastos por etiqueta:", err);
+      document.getElementById("modal-etiqueta-contenido").textContent = "Error al obtener los gastos.";
     }
     
-    // Mostrar el modal
     document.getElementById("modal-etiqueta").classList.remove("hidden");
-}
+  }
   
   // Cierra el modal de etiqueta
   function cerrarModalEtiqueta() {
