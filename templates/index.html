@@ -2973,7 +2973,11 @@ async function verReporteIngresosAnual() {
         }
       });
 
-
+      function initGastos() {
+        // Aquí invocas tu cargador de etiquetas
+        cargarEtiquetasEnVista();
+      }
+      
 // Abre modal para nueva etiqueta
 function abrirModalNuevaEtiqueta() {
     document.getElementById('modal-nueva-etiqueta').classList.remove("hidden");
