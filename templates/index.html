@@ -2453,6 +2453,18 @@ document.body.addEventListener("click", function () {
 ========================
 ************************/
 
+function initCalendario() {
+    // 1. Cargar leads en el select (para formulario de agregar fecha)
+    cargarLeadsEnSelect();
+    
+    // 2. Cargar la vista de años (en lugar de cargarCalendario())
+    cargarAnios();
+    
+    // 3. Opcional: Resetear año seleccionado
+    anioSeleccionado = null;
+}
+
+
 
 
 
