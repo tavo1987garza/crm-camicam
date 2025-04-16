@@ -2562,77 +2562,73 @@ function cargarAnios() {
   
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
 function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
-    console.log("Color recibido en eventos para el año", anio + ":", colorAnio);
-    
-    anioSeleccionado = anio;
+  console.log("Color recibido en eventos para el año", anio + ":", colorAnio);
   
-    const fechasDelAnio = todasLasFechas
-      .filter(item => new Date(item.fecha).getFullYear() === anio)
-      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  
-    const hoy = new Date();
-    const indiceProximo = fechasDelAnio.findIndex(item => new Date(item.fecha) >= hoy);
-  
-    document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
-    document.getElementById("vista-anios").classList.add("hidden");
-    document.getElementById("vista-eventos-anio").classList.remove("hidden");
-  
-    const ul = document.getElementById("lista-fechas-ocupadas");
-    ul.innerHTML = "";
-    if (fechasDelAnio.length === 0) {
-      ul.innerHTML = '<li class="no-data">No hay eventos para este año.</li>';
-      return;
-    }
-  
-    fechasDelAnio.forEach((item, index) => {
-      const li = document.createElement("li");
-      const fecha = new Date(item.fecha);
-      const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
-      li.innerHTML = `
-        <div class="fecha-info">
-            <span class="fecha-fecha">${diaMes}</span>
-            ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ''}
-        </div>
-        <i class="fas fa-chevron-right"></i>
-      `;
-      li.onclick = () => abrirModalFecha(item.id);
+  anioSeleccionado = anio;
 
-       // Asigna el color del borde izquierdo basado en colorAnio
-      li.style.setProperty("border-left", `4px solid ${colorAnio}`, "important");
-       
-       // Calcula un color de fondo ligeramente más oscuro
-      const fondoOscuro = darkenColor(colorAnio, 30);
-      li.style.backgroundColor = fondoOscuro; // O también puedes usar setProperty con !important
-      console.log("Evento asignado con border-left:", li.style.borderLeft);
-  
-      if (indiceProximo !== -1 && index === indiceProximo) {
-        li.classList.add("next-event");
-      }
-      ul.appendChild(li);
-    });
+  // Filtrar y ordenar las fechas del año seleccionado
+  const fechasDelAnio = todasLasFechas
+    .filter(item => new Date(item.fecha).getFullYear() === anio)
+    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+  const hoy = new Date();
+  const indiceProximo = fechasDelAnio.findIndex(item => new Date(item.fecha) >= hoy);
+
+  document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
+  document.getElementById("vista-anios").classList.add("hidden");
+  document.getElementById("vista-eventos-anio").classList.remove("hidden");
+
+  const ul = document.getElementById("lista-fechas-ocupadas");
+  ul.innerHTML = "";
+  if (fechasDelAnio.length === 0) {
+    ul.innerHTML = '<li class="no-data">No hay eventos para este año.</li>';
+    return;
   }
+
+  fechasDelAnio.forEach((item, index) => {
+    const li = document.createElement("li");
+    const fecha = new Date(item.fecha);
+    const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
+    li.innerHTML = `
+      <div class="fecha-info">
+          <span class="fecha-fecha">${diaMes}</span>
+          ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ''}
+      </div>
+      <i class="fas fa-chevron-right"></i>
+    `;
+    li.onclick = () => abrirModalFecha(item.id);
+    // Asigna el borde izquierdo con el color del año
+    li.style.setProperty("border-left", `4px solid ${colorAnio}`, "important");
+
+    // Si este es el próximo evento, se resalta asignándole un fondo oscuro
+    if (indiceProximo !== -1 && index === indiceProximo) {
+      // Calcula un color un poco más oscuro a partir de colorAnio
+      const fondoOscuro = darkenColor(colorAnio, 30);
+      li.style.setProperty("background-color", fondoOscuro, "important");
+      li.classList.add("next-event");
+    }
+    ul.appendChild(li);
+  });
+}
+
 
 //  función para disminuir los valores RGB y obtener un color más oscuro:
-  function darkenColor(hex, amount) {
-    // Elimina el símbolo '#' si está presente
-    let usePound = false;
-    if (hex[0] === "#") {
-      hex = hex.slice(1);
-      usePound = true;
-    }
-    
-    // Convierte el valor hexadecimal a un número
-    let num = parseInt(hex, 16);
-    
-    // Extrae los componentes R, G y B, y réstale "amount"
-    let r = Math.max((num >> 16) - amount, 0);
-    let g = Math.max(((num >> 8) & 0x00FF) - amount, 0);
-    let b = Math.max((num & 0x0000FF) - amount, 0);
-    
-    // Convierte los valores nuevamente a hexadecimal y completa con ceros si es necesario
-    return (usePound ? "#" : "") + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+function darkenColor(hex, amount) {
+  // Elimina '#' si existe
+  let usePound = false;
+  if (hex[0] === "#") {
+    hex = hex.slice(1);
+    usePound = true;
   }
   
+  let num = parseInt(hex, 16);
+  let r = Math.max((num >> 16) - amount, 0);
+  let g = Math.max(((num >> 8) & 0x00FF) - amount, 0);
+  let b = Math.max((num & 0x0000FF) - amount, 0);
+  
+  return (usePound ? "#" : "") + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+
   
   
   
