@@ -937,6 +937,27 @@
     background: #1565c0;
 }
 
+.anios-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .anio-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 120px;
+    text-align: center;
+    border-left: 4px solid #1e88e5;
+    transition: background 0.2s ease;
+  }
+  
+  .anio-card:hover {
+    background: #e9ecef;
+  }
+  
 /* =========================================
    ESTILOS PARA LA SECCIÓN DE REPORTES
    ========================================= */ 
@@ -1341,45 +1362,43 @@
 
     
 
-<div id="calendario" class="seccion hidden">
-    <h1>📅 Calendario</h1>
-    
-    <!-- Vista de años -->
-    <div id="vista-anios">
-        <div class="calendario-header">
-            <h2>Años</h2>
-            <button onclick="mostrarFormularioAnio()" class="add-button">➕ Agregar Año</button>
-        </div>
-        <div id="lista-anios" class="anios-grid"></div>
-    </div>
-    
-    <!-- Vista de eventos por año (inicialmente oculta) -->
-    <div id="vista-eventos-anio" class="hidden">
-        <div class="calendario-header">
-            <div class="anio-header">
-                <button onclick="volverAVistaAnios()" class="back-button">← Volver</button>
-                <h2 id="anio-actual"></h2>
-            </div>
-            <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
-        </div>
-        <ul id="lista-fechas-ocupadas"></ul>
-    </div>
-    
-    <!-- Modal para Agregar Año -->
-    <div id="add-anio-modal" class="modal hidden">
-        <div class="modal-content">
-            <button class="close-btn" onclick="cerrarAddAnioModal()">✖</button>
-            <h2>➕ Agregar Nuevo Año</h2>
+        <div id="calendario" class="seccion hidden">
+            <h1>📅 Calendario</h1>
             
-            <label for="anio-input">Año:</label>
-            <input type="number" id="anio-input" min="2000" max="2100" class="modal-input" />
-            
-            <div class="modal-buttons">
-                <button onclick="agregarAnio()" class="save-btn">Guardar</button>
-                <button onclick="cerrarAddAnioModal()" class="cancel-btn">Cancelar</button>
+            <!-- Vista de Años -->
+            <div id="vista-anios">
+              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Años</h2>
+                <button onclick="mostrarFormularioAnio()" class="add-button">➕ Agregar Año</button>
+              </div>
+              <div id="lista-anios" class="anios-grid"></div>
             </div>
-        </div>
-    </div>
+            
+            <!-- Vista de Eventos para un Año (inicialmente oculta) -->
+            <div id="vista-eventos-anio" class="hidden">
+              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div class="anio-header" style="display: flex; align-items: center; gap: 10px;">
+                  <button onclick="volverAVistaAnios()" class="back-button">← Volver</button>
+                  <h2 id="anio-actual"></h2>
+                </div>
+                <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
+              </div>
+              <ul id="lista-fechas-ocupadas"></ul>
+            </div>
+            
+            <!-- Modal para Agregar Año -->
+            <div id="add-anio-modal" class="modal hidden">
+              <div class="modal-content">
+                <button class="close-btn" onclick="cerrarAddAnioModal()">✖</button>
+                <h2>➕ Agregar Nuevo Año</h2>
+                <label for="anio-input">Año:</label>
+                <input type="number" id="anio-input" min="2000" max="2100" class="modal-input" />
+                <div class="modal-buttons">
+                  <button onclick="agregarAnio()" class="save-btn">Guardar</button>
+                  <button onclick="cerrarAddAnioModal()" class="cancel-btn">Cancelar</button>
+                </div>
+              </div>
+            </div>
 
         
             <!-- Modal para Agregar Fecha -->
@@ -1514,12 +1533,12 @@
         
                     <!-- Carrito de Shots sin Alcohol (checkbox) -->
                     <input type="checkbox" id="edit-caritoDeShotsSinAlcohol" class="auto-save-input"/>
-                    <label for="edit-caritoDeShotsSinAlcohol">Carito De Shots Sin Alcohol</label>
+                    <label for="edit-caritoDeShotsSinAlcohol">Carrito De Shots Sin Alcohol</label>
                     <br><br>
         
                     <!-- Carrito de Shots con Alcohol (checkbox) -->
                     <input type="checkbox" id="edit-caritoDeShotsConAlcohol" class="auto-save-input"/>
-                    <label for="edit-caritoDeShotsConAlcohol">Carito De Shots Con Alcohol</label>
+                    <label for="edit-caritoDeShotsConAlcohol">Carrito De Shots Con Alcohol</label>
                     <br><br>
         
                     <!-- Lluvia de Mariposas (checkbox) -->
@@ -1559,12 +1578,11 @@
                 </div>
             
                 <div class="modal-buttons">
-                    <button class="delete-btn" onclick="eliminarFechaDesdeModal()">
-                        🗑️
-                    </button>
+                    <button class="delete-btn" onclick="eliminarFechaDesdeModal()">🗑️</button>
+                  </div>
                 </div>
-            </div>
-        </div>
+              </div>
+            
 
         <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
@@ -2452,6 +2470,9 @@ document.body.addEventListener("click", function () {
   SECCION DE CALENDARIO
 ========================
 ************************/
+//Variables Globales
+let anioSeleccionado = null;
+
 
 function initCalendario() {
     // 1. Cargar leads en el select (para formulario de agregar fecha)
@@ -2465,108 +2486,102 @@ function initCalendario() {
 }
 
 
-
-
-
 /***********************
 ========================
   VISTA DE AÑOS
 ========================
 ************************/
-
-let anioSeleccionado = null;
-
-function initCalendario() {
-    cargarLeadsEnSelect();
-    cargarAnios();
-}
-
+//Esta función utiliza el endpoint /calendario/fechas_ocupadas para extraer los años de las fechas y agruparlos:
 function cargarAnios() {
     fetch("/calendario/fechas_ocupadas")
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) throw new Error(data.error);
-            
-            const contenedorAnios = document.getElementById("lista-anios");
-            contenedorAnios.innerHTML = "";
-            
-            if (!data.fechas || data.fechas.length === 0) {
-                contenedorAnios.innerHTML = '<p class="no-data">No hay fechas registradas.</p>';
-                return;
-            }
-            
-            // Extraer y ordenar años
-            const anios = [...new Set(data.fechas.map(item => 
-                new Date(item.fecha).getFullYear()
-            )].sort((a, b) => b - a);
-            
-            // Crear tarjetas de año
-            anios.forEach(anio => {
-                const count = data.fechas.filter(item => 
-                    new Date(item.fecha).getFullYear() === anio
-                ).length;
-                
-                const anioCard = document.createElement("div");
-                anioCard.className = "anio-card";
-                anioCard.innerHTML = `
-                    <h3>${anio}</h3>
-                    <span class="event-count">${count} evento${count !== 1 ? 's' : ''}</span>
-                `;
-                anioCard.onclick = () => mostrarEventosDelAnio(anio, data.fechas);
-                contenedorAnios.appendChild(anioCard);
-            });
-        })
-        .catch(e => {
-            console.error("Error en cargarAnios", e);
-            mostrarNotificacion("Error al cargar años: " + e.message, "error");
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error);
+        
+        const contenedorAnios = document.getElementById("lista-anios");
+        contenedorAnios.innerHTML = "";
+        
+        if (!data.fechas || data.fechas.length === 0) {
+          contenedorAnios.innerHTML = '<p class="no-data">No hay fechas registradas.</p>';
+          return;
+        }
+        
+        // Extraer y ordenar los años en orden descendente
+        const anios = [...new Set(data.fechas.map(item => new Date(item.fecha).getFullYear()))].sort((a, b) => b - a);
+        
+        anios.forEach(anio => {
+          // Contar cantidad de eventos para cada año
+          const count = data.fechas.filter(item => new Date(item.fecha).getFullYear() === anio).length;
+          
+          // Crear la tarjeta del año
+          const anioCard = document.createElement("div");
+          anioCard.className = "anio-card";
+          anioCard.innerHTML = `
+            <h3>${anio}</h3>
+            <span class="event-count">${count} evento${count !== 1 ? 's' : ''}</span>
+          `;
+          // Al hacer clic se muestra la vista de eventos de ese año
+          anioCard.onclick = () => mostrarEventosDelAnio(anio, data.fechas);
+          contenedorAnios.appendChild(anioCard);
         });
-}
+      })
+      .catch(e => {
+        console.error("Error al cargar años:", e);
+        alert("Error al cargar años: " + e.message);
+      });
+  }
 
-function mostrarEventosDelAnio(anio, todasLasFechas) {
+  
+//Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
+  function mostrarEventosDelAnio(anio, todasLasFechas) {
     anioSeleccionado = anio;
     
-    // Filtrar y ordenar fechas
+    // Filtrar fechas y ordenarlas
     const fechasDelAnio = todasLasFechas
-        .filter(item => new Date(item.fecha).getFullYear() === anio)
-        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-    
-    // Actualizar UI
+      .filter(item => new Date(item.fecha).getFullYear() === anio)
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+      
+    // Actualizar título de la vista
     document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
+    // Cambiar de vista: ocultar años y mostrar eventos
     document.getElementById("vista-anios").classList.add("hidden");
     document.getElementById("vista-eventos-anio").classList.remove("hidden");
     
-    // Mostrar fechas
+    // Actualizar la lista de eventos
     const ul = document.getElementById("lista-fechas-ocupadas");
     ul.innerHTML = "";
-    
     if (fechasDelAnio.length === 0) {
-        ul.innerHTML = '<li class="no-data">No hay eventos para este año.</li>';
-        return;
+      ul.innerHTML = '<li class="no-data">No hay eventos para este año.</li>';
+      return;
     }
     
     fechasDelAnio.forEach(item => {
-        const li = document.createElement("li");
-        const fecha = new Date(item.fecha);
-        const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
-        
-        li.innerHTML = `
-            <div class="fecha-info">
-                <span class="fecha-fecha">${diaMes}</span>
-                ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ''}
-            </div>
-            <i class="fas fa-chevron-right"></i>
-        `;
-        
-        li.onclick = () => abrirModalFecha(item.id);
-        ul.appendChild(li);
+      const li = document.createElement("li");
+      const fecha = new Date(item.fecha);
+      // Formato "DD/MM"
+      const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
+      li.innerHTML = `
+        <div class="fecha-info">
+          <span class="fecha-fecha">${diaMes}</span>
+          ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ''}
+        </div>
+        <i class="fas fa-chevron-right"></i>
+      `;
+      li.onclick = () => abrirModalFecha(item.id);
+      ul.appendChild(li);
     });
-}
+  }
+  
 
-function volverAVistaAnios() {
+//Para regresar de la vista de eventos al listado de años:
+  function volverAVistaAnios() {
     document.getElementById("vista-eventos-anio").classList.add("hidden");
     document.getElementById("vista-anios").classList.remove("hidden");
     anioSeleccionado = null;
-}
+    // Recargar la lista de años (por si se han agregado nuevas fechas)
+    cargarAnios();
+  }
+  
 
 /***********************
 ========================
@@ -2667,15 +2682,6 @@ function cargarCalendario() {
         document.getElementById('add-fecha-modal').style.display = 'none';
     }
     
-    // Modificar agregarFechaManual para cerrar el modal después de guardar
-    function agregarFechaManual() {
-        // Tu lógica actual de guardado...
-        
-        // Después de guardar exitosamente:
-        cerrarAddFechaModal();
-        cargarCalendario(); // Refrescar la lista
-    }
-
     
 // ============== 2) AGREGAR NUEVA FECHA MANUAL ==============
 // Agregar evento para formatear el input cuando pierde el foco
@@ -2692,66 +2698,69 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
     }
   }); 
   
+
+//Aquí se añade la validación para que la fecha ingresada pertenezca al año seleccionado:
   function agregarFechaManual() {
-      const fecha = document.getElementById("fecha-input").value; 
-      if (anioSeleccionado) {
-        const anioFecha = new Date(fecha).getFullYear();
-        if (anioFecha !== anioSeleccionado) {
-            mostrarNotificacion(`La fecha debe pertenecer al año ${anioSeleccionado}`, "error");
-            return;
-        }
+    const fecha = document.getElementById("fecha-input").value;
+    
+    // Validar que la fecha corresponda al año seleccionado (si aplica)
+    if (anioSeleccionado) {
+      const anioFecha = new Date(fecha).getFullYear();
+      if (anioFecha !== anioSeleccionado) {
+        alert(`La fecha debe pertenecer al año ${anioSeleccionado}`);
+        return;
+      }
     }
-      const lead_id = document.getElementById("lead-select").value;
-      const titulo = document.getElementById("titulo-input").value.trim();
-      const notas = document.getElementById("notas-textarea").value.trim();
-      
-      // Obtener el valor del ticket y quitar el formato
-      const ticketInput = document.getElementById("ticket-input").value;
-      const ticketStr = ticketInput.replace(/[^0-9.]/g, '');
-      const ticketNum = parseFloat(ticketStr) || 0;
-  
-      // Procesar valores numéricos y checkboxes para servicios...
-      const letrasGigantes = parseInt(document.getElementById("letrasGigantes").value) || 0;
-      const chisperos = parseInt(document.getElementById("chisperos").value) || 0;
-      const cabinaFotos = document.getElementById("cabinaFotos").checked ? 1 : 0;
-      const cabina360 = document.getElementById("cabina360").checked ? 1 : 0;
-      const caritoDeShotsSinAlcohol = document.getElementById("caritoDeShotsSinAlcohol").checked ? 1 : 0;
-      const caritoDeShotsConAlcohol = document.getElementById("caritoDeShotsConAlcohol").checked ? 1 : 0;
-      const lluviaDeMariposas = document.getElementById("lluviaDeMariposas").checked ? 1 : 0;
-      const lluviaMetalica = document.getElementById("lluviaMetalica").checked ? 1 : 0; 
-      const nieblaDePiso = document.getElementById("nieblaDePiso").checked ? 1 : 0;
-      const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
-      const audioGuestBook = document.getElementById("audioGuestBook").checked ? 1 : 0;
-  
-      // Construir el objeto "servicios"
-      const serviciosObj = {
-        letrasGigantes,
-        chisperos,
-        cabinaFotos,
-        cabina360,
-        caritoDeShotsSinAlcohol,
-        caritoDeShotsConAlcohol,
-        lluviaDeMariposas,
-        lluviaMetalica,
-        nieblaDePiso,
-        scrapbook,
-        audioGuestBook
-      };
-  
-      const payload = {
-        fecha,
-        lead_id: lead_id ? parseInt(lead_id) : null,
-        titulo,
-        notas,
-        ticket: ticketNum,
-        servicios: serviciosObj
-      };
-  
-      fetch("/calendario/agregar_manual", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
+    
+    const lead_id = document.getElementById("lead-select").value;
+    const titulo = document.getElementById("titulo-input").value.trim();
+    const notas = document.getElementById("notas-textarea").value.trim();
+    
+    const ticketInput = document.getElementById("ticket-input").value;
+    const ticketStr = ticketInput.replace(/[^0-9.]/g, '');
+    const ticketNum = parseFloat(ticketStr) || 0;
+    
+    // Procesamiento de servicios (igual que en tu código original)
+    const letrasGigantes = parseInt(document.getElementById("letrasGigantes").value) || 0;
+    const chisperos = parseInt(document.getElementById("chisperos").value) || 0;
+    const cabinaFotos = document.getElementById("cabinaFotos").checked ? 1 : 0;
+    const cabina360 = document.getElementById("cabina360").checked ? 1 : 0;
+    const caritoDeShotsSinAlcohol = document.getElementById("caritoDeShotsSinAlcohol").checked ? 1 : 0;
+    const caritoDeShotsConAlcohol = document.getElementById("caritoDeShotsConAlcohol").checked ? 1 : 0;
+    const lluviaDeMariposas = document.getElementById("lluviaDeMariposas").checked ? 1 : 0;
+    const lluviaMetalica = document.getElementById("lluviaMetalica").checked ? 1 : 0;
+    const nieblaDePiso = document.getElementById("nieblaDePiso").checked ? 1 : 0;
+    const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
+    const audioGuestBook = document.getElementById("audioGuestBook").checked ? 1 : 0;
+    
+    const serviciosObj = {
+      letrasGigantes,
+      chisperos,
+      cabinaFotos,
+      cabina360,
+      caritoDeShotsSinAlcohol,
+      caritoDeShotsConAlcohol,
+      lluviaDeMariposas,
+      lluviaMetalica,
+      nieblaDePiso,
+      scrapbook,
+      audioGuestBook
+    };
+    
+    const payload = {
+      fecha,
+      lead_id: lead_id ? parseInt(lead_id) : null,
+      titulo,
+      notas,
+      ticket: ticketNum,
+      servicios: serviciosObj
+    };
+    
+    fetch("/calendario/agregar_manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
       .then(r => r.json())
       .then(data => {
         if (data.error) {
@@ -2760,14 +2769,12 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
         }
         if (data.ok) {
           alert(data.mensaje);
-          
           // Limpiar campos
           document.getElementById("fecha-input").value = "";
           document.getElementById("lead-select").value = "";
           document.getElementById("titulo-input").value = "";
           document.getElementById("notas-textarea").value = "";
           document.getElementById("ticket-input").value = "";
-  
           document.getElementById("letrasGigantes").value = "0";
           document.getElementById("chisperos").value = "0";
           document.getElementById("cabinaFotos").checked = false;
@@ -2775,13 +2782,14 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
           document.getElementById("caritoDeShotsSinAlcohol").checked = false;
           document.getElementById("caritoDeShotsConAlcohol").checked = false;
           document.getElementById("lluviaDeMariposas").checked = false;
-          document.getElementById("lluviaMetalica").checked = false; 
+          document.getElementById("lluviaMetalica").checked = false;
           document.getElementById("nieblaDePiso").checked = false;
           document.getElementById("scrapbook").checked = false;
           document.getElementById("audioGuestBook").checked = false;
-  
+    
           cerrarAddFechaModal();
-          cargarCalendario();
+          // Volver a cargar la vista de años para reflejar el cambio (o actualizar la vista de eventos si prefieres)
+          cargarAnios();
         } else {
           alert(data.mensaje);
         }
@@ -2791,6 +2799,7 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
         alert("Error al agregar fecha.");
       });
   }
+  
   
   
 // ============== 3) ABRIR MODAL DE EDICIÓN ==============
