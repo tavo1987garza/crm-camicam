@@ -959,11 +959,12 @@
   }
   
 
-/* Ejemplo de regla con mayor especificidad */
+/* Si quieres que el next event tenga además un fondo o cambio extra, puedes hacerlo así: */
 #lista-fechas-ocupadas li.next-event {
-    background-color: #d1d1d1 !important; /* o el color que prefieras */
-    border-left-color: #000 !important;
+    background-color: rgba(0, 0, 0, 0.1); /* Por ejemplo, un fondo ligeramente oscuro */
+    /* Mantendrás el border-left que ya se asigna dinámicamente */
 }
+
 
 /* =========================================
    ESTILOS PARA LA SECCIÓN DE REPORTES
@@ -2555,26 +2556,18 @@ function cargarAnios() {
       });
   }
   
-
-  
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
-function mostrarEventosDelAnio(anio, todasLasFechas) {
+function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
     anioSeleccionado = anio;
   
-    // Filtrar las fechas del año seleccionado y ordenarlas ascendentemente
+    // Filtrar y ordenar las fechas del año seleccionado
     const fechasDelAnio = todasLasFechas
       .filter(item => new Date(item.fecha).getFullYear() === anio)
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   
-    // Obtener la fecha actual (sin hora, o con hora según tu preferencia)
-    const hoy = new Date(); // Esto incluye la hora actual
-    // Si deseas comparar solo fecha (sin hora) podrías hacer:
-    // const hoySinHora = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-  
-    // Determinar cuál es el próximo evento: el primero cuya fecha es mayor o igual a hoy
+    const hoy = new Date();
     const indiceProximo = fechasDelAnio.findIndex(item => new Date(item.fecha) >= hoy);
   
-    // Actualizar la UI: cambiar la vista
     document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
     document.getElementById("vista-anios").classList.add("hidden");
     document.getElementById("vista-eventos-anio").classList.remove("hidden");
@@ -2586,12 +2579,10 @@ function mostrarEventosDelAnio(anio, todasLasFechas) {
       return;
     }
   
-    // Crear cada item de la lista
     fechasDelAnio.forEach((item, index) => {
       const li = document.createElement("li");
       const fecha = new Date(item.fecha);
       const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
-      
       li.innerHTML = `
         <div class="fecha-info">
             <span class="fecha-fecha">${diaMes}</span>
@@ -2599,17 +2590,16 @@ function mostrarEventosDelAnio(anio, todasLasFechas) {
         </div>
         <i class="fas fa-chevron-right"></i>
       `;
-      
       li.onclick = () => abrirModalFecha(item.id);
-      
-      // Si este es el próximo evento, agregar una clase especial
-      if (index === indiceProximo && indiceProximo !== -1) {
+      // Se asigna el mismo color al borde izquierdo
+      li.style.borderLeft = `4px solid ${colorAnio}`;
+      if (indiceProximo !== -1 && index === indiceProximo) {
         li.classList.add("next-event");
       }
-      
       ul.appendChild(li);
     });
   }
+  
   
   
 
