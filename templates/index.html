@@ -961,10 +961,10 @@
 
 
 /* Si quieres que el next event tenga además un fondo o cambio extra, puedes hacerlo así: */
-#lista-fechas-ocupadas li.next-event {
-    background-color: rgba(0, 0, 0, 0.1)!important; /* Por ejemplo, un fondo ligeramente oscuro */
+/*#lista-fechas-ocupadas li.next-event {*/
+  /*  background-color: rgba(0, 0, 0, 0.1)!important; /* Por ejemplo, un fondo ligeramente oscuro */
     /* Mantendrás el border-left que ya se asigna dinámicamente */
-}
+    /*}*/
 
 
 /* =========================================
@@ -2596,7 +2596,13 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
         <i class="fas fa-chevron-right"></i>
       `;
       li.onclick = () => abrirModalFecha(item.id);
+
+       // Asigna el color del borde izquierdo basado en colorAnio
       li.style.setProperty("border-left", `4px solid ${colorAnio}`, "important");
+       
+       // Calcula un color de fondo ligeramente más oscuro
+      const fondoOscuro = darkenColor(colorAnio, 30);
+      li.style.backgroundColor = fondoOscuro; // O también puedes usar setProperty con !important
       console.log("Evento asignado con border-left:", li.style.borderLeft);
   
       if (indiceProximo !== -1 && index === indiceProximo) {
@@ -2605,6 +2611,28 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
       ul.appendChild(li);
     });
   }
+
+//  función para disminuir los valores RGB y obtener un color más oscuro:
+  function darkenColor(hex, amount) {
+    // Elimina el símbolo '#' si está presente
+    let usePound = false;
+    if (hex[0] === "#") {
+      hex = hex.slice(1);
+      usePound = true;
+    }
+    
+    // Convierte el valor hexadecimal a un número
+    let num = parseInt(hex, 16);
+    
+    // Extrae los componentes R, G y B, y réstale "amount"
+    let r = Math.max((num >> 16) - amount, 0);
+    let g = Math.max(((num >> 8) & 0x00FF) - amount, 0);
+    let b = Math.max((num & 0x0000FF) - amount, 0);
+    
+    // Convierte los valores nuevamente a hexadecimal y completa con ceros si es necesario
+    return (usePound ? "#" : "") + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+  }
+  
   
   
   
