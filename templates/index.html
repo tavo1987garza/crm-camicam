@@ -959,9 +959,15 @@
   }
   
 
+/* Ejemplo de regla con mayor especificidad */
+#lista-fechas-ocupadas li.next-event {
+    background-color: #d1d1d1 !important; /* o el color que prefieras */
+    border-left-color: #000 !important;
+}
+
 /* Si quieres que el next event tenga además un fondo o cambio extra, puedes hacerlo así: */
 #lista-fechas-ocupadas li.next-event {
-    background-color: rgba(0, 0, 0, 0.1); /* Por ejemplo, un fondo ligeramente oscuro */
+    background-color: rgba(0, 0, 0, 0.1)!important; /* Por ejemplo, un fondo ligeramente oscuro */
     /* Mantendrás el border-left que ya se asigna dinámicamente */
 }
 
