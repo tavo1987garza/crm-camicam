@@ -2533,26 +2533,28 @@ function cargarAnios() {
         // Extraer y ordenar los años en orden descendente
         const anios = [...new Set(data.fechas.map(item => new Date(item.fecha).getFullYear()))].sort((a, b) => b - a);
         
-        // Definir el arreglo de colores para los bordes
+        // Arreglo de colores para los bordes
         const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
         
-        // Iterar sobre cada año y crear la tarjeta
         anios.forEach((anio, index) => {
-          // Contar la cantidad de eventos para el año
+          // Contar cantidad de eventos para cada año
           const count = data.fechas.filter(item => new Date(item.fecha).getFullYear() === anio).length;
           
           // Crear la tarjeta del año
           const anioCard = document.createElement("div");
           anioCard.className = "anio-card";
-          // Asigna el color cíclicamente basado en el índice
           const color = coloresBorde[index % coloresBorde.length];
+          console.log("Color para el año", anio, "es:", color);
           anioCard.style.borderLeft = `4px solid ${color}`;
           anioCard.innerHTML = `
             <h3>${anio}</h3>
             <span class="event-count">${count} evento${count !== 1 ? 's' : ''}</span>
           `;
-          // Al hacer clic, se muestra la vista de eventos para ese año.
-          anioCard.onclick = () => mostrarEventosDelAnio(anio, data.fechas);
+          // Al hacer clic, se pasa el color a la función para mostrar los eventos
+          anioCard.onclick = () => {
+            console.log("Se hace clic en el año", anio, "con color:", color);
+            mostrarEventosDelAnio(anio, data.fechas, color);
+          };
           contenedorAnios.appendChild(anioCard);
         });
       })
@@ -2562,13 +2564,13 @@ function cargarAnios() {
       });
   }
   
+  
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
 function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
     console.log("Color recibido en eventos para el año", anio + ":", colorAnio);
     
     anioSeleccionado = anio;
   
-    // Filtrar y ordenar las fechas del año seleccionado
     const fechasDelAnio = todasLasFechas
       .filter(item => new Date(item.fecha).getFullYear() === anio)
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -2599,7 +2601,6 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
         <i class="fas fa-chevron-right"></i>
       `;
       li.onclick = () => abrirModalFecha(item.id);
-      // Se asigna el mismo color al borde izquierdo
       li.style.setProperty("border-left", `4px solid ${colorAnio}`, "important");
       console.log("Evento asignado con border-left:", li.style.borderLeft);
   
