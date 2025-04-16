@@ -1339,16 +1339,47 @@
             </div>
         </div>
 
-        <div id="calendario" class="seccion hidden">
-            <h1>📅 Calendario</h1>
+        Copy
 
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">Fechas Ocupadas</h2>
-                <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
+<div id="calendario" class="seccion hidden">
+    <h1>📅 Calendario</h1>
+    
+    <!-- Vista de años -->
+    <div id="vista-anios">
+        <div class="calendario-header">
+            <h2>Años</h2>
+            <button onclick="mostrarFormularioAnio()" class="add-button">➕ Agregar Año</button>
+        </div>
+        <div id="lista-anios" class="anios-grid"></div>
+    </div>
+    
+    <!-- Vista de eventos por año (inicialmente oculta) -->
+    <div id="vista-eventos-anio" class="hidden">
+        <div class="calendario-header">
+            <div class="anio-header">
+                <button onclick="volverAVistaAnios()" class="back-button">← Volver</button>
+                <h2 id="anio-actual"></h2>
             </div>
+            <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
+        </div>
+        <ul id="lista-fechas-ocupadas"></ul>
+    </div>
+    
+    <!-- Modal para Agregar Año -->
+    <div id="add-anio-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn" onclick="cerrarAddAnioModal()">✖</button>
+            <h2>➕ Agregar Nuevo Año</h2>
             
-            <ul id="lista-fechas-ocupadas"></ul>
+            <label for="anio-input">Año:</label>
+            <input type="number" id="anio-input" min="2000" max="2100" class="modal-input" />
+            
+            <div class="modal-buttons">
+                <button onclick="agregarAnio()" class="save-btn">Guardar</button>
+                <button onclick="cerrarAddAnioModal()" class="cancel-btn">Cancelar</button>
+            </div>
+        </div>
+    </div>
 
         
             <!-- Modal para Agregar Fecha -->
