@@ -2531,22 +2531,48 @@ function cargarAnios() {
           const count = data.fechas.filter(item => new Date(item.fecha).getFullYear() === anio).length;
           
           // Crear la tarjeta del año
-          const anioCard = document.createElement("div");
-          anioCard.className = "anio-card";
-          anioCard.innerHTML = `
-            <h3>${anio}</h3>
-            <span class="event-count">${count} evento${count !== 1 ? 's' : ''}</span>
-          `;
-          // Al hacer clic se muestra la vista de eventos de ese año
-          anioCard.onclick = () => mostrarEventosDelAnio(anio, data.fechas);
-          contenedorAnios.appendChild(anioCard);
-        });
+          
+// Definir el arreglo de colores (sin el "solid", lo pondremos en el estilo)
+const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
+
+data.anios.forEach((item, index) => {
+  const anioCard = document.createElement("div");
+  anioCard.className = "anio-card";
+  // Asigna el color cíclicamente basado en el índice
+  const color = coloresBorde[index % coloresBorde.length];
+  anioCard.style.borderLeft = `4px solid ${color}`;
+  anioCard.innerHTML = `
+    <h3>${item.anio}</h3>
+    <span class="event-count">${item.total_eventos} evento${item.total_eventos !== 1 ? 's' : ''}</span>
+  `;
+  anioCard.onclick = () => mostrarEventosDelAnio(item.anio, data.eventos);
+  contenedorAnios.appendChild(anioCard);
+});
+
       })
       .catch(e => {
         console.error("Error al cargar años:", e);
         alert("Error al cargar años: " + e.message);
       });
   }
+
+
+  // Definir el arreglo de colores (sin el "solid", lo pondremos en el estilo)
+const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
+
+data.anios.forEach((item, index) => {
+  const anioCard = document.createElement("div");
+  anioCard.className = "anio-card";
+  // Asigna el color cíclicamente basado en el índice
+  const color = coloresBorde[index % coloresBorde.length];
+  anioCard.style.borderLeft = `4px solid ${color}`;
+  anioCard.innerHTML = `
+    <h3>${item.anio}</h3>
+    <span class="event-count">${item.total_eventos} evento${item.total_eventos !== 1 ? 's' : ''}</span>
+  `;
+  anioCard.onclick = () => mostrarEventosDelAnio(item.anio, data.eventos);
+  contenedorAnios.appendChild(anioCard);
+});
 
   
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
