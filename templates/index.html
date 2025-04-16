@@ -2603,7 +2603,7 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
     // Si este es el próximo evento, se resalta asignándole un fondo oscuro
     if (indiceProximo !== -1 && index === indiceProximo) {
       // Calcula un color un poco más oscuro a partir de colorAnio
-      const fondoOscuro = darkenColor(colorAnio, 60);
+      const fondoOscuro = darkenColor(colorAnio, 15);
       li.style.setProperty("background-color", fondoOscuro, "important");
       li.classList.add("next-event");
     }
