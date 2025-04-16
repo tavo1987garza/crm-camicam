@@ -2564,6 +2564,8 @@ function cargarAnios() {
   
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
 function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
+    console.log("Color recibido en eventos para el año", anio + ":", colorAnio);
+    
     anioSeleccionado = anio;
   
     // Filtrar y ordenar las fechas del año seleccionado
@@ -2596,9 +2598,15 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
         </div>
         <i class="fas fa-chevron-right"></i>
       `;
+      
+      console.log("Color asignado para el año " + anio + " es:", color);
+anioCard.onclick = () => mostrarEventosDelAnio(anio, data.fechas, color);
+
       li.onclick = () => abrirModalFecha(item.id);
       // Se asigna el mismo color al borde izquierdo
-      li.style.setProperty("border-left", "4px solid #ff9800", "important");
+      li.style.setProperty("border-left", `4px solid ${colorAnio}`, "important");
+console.log("Evento asignado con border-left:", li.style.borderLeft);
+
       if (indiceProximo !== -1 && index === indiceProximo) {
         li.classList.add("next-event");
       }
