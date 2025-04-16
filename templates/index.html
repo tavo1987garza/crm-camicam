@@ -2603,8 +2603,11 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
     // Si este es el próximo evento, se resalta asignándole un fondo oscuro
     if (indiceProximo !== -1 && index === indiceProximo) {
       // Calcula un color un poco más oscuro a partir de colorAnio
-      const fondoOscuro = darkenColor(colorAnio, 0);
-      li.style.setProperty("background-color", fondoOscuro, "important");
+      const fondoTransparente = hexToRgba(colorAnio, 0.3);
+      li.style.setProperty("background-color", fondoTransparente, "important");
+
+     // const fondoOscuro = darkenColor(colorAnio, 30);
+     // li.style.setProperty("background-color", fondoOscuro, "important");
       li.classList.add("next-event");
     }
     ul.appendChild(li);
@@ -2627,6 +2630,25 @@ function darkenColor(hex, amount) {
   let b = Math.max((num & 0x0000FF) - amount, 0);
   
   return (usePound ? "#" : "") + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+
+
+
+// Funcion para convertir el color hexadecimal a formato RGBA y establecer un valor para el canal alfa (transparencia).
+function hexToRgba(hex, alpha) {
+  // Elimina el símbolo '#' si está presente
+  hex = hex.replace("#", "");
+  
+  // Si el código es corto (3 dígitos), duplicarlo a 6 dígitos
+  if (hex.length === 3) {
+    hex = hex.split('').map(char => char + char).join('');
+  }
+  
+  const r = parseInt(hex.substring(0,2), 16);
+  const g = parseInt(hex.substring(2,4), 16);
+  const b = parseInt(hex.substring(4,6), 16);
+  
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
   
