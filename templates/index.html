@@ -2558,8 +2558,7 @@ function mostrarEventosDelAnio(anio, todasLasFechas) {
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   
     // Obtener la fecha actual (sin hora, o con hora según tu preferencia)
-    const hoySinHora = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-    //const hoy = new Date(); // Esto incluye la hora actual
+    const hoy = new Date(); // Esto incluye la hora actual
     // Si deseas comparar solo fecha (sin hora) podrías hacer:
     // const hoySinHora = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   
