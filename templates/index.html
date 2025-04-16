@@ -2453,12 +2453,147 @@ document.body.addEventListener("click", function () {
 ========================
 ************************/
 
-    function initCalendario() {
-      // Cargar la lista inicial de leads en el <select>
-      cargarLeadsEnSelect();
-      // Cargar la lista de fechas ocupadas
-      cargarCalendario();
+function initCalendario() {
+    // 1. Cargar leads en el select (para formulario de agregar fecha)
+    cargarLeadsEnSelect();
+    
+    // 2. Cargar la vista de años (en lugar de cargarCalendario())
+    cargarAnios();
+    
+    // 3. Opcional: Resetear año seleccionado
+    anioSeleccionado = null;
+}
+
+
+
+
+/***********************
+========================
+  VISTA DE AÑOS
+========================
+************************/
+
+let anioSeleccionado = null;
+
+function initCalendario() {
+    cargarLeadsEnSelect();
+    cargarAnios();
+}
+
+function cargarAnios() {
+    fetch("/calendario/fechas_ocupadas")
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            
+            const contenedorAnios = document.getElementById("lista-anios");
+            contenedorAnios.innerHTML = "";
+            
+            if (!data.fechas || data.fechas.length === 0) {
+                contenedorAnios.innerHTML = '<p class="no-data">No hay fechas registradas.</p>';
+                return;
+            }
+            
+            // Extraer y ordenar años
+            const anios = [...new Set(data.fechas.map(item => 
+                new Date(item.fecha).getFullYear()
+            )].sort((a, b) => b - a);
+            
+            // Crear tarjetas de año
+            anios.forEach(anio => {
+                const count = data.fechas.filter(item => 
+                    new Date(item.fecha).getFullYear() === anio
+                ).length;
+                
+                const anioCard = document.createElement("div");
+                anioCard.className = "anio-card";
+                anioCard.innerHTML = `
+                    <h3>${anio}</h3>
+                    <span class="event-count">${count} evento${count !== 1 ? 's' : ''}</span>
+                `;
+                anioCard.onclick = () => mostrarEventosDelAnio(anio, data.fechas);
+                contenedorAnios.appendChild(anioCard);
+            });
+        })
+        .catch(e => {
+            console.error("Error en cargarAnios", e);
+            mostrarNotificacion("Error al cargar años: " + e.message, "error");
+        });
+}
+
+function mostrarEventosDelAnio(anio, todasLasFechas) {
+    anioSeleccionado = anio;
+    
+    // Filtrar y ordenar fechas
+    const fechasDelAnio = todasLasFechas
+        .filter(item => new Date(item.fecha).getFullYear() === anio)
+        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    
+    // Actualizar UI
+    document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
+    document.getElementById("vista-anios").classList.add("hidden");
+    document.getElementById("vista-eventos-anio").classList.remove("hidden");
+    
+    // Mostrar fechas
+    const ul = document.getElementById("lista-fechas-ocupadas");
+    ul.innerHTML = "";
+    
+    if (fechasDelAnio.length === 0) {
+        ul.innerHTML = '<li class="no-data">No hay eventos para este año.</li>';
+        return;
     }
+    
+    fechasDelAnio.forEach(item => {
+        const li = document.createElement("li");
+        const fecha = new Date(item.fecha);
+        const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
+        
+        li.innerHTML = `
+            <div class="fecha-info">
+                <span class="fecha-fecha">${diaMes}</span>
+                ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ''}
+            </div>
+            <i class="fas fa-chevron-right"></i>
+        `;
+        
+        li.onclick = () => abrirModalFecha(item.id);
+        ul.appendChild(li);
+    });
+}
+
+function volverAVistaAnios() {
+    document.getElementById("vista-eventos-anio").classList.add("hidden");
+    document.getElementById("vista-anios").classList.remove("hidden");
+    anioSeleccionado = null;
+}
+
+/***********************
+========================
+  AGREGAR NUEVO AÑO
+========================
+************************/
+
+function mostrarFormularioAnio() {
+    document.getElementById('anio-input').value = new Date().getFullYear();
+    document.getElementById('add-anio-modal').style.display = 'flex';
+}
+
+function cerrarAddAnioModal() {
+    document.getElementById('add-anio-modal').style.display = 'none';
+}
+
+function agregarAnio() {
+    const anio = parseInt(document.getElementById('anio-input').value);
+    
+    if (!anio || anio < 2000 || anio > 2100) {
+        mostrarNotificacion("Por favor ingrese un año válido entre 2000 y 2100", "error");
+        return;
+    }
+    
+    cerrarAddAnioModal();
+    mostrarEventosDelAnio(anio, []);
+    mostrarNotificacion(`Año ${anio} agregado`, "success");
+}
     
     /**
      * Llamado cuando abrimos la sección Calendario
@@ -2469,52 +2604,20 @@ document.body.addEventListener("click", function () {
        1) MOSTRAR FECHAS OCUPADAS EN UNA LISTA
     =========================================*/
     // ============== 1) CARGAR LISTA DE FECHAS ==============
+// Modificar cargarCalendario para usar cuando se selecciona un año
 function cargarCalendario() {
+    if (!anioSeleccionado) return;
+    
     fetch("/calendario/fechas_ocupadas")
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          console.error("Error al cargar calendario:", data.error);
-          return;
-        }
-        const ul = document.getElementById("lista-fechas-ocupadas");
-        ul.innerHTML = "";
-
-        if (!data.fechas || data.fechas.length === 0) {
-          let li = document.createElement("li");
-          li.textContent = "No hay fechas ocupadas.";
-          ul.appendChild(li);
-          return;
-        }
-
-        data.fechas.forEach(item => {
-          const li = document.createElement("li");
-          // Estilo para hacerlo clickeable
-          li.style.cursor = "pointer";
-          li.style.padding = "10px";
-          li.style.margin = "5px 0";
-          li.style.borderRadius = "5px";
-          li.style.backgroundColor = "#f8f9fa";
-          li.style.transition = "background-color 0.2s";
-          
-          // Efecto hover
-          li.onmouseover = () => li.style.backgroundColor = "#e9ecef";
-          li.onmouseout = () => li.style.backgroundColor = "#f8f9fa";
-          
-          // Texto del item (ejemplo: "ID: 1 - 2025-08-09 - Boda de Daniel")
-          let texto = `${item.fecha}`;
-          if (item.titulo) {
-            texto += ` - ${item.titulo}`;
-          }
-          li.textContent = texto;
-
-          // Hacer que al hacer clic se abra el modal de edición
-          li.onclick = () => abrirModalFecha(item.id);
-
-          ul.appendChild(li);
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            mostrarEventosDelAnio(anioSeleccionado, data.fechas);
+        })
+        .catch(e => {
+            console.error("Error en cargarCalendario", e);
+            mostrarNotificacion("Error al cargar eventos: " + e.message, "error");
         });
-      })
-      .catch(e => console.error("Error en cargarCalendario", e));
 }
     /*=========================================
        2) CARGAR LEADS PARA EL <select> LEAD
@@ -2590,6 +2693,13 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
   
   function agregarFechaManual() {
       const fecha = document.getElementById("fecha-input").value; 
+      if (anioSeleccionado) {
+        const anioFecha = new Date(fecha).getFullYear();
+        if (anioFecha !== anioSeleccionado) {
+            mostrarNotificacion(`La fecha debe pertenecer al año ${anioSeleccionado}`, "error");
+            return;
+        }
+    }
       const lead_id = document.getElementById("lead-select").value;
       const titulo = document.getElementById("titulo-input").value.trim();
       const notas = document.getElementById("notas-textarea").value.trim();
