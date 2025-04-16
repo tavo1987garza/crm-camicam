@@ -2598,7 +2598,7 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
       `;
       li.onclick = () => abrirModalFecha(item.id);
       // Se asigna el mismo color al borde izquierdo
-      li.style.setProperty("border-left", `4px solid ${colorAnio}`, "important");
+      li.style.setProperty("border-left", "4px solid #ff9800", "important");
       if (indiceProximo !== -1 && index === indiceProximo) {
         li.classList.add("next-event");
       }
