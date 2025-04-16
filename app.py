@@ -431,8 +431,78 @@ def obtener_mensajes_chat():
         liberar_db(conn)     
     
     
-    
-    
+# 📌 Obtener Años con Eventos (Nuevo)
+@app.route("/calendario/anios", methods=["GET"])
+def obtener_anios_calendario():
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT EXTRACT(YEAR FROM fecha) as anio,
+                   COUNT(*) OVER (PARTITION BY EXTRACT(YEAR FROM fecha)) as total
+            FROM calendario
+            ORDER BY anio DESC
+        """)
+        rows = cursor.fetchall()
+        anios = [{"anio": int(row[0]), "total_eventos": row[1]} for row in rows]
+        return jsonify({"anios": anios}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+        
+        
+# 📌 Endpoint para Obtener Eventos por Año
+@app.route("/calendario/agrupado_por_anios", methods=["GET"])
+def calendario_agrupado():
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No hay DB"}), 500
+
+    try:
+        cursor = conn.cursor()
+        
+        # 1. Primero obtenemos los años disponibles
+        cursor.execute("""
+            SELECT DISTINCT EXTRACT(YEAR FROM fecha) as anio
+            FROM calendario
+            ORDER BY anio DESC
+        """)
+        anios = [int(row[0]) for row in cursor.fetchall()]
+        
+        # 2. Obtenemos todos los eventos (similar al endpoint original)
+        cursor.execute("""
+            SELECT id, fecha, titulo, notas, ticket, servicios
+            FROM calendario
+            ORDER BY fecha ASC
+        """)
+        
+        eventos = []
+        for row in cursor.fetchall():
+            eventos.append({
+                "id": row[0],
+                "fecha": row[1].strftime("%Y-%m-%d"),
+                "anio": row[1].year,
+                "titulo": row[2] or "",
+                "notas": row[3] or "",
+                "ticket": float(row[4]) if row[4] else 0.0,
+                "servicios": row[5] if row[5] else {}
+            })
+        
+        return jsonify({
+            "anios": anios,
+            "eventos": eventos
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+        
 # 📌 Endpoint para agregar fechas al Calendario    
 @app.route("/calendario/agregar_manual", methods=["POST"])
 def agregar_fecha_manual():
@@ -509,6 +579,8 @@ def agregar_fecha_manual():
     finally:
         liberar_db(conn)
 
+
+        
         
 @app.route("/calendario/fechas_ocupadas", methods=["GET"])
 def fechas_ocupadas():
@@ -519,35 +591,33 @@ def fechas_ocupadas():
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT c.id, c.fecha, c.lead_id, 
-                   COALESCE(c.titulo, '') as titulo,
-                   COALESCE(c.notas, '') as notas,
-                   l.nombre as lead_nombre
+            SELECT 
+                c.id, 
+                c.fecha, 
+                c.lead_id, 
+                COALESCE(c.titulo, '') as titulo,
+                COALESCE(c.notas, '') as notas,
+                COALESCE(c.ticket, 0) as ticket,
+                c.servicios,
+                l.nombre as lead_nombre,
+                EXTRACT(YEAR FROM c.fecha) as anio
             FROM calendario c
             LEFT JOIN leads l ON c.lead_id = l.id
-            ORDER BY c.fecha ASC
+            ORDER BY c.fecha DESC
         """)
-        rows = cursor.fetchall()
         
-        # rows es una lista de tuplas, e.g. (1, datetime.date(2025,8,9), 3, "Boda", "notas...", "Daniel")
-        # Conviértelo a objetos
-        data = []
-        for r in rows:
-            fecha_str = r[1].strftime("%Y-%m-%d")  # conv. date -> "2025-08-09"
-            data.append({
-                "id": r[0],
-                "fecha": fecha_str,
-                "lead_id": r[2],
-                "titulo": r[3],
-                "notas": r[4],
-                "lead_nombre": r[5]
-            })
-
-        return jsonify({"fechas": data}), 200
+        column_names = [desc[0] for desc in cursor.description]
+        fechas = [dict(zip(column_names, row)) for row in cursor.fetchall()]
+        
+        return jsonify({"fechas": fechas}), 200
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+        
+        
+        
 
 @app.route("/calendario/check", methods=["GET"])
 def check_disponibilidad():
