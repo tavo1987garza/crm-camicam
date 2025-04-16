@@ -958,6 +958,12 @@
     background: #e9ecef;
   }
   
+  /* Estilo para el próximo evento */
+.next-event {
+  background-color: #d1d1d1; /* Color de fondo un poco más oscuro */
+  border-left-color: #000;   /* Borde izquierdo más oscuro */
+}
+
 /* =========================================
    ESTILOS PARA LA SECCIÓN DE REPORTES
    ========================================= */ 
@@ -2543,44 +2549,60 @@ function cargarAnios() {
 
   
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
-  function mostrarEventosDelAnio(anio, todasLasFechas) {
+function mostrarEventosDelAnio(anio, todasLasFechas) {
     anioSeleccionado = anio;
-    
-    // Filtrar fechas y ordenarlas
+  
+    // Filtrar las fechas del año seleccionado y ordenarlas ascendentemente
     const fechasDelAnio = todasLasFechas
       .filter(item => new Date(item.fecha).getFullYear() === anio)
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-      
-    // Actualizar título de la vista
+  
+    // Obtener la fecha actual (sin hora, o con hora según tu preferencia)
+    const hoySinHora = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    //const hoy = new Date(); // Esto incluye la hora actual
+    // Si deseas comparar solo fecha (sin hora) podrías hacer:
+    // const hoySinHora = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  
+    // Determinar cuál es el próximo evento: el primero cuya fecha es mayor o igual a hoy
+    const indiceProximo = fechasDelAnio.findIndex(item => new Date(item.fecha) >= hoy);
+  
+    // Actualizar la UI: cambiar la vista
     document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
-    // Cambiar de vista: ocultar años y mostrar eventos
     document.getElementById("vista-anios").classList.add("hidden");
     document.getElementById("vista-eventos-anio").classList.remove("hidden");
-    
-    // Actualizar la lista de eventos
+  
     const ul = document.getElementById("lista-fechas-ocupadas");
     ul.innerHTML = "";
     if (fechasDelAnio.length === 0) {
       ul.innerHTML = '<li class="no-data">No hay eventos para este año.</li>';
       return;
     }
-    
-    fechasDelAnio.forEach(item => {
+  
+    // Crear cada item de la lista
+    fechasDelAnio.forEach((item, index) => {
       const li = document.createElement("li");
       const fecha = new Date(item.fecha);
-      // Formato "DD/MM"
       const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
+      
       li.innerHTML = `
         <div class="fecha-info">
-          <span class="fecha-fecha">${diaMes}</span>
-          ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ''}
+            <span class="fecha-fecha">${diaMes}</span>
+            ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ''}
         </div>
         <i class="fas fa-chevron-right"></i>
       `;
+      
       li.onclick = () => abrirModalFecha(item.id);
+      
+      // Si este es el próximo evento, agregar una clase especial
+      if (index === indiceProximo && indiceProximo !== -1) {
+        li.classList.add("next-event");
+      }
+      
       ul.appendChild(li);
     });
   }
+  
   
 
 //Para regresar de la vista de eventos al listado de años:
