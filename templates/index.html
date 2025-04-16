@@ -1717,7 +1717,7 @@ function mostrarSeccion(seccion, callback = null) {
 
         // Cargar automáticamente el calendario si es la sección correspondiente
         if (seccion === 'calendario') {
-            cargarCalendario();
+            initCalendario();
             cargarLeadsEnSelect(); // También cargamos los leads para el select
         }
 
@@ -2491,6 +2491,16 @@ function initCalendario() {
   VISTA DE AÑOS
 ========================
 ************************/
+function initCalendario() {
+    cargarLeadsEnSelect();
+    // Asegurarse de que la vista de años esté visible y la de eventos oculta
+    document.getElementById("vista-anios").classList.remove("hidden");
+    document.getElementById("vista-eventos-anio").classList.add("hidden");
+    anioSeleccionado = null;
+    cargarAnios();
+}
+
+
 //Esta función utiliza el endpoint /calendario/fechas_ocupadas para extraer los años de las fechas y agruparlos:
 function cargarAnios() {
     fetch("/calendario/fechas_ocupadas")
