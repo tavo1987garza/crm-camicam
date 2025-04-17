@@ -2509,6 +2509,13 @@ function initCalendario() {
     cargarAnios();
 }
 
+//Funcion para que la fecha sea siempre el día correcto a medianoche en la zona local.
+function parseDateLocal(fechaIso) {
+  const [yy, mm, dd] = fechaIso.split("-").map(Number);
+  // month es 0‑11
+  return new Date(yy, mm - 1, dd);
+}
+
 
 //Esta función utiliza el endpoint /calendario/fechas_ocupadas para extraer los años de las fechas y agruparlos:
 function cargarAnios() {
@@ -2526,14 +2533,14 @@ function cargarAnios() {
         }
         
         // Extraer y ordenar los años en orden descendente
-        const anios = [...new Set(data.fechas.map(item => new Date(item.fecha).getFullYear()))].sort((a, b) => b - a);
+        const anios = [...new Set(data.fechas.map(item => parseDateLocal(item.fecha).getFullYear()))].sort((a, b) => b - a);
         
         // Arreglo de colores para los bordes
         const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
         
         anios.forEach((anio, index) => {
           // Contar cantidad de eventos para cada año
-          const count = data.fechas.filter(item => new Date(item.fecha).getFullYear() === anio).length;
+          const count = data.fechas.filter(item => parseDateLocal(item.fecha).getFullYear() === anio).length;
           
           // Crear la tarjeta del año
           const anioCard = document.createElement("div");
@@ -2559,6 +2566,7 @@ function cargarAnios() {
       });
   }
   
+
   
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
 function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
@@ -2572,7 +2580,7 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
   const hoy = new Date();
-  const indiceProximo = fechasDelAnio.findIndex(item => new Date(item.fecha) >= hoy);
+  const indiceProximo = fechasDelAnio.findIndex(item => parseDateLocal(item.fecha) >= hoy);
 
   document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
   document.getElementById("vista-anios").classList.add("hidden");
@@ -2587,7 +2595,7 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
 
   fechasDelAnio.forEach((item, index) => {
     const li = document.createElement("li");
-    const fecha = new Date(item.fecha);
+    const fecha = parseDateLocal(item.fecha);
     /*const [yy, mm, dd] = item.fecha.split("-").map(Number);
     const fecha = new Date(yy, mm - 1, dd);*/
     const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
