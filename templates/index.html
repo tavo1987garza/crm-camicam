@@ -2587,7 +2587,9 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
 
   fechasDelAnio.forEach((item, index) => {
     const li = document.createElement("li");
-    const fecha = new Date(item.fecha);
+    //const fecha = new Date(item.fecha);
+    const [yy, mm, dd] = item.fecha.split("-").map(Number);
+    const fecha = new Date(yy, mm - 1, dd);
     const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
     li.innerHTML = `
       <div class="fecha-info">
