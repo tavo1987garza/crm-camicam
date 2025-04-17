@@ -2509,156 +2509,131 @@ function initCalendario() {
     cargarAnios();
 }
 
-//Funcion para que la fecha sea siempre el día correcto a medianoche en la zona local.
-function parseDateLocal(fechaIso) {
+/**
+ * Convierte una fecha ISO "YYYY-MM-DD" en un objeto Date
+ * a medianoche **en la zona local**, evitando desplazamientos UTC.
+ */
+ function parseDateLocal(fechaIso) {
   const [yy, mm, dd] = fechaIso.split("-").map(Number);
-  // month es 0‑11
   return new Date(yy, mm - 1, dd);
 }
 
-
-//Esta función utiliza el endpoint /calendario/fechas_ocupadas para extraer los años de las fechas y agruparlos:
+/**
+ * Carga las tarjetas de años con color dinámico.
+ */
 function cargarAnios() {
-    fetch("/calendario/fechas_ocupadas")
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) throw new Error(data.error);
+  fetch("/calendario/fechas_ocupadas")
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      
+      const cont = document.getElementById("lista-anios");
+      cont.innerHTML = "";
+      
+      if (!data.fechas || data.fechas.length === 0) {
+        cont.innerHTML = '<p class="no-data">No hay fechas registradas.</p>';
+        return;
+      }
+      
+      // Extraemos los años, sin usar new Date directa
+      const anios = [...new Set(
+        data.fechas.map(item => parseDateLocal(item.fecha).getFullYear())
+      )].sort((a, b) => b - a);
+      
+      const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
+      
+      anios.forEach((anio, idx) => {
+        const count = data.fechas.filter(item =>
+          parseDateLocal(item.fecha).getFullYear() === anio
+        ).length;
         
-        const contenedorAnios = document.getElementById("lista-anios");
-        contenedorAnios.innerHTML = "";
+        const color = coloresBorde[idx % coloresBorde.length];
+        console.log("Tarjeta año", anio, "color:", color);
         
-        if (!data.fechas || data.fechas.length === 0) {
-          contenedorAnios.innerHTML = '<p class="no-data">No hay fechas registradas.</p>';
-          return;
-        }
-        
-        // Extraer y ordenar los años en orden descendente
-        const anios = [...new Set(data.fechas.map(item => parseDateLocal(item.fecha).getFullYear()))].sort((a, b) => b - a);
-        
-        // Arreglo de colores para los bordes
-        const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
-        
-        anios.forEach((anio, index) => {
-          // Contar cantidad de eventos para cada año
-          const count = data.fechas.filter(item => parseDateLocal(item.fecha).getFullYear() === anio).length;
-          
-          // Crear la tarjeta del año
-          const anioCard = document.createElement("div");
-          anioCard.className = "anio-card";
-          const color = coloresBorde[index % coloresBorde.length];
-          console.log("Color para el año", anio, "es:", color);
-          anioCard.style.borderLeft = `4px solid ${color}`;
-          anioCard.innerHTML = `
-            <h3>${anio}</h3>
-            <span class="event-count">${count} evento${count !== 1 ? 's' : ''}</span>
-          `;
-          // Al hacer clic, se pasa el color a la función para mostrar los eventos
-          anioCard.onclick = () => {
-            console.log("Se hace clic en el año", anio, "con color:", color);
-            mostrarEventosDelAnio(anio, data.fechas, color);
-          };
-          contenedorAnios.appendChild(anioCard);
-        });
-      })
-      .catch(e => {
-        console.error("Error al cargar años:", e);
-        alert("Error al cargar años: " + e.message);
+        const card = document.createElement("div");
+        card.className = "anio-card";
+        card.style.borderLeft = `4px solid ${color}`;
+        card.innerHTML = `
+          <h3>${anio}</h3>
+          <span class="event-count">${count} evento${count !== 1 ? 's' : ''}</span>
+        `;
+        card.onclick = () => mostrarEventosDelAnio(anio, data.fechas, color);
+        cont.appendChild(card);
       });
-  }
-  
+    })
+    .catch(err => {
+      console.error("Error al cargar años:", err);
+      alert("Error al cargar años: " + err.message);
+    });
+}
 
-  
-//Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
-function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
-  console.log("Color recibido en eventos para el año", anio + ":", colorAnio);
-  
+/**
+ * Muestra los eventos de un año, aplica color de borde y resalta
+ * el próximo evento con fondo semitransparente del mismo color.
+ */
+function mostrarEventosDelAnio(anio, todasFechas, colorAnio) {
+  console.log("mostrando eventos para", anio, "color:", colorAnio);
   anioSeleccionado = anio;
-
-  // Filtrar y ordenar las fechas del año seleccionado
-  const fechasDelAnio = todasLasFechas
-    .filter(item => new Date(item.fecha).getFullYear() === anio)
-    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-
+  
+  const lista = todasFechas
+    .filter(item => parseDateLocal(item.fecha).getFullYear() === anio)
+    .sort((a, b) =>
+      parseDateLocal(a.fecha) - parseDateLocal(b.fecha)
+    );
+  
   const hoy = new Date();
-  const indiceProximo = fechasDelAnio.findIndex(item => parseDateLocal(item.fecha) >= hoy);
-
+  const idxProx = lista.findIndex(item =>
+    parseDateLocal(item.fecha) >= hoy
+  );
+  
   document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
   document.getElementById("vista-anios").classList.add("hidden");
   document.getElementById("vista-eventos-anio").classList.remove("hidden");
-
+  
   const ul = document.getElementById("lista-fechas-ocupadas");
   ul.innerHTML = "";
-  if (fechasDelAnio.length === 0) {
+  if (lista.length === 0) {
     ul.innerHTML = '<li class="no-data">No hay eventos para este año.</li>';
     return;
   }
-
-  fechasDelAnio.forEach((item, index) => {
+  
+  lista.forEach((item, i) => {
     const li = document.createElement("li");
-    const fecha = parseDateLocal(item.fecha);
-    /*const [yy, mm, dd] = item.fecha.split("-").map(Number);
-    const fecha = new Date(yy, mm - 1, dd);*/
-    const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
+    const f = parseDateLocal(item.fecha);
+    const diaMes = `${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')}`;
     li.innerHTML = `
       <div class="fecha-info">
-          <span class="fecha-fecha">${diaMes}</span>
-          ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ''}
+        <span class="fecha-fecha">${diaMes}</span>
+        ${item.titulo ? `<span class="fecha-titulo">${item.titulo}</span>` : ""}
       </div>
       <i class="fas fa-chevron-right"></i>
     `;
     li.onclick = () => abrirModalFecha(item.id);
-    // Asigna el borde izquierdo con el color del año
+    
+    // Borde del color del año
     li.style.setProperty("border-left", `4px solid ${colorAnio}`, "important");
-
-    // Si este es el próximo evento, se resalta asignándole un fondo oscuro
-    if (indiceProximo !== -1 && index === indiceProximo) {
-      // Calcula un color un poco más oscuro a partir de colorAnio
-      const fondoTransparente = hexToRgba(colorAnio, 0.6);
-      li.style.setProperty("background-color", fondoTransparente, "important");
-
-     // const fondoOscuro = darkenColor(colorAnio, 30);
-     // li.style.setProperty("background-color", fondoOscuro, "important");
-      li.classList.add("next-event");
+    
+    // Solo al próximo evento, fondo semitransparente
+    if (i === idxProx) {
+      const rgba = hexToRgba(colorAnio, 0.2);
+      li.style.setProperty("background-color", rgba, "important");
     }
+    
     ul.appendChild(li);
   });
 }
 
-
-//  función para disminuir los valores RGB y obtener un color más oscuro:
-function darkenColor(hex, amount) {
-  // Elimina '#' si existe
-  let usePound = false;
-  if (hex[0] === "#") {
-    hex = hex.slice(1);
-    usePound = true;
-  }
-  
-  let num = parseInt(hex, 16);
-  let r = Math.max((num >> 16) - amount, 0);
-  let g = Math.max(((num >> 8) & 0x00FF) - amount, 0);
-  let b = Math.max((num & 0x0000FF) - amount, 0);
-  
-  return (usePound ? "#" : "") + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
-}
-
-
-
-// Funcion para convertir el color hexadecimal a formato RGBA y establecer un valor para el canal alfa (transparencia).
+/**
+ * Convierte hex a rgba con alfa para transparencia.
+ */
 function hexToRgba(hex, alpha) {
-  // Elimina el símbolo '#' si está presente
-  hex = hex.replace("#", "");
-  
-  // Si el código es corto (3 dígitos), duplicarlo a 6 dígitos
+  hex = hex.replace("#","");
   if (hex.length === 3) {
-    hex = hex.split('').map(char => char + char).join('');
+    hex = hex.split("").map(h=>h+h).join("");
   }
-  
-  const r = parseInt(hex.substring(0,2), 16);
-  const g = parseInt(hex.substring(2,4), 16);
-  const b = parseInt(hex.substring(4,6), 16);
-  
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  const int = parseInt(hex,16);
+  const r = (int>>16)&255, g=(int>>8)&255, b=int&255;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
   
