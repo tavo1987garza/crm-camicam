@@ -2559,12 +2559,6 @@ function cargarAnios() {
       });
   }
   
-  // Nueva función auxiliar
-function parseLocalDate(dateStr) {
-  // Asume formato YYYY-MM-DD
-  const parts = dateStr.split('-');
-  return new Date(parts[0], parts[1]-1, parts[2]);
-}
   
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
 function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
@@ -2593,8 +2587,7 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
 
   fechasDelAnio.forEach((item, index) => {
     const li = document.createElement("li");
-    
-    const fecha = parseLocalDate(item.fecha);
+    const fecha = new Date(item.fecha);
     const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
     li.innerHTML = `
       <div class="fecha-info">
@@ -2620,6 +2613,25 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
     ul.appendChild(li);
   });
 }
+
+
+//  función para disminuir los valores RGB y obtener un color más oscuro:
+function darkenColor(hex, amount) {
+  // Elimina '#' si existe
+  let usePound = false;
+  if (hex[0] === "#") {
+    hex = hex.slice(1);
+    usePound = true;
+  }
+  
+  let num = parseInt(hex, 16);
+  let r = Math.max((num >> 16) - amount, 0);
+  let g = Math.max(((num >> 8) & 0x00FF) - amount, 0);
+  let b = Math.max((num & 0x0000FF) - amount, 0);
+  
+  return (usePound ? "#" : "") + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+
 
 
 // Funcion para convertir el color hexadecimal a formato RGBA y establecer un valor para el canal alfa (transparencia).
