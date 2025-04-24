@@ -2788,7 +2788,8 @@ function agregarAnio() {
           const idx = anios.indexOf(anioSeleccionado);
           const color = coloresBorde[idx % coloresBorde.length];
     
-          mostrarEventosDelAnio(anioSeleccionado, data.fechas, color);
+          mostrarMesesDelAnio(anioSeleccionado, data.fechas, color);
+
         })
         .catch(e => {
           console.error("Error en cargarCalendario:", e);
