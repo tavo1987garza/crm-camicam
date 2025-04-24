@@ -593,9 +593,10 @@ def agregar_fecha_manual():
                 "anio": fecha_local.year,
                 "fecha": fecha_str,
                 "titulo": titulo
-            },
-            broadcast=True                # envíalo a todas las pestañas conectadas
+            }
         )
+        
+   
 
         return jsonify({
             "ok": True,
