@@ -606,37 +606,49 @@ def agregar_fecha_manual():
 def fechas_ocupadas():
     conn = conectar_db()
     if not conn:
-        return jsonify({"error": "No hay DB"}), 500
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
 
     try:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT 
                 c.id,
-                TO_CHAR(fecha, 'YYYY-MM-DD') as fecha,  # <-- Esto fuerza el formato sin hora 
+                TO_CHAR(c.fecha AT TIME ZONE 'UTC', 'YYYY-MM-DD') as fecha,  -- Fuerza UTC y formato
                 c.lead_id, 
                 COALESCE(c.titulo, '') as titulo,
                 COALESCE(c.notas, '') as notas,
                 COALESCE(c.ticket, 0) as ticket,
                 c.servicios,
                 l.nombre as lead_nombre,
-                EXTRACT(YEAR FROM c.fecha) as anio
+                EXTRACT(YEAR FROM c.fecha AT TIME ZONE 'UTC') as anio  -- Extrae año en UTC
             FROM calendario c
             LEFT JOIN leads l ON c.lead_id = l.id
             ORDER BY c.fecha DESC
         """)
         
-        column_names = [desc[0] for desc in cursor.description]
-        fechas = [dict(zip(column_names, row)) for row in cursor.fetchall()]
+        # Procesamiento seguro de resultados
+        fechas = []
+        for row in cursor.fetchall():
+            fecha_dict = {
+                "id": row[0],
+                "fecha": row[1],  # Ya viene formateado como YYYY-MM-DD
+                "lead_id": row[2],
+                "titulo": row[3],
+                "notas": row[4],
+                "ticket": float(row[5]) if row[5] else 0.0,
+                "servicios": row[6] if row[6] else {},
+                "lead_nombre": row[7],
+                "anio": int(row[8]) if row[8] else None
+            }
+            fechas.append(fecha_dict)
         
         return jsonify({"fechas": fechas}), 200
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error en fechas_ocupadas: {str(e)}")  # Log para diagnóstico
+        return jsonify({"error": "Error al procesar fechas"}), 500
     finally:
         liberar_db(conn)
-        
-        
         
 
 @app.route("/calendario/check", methods=["GET"])
