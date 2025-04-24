@@ -2548,11 +2548,9 @@ function initCalendario() {
 
 
 //Esta función utiliza el endpoint /calendario/fechas_ocupadas para extraer los años de las fechas y agruparlos:
-
-function cargarAnios(noCache=false){
-        const url = "/calendario/fechas_ocupadas" + (noCache ? "?_="+Date.now() : "");
-        fetch(url)
-          .then(r => r.json())
+function cargarAnios() {
+    fetch("/calendario/fechas_ocupadas")
+      .then(r => r.json())
       .then(data => {
         if (data.error) throw new Error(data.error);
         
@@ -2733,7 +2731,7 @@ function volverAVistaAnios() {
 function volverAVistaMeses() {
   document.getElementById("vista-eventos-anio").classList.add("hidden");
   document.getElementById("vista-meses").classList.remove("hidden");
-  cargarCalendario();  
+         
 }
 
 
