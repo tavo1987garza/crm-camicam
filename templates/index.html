@@ -2728,6 +2728,8 @@ function volverAVistaMeses() {
   document.getElementById("vista-eventos-anio").classList.add("hidden");
   document.getElementById("vista-meses").classList.remove("hidden");
 
+  // 🚀 Opcional: refrescar la lista de meses para actualizar contadores
+  cargarCalendario();         // reutiliza la función que trae fechas y pinta meses
 }
 
 
