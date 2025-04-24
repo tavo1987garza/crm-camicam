@@ -431,6 +431,13 @@ def obtener_mensajes_chat():
         liberar_db(conn)     
     
     
+    
+    
+#'''''''''''''''''''''''''''''''''''''''''''''''
+#------------SECION DE CALENDARIO---------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+    
+    
 # 📌 Obtener Años con Eventos (Nuevo)
 @app.route("/calendario/anios", methods=["GET"])
 def obtener_anios_calendario():
@@ -503,11 +510,24 @@ def calendario_agrupado():
         liberar_db(conn)
 
         
-# 📌 Endpoint para agregar fechas al Calendario    
+# 📌 Endpoint para agregar fechas al Calendario 
+
+
+
+   
 @app.route("/calendario/agregar_manual", methods=["POST"])
 def agregar_fecha_manual():
     data = request.json
     fecha_str = data.get("fecha")      # "YYYY-MM-DD"
+    
+    # Asegurar que la fecha se interprete en la zona horaria correcta
+    try:
+        # Parsear la fecha como UTC explícitamente
+        fecha_utc = datetime.strptime(fecha_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        fecha_local = fecha_utc.astimezone()  # Convierte a zona horaria del servidor si es necesario
+    except ValueError:
+        return jsonify({"error": "Formato de fecha inválido. Use YYYY-MM-DD"}), 400
+    
     lead_id = data.get("lead_id")      # int o None
     titulo = data.get("titulo", "")
     notas = data.get("notas", "")
@@ -551,7 +571,7 @@ def agregar_fecha_manual():
             VALUES (%s, %s, %s, %s, %s, %s::jsonb)
             ON CONFLICT (fecha) DO NOTHING
         """, (
-            fecha_str,
+            fecha_local.date(),  # Guardar solo la parte de fecha (sin zona horaria)
             lead_id,
             titulo,
             notas,
@@ -592,8 +612,8 @@ def fechas_ocupadas():
         cursor = conn.cursor()
         cursor.execute("""
             SELECT 
-                c.id, 
-                c.fecha, 
+                c.id,
+                TO_CHAR(fecha, 'YYYY-MM-DD') as fecha,  # <-- Esto fuerza el formato sin hora 
                 c.lead_id, 
                 COALESCE(c.titulo, '') as titulo,
                 COALESCE(c.notas, '') as notas,

@@ -159,7 +159,7 @@
     border-color: #1e88e5; /* 🔹 Cambiar color del borde al hacer hover */
 }
 
-/* 🔹 Colores para cada columna */
+/* 🔹 Colores para cada columna */ 
 [data-estado="Contacto Inicial"] {
     background: #e3f2fd; /* Azul claro */
     border-left: 5px solid #1e88e5;
@@ -2587,7 +2587,7 @@ function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio) {
 
   fechasDelAnio.forEach((item, index) => {
     const li = document.createElement("li");
-    const fecha = new Date(item.fecha);
+    const fecha = new Date(item.fecha + 'T00:00:00'); // Forzar interpretación como medianoche local
     const diaMes = `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
     li.innerHTML = `
       <div class="fecha-info">
@@ -2889,6 +2889,10 @@ function abrirModalFecha(calId) {
     fetch(`/calendario/detalle/${calId}`)
         .then(r => r.json())
         .then(data => {
+          const fecha = new Date(data.fecha + 'T00:00:00');
+            const fechaFormateada = fecha.toISOString().split('T')[0];
+            
+            
             if (data.error) {
                 alert("Error: " + data.error);
                 return;
@@ -2896,7 +2900,7 @@ function abrirModalFecha(calId) {
 
             // Llenar inputs
             document.getElementById("edit-fecha-id").value = data.id;
-            document.getElementById("edit-fecha-input").value = data.fecha; 
+            document.getElementById("edit-fecha-input").value = fechaFormateada;
             document.getElementById("edit-fecha-titulo").value = data.titulo || "";
             document.getElementById("edit-fecha-notas").value = data.notas || "";
                // Aquí, para el ticket, antes de formatearlo, se asigna su valor
