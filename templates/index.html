@@ -958,6 +958,31 @@
     background: #e9ecef;
   }
   
+  /* ───── CONTENEDOR de tarjetas-mes ──── */
+#lista-meses {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 columnas iguales */
+  gap: 15px;                              /* mismo espacio que años */
+}
+
+/* ───── TARJETA de mes (mismo look que .anio-card) ──── */
+.mes-card {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  border-left: 4px solid #1e88e5;         /* JS lo sobrescribe */
+  transition: background 0.2s ease;
+}
+
+.mes-card:hover {
+  background: #e9ecef;
+}
+
+/* (Si prefieres sombra como antes, vuelve a añadir box-shadow) */
+
+  
 
 
 /* Si quieres que el next event tenga además un fondo o cambio extra, puedes hacerlo así: */
@@ -1218,14 +1243,6 @@
   margin-bottom: 10px;
 }
 
-.mes-card{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:8px 12px;margin:4px 0;border-radius:6px;
-  background:#fff;border-left:4px solid #1e88e5;  /* color se sobreescribe en JS */
-  box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;
-  transition:transform .15s;
-}
-.mes-card:hover{transform:translateY(-2px);}
 
 
   
