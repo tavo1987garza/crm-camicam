@@ -516,6 +516,7 @@ def calendario_agrupado():
 def agregar_fecha_manual():
     data = request.json
     fecha_str = data.get("fecha")      # "YYYY-MM-DD"
+    force     = data.get("force", False)  
     
     # Asegurar que la fecha se interprete en la zona horaria correcta
     try:
@@ -561,12 +562,26 @@ def agregar_fecha_manual():
             servicios_json = servicios_input
         else:
             servicios_json = {}
+            
+          # 1️⃣  ¿Cuántos eventos hay ya ese día?
+        cursor.execute("SELECT COUNT(*) FROM calendario WHERE fecha = %s", (fecha_str,))
+        ya_hay = cursor.fetchone()[0]
+
+        if ya_hay >= 2:
+            return jsonify({"ok": False,
+                            "mensaje": f"El {fecha_str} ya tiene 2 eventos registrados."}), 200
+
+        if ya_hay == 1 and not force:
+            # Hay 1 evento y aún no confirmas el segundo
+            return jsonify({"ok": False,
+                            "second_possible": True,
+                            "mensaje": f"Ya hay un evento el {fecha_str}. ¿Agregar un segundo?"}), 200
+
 
         # Insertar en la tabla calendario
         cursor.execute("""
             INSERT INTO calendario (fecha, lead_id, titulo, notas, ticket, servicios)
             VALUES (%s, %s, %s, %s, %s, %s::jsonb)
-            ON CONFLICT (fecha) DO NOTHING
         """, (
             fecha_local.date(),  # Guardar solo la parte de fecha (sin zona horaria)
             lead_id,
@@ -577,12 +592,6 @@ def agregar_fecha_manual():
         ))
         conn.commit()
 
-        if cursor.rowcount == 0:
-            # Significa que la fecha ya existía en la tabla (si UNIQUE(fecha))
-            return jsonify({
-                "ok": False,
-                "mensaje": f"La fecha {fecha_str} ya está ocupada o existe en el calendario."
-            }), 200
             
             
         # ⚡️  EMITIR EVENTO EN TIEMPO REAL

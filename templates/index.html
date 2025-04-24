@@ -2880,7 +2880,7 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
   
 
 //Aquí se añade la validación para que la fecha ingresada pertenezca al año seleccionado:
-  function agregarFechaManual() {
+  function agregarFechaManual(force = false) {
     const fecha = document.getElementById("fecha-input").value;
     
     // Validar que la fecha corresponda al año seleccionado (si aplica)
@@ -2936,6 +2936,8 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
       servicios: serviciosObj
     };
     
+    payload.force = force;                       // ← manda el flag
+
     fetch("/calendario/agregar_manual", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2943,8 +2945,11 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
     })
       .then(r => r.json())
       .then(data => {
-        if (data.error) {
-          alert("Error: " + data.error);
+        if (data.second_possible) {
+          // Mostrar confirmación
+          if (confirm(data.mensaje)) {
+            agregarFechaManual(true);              // llamada recursiva con force=true
+          }
           return;
         }
         if (data.ok) {
