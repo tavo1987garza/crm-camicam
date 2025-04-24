@@ -512,10 +512,6 @@ def calendario_agrupado():
 
         
 # 📌 Endpoint para agregar fechas al Calendario 
-
-
-
-   
 @app.route("/calendario/agregar_manual", methods=["POST"])
 def agregar_fecha_manual():
     data = request.json
@@ -587,6 +583,19 @@ def agregar_fecha_manual():
                 "ok": False,
                 "mensaje": f"La fecha {fecha_str} ya está ocupada o existe en el calendario."
             }), 200
+            
+            
+        # ⚡️  EMITIR EVENTO EN TIEMPO REAL
+        socketio.emit(
+            "calendario_actualizado",
+            {
+                "accion": "nueva_fecha",
+                "anio": fecha_local.year,
+                "fecha": fecha_str,
+                "titulo": titulo
+            },
+            broadcast=True                # envíalo a todas las pestañas conectadas
+        )
 
         return jsonify({
             "ok": True,

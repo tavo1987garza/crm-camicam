@@ -1741,6 +1741,10 @@ function mostrarSeccion(seccion, callback = null) {
         
 
         // 🔹 Conectar con WebSockets
+                
+/*==============================================================
+//CON ESTO CONECTAMOS CON WEBSOCKET Actualizacion en Tiempo Real
+===============================================================*/
         let socket = io.connect(window.location.origin);
         socket.on("connect", () => {
             console.log("✅ Conectado a WebSockets.");
@@ -2472,7 +2476,7 @@ document.body.addEventListener("click", function () {
     })
     .catch(error => console.error("❌ Error al actualizar lead:", error));
 }
-
+  
  
 /***********************
 ========================
@@ -2493,6 +2497,20 @@ function initCalendario() {
     // 3. Opcional: Resetear año seleccionado
     anioSeleccionado = null;
 }
+
+
+/** 📡 Evento que el backend emite tras insertar una fecha */
+socket.on("calendario_actualizado", data => {
+  console.log("📡 Calendario actualizado:", data);
+
+  // 1) Vuelve a pintar la lista de años (tarjetas)
+  cargarAnios();
+
+  // 2) Si el usuario ya está dentro de ese año, actualiza la lista de eventos
+  if (anioSeleccionado === data.anio) {
+    cargarCalendario();   // usa la variable global anioSeleccionado
+  }
+});
 
 
 /***********************
