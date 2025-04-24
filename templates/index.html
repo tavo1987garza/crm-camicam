@@ -1405,6 +1405,12 @@
               <ul id="lista-fechas-ocupadas"></ul>
             </div>
             
+            <div id="vista-meses" class="hidden">
+              <button onclick="volverAVistaAnios()">← Años</button>
+              <h2 id="meses-titulo"></h2>
+              <div id="lista-meses" class="card-container"></div>
+            </div>
+        
             <!-- Modal para Agregar Año -->
             <div id="add-anio-modal" class="modal hidden">
               <div class="modal-content">
@@ -1419,12 +1425,7 @@
               </div>
             </div>
 
-            <div id="vista-meses" class="hidden">
-              <button onclick="volverAVistaAnios()">← Años</button>
-              <h2 id="meses-titulo"></h2>
-              <div id="lista-meses" class="card-container"></div>
-            </div>
-        
+            
             <!-- Modal para Agregar Fecha -->
             <div id="add-fecha-modal" class="modal hidden">
                 <div class="modal-content">
@@ -2721,15 +2722,13 @@ function volverAVistaAnios() {
   document.getElementById("vista-meses").classList.add("hidden");
   document.getElementById("vista-anios").classList.remove("hidden");
   anioSeleccionado = null;
-  cargarAnios();              // recarga tarjetas por si hay cambios
+  cargarAnios();           
 }
 
 function volverAVistaMeses() {
   document.getElementById("vista-eventos-anio").classList.add("hidden");
   document.getElementById("vista-meses").classList.remove("hidden");
-
-  // 🚀 Opcional: refrescar la lista de meses para actualizar contadores
-  cargarCalendario();         // reutiliza la función que trae fechas y pinta meses
+  cargarCalendario();         
 }
 
 
