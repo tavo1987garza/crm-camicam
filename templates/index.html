@@ -2601,79 +2601,80 @@ function cargarAnios() {
 // =======================================
 //  Vista de eventos → agrupado por MES
 // =======================================
-function mostrarMesesDelAnio(anio, todasLasFechas, colorAnio="#1e88e5"){
+function mostrarMesesDelAnio(anio, todasLasFechas, colorAnio = "#1e88e5") {
   anioSeleccionado = anio;
 
-  // 1. agrupar por mes
+  /* 1. agrupar por mes  (sin usar new Date) */
   const grupos = {};
-  todasLasFechas.forEach(ev=>{
-    const d=new Date(ev.fecha);
-    if(d.getFullYear()!==anio) return;
-    const m=d.getMonth();          // 0-11
+  todasLasFechas.forEach(ev => {
+    const [yy, mm] = ev.fecha.split("-");   // "2025", "05"
+    if (+yy !== anio) return;
+    const m = +mm - 1;                      // 0-11
     (grupos[m] ||= []).push(ev);
   });
 
-  // 2. preparar vista
+  /* 2. preparar vista */
   document.getElementById("vista-anios").classList.add("hidden");
   document.getElementById("vista-eventos-anio").classList.add("hidden");
   document.getElementById("vista-meses").classList.remove("hidden");
-  document.getElementById("meses-titulo").textContent=`Eventos ${anio}`;
+  document.getElementById("meses-titulo").textContent = `Eventos ${anio}`;
 
-  const cont=document.getElementById("lista-meses");
-  cont.innerHTML="";
+  const cont = document.getElementById("lista-meses");
+  cont.innerHTML = "";
 
-  const mesesOrden=[0,1,2,3,4,5,6,7,8,9,10,11];
-  const nombres=["Ene","Feb","Mar","Abr","May","Jun",
-                 "Jul","Ago","Sep","Oct","Nov","Dic"];
+  const nombres = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
-  mesesOrden.forEach(m=>{
-    const lista=grupos[m]||[];
-    if(lista.length===0) return;
+  for (let m = 0; m < 12; m++) {
+    const lista = grupos[m] || [];
+    if (lista.length === 0) continue;
 
-    const card=document.createElement("div");
-    card.className="mes-card";
-    card.style.borderLeft=`4px solid ${colorAnio}`;
-    card.innerHTML=`<h3>${nombres[m]}</h3>
-                    <span class="event-count">${lista.length}</span>`;
-    card.onclick=()=>mostrarEventosDelMes(anio,m,lista,colorAnio);
+    const card = document.createElement("div");
+    card.className = "mes-card";
+    card.style.borderLeft = `4px solid ${colorAnio}`;
+    card.innerHTML = `<h3>${nombres[m]}</h3><span class="event-count">${lista.length}</span>`;
+    card.onclick = () => mostrarEventosDelMes(anio, m, lista, colorAnio);
     cont.appendChild(card);
-  });
+  }
 }
 
-//MUESTRA LOS EVENTOS DEL MES
-function mostrarEventosDelMes(anio, mes, lista,colorAnio){
-  // ordena por día
-  lista.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
 
-  // preparar vista
+/* ---------------  Eventos de un mes --------------- */
+function mostrarEventosDelMes(anio, mes, lista, colorAnio) {
+  // ordenar con comparación de strings "YYYY-MM-DD"
+  lista.sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+
+  /* preparar vista */
   document.getElementById("vista-meses").classList.add("hidden");
   document.getElementById("vista-eventos-anio").classList.remove("hidden");
-  document.getElementById("anio-actual").textContent=
-      `Eventos ${["Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                 "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes]} ${anio}`;
+  document.getElementById("anio-actual").textContent =
+    `Eventos ${["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+               "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes]} ${anio}`;
 
-  const ul=document.getElementById("lista-fechas-ocupadas");
-  ul.innerHTML="";
+  const ul = document.getElementById("lista-fechas-ocupadas");
+  ul.innerHTML = "";
 
-  const hoy=new Date();
-  const proxIdx=lista.findIndex(ev=>new Date(ev.fecha)>=hoy);
+  const hoyISO = new Date().toISOString().slice(0, 10);           // "YYYY-MM-DD"
+  const proxIdx = lista.findIndex(ev => ev.fecha >= hoyISO);
 
-  lista.forEach((ev,idx)=>{
-    const li=document.createElement("li");
-    const d=new Date(ev.fecha+"T00:00:00");
-    const dia=(`${d.getDate()}`.padStart(2,"0"))+"/"+(`${d.getMonth()+1}`.padStart(2,"0"));
+  lista.forEach((ev, idx) => {
+    /* dia/mes SIN Date()  */
+    const [, mm, dd] = ev.fecha.split("-");
+    const dia = `${dd}/${mm}`;
 
-    li.innerHTML=`<div class="fecha-info">
-                    <span class="fecha-fecha">${dia}</span>
-                    ${ev.titulo?`<span class="fecha-titulo">${ev.titulo}</span>`:""}
-                  </div>
-                  <i class="fas fa-chevron-right"></i>`;
-    li.onclick=()=>abrirModalFecha(ev.id);
-    li.style.borderLeft=`4px solid ${colorAnio}`;
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <div class="fecha-info">
+        <span class="fecha-fecha">${dia}</span>
+        ${ev.titulo ? `<span class="fecha-titulo">${ev.titulo}</span>` : ""}
+      </div>
+      <i class="fas fa-chevron-right"></i>`;
+    li.onclick = () => abrirModalFecha(ev.id);
+    li.style.borderLeft = `4px solid ${colorAnio}`;
 
-    if(proxIdx!==-1 && idx===proxIdx){
+    /* resalta próximo evento */
+    if (proxIdx !== -1 && idx === proxIdx) {
       li.classList.add("next-event");
-      li.style.backgroundColor=hexToRgba(colorAnio,0.6);
+      li.style.backgroundColor = hexToRgba(colorAnio, 0.6);
     }
     ul.appendChild(li);
   });
