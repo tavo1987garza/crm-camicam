@@ -1218,6 +1218,16 @@
   margin-bottom: 10px;
 }
 
+.mes-card{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 12px;margin:4px 0;border-radius:6px;
+  background:#fff;border-left:4px solid #1e88e5;  /* color se sobreescribe en JS */
+  box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;
+  transition:transform .15s;
+}
+.mes-card:hover{transform:translateY(-2px);}
+
+
   
 
     </style>
@@ -1409,6 +1419,11 @@
               </div>
             </div>
 
+            <div id="vista-meses" class="hidden">
+              <button onclick="volverAVistaAnios()">← Años</button>
+              <h2 id="meses-titulo"></h2>
+              <div id="lista-meses" class="card-container"></div>
+            </div>
         
             <!-- Modal para Agregar Fecha -->
             <div id="add-fecha-modal" class="modal hidden">
@@ -2566,7 +2581,7 @@ function cargarAnios() {
           // Al hacer clic, se pasa el color a la función para mostrar los eventos
           anioCard.onclick = () => {
             console.log("Se hace clic en el año", anio, "con color:", color);
-            mostrarEventosDelAnio(anio, data.fechas, color);
+            mostrarMesesDelAnio(anio, data.fechas, color);
           };
           contenedorAnios.appendChild(anioCard);
         });
@@ -2582,99 +2597,84 @@ function cargarAnios() {
 // =======================================
 //  Vista de eventos → agrupado por MES
 // =======================================
-function mostrarEventosDelAnio(anio, todasLasFechas, colorAnio = "#1e88e5") {
-  console.log("Color recibido en eventos para el año", anio + ":", colorAnio);
-
+function mostrarMesesDelAnio(anio, todasLasFechas, colorAnio="#1e88e5"){
   anioSeleccionado = anio;
 
-  /* 1. Filtrar y ordenar las fechas del año */
-  const fechasDelAnio = todasLasFechas
-    .filter(f => new Date(f.fecha).getFullYear() === anio)
-    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-
-  if (fechasDelAnio.length === 0) {
-    document.getElementById("lista-fechas-ocupadas").innerHTML =
-      '<li class="no-data">No hay eventos para este año.</li>';
-    return;
-  }
-
-  const hoy         = new Date();
-  const mesActual   = hoy.getMonth();               // 0-11
-  const proxIndex   = fechasDelAnio.findIndex(f => new Date(f.fecha) >= hoy);
-
-  /* 2. Agrupar por mes -> {0:[…],1:[…]} */
+  // 1. agrupar por mes
   const grupos = {};
-  fechasDelAnio.forEach(ev => {
-    const m = new Date(ev.fecha).getMonth();        // 0-11
+  todasLasFechas.forEach(ev=>{
+    const d=new Date(ev.fecha);
+    if(d.getFullYear()!==anio) return;
+    const m=d.getMonth();          // 0-11
     (grupos[m] ||= []).push(ev);
   });
 
-  /* 3. Preparar la vista */
-  document.getElementById("anio-actual").textContent = `Eventos ${anio}`;
+  // 2. preparar vista
   document.getElementById("vista-anios").classList.add("hidden");
-  document.getElementById("vista-eventos-anio").classList.remove("hidden");
+  document.getElementById("vista-eventos-anio").classList.add("hidden");
+  document.getElementById("vista-meses").classList.remove("hidden");
+  document.getElementById("meses-titulo").textContent=`Eventos ${anio}`;
 
-  const cont = document.getElementById("lista-fechas-ocupadas");
-  cont.innerHTML = "";    // limpiar lista
+  const cont=document.getElementById("lista-meses");
+  cont.innerHTML="";
 
-  /* 4. Recorrer meses en orden (enero-diciembre) */
-  let globalIdx = 0;      // índice absoluto para detectar next-event
+  const mesesOrden=[0,1,2,3,4,5,6,7,8,9,10,11];
+  const nombres=["Ene","Feb","Mar","Abr","May","Jun",
+                 "Jul","Ago","Sep","Oct","Nov","Dic"];
 
-  for (let m = 0; m < 12; m++) {
-    if (!grupos[m]) continue;                       // sin eventos ese mes
+  mesesOrden.forEach(m=>{
+    const lista=grupos[m]||[];
+    if(lista.length===0) return;
 
-    const nombreMes = new Date(anio, m)
-      .toLocaleDateString("es-MX", { month: "long" })
-      .replace(/^./, c => c.toUpperCase());         // capitaliza 1ª letra
-
-    // <details> contenedor del mes
-    const details = document.createElement("details");
-    details.className = "mes-section";
-    details.open = m === mesActual;                 // mes actual abierto
-
-    // <summary> encabezado
-    const summary = document.createElement("summary");
-    summary.innerHTML = `🌙 ${nombreMes} (${grupos[m].length})`;
-    details.appendChild(summary);
-
-    // <ul> lista de eventos del mes
-    const ulMes = document.createElement("ul");
-    ulMes.className = "mes-list";
-
-    grupos[m].forEach(ev => {
-      const li = document.createElement("li");
-      const fechaObj = new Date(ev.fecha + "T00:00:00");
-      const diaMes = fechaObj
-        .toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit" });
-
-      li.innerHTML = `
-        <div class="fecha-info">
-          <span class="fecha-fecha">${diaMes}</span>
-          ${ev.titulo ? `<span class="fecha-titulo">${ev.titulo}</span>` : ""}
-        </div>
-        <i class="fas fa-chevron-right"></i>
-      `;
-      li.onclick = () => abrirModalFecha(ev.id);
-      li.style.setProperty("border-left", `4px solid ${colorAnio}`, "important");
-
-      /* Resaltar próximo evento global */
-      if (proxIndex !== -1 && globalIdx === proxIndex) {
-        li.classList.add("next-event");
-        li.style.setProperty(
-          "background-color",
-          hexToRgba(colorAnio, 0.6),
-          "important"
-        );
-      }
-
-      ulMes.appendChild(li);
-      globalIdx++;                                  // avanza índice absoluto
-    });
-
-    details.appendChild(ulMes);
-    cont.appendChild(details);
-  }
+    const card=document.createElement("div");
+    card.className="mes-card";
+    card.style.borderLeft=`4px solid ${colorAnio}`;
+    card.innerHTML=`<h3>${nombres[m]}</h3>
+                    <span class="event-count">${lista.length}</span>`;
+    card.onclick=()=>mostrarEventosDelMes(anio,m,lista,colorAnio);
+    cont.appendChild(card);
+  });
 }
+
+//MUESTRA LOS EVENTOS DEL MES
+function mostrarEventosDelMes(anio, mes, lista,colorAnio){
+  // ordena por día
+  lista.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+
+  // preparar vista
+  document.getElementById("vista-meses").classList.add("hidden");
+  document.getElementById("vista-eventos-anio").classList.remove("hidden");
+  document.getElementById("anio-actual").textContent=
+      `Eventos ${["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                 "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes]} ${anio}`;
+
+  const ul=document.getElementById("lista-fechas-ocupadas");
+  ul.innerHTML="";
+
+  const hoy=new Date();
+  const proxIdx=lista.findIndex(ev=>new Date(ev.fecha)>=hoy);
+
+  lista.forEach((ev,idx)=>{
+    const li=document.createElement("li");
+    const d=new Date(ev.fecha+"T00:00:00");
+    const dia=(`${d.getDate()}`.padStart(2,"0"))+"/"+(`${d.getMonth()+1}`.padStart(2,"0"));
+
+    li.innerHTML=`<div class="fecha-info">
+                    <span class="fecha-fecha">${dia}</span>
+                    ${ev.titulo?`<span class="fecha-titulo">${ev.titulo}</span>`:""}
+                  </div>
+                  <i class="fas fa-chevron-right"></i>`;
+    li.onclick=()=>abrirModalFecha(ev.id);
+    li.style.borderLeft=`4px solid ${colorAnio}`;
+
+    if(proxIdx!==-1 && idx===proxIdx){
+      li.classList.add("next-event");
+      li.style.backgroundColor=hexToRgba(colorAnio,0.6);
+    }
+    ul.appendChild(li);
+  });
+}
+
 
 
 //  función para disminuir los valores RGB y obtener un color más oscuro:
@@ -2716,16 +2716,20 @@ function hexToRgba(hex, alpha) {
   
   
   
+function volverAVistaAnios() {
+  document.getElementById("vista-eventos-anio").classList.add("hidden");
+  document.getElementById("vista-meses").classList.add("hidden");
+  document.getElementById("vista-anios").classList.remove("hidden");
+  anioSeleccionado = null;
+  cargarAnios();              // recarga tarjetas por si hay cambios
+}
 
-//Para regresar de la vista de eventos al listado de años:
-  function volverAVistaAnios() {
-    document.getElementById("vista-eventos-anio").classList.add("hidden");
-    document.getElementById("vista-anios").classList.remove("hidden");
-    anioSeleccionado = null;
-    // Recargar la lista de años (por si se han agregado nuevas fechas)
-    cargarAnios();
-  }
-  
+function volverAVistaMeses() {
+  document.getElementById("vista-eventos-anio").classList.add("hidden");
+  document.getElementById("vista-meses").classList.remove("hidden");
+
+}
+
 
 /***********************
 ========================
