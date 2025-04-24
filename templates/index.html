@@ -2720,21 +2720,30 @@ function agregarAnio() {
        1) MOSTRAR FECHAS OCUPADAS EN UNA LISTA
     =========================================*/
     // ============== 1) CARGAR LISTA DE FECHAS ==============
-// Modificar cargarCalendario para usar cuando se selecciona un año
-function cargarCalendario() {
-    if (!anioSeleccionado) return;
+    function cargarCalendario() {
+      if (!anioSeleccionado) return;
     
-    fetch("/calendario/fechas_ocupadas")
+      fetch("/calendario/fechas_ocupadas")
         .then(r => r.json())
         .then(data => {
-            if (data.error) throw new Error(data.error);
-            mostrarEventosDelAnio(anioSeleccionado, data.fechas);
+          if (data.error) throw new Error(data.error);
+    
+          // 👉  Mismo algoritmo de colores que en cargarAnios()
+          const anios = [...new Set(data.fechas
+                          .map(f => new Date(f.fecha).getFullYear()))]
+                          .sort((a,b) => b - a);
+          const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
+          const idx = anios.indexOf(anioSeleccionado);
+          const color = coloresBorde[idx % coloresBorde.length];
+    
+          mostrarEventosDelAnio(anioSeleccionado, data.fechas, color);
         })
         .catch(e => {
-            console.error("Error en cargarCalendario", e);
-            mostrarNotificacion("Error al cargar eventos: " + e.message, "error");
+          console.error("Error en cargarCalendario:", e);
+          mostrarNotificacion("Error al cargar eventos: " + e.message, "error");
         });
-}
+    }
+    
     /*=========================================
        2) CARGAR LEADS PARA EL <select> LEAD
     =========================================*/

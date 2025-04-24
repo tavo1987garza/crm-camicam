@@ -595,8 +595,6 @@ def agregar_fecha_manual():
                 "titulo": titulo
             }
         )
-        
-   
 
         return jsonify({
             "ok": True,
