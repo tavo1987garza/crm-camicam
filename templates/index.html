@@ -1406,12 +1406,12 @@
             </div>
             
             <div id="vista-meses" class="hidden">
-              <button onclick="volverAVistaAnios()">← Años</button>
+              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button onclick="volverAVistaAnios()">← Años</button>
+                <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
+                </div>  
               <h2 id="meses-titulo"></h2>
               <div id="lista-meses" class="card-container"></div>
-              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-              <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
-              </div>  
             </div>
         
             <!-- Modal para Agregar Año -->
