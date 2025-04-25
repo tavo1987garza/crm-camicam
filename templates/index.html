@@ -982,9 +982,27 @@
 
 /* (Si prefieres sombra como antes, vuelve a añadir box-shadow) */
 
-.fecha-info   { display: flex; align-items: center; gap: 6px; }
-.dot-sep      { color: #6c757d; font-weight: 700; }   /* gris suave */
-.fecha-fecha  { font-weight: 600; }                   /* resalta la fecha */
+/* ───── FORMATO EN LA LISTA DE FECHA Y TITULO: Jue. 01 de Mayo  •  XV RENATA──── */
+.fecha-info  {
+  display: flex;
+  align-items: center;
+  gap: 6px;                 /* espacio entre elementos */
+}
+
+.dot-sep     {
+  font-weight: 700;         /* punto grueso */
+  color: #6c757d;           /* gris medio */
+}
+
+.fecha-fecha {
+  color: #6c757d;           /* fecha en gris suave */
+  font-size: 0.9rem;
+}
+
+.fecha-titulo {
+  font-weight: 700;         /* título destacado */
+  color: #212529;           /* casi negro */
+}
 
 
 
@@ -2680,9 +2698,7 @@ function mostrarEventosDelMes(anio, mes, lista, colorAnio) {
     /* dia/mes SIN Date()  */
     const dia = formatoFechaLargo(ev.fecha);   // ← “Jue. 01 de Mayo”
 
-    const li = document.createElement("li");
-   
-
+    const li = document.createElement("li");    
     li.innerHTML = `
       <div class="fecha-info">
         <span class="fecha-fecha">${dia}</span>
