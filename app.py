@@ -834,7 +834,12 @@ def editar_calendario(cal_id):
         liberar_db(conn)
 
 
-        
+     
+  
+    
+#'''''''''''''''''''''''''''''''''''''''''''''''
+#------------SECION DE REPORTES-----------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,   
         
 @app.route("/reportes/ingresos", methods=["GET"])
 def reporte_ingresos():
@@ -880,41 +885,40 @@ def reporte_ingresos_anual():
 
     try:
         cursor = conn.cursor()
-        
-        # Consulta para obtener ingresos desglosados por mes
+
+        # ── 1) Ingresos por mes ─────────────────────────
         cursor.execute("""
-            SELECT EXTRACT(MONTH FROM fecha) AS mes, COALESCE(SUM(ticket), 0) AS total_ingresos
+            SELECT EXTRACT(MONTH FROM fecha)::int   AS mes,
+                   COALESCE(SUM(ticket),0)          AS total_ingresos
             FROM calendario
             WHERE EXTRACT(YEAR FROM fecha) = %s
             GROUP BY mes
-            ORDER BY mes
         """, (anio,))
-        rows_ing = cursor.fetchall()
-        ingresos_por_mes = {mes: 0.0 for mes in range(1, 13)}
-        for row in rows_ing:
-            mes = int(row[0])
-            total = float(row[1])
-            ingresos_por_mes[mes] = total
+        ingresos_por_mes = {m:0.0 for m in range(1,13)}
+        for mes, total in cursor.fetchall():
+            ingresos_por_mes[int(mes)] = float(total)
 
-        # Consulta para obtener gastos (costos) desglosados por mes
+        # ── 2) Gastos reales por mes ────────────────────
         cursor.execute("""
-            SELECT EXTRACT(MONTH FROM fecha) AS mes, COALESCE(SUM(monto), 0) AS total_gastos
+            SELECT EXTRACT(MONTH FROM fecha)::int   AS mes,
+                   COALESCE(SUM(monto),0)           AS total_gastos
             FROM gastos
             WHERE EXTRACT(YEAR FROM fecha) = %s
             GROUP BY mes
-            ORDER BY mes
         """, (anio,))
-        rows_gas = cursor.fetchall()
-        gastos_por_mes = {mes: 0.0 for mes in range(1, 13)}
-        for row in rows_gas:
-            mes = int(row[0])
-            total = float(row[1])
-            gastos_por_mes[mes] = total
+        gastos_por_mes = {m:0.0 for m in range(1,13)}
+        for mes, total in cursor.fetchall():
+            gastos_por_mes[int(mes)] = float(total)
 
-        # Consulta para contar el total de eventos registrados en el año
+        # ── 3) Costos finales = max(gastos, 30 % ingresos) ──
+        costos_por_mes = {}
+        for m in range(1,13):
+            min_30 = ingresos_por_mes[m] * 0.30
+            costos_por_mes[m] = max(gastos_por_mes[m], min_30)
+
+        # ── 4) Número total de eventos del año ──────────
         cursor.execute("""
-            SELECT COUNT(*)
-            FROM calendario
+            SELECT COUNT(*) FROM calendario
             WHERE EXTRACT(YEAR FROM fecha) = %s
         """, (anio,))
         total_eventos = cursor.fetchone()[0] or 0
@@ -922,8 +926,8 @@ def reporte_ingresos_anual():
         return jsonify({
             "anio": int(anio),
             "ingresos_anual": ingresos_por_mes,
-            "costos_anual": gastos_por_mes,
-            "total_eventos": total_eventos
+            "costos_anual":   costos_por_mes,   # ← devuelvo el AJUSTADO
+            "total_eventos":  total_eventos
         }), 200
 
     except Exception as e:
@@ -989,6 +993,10 @@ def reporte_servicios_anual():
 
 
 
+#'''''''''''''''''''''''''''''''''''''''''''''''
+#--------------SECION DE GASTOS-----------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,   
+        
 
 @app.route("/gastos/agregar", methods=["POST"])
 def agregar_gasto():
