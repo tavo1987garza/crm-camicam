@@ -2576,13 +2576,18 @@ socket.on("calendario_actualizado", data => {
 ========================
 ************************/
 function initCalendario() {
-    cargarLeadsEnSelect();
-    // Asegurarse de que la vista de años esté visible y la de eventos oculta
-    document.getElementById("vista-anios").classList.remove("hidden");
-    document.getElementById("vista-eventos-anio").classList.add("hidden");
-    anioSeleccionado = null;
-    cargarAnios();
+  // 0)  Apaga todo para un estado limpio
+  document.getElementById("vista-anios").classList.remove("hidden");
+  document.getElementById("vista-meses").classList.add("hidden");
+  document.getElementById("vista-eventos-anio").classList.add("hidden");
+
+  anioSeleccionado = null;
+
+  // 1)  Rellena selects, carga tarjetas
+  cargarLeadsEnSelect();
+  cargarAnios();               
 }
+
 
 
 //Esta función utiliza el endpoint /calendario/fechas_ocupadas para extraer los años de las fechas y agruparlos:
