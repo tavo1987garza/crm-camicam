@@ -982,7 +982,10 @@
 
 /* (Si prefieres sombra como antes, vuelve a añadir box-shadow) */
 
-  
+.fecha-info   { display: flex; align-items: center; gap: 6px; }
+.dot-sep      { color: #6c757d; font-weight: 700; }   /* gris suave */
+.fecha-fecha  { font-weight: 600; }                   /* resalta la fecha */
+
 
 
 /* Si quieres que el next event tenga además un fondo o cambio extra, puedes hacerlo así: */
@@ -2678,12 +2681,16 @@ function mostrarEventosDelMes(anio, mes, lista, colorAnio) {
     const dia = formatoFechaLargo(ev.fecha);   // ← “Jue. 01 de Mayo”
 
     const li = document.createElement("li");
+   
+
     li.innerHTML = `
       <div class="fecha-info">
         <span class="fecha-fecha">${dia}</span>
+        <span class="dot-sep">•</span>
         ${ev.titulo ? `<span class="fecha-titulo">${ev.titulo}</span>` : ""}
       </div>
       <i class="fas fa-chevron-right"></i>`;
+    
     li.onclick = () => abrirModalFecha(ev.id);
     li.style.borderLeft = `4px solid ${colorAnio}`;
 
