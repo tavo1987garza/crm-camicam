@@ -2675,8 +2675,7 @@ function mostrarEventosDelMes(anio, mes, lista, colorAnio) {
 
   lista.forEach((ev, idx) => {
     /* dia/mes SIN Date()  */
-    const [, mm, dd] = ev.fecha.split("-");
-    const dia = `${dd}/${mm}`;
+    const dia = formatoFechaLargo(ev.fecha);   // ← “Jue. 01 de Mayo”
 
     const li = document.createElement("li");
     li.innerHTML = `
@@ -2735,9 +2734,23 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function formatoFechaLargo(iso) {
+  // iso = "YYYY-MM-DD"
+  // Usamos mediodía local (12:00) para evitar desfases UTC-6
+  const date = new Date(iso + "T12:00:00");
+  const dias = ["Dom.", "Lun.", "Mar.", "Mié.", "Jue.", "Vie.", "Sáb."];
+  const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                 "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  const dd   = date.getDate().toString().padStart(2, "0");
+  const dia  = dias[date.getDay()];              // "Jue."
+  const mes  = meses[date.getMonth()];           // "Mayo"
+
+  return `${dia} ${dd} de ${mes}`;               // "Jue. 01 de Mayo"
+}
   
   
-  
+// Funcion para los botones de Regresar Atrás
 function volverAVistaAnios() {
   document.getElementById("vista-eventos-anio").classList.add("hidden");
   document.getElementById("vista-meses").classList.add("hidden");
@@ -3030,8 +3043,6 @@ function abrirModalFecha(calId) {
         }
       });
 
-
-
             // Servicios
             const serv = data.servicios || {};
             document.getElementById("edit-cabinaFotos").checked = (serv.cabinaFotos === 1);
@@ -3152,7 +3163,7 @@ function eliminarFechaDesdeModal() {
         })
         .catch(err => console.error(err));
 }
-  
+   
 
 
 /***********************
