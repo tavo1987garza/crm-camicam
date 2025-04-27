@@ -950,7 +950,6 @@
     cursor: pointer;
     min-width: 120px;
     text-align: center;
-    border-left: 4px solid #1e88e5;
     transition: background 0.2s ease;
   }
   
@@ -2543,7 +2542,7 @@ document.body.addEventListener("click", function () {
 ************************/
 //Variables Globales
 let anioSeleccionado = null;
-
+const yearColors = {};  
 
 function initCalendario() {
     // 1. Cargar leads en el select (para formulario de agregar fecha)
@@ -2569,6 +2568,8 @@ socket.on("calendario_actualizado", data => {
     cargarCalendario();   // usa la variable global anioSeleccionado
   }
 });
+
+
 
 
 /***********************
@@ -2622,6 +2623,7 @@ function cargarAnios() {
           const color = coloresBorde[index % coloresBorde.length];
           console.log("Color para el año", anio, "es:", color);
           anioCard.style.borderLeft = `4px solid ${color}`;
+          yearColors[anio] = color; 
           anioCard.innerHTML = `
             <h3>${anio}</h3>
             <span class="event-count">${count} evento${count !== 1 ? 's' : ''}</span>
@@ -2639,8 +2641,25 @@ function cargarAnios() {
         alert("Error al cargar años: " + e.message);
       });
   }
-  
-  
+
+//Funcion para pintar el color del Borde
+function pintarColorReporte(anio){
+  const color = yearColors[anio] || "#1e88e5";   // fallback
+
+  // borde izquierdo de los contenedores
+  ["resultado-ingresos-anual","resultado-servicios"].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.style.borderLeft = `4px solid ${color}`;
+  });
+
+  // fondo de los thead de las tablas recién inyectadas
+  document.querySelectorAll("#resultado-ingresos-anual table thead, #resultado-servicios table thead")
+          .forEach(thead=>{
+              thead.style.background = color;
+              thead.style.color      = "#fff";
+          });
+}
+
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
 // =======================================
 //  Vista de eventos → agrupado por MES
@@ -3291,6 +3310,8 @@ async function verReporteIngresosAnual() {
   
       // Inyectamos al DIV
       resultadoDiv.innerHTML = html;
+      pintarColorReporte(anio);
+
   
       // Después de mostrar el reporte anual, mostramos debajo los servicios:
       verReporteServiciosAnual(anio);
