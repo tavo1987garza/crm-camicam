@@ -1765,6 +1765,9 @@ document.addEventListener("DOMContentLoaded", function () {
     if (localStorage.getItem("sidebarCollapsed") === "true") {
         sidebar.classList.add("collapsed");
     }
+    
+    cargarAnios();              // ← llena yearColors apenas arranca la app
+    cargarEtiquetasEnVista(); 
 });
 
 
