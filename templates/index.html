@@ -2643,7 +2643,7 @@ function cargarAnios() {
 
 //Funcion para pintar el color del Borde
 function pintarColorReporte(anio){
-  const color = yearColors[anio] || "#ff9800";   // fallback
+  const color = yearColors[anio] || "#1e88e5";   // fallback
 
   // borde izquierdo de los contenedores
   ["resultado-ingresos-anual","resultado-servicios"].forEach(id=>{
@@ -3307,6 +3307,8 @@ async function verReporteIngresosAnual() {
   
       html += "</tbody></table>";
   
+      const anio = parseInt(document.getElementById("reporte-anio-anual").value, 10);
+
       // Inyectamos al DIV
       resultadoDiv.innerHTML = html;
       pintarColorReporte(anio);
