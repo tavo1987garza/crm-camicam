@@ -3220,16 +3220,18 @@ function eliminarFechaDesdeModal() {
 ************************/
 
 async function verReporteIngresosAnual() {
-    const anio = document.getElementById("reporte-anio-anual").value;
+    
+     
+    const anioInput = document.getElementById("reporte-anio-anual").value.trim();
+    const anio = parseInt(anioInput, 10);          // ← un solo “anio” numérico
     const resultadoDiv = document.getElementById("resultado-ingresos-anual");
+
     if (!anio) {
       resultadoDiv.textContent = "Ingresa un año válido.";
       return;
     }
   
     resultadoDiv.textContent = "Cargando reporte anual...";
-    const anio = parseInt(document.getElementById("reporte-anio-anual").value, 10);
-
   
     try {
       const response = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
