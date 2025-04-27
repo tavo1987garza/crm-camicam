@@ -870,6 +870,51 @@ def editar_calendario(cal_id):
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+        
+#Actualizar cambio de color
+@app.route("/calendario/anio_color", methods=["POST"])
+def actualizar_color_anio():
+    data = request.get_json()
+    anio  = data.get("anio")
+    color = data.get("color")
+    if not anio or not color:
+        return jsonify({"error": "Faltan datos"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "DB off"}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO anio_color (anio, color)
+            VALUES (%s,%s)
+            ON CONFLICT (anio) DO UPDATE SET color=EXCLUDED.color
+        """, (anio, color))
+        conn.commit()
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+#Funcion para eliminar Año con odos sus datos y contraseña
+@app.route("/calendario/anio/<int:anio>", methods=["DELETE"])
+def eliminar_anio(anio):
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "DB off"}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM calendario WHERE EXTRACT(YEAR FROM fecha)=%s", (anio,))
+        cur.execute("DELETE FROM anio_color WHERE anio=%s", (anio,))
+        conn.commit()
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
 
 
      

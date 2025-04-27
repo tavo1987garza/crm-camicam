@@ -979,6 +979,14 @@
   background: #e9ecef;
 }
 
+/* ───── Icono de cambiar color de los border-left──── */
+.year-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 25px;
+  align-items: center;
+}
+
 /* (Si prefieres sombra como antes, vuelve a añadir box-shadow) */
 
 /* ───── FORMATO EN LA LISTA DE FECHA Y TITULO: Jue. 01 de Mayo  •  XV RENATA──── */
@@ -1449,6 +1457,19 @@
                 </div>  
               <h2 id="meses-titulo"></h2>
               <div id="lista-meses" class="card-container"></div>
+              <!-- Acciones de año (eliminar / cambiar color) -->
+              <div id="year-actions" class="year-actions hidden">
+              <!-- 🗑️ Eliminar año -->
+                <button id="btn-borrar-anio" class="icon-btn delete-btn" title="Eliminar año">
+                <i class="fas fa-trash-alt"></i>
+                </button>
+
+              <!-- 🎨 Cambiar color -->
+              <label for="year-color-picker" class="icon-btn" title="Cambiar color">
+              <i class="fas fa-fill-drip"></i>
+               </label>
+               <input type="color" id="year-color-picker" class="hidden" />
+              </div>
             </div>
         
             <!-- Modal para Agregar Año -->
@@ -2699,16 +2720,16 @@ function initCalendario() {
 function mostrarMesesDelAnio(anio, todasLasFechas, colorAnio = "#1e88e5") {
   anioSeleccionado = anio;
 
-  /* 1. agrupar por mes  (sin usar new Date) */
+  /* ── 1. agrupar por mes ─────────────────────────── */
   const grupos = {};
   todasLasFechas.forEach(ev => {
-    const [yy, mm] = ev.fecha.split("-");   // "2025", "05"
+    const [yy, mm] = ev.fecha.split("-");   // "2027", "05"
     if (+yy !== anio) return;
     const m = +mm - 1;                      // 0-11
     (grupos[m] ||= []).push(ev);
   });
 
-  /* 2. preparar vista */
+  /* ── 2. preparar vista ──────────────────────────── */
   document.getElementById("vista-anios").classList.add("hidden");
   document.getElementById("vista-eventos-anio").classList.add("hidden");
   document.getElementById("vista-meses").classList.remove("hidden");
@@ -2717,7 +2738,8 @@ function mostrarMesesDelAnio(anio, todasLasFechas, colorAnio = "#1e88e5") {
   const cont = document.getElementById("lista-meses");
   cont.innerHTML = "";
 
-  const nombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const nombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
   for (let m = 0; m < 12; m++) {
     const lista = grupos[m] || [];
@@ -2730,7 +2752,22 @@ function mostrarMesesDelAnio(anio, todasLasFechas, colorAnio = "#1e88e5") {
     card.onclick = () => mostrarEventosDelMes(anio, m, lista, colorAnio);
     cont.appendChild(card);
   }
+
+  /* ── 3. acciones de año (borrar / cambiar color) ── */
+  document.getElementById("year-actions").classList.remove("hidden");
+
+  // registrar color en cache global si aún no existía
+  if (!yearColors[anio]) yearColors[anio] = colorAnio;
+
+  // botón de borrar
+  document.getElementById("btn-borrar-anio").onclick = () => eliminarAnio(anio);
+
+  // picker de color
+  const picker = document.getElementById("year-color-picker");
+  picker.value  = colorAnio;                                 // ← color actual
+  picker.oninput = e => cambiarColorAnio(anio, e.target.value);
 }
+
 
 
 /* ---------------  Eventos de un mes --------------- */
@@ -2830,19 +2867,26 @@ function formatoFechaLargo(iso) {
 }
   
   
-// Funcion para los botones de Regresar Atrás
+/* ───────── Volver a la lista de AÑOS ───────── */
 function volverAVistaAnios() {
   document.getElementById("vista-eventos-anio").classList.add("hidden");
   document.getElementById("vista-meses").classList.add("hidden");
   document.getElementById("vista-anios").classList.remove("hidden");
+
+  // ocultar acciones de año
+  document.getElementById("year-actions").classList.add("hidden");
+
   anioSeleccionado = null;
-  cargarAnios();           
+  cargarAnios();
 }
 
+/* ───────── Volver a la lista de MESES ───────── */
 function volverAVistaMeses() {
   document.getElementById("vista-eventos-anio").classList.add("hidden");
   document.getElementById("vista-meses").classList.remove("hidden");
-         
+
+  // volver a mostrar acciones de año
+  document.getElementById("year-actions").classList.remove("hidden");
 }
 
 
@@ -3262,6 +3306,71 @@ function eliminarFechaDesdeModal() {
         .catch(err => console.error(err));
 }
    
+//Funcion para cambiar el color
+let cambiarColorTimer = null;   // debounce
+
+function cambiarColorAnio(anio, nuevoColor) {
+  clearTimeout(cambiarColorTimer);
+  cambiarColorTimer = setTimeout(async () => {
+    try {
+      const resp = await fetch("/calendario/anio_color", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anio, color: nuevoColor })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      // Actualiza cache y refresca vistas
+      yearColors[anio] = nuevoColor;
+      cargarAnios(true);                 // repinta tarjetas
+      pintarColorReporte(anio);          // repinta reportes abiertos
+      // repinta bordes de los meses y lista de eventos:
+      document.querySelectorAll(".mes-card").forEach(m => {
+        m.style.borderLeft = `4px solid ${nuevoColor}`;
+      });
+      document.querySelectorAll("#lista-fechas-ocupadas li")
+              .forEach(li => li.style.borderLeft = `4px solid ${nuevoColor}`);
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar color: " + err.message);
+    }
+  }, 250);     // guarda cuando el usuario “deja” de mover el picker
+}
+
+//Funcion para eliminar años y todos sus datos con contraseña
+async function eliminarAnio(anio) {
+  const pass = prompt(
+    `⚠️ Vas a eliminar TODAS las fechas del año ${anio}.\n` +
+    "Esta operación no se puede deshacer.\n\n" +
+    "Ingresa la contraseña para continuar:"
+  );
+  if (pass !== "camicam2013") {
+    alert("Contraseña incorrecta. Operación cancelada.");
+    return;
+  }
+
+  if (!confirm(`¿Seguro que quieres borrar el año ${anio} completo?`))
+    return;
+
+  try {
+    const resp = await fetch(`/calendario/anio/${anio}`, { method: "DELETE" });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    alert(`Año ${anio} eliminado.`);
+    // Recargar tablero completo
+    anioSeleccionado = null;
+    cargarAnios(true);
+    document.getElementById("vista-meses").classList.add("hidden");
+    document.getElementById("vista-anios").classList.remove("hidden");
+    document.getElementById("year-actions").classList.add("hidden");
+  } catch (err) {
+    console.error(err);
+    alert("Error al eliminar el año: " + err.message);
+  }
+}
+
 
 
 /***********************
