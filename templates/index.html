@@ -1456,10 +1456,23 @@
               <div class="modal-content">
                 <button class="close-btn" onclick="cerrarAddAnioModal()">✖</button>
                 <h2>➕ Agregar Nuevo Año</h2>
+
+                <!-- Año-->
                 <label for="anio-input">Año:</label>
-                <input type="number" id="anio-input" min="2000" max="2100" class="modal-input" />             
+                <input type="number" 
+                       id="anio-input" 
+                       min="2000" 
+                       max="2100" 
+                       class="modal-input" />
+                       
+                <!-- Color-->
                 <label for="color-input">Asignar un color:</label>
-                <input type="color" id="color-input" value="#1e88e5" />
+                <input type="color" 
+                       id="color-input" 
+                       value="#1e88e5"
+                       class="modal-imput" />
+
+                <!--Botones-->
                 <div class="modal-buttons">
                   <button onclick="agregarAnio()" class="save-btn">Guardar</button>
                   <button onclick="cerrarAddAnioModal()" class="cancel-btn">Cancelar</button>
@@ -1467,7 +1480,6 @@
               </div>
             </div>
 
-            
             <!-- Modal para Agregar Fecha -->
             <div id="add-fecha-modal" class="modal hidden">
                 <div class="modal-content">
