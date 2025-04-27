@@ -463,6 +463,37 @@ def obtener_anios_calendario():
         liberar_db(conn)
         
         
+# 📌 Crear / actualizar color para un año
+@app.route("/calendario/agregar_anio", methods=["POST"])
+def agregar_anio_color():
+    data = request.get_json()
+    anio  = data.get("anio")
+    color = data.get("color")
+
+    if not anio or not color:
+        return jsonify({"error": "Faltan datos (anio/color)"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO anio_color (anio, color)
+            VALUES (%s, %s)
+            ON CONFLICT (anio)
+            DO UPDATE SET color = EXCLUDED.color
+        """, (anio, color))
+        conn.commit()
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+        
 # 📌 Endpoint para Obtener Eventos por Año
 @app.route("/calendario/agrupado_por_anios", methods=["GET"])
 def calendario_agrupado():
@@ -618,8 +649,8 @@ def agregar_fecha_manual():
         liberar_db(conn)
 
 
-        
-        
+  
+# 📌 Obtener todas las fechas ocupadas + colores por año
 @app.route("/calendario/fechas_ocupadas", methods=["GET"])
 def fechas_ocupadas():
     conn = conectar_db()
@@ -628,46 +659,53 @@ def fechas_ocupadas():
 
     try:
         cursor = conn.cursor()
+
+        # --- 1) Fechas con toda tu info ------------------------------
         cursor.execute("""
             SELECT 
                 c.id,
-                TO_CHAR(c.fecha AT TIME ZONE 'UTC', 'YYYY-MM-DD') as fecha,  -- Fuerza UTC y formato
+                TO_CHAR(c.fecha AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS fecha,
                 c.lead_id, 
-                COALESCE(c.titulo, '') as titulo,
-                COALESCE(c.notas, '') as notas,
-                COALESCE(c.ticket, 0) as ticket,
+                COALESCE(c.titulo, '')  AS titulo,
+                COALESCE(c.notas, '')   AS notas,
+                COALESCE(c.ticket, 0)   AS ticket,
                 c.servicios,
-                l.nombre as lead_nombre,
-                EXTRACT(YEAR FROM c.fecha AT TIME ZONE 'UTC') as anio  -- Extrae año en UTC
+                l.nombre               AS lead_nombre,
+                EXTRACT(YEAR FROM c.fecha AT TIME ZONE 'UTC') AS anio
             FROM calendario c
             LEFT JOIN leads l ON c.lead_id = l.id
             ORDER BY c.fecha DESC
         """)
-        
-        # Procesamiento seguro de resultados
         fechas = []
         for row in cursor.fetchall():
-            fecha_dict = {
-                "id": row[0],
-                "fecha": row[1],  # Ya viene formateado como YYYY-MM-DD
-                "lead_id": row[2],
-                "titulo": row[3],
-                "notas": row[4],
-                "ticket": float(row[5]) if row[5] else 0.0,
-                "servicios": row[6] if row[6] else {},
+            fechas.append({
+                "id"        : row[0],
+                "fecha"     : row[1],
+                "lead_id"   : row[2],
+                "titulo"    : row[3],
+                "notas"     : row[4],
+                "ticket"    : float(row[5]) if row[5] else 0.0,
+                "servicios" : row[6] or {},
                 "lead_nombre": row[7],
-                "anio": int(row[8]) if row[8] else None
-            }
-            fechas.append(fecha_dict)
-        
-        return jsonify({"fechas": fechas}), 200
-        
+                "anio"      : int(row[8]) if row[8] else None
+            })
+
+        # --- 2) Colores definidos manualmente ------------------------
+        cursor.execute("SELECT anio, color FROM anio_color")
+        colores = {int(row[0]): row[1] for row in cursor.fetchall()}  # {2025:"#1e88e5", …}
+
+        # --- 3) Respuesta -------------------------------------------
+        return jsonify({
+            "fechas" : fechas,
+            "colores": colores           # 👈  nuevo campo
+        }), 200
+
     except Exception as e:
-        print(f"Error en fechas_ocupadas: {str(e)}")  # Log para diagnóstico
+        print(f"Error en fechas_ocupadas: {e}")
         return jsonify({"error": "Error al procesar fechas"}), 500
     finally:
         liberar_db(conn)
-        
+
 
 @app.route("/calendario/check", methods=["GET"])
 def check_disponibilidad():
