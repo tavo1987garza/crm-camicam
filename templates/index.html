@@ -2560,6 +2560,9 @@ document.body.addEventListener("click", function () {
 let anioSeleccionado = null;
 const yearColors = {};  
 
+// ▸ Colores automáticos de reserva → ahora también global
+const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
+
 function initCalendario() {
     // 1. Cargar leads en el select (para formulario de agregar fecha)
     cargarLeadsEnSelect();
@@ -2613,45 +2616,34 @@ function initCalendario() {
  * CARGAR TARJETAS DE AÑOS (con soporte de color
  * manual desde la BD y fallback automático)
  ***********************************************/
- function cargarAnios() {
+ function cargarAnios(force = false) {
   fetch("/calendario/fechas_ocupadas")
     .then(r => r.json())
     .then(data => {
       if (data.error) throw new Error(data.error);
 
-      /* ------------------ preparación ------------------ */
       const contenedor = document.getElementById("lista-anios");
       contenedor.innerHTML = "";
 
-      // Si no hay fechas → mensaje vacío
       if (!data.fechas || data.fechas.length === 0) {
         contenedor.innerHTML = '<p class="no-data">No hay fechas registradas.</p>';
         return;
       }
 
-      // Años únicos ordenados DESC
       const anios = [...new Set(
         data.fechas.map(f => new Date(f.fecha).getFullYear())
       )].sort((a, b) => b - a);
 
-      // Colores «automáticos» de reserva
-      const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
-
-      // Colores que vinieron del backend → data.colores = {2025:"#ab34ff", …}
       const coloresBD = data.colores || {};
 
-      /* ------------------ pintar tarjetas ------------------ */
       anios.forEach((anio, idx) => {
-        // 1️⃣ cuántos eventos tiene el año
         const totalEventos = data.fechas.filter(f =>
           new Date(f.fecha).getFullYear() === anio
         ).length;
 
-        // 2️⃣ color: primero BD, luego fallback automático
         const color = coloresBD[anio] ?? coloresBorde[idx % coloresBorde.length];
-        yearColors[anio] = color;               // ← guardamos para uso global
+        yearColors[anio] = color;
 
-        // 3️⃣ html tarjeta
         const card = document.createElement("div");
         card.className = "anio-card";
         card.style.borderLeft = `4px solid ${color}`;
@@ -2659,10 +2651,7 @@ function initCalendario() {
           <h3>${anio}</h3>
           <span class="event-count">${totalEventos} evento${totalEventos !== 1 ? 's' : ''}</span>
         `;
-
-        // 4️⃣ click → vista de meses
         card.onclick = () => mostrarMesesDelAnio(anio, data.fechas, color);
-
         contenedor.appendChild(card);
       });
     })
@@ -2673,22 +2662,23 @@ function initCalendario() {
 }
 
 
-//Funcion para pintar el color del Borde
-function pintarColorReporte(anio){
-  const color = yearColors[anio] || "#1e88e5";   // fallback
+/***********************************************
+ * PINTAR COLORES EN LOS REPORTES
+ ***********************************************/
+ function pintarColorReporte(anio) {
+  const color = yearColors[anio] || "#1e88e5";
 
-  // borde izquierdo de los contenedores
-  ["resultado-ingresos-anual","resultado-servicios"].forEach(id=>{
+  ["resultado-ingresos-anual", "resultado-servicios"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.borderLeft = `4px solid ${color}`;
   });
 
-  // fondo de los thead de las tablas recién inyectadas
-  document.querySelectorAll("#resultado-ingresos-anual table thead, #resultado-servicios table thead")
-          .forEach(thead=>{
-              thead.style.background = color;
-              thead.style.color      = "#fff";
-          });
+  document.querySelectorAll(
+    "#resultado-ingresos-anual table thead, #resultado-servicios table thead"
+  ).forEach(thead => {
+    thead.style.background = color;
+    thead.style.color      = "#fff";
+  });
 }
 
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
