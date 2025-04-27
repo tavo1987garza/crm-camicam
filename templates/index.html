@@ -3228,6 +3228,8 @@ async function verReporteIngresosAnual() {
     }
   
     resultadoDiv.textContent = "Cargando reporte anual...";
+    const anio = parseInt(document.getElementById("reporte-anio-anual").value, 10);
+
   
     try {
       const response = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
@@ -3307,8 +3309,7 @@ async function verReporteIngresosAnual() {
   
       html += "</tbody></table>";
   
-      const anio = parseInt(document.getElementById("reporte-anio-anual").value, 10);
-
+      
       // Inyectamos al DIV
       resultadoDiv.innerHTML = html;
       pintarColorReporte(anio);
