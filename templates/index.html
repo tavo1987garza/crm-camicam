@@ -3496,9 +3496,8 @@ let graficaAnual = null;   // referencia para poder destruir/redibujar
 function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalEventos) {
   const cont = document.getElementById("resultado-grafica");
   cont.innerHTML = `
-    <h3>Ingresos / Costos / Utilidad / Eventos:${totalEventos} en ${anio}         <p>Eventos contados: ${data.eventosContados}</p></h3>
+    <h3>Ingresos / Costos / Utilidad / Eventos:${totalEventos} en ${anio}</h3>
     <canvas id="grafica-anual-canvas"></canvas>
-    
   `;
 
   // Colorear borde y headline con el tono del año
