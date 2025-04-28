@@ -1697,6 +1697,9 @@
               <button onclick="verReporteIngresosAnual()">Ver Reporte Anual</button>
               <div id="resultado-ingresos-anual" class="reporte-card"></div>
             </section>
+
+            <!-- NUEVO: bloque para la gráfica -->
+            <div id="resultado-grafica" class="reporte-card"></div>
             
             <!-- Debajo, la sección de servicios anuales, sin botón -->
             <div id="resultado-servicios" class="reporte-card"></div>
@@ -1784,6 +1787,8 @@
     <div id="alerta-mensaje" class="notification"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
     <script>
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -2702,26 +2707,30 @@ function pintarColorReporte(anio) {
   const color = yearColors[anio] || "#1e88e5";   // fallback
 
   /* ── bordes de los contenedores ────────────────────────── */
-  ["resultado-ingresos-anual","resultado-servicios"].forEach(id=>{
-    const el = document.getElementById(id);
-    if (el) el.style.borderLeft = `4px solid ${color}`;
-  });
+  ["resultado-ingresos-anual", "resultado-grafica", "resultado-servicios"]
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.borderLeft = `4px solid ${color}`;
+    });
 
   /* ── encabezados de las tablas ─────────────────────────── */
   document.querySelectorAll(
     "#resultado-ingresos-anual table thead, #resultado-servicios table thead"
   ).forEach(thead => {
-    // color al <thead>
     thead.style.setProperty("background", color, "important");
     thead.style.setProperty("color", "#fff", "important");
 
-    // color a cada <th> (por si tienen estilos propios)
     thead.querySelectorAll("th").forEach(th => {
       th.style.setProperty("background", color, "important");
       th.style.setProperty("color", "#fff", "important");
     });
   });
+
+  /* ── título de la gráfica ──────────────────────────────── */
+  const grafTitle = document.querySelector("#resultado-grafica h3");
+  if (grafTitle) grafTitle.style.color = color;
 }
+
 
 
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
@@ -3389,118 +3398,180 @@ async function eliminarAnio(anio) {
    SECCION DE REPORTES
 ========================
 ************************/
-
+//REPORTE DE INGRESOS POR AÑO
+/***********************************************
+ * REPORTE INGRESOS + COSTOS + UTILIDAD (ANUAL)
+ * Ahora genera también la gráfica triple y pinta
+ * los encabezados con el color del año
+ ***********************************************/
 async function verReporteIngresosAnual() {
-    
-     
-    const anioInput = document.getElementById("reporte-anio-anual").value.trim();
-    const anio = parseInt(anioInput, 10);          // ← un solo “anio” numérico
-    const resultadoDiv = document.getElementById("resultado-ingresos-anual");
+  const anioInput = document.getElementById("reporte-anio-anual").value.trim();
+  const anio      = parseInt(anioInput, 10);
+  const divTabla  = document.getElementById("resultado-ingresos-anual");
 
-    if (!anio) {
-      resultadoDiv.textContent = "Ingresa un año válido.";
-      return;
-    }
-  
-    resultadoDiv.textContent = "Cargando reporte anual...";
-  
-    try {
-      const response = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
-      const data = await response.json();
-      
-      if (data.error) {
-        resultadoDiv.textContent = "Error: " + data.error;
-        return;
-      }
-      
-      // Construir la tabla con el reporte anual
-      let html = `<h3>Reporte del año ${data.anio}</h3>`;
-      html += `<p>Total de eventos contratados: <strong>${data.total_eventos}</strong></p>`;
-      html += "<table>";
-      html += "<thead><tr><th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th></tr></thead>";
-      html += "<tbody>";
-      
-      const meses = {
-        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
-      };
-  
-      let totalIngresos = 0;
-      let totalCostos = 0;
-      let totalUtilidad = 0;
-  
-      for (let mes = 1; mes <= 12; mes++) {
-        const ingreso = data.ingresos_anual[mes] || 0;
-        const costo = data.costos_anual ? (data.costos_anual[mes] || 0) : 0;
-        const utilidad = ingreso - costo;
-        
-        totalIngresos += ingreso;
-        totalCostos += costo;
-        totalUtilidad += utilidad;
-  
-        const ingresoFormateado = ingreso.toLocaleString('es-MX', {
-          style: 'currency',
-          currency: 'MXN',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        });
-        const costoFormateado = costo.toLocaleString('es-MX', {
-          style: 'currency',
-          currency: 'MXN',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        });
-        const utilidadFormateada = utilidad.toLocaleString('es-MX', {
-          style: 'currency',
-          currency: 'MXN',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        });
-        
-        html += `<tr>
-                  <td>${meses[mes]}</td>
-                  <td>${ingresoFormateado}</td>
-                  <td>${costoFormateado}</td>
-                  <td>${utilidadFormateada}</td>
-                </tr>`;
-      }
-      
-      // Agregar fila de totales
-      const totalIngresosFmt = totalIngresos.toLocaleString('es-MX', {style:'currency', currency:'MXN', minimumFractionDigits:0});
-      const totalCostosFmt = totalCostos.toLocaleString('es-MX', {style:'currency', currency:'MXN', minimumFractionDigits:0});
-      const totalUtilidadFmt = totalUtilidad.toLocaleString('es-MX', {style:'currency', currency:'MXN', minimumFractionDigits:0});
-  
-      html += `
-        <tr style="font-weight: bold;">
-          <td>TOTALES</td>
-          <td>${totalIngresosFmt}</td>
-          <td>${totalCostosFmt}</td>
-          <td>${totalUtilidadFmt}</td>
-        </tr>
-      `;
-  
-      html += "</tbody></table>";
-  
-      
-      // Inyectamos al DIV
-      resultadoDiv.innerHTML = html;
-      pintarColorReporte(anio);
-
-  
-      // Después de mostrar el reporte anual, mostramos debajo los servicios:
-      verReporteServiciosAnual(anio);
-      pintarColorReporte(anio);
-  
-    } catch (err) {
-      console.error("Error en verReporteIngresosAnual:", err);
-      resultadoDiv.textContent = "Error al obtener el reporte anual.";
-    }
+  if (!anio) {
+    divTabla.textContent = "Ingresa un año válido.";
+    return;
   }
-  
+
+  divTabla.textContent = "Cargando reporte anual…";
+
+  try {
+    const resp = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
+    const data = await resp.json();
+    if (data.error) { divTabla.textContent = "Error: " + data.error; return; }
+
+    /* ───────────── construir tabla ───────────── */
+    const mesesNombre = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                         "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+    let totalIngresos = 0, totalCostos = 0, totalUtilidad = 0;
+
+    const ingresosArr   = [];
+    const costosArr     = [];
+    const utilidadesArr = [];
+
+    let html  = `<h3>Reporte del año ${data.anio}</h3>`;
+    html     += `<p>Total de eventos contratados: <strong>${data.total_eventos}</strong></p>`;
+    html     += `<table><thead><tr>
+                   <th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th>
+                 </tr></thead><tbody>`;
+
+    for (let mes = 1; mes <= 12; mes++) {
+      const ingreso  = data.ingresos_anual[mes] || 0;
+      const costo    = data.costos_anual   ? (data.costos_anual[mes] || 0) : 0;
+      const utilidad = ingreso - costo;
+
+      totalIngresos += ingreso;
+      totalCostos   += costo;
+      totalUtilidad += utilidad;
+
+      ingresosArr  .push(ingreso);
+      costosArr    .push(costo);
+      utilidadesArr.push(utilidad);
+
+      html += `<tr>
+        <td>${mesesNombre[mes-1]}</td>
+        <td>${ingreso .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+        <td>${costo   .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+        <td>${utilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+      </tr>`;
+    }
+
+    /* totales */
+    html += `<tr style="font-weight:bold">
+      <td>TOTALES</td>
+      <td>${totalIngresos.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+      <td>${totalCostos  .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+      <td>${totalUtilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+    </tr></tbody></table>`;
+
+    /* inyectar y colorear */
+    divTabla.innerHTML = html;
+    pintarColorReporte(anio);
+
+    /* ───────────── generar gráfica ───────────── */
+    generarGraficaAnual(
+      anio,
+      ingresosArr,
+      costosArr,
+      utilidadesArr,
+      data.total_eventos
+    );
+
+    /* ───────────── servicios anuales ─────────── */
+    await verReporteServiciosAnual(anio);   // se repinta color dentro
+    pintarColorReporte(anio);
+
+  } catch (err) {
+    console.error("Error en verReporteIngresosAnual:", err);
+    divTabla.textContent = "Error al obtener el reporte anual.";
+  }
+}
+
+
+//REPORTE DE INGRESOS GRÁFICA
+let graficaAnual = null;   // referencia para poder destruir/redibujar
+
+function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalEventos) {
+  const cont = document.getElementById("resultado-grafica");
+  cont.innerHTML = `
+    <h3>Ingresos / Costos / Utilidad en ${anio}</h3>
+    <canvas id="grafica-anual-canvas"></canvas>
+    <p style="margin-top:12px;">
+      <strong>Eventos contratados:</strong> ${totalEventos}
+    </p>
+  `;
+
+  // Colorear borde y headline con el tono del año
+  const colorAnio = yearColors[anio] || "#1e88e5";
+  cont.style.borderLeft = `4px solid ${colorAnio}`;
+  cont.querySelector("h3").style.color = colorAnio;
+
+  /* ── si la gráfica ya existía, destrúyela para evitar fugas de memoria ── */
+  if (graficaAnual) graficaAnual.destroy();
+
+  const ctx = document.getElementById("grafica-anual-canvas");
+
+  graficaAnual = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"],
+      datasets: [
+        {
+          label: "Ingresos",
+          data: ingresosArr,
+          borderColor: "#FFC107",
+          backgroundColor: "transparent",
+          tension: 0.25,
+          pointRadius: 3
+        },
+        {
+          label: "Costos",
+          data: costosArr,
+          borderColor: "#F44336",
+          backgroundColor: "transparent",
+          tension: 0.25,
+          pointRadius: 3
+        },
+        {
+          label: "Utilidad",
+          data: utilidadesArr,
+          borderColor: "#4CAF50",
+          backgroundColor: "transparent",
+          tension: 0.25,
+          pointRadius: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,          // full width, 400 px alto
+      scales: {
+        y: {
+          ticks: {
+            callback: v => v.toLocaleString("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0})
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.label + ": " +
+              ctx.formattedValue.toLocaleString("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0})
+          }
+        },
+        legend: { position: "top" }
+      }
+    }
+  });
+
+  /* altura fija agradable */
+  ctx.parentElement.style.height = "400px";
+}
 
   
-  
+//REPORTE DE SERVICIOS CONTRATADOS
   async function verReporteServiciosAnual(anio) {
     const resultadoDiv = document.getElementById("resultado-servicios"); // Un contenedor debajo del reporte anual
     resultadoDiv.textContent = "Cargando servicios anuales...";
