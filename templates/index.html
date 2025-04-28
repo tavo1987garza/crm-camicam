@@ -125,7 +125,7 @@
             text-align: left;
         }
         th {
-           
+            background-color: #4CAF50;
             color: white;
         }
 
@@ -3542,6 +3542,8 @@ async function verReporteIngresosAnual() {
       `;
   
       resultadoDiv.innerHTML = tableHTML;
+      /* Repintar encabezados ahora que la tabla ya existe */
+      pintarColorReporte(anio);
     } catch (err) {
       console.error("Error reporte_servicios_anual:", err);
       resultadoDiv.textContent = "Error al obtener el reporte de servicios anuales.";
