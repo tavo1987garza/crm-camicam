@@ -3564,8 +3564,11 @@ function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalE
     }
   });
 
-  /* altura fija agradable */
-  ctx.parentElement.style.height = "400px";
+
+const graphHeight = 320;        // altura visible de la gráfica
+ctx.parentElement.style.height = graphHeight + 50 + "px"; // +50 px para el texto
+ctx.style.maxHeight = graphHeight + "px";                 // opcional: evita que crezca
+
 }
 
   
