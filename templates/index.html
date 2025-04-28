@@ -3496,7 +3496,7 @@ let graficaAnual = null;   // referencia para poder destruir/redibujar
 function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalEventos) {
   const cont = document.getElementById("resultado-grafica");
   cont.innerHTML = `
-    <h3>Ingresos / Costos / Utilidad / Eventos:${totalEventos} en ${anio}</h3>
+    <h3>Ingresos / Costos / Utilidad en ${anio} / Eventos:${totalEventos}</h3>
     <canvas id="grafica-anual-canvas"></canvas>
   `;
 
@@ -3562,9 +3562,6 @@ function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalE
       }
     }
   });
-
-  /* altura fija agradable */
-  ctx.parentElement.style.height = "400px";
 }
 
   
