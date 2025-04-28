@@ -1243,10 +1243,6 @@
   }
 
 
-
-
-
-
   /* =========================================
   ESTILOS PARA ETIQUETAS
   ========================================= */ 
@@ -1313,6 +1309,29 @@
   margin-bottom: 10px;
 }
 
+/* Estilos para etiquetas de la seccion Gastos*/
+.etiqueta-card {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 120px;
+  text-align: center;
+  transition: background 0.2s ease;
+}
+.etiqueta-card:hover { background:#e9ecef; }
+
+/* Wrapper “tarjetas-wrapper” = mismo look que Calendario */
+.tarjetas-wrapper {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 15px;
+}
 
 
   
@@ -1760,6 +1779,9 @@
               <div id="resultado-servicios"      class="reporte-card hidden"></div>
             </div>
           
+
+
+
           <div id="gastos" class="seccion hidden">
             <h1>💸 Gastos</h1>
           
@@ -1769,7 +1791,7 @@
             </button>
           
             <!-- Contenedor donde se listarán las etiquetas existentes -->
-            <div id="lista-etiquetas" class="etiquetas-container"></div>
+            <div id="lista-etiquetas" class="etiquetas-container tarjetas-wrapper"></div>
           </div>
  
           <!-- MODAL para Crear Etiqueta -->
@@ -3754,28 +3776,30 @@ function abrirModalNuevaEtiqueta() {
 
 
 
-  async function cargarEtiquetasEnVista() {
-    try {
-      const response = await fetch("/gastos/etiquetas");
-      const data = await response.json();
-      
-      // Contenedor donde se muestran
-      const container = document.getElementById("lista-etiquetas");
-      container.innerHTML = "";
-  
-      data.etiquetas.forEach(et => {
-        const divEtiqueta = document.createElement("div");
-        divEtiqueta.classList.add("etiqueta-item");
-        divEtiqueta.textContent = et;
-        // Al hacer clic en la etiqueta, abrimos un modal, etc...
-        divEtiqueta.onclick = () => abrirModalEtiqueta(et);
-  
-        container.appendChild(divEtiqueta);
-      });
-    } catch (err) {
-      console.error("Error al cargar etiquetas:", err);
-    }
+async function cargarEtiquetasEnVista() {
+  try {
+    const resp = await fetch("/gastos/etiquetas");
+    const data = await resp.json();
+
+    const cont = document.getElementById("lista-etiquetas");
+    cont.innerHTML = "";
+
+    /* Paleta heredada de Calendario */
+    const colores = ["#1e88e5","#ff9800","#43a047","#d32f2f","#2e7d32"];
+
+    data.etiquetas.forEach((et, idx) => {
+      const card  = document.createElement("div");
+      card.className = "etiqueta-card";
+      card.style.borderLeft = `4px solid ${colores[idx % colores.length]}`;
+      card.innerHTML = `<h3>${et}</h3>`;
+      card.onclick   = () => abrirModalEtiqueta(et);
+      cont.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Error al cargar etiquetas:", err);
   }
+}
+
   
   // Abre el modal para una etiqueta existente
 async function abrirModalEtiqueta(etiqueta) {
