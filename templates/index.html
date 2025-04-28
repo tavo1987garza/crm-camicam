@@ -1056,6 +1056,12 @@
    #btn-reporte-anual:active  { transform: scale(0.97); }
    #btn-reporte-anual:focus   { outline:none; box-shadow:0 0 0 3px rgba(30,136,229,0.25);}
 
+   .inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;        /* espacio entre input y botón */
+  }
+  
 
 /* ───── Estilos para los contenedores de los reportes──── */
 .reportes-container {
@@ -1726,15 +1732,26 @@
             <!-- SOLO dejamos la parte de Reporte Anual -->
             <section id="reporte-ingresos-anual">
               <h2>Reporte Anual Desglosado por Mes</h2>
-              <div class="form-group">
+            
+              <!-- Agrupamos input + botón -->
+              <div class="form-group inline">
                 <label for="reporte-anio-anual">Año:</label>
-                <input type="number" id="reporte-anio-anual" placeholder="2025" min="2000">
+                <input
+                  type="number"
+                  id="reporte-anio-anual"
+                  placeholder="2025"
+                  min="2000"
+                />
+            
+                <!-- Botón con el id que usa el CSS -->
+                <button id="btn-reporte-anual" onclick="verReporteIngresosAnual()">
+                  Ver reporte anual
+                </button>
               </div>
-              <button onclick="verReporteIngresosAnual()">Ver Reporte Anual</button>
-         
-              <!-- Bloque para la sección de ingresos anuales-->
+            
               <div id="resultado-ingresos-anual" class="reporte-card hidden"></div>
             </section>
+            
 
               <!-- Bloque para la gráfica -->
               <div id="resultado-grafica"        class="reporte-card hidden"></div>
