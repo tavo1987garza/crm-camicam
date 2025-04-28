@@ -1140,23 +1140,56 @@ def agregar_etiqueta():
     finally:
         liberar_db(conn)
 
+ 
+        
+# GET  /gastos/etiquetas  →  [{etiqueta:"Renta", color:"#ff9800"}, …]
 @app.route("/gastos/etiquetas", methods=["GET"])
-def obtener_etiquetas():
-    conn = conectar_db()
+def listar_etiquetas():
+    conn = conectar_db();              # ← tu helper
     if not conn:
-        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
+        return jsonify({"error":"DB off"}), 500
     try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT etiqueta FROM gasto_etiquetas ORDER BY etiqueta")
-        rows = cursor.fetchall()
-        etiquetas = [row[0] for row in rows]
-        return jsonify({"etiquetas": etiquetas}), 200
-
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT etiqueta, COALESCE(color,'') AS color
+            FROM   gasto_etiquetas
+            ORDER  BY etiqueta
+        """)
+        return jsonify({"etiquetas": cur.fetchall()}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+
+
+# POST /gastos/etiqueta_color  { etiqueta:"Renta", color:"#ff9800" }
+@app.route("/gastos/etiqueta_color", methods=["POST"])
+def actualizar_color_etiqueta():
+    data      = request.get_json()
+    etiqueta  = data.get("etiqueta")
+    color     = data.get("color")
+
+    if not etiqueta or not color:
+        return jsonify({"error":"Faltan datos"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error":"DB off"}), 500
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE gasto_etiquetas
+            SET    color = %s
+            WHERE  etiqueta = %s
+        """, (color, etiqueta))
+        conn.commit()
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
 
 
 @app.route("/gastos/por_etiqueta", methods=["GET"])

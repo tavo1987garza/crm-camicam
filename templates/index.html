@@ -1816,6 +1816,11 @@
           <span id="etiqueta-nombre"></span>
         </h2>
         
+      <!-- Bote de pintura -->
+      <label for="picker-etiqueta-color" class="icon-btn" title="Cambiar color">
+        <i class="fas fa-fill-drip"></i>
+      </label>
+      <input type="color" id="picker-etiqueta-color" class="hidden" />     
       </div>
       
       <!-- Aquí se listarán los gastos de esta etiqueta -->
@@ -3777,71 +3782,74 @@ function abrirModalNuevaEtiqueta() {
 
 
 async function cargarEtiquetasEnVista() {
-  try {
-    const resp = await fetch("/gastos/etiquetas");
-    const data = await resp.json();
+  const resp = await fetch("/gastos/etiquetas");
+  const data = await resp.json();
 
-    const cont = document.getElementById("lista-etiquetas");
-    cont.innerHTML = "";
+  const cont = document.getElementById("lista-etiquetas");
+  cont.innerHTML = "";
 
-    /* Paleta heredada de Calendario */
-    const colores = ["#1e88e5","#ff9800","#43a047","#d32f2f","#2e7d32"];
+  data.etiquetas.forEach((row, idx) => {
+    const color = row.color || coloresBorde[idx % coloresBorde.length];
 
-    data.etiquetas.forEach((et, idx) => {
-      const card  = document.createElement("div");
-      card.className = "etiqueta-card";
-      card.style.borderLeft = `4px solid ${colores[idx % colores.length]}`;
-      card.innerHTML = `<h3>${et}</h3>`;
-      card.onclick   = () => abrirModalEtiqueta(et);
-      cont.appendChild(card);
-    });
-  } catch (err) {
-    console.error("Error al cargar etiquetas:", err);
-  }
+    const card  = document.createElement("div");
+    card.className = "etiqueta-card";
+    card.style.borderLeft = `4px solid ${color}`;
+    card.innerHTML = `<h3>${row.etiqueta}</h3>`;
+    card.onclick   = () => abrirModalEtiqueta(row.etiqueta, color);
+    cont.appendChild(card);
+  });
 }
+
 
   
   // Abre el modal para una etiqueta existente
-async function abrirModalEtiqueta(etiqueta) {
+  async function abrirModalEtiqueta(etiqueta, colorActual="#1e88e5") {
+    /* 1. Mostrar el nombre y preparar picker */
     document.getElementById("etiqueta-nombre").textContent = etiqueta;
+  
+    const picker = document.getElementById("picker-etiqueta-color");
+    picker.value   = colorActual;                        // color actual o fallback
+    picker.oninput = e => cambiarColorEtiqueta(etiqueta, e.target.value);
+  
+    /* 2. Cargar los gastos de la etiqueta */
     try {
-      const response = await fetch(`/gastos/por_etiqueta?etiqueta=${encodeURIComponent(etiqueta)}`);
-      const data = await response.json();
+      const response  = await fetch(`/gastos/por_etiqueta?etiqueta=${encodeURIComponent(etiqueta)}`);
+      const data      = await response.json();
       const contenido = document.getElementById("modal-etiqueta-contenido");
+  
       if (data.error) {
         contenido.textContent = "No se pudo obtener los gastos para esta etiqueta.";
-      } else {
-        if (data.gastos && data.gastos.length > 0) {
-          let html = "<ul>";
-          data.gastos.forEach(gasto => {
-            // Debes tener un ID en la tabla de gastos para poder eliminarlo individualmente
-            // p.e. gasto.id
-            const montoFormateado = parseFloat(gasto.monto).toLocaleString('es-MX', {
-              style: 'currency', currency: 'MXN', minimumFractionDigits: 0
-            });
-            html += `
-              <li>
-                ${montoFormateado} - ${gasto.descripcion} 
-                <em>(${gasto.fecha})</em> 
-                <span style="color:red; margin-left:10px; cursor:pointer;" 
-                      onclick="eliminarGasto('${gasto.id}','${etiqueta}')">X</span>
-              </li>
-            `;
+      } else if (data.gastos && data.gastos.length > 0) {
+        let html = "<ul>";
+        data.gastos.forEach(gasto => {
+          const montoFmt = parseFloat(gasto.monto).toLocaleString("es-MX", {
+            style:"currency", currency:"MXN", maximumFractionDigits:0
           });
-          html += "</ul>";
-          contenido.innerHTML = html;
-        } else {
-          contenido.textContent = "No hay gastos registrados para esta etiqueta.";
-        }
+          html += `
+            <li>
+              ${montoFmt} - ${gasto.descripcion}
+              <em>(${gasto.fecha})</em>
+              <span style="color:red; margin-left:10px; cursor:pointer;"
+                    onclick="eliminarGasto('${gasto.id}','${etiqueta}')">X</span>
+            </li>`;
+        });
+        html += "</ul>";
+        contenido.innerHTML = html;
+      } else {
+        contenido.textContent = "No hay gastos registrados para esta etiqueta.";
       }
     } catch (err) {
       console.error("Error al obtener gastos por etiqueta:", err);
-      document.getElementById("modal-etiqueta-contenido").textContent = "Error al obtener los gastos.";
+      document.getElementById("modal-etiqueta-contenido").textContent =
+        "Error al obtener los gastos.";
     }
-    
+  
+    /* 3. Mostrar modal */
     document.getElementById("modal-etiqueta").classList.remove("hidden");
   }
+
   
+
   // Cierra el modal de etiqueta
   function cerrarModalEtiqueta() {
     document.getElementById("modal-etiqueta").classList.add("hidden");
@@ -3934,6 +3942,35 @@ function toggleFormularioAgregarGastoEtiqueta() {
       console.error("Error al eliminar etiqueta:", err);
     }
   }
+
+
+//Funcion para cambiar el color a la etiqueta de gastos
+  let debounceEtiqueta = null;
+function cambiarColorEtiqueta(etiqueta, nuevoColor) {
+  clearTimeout(debounceEtiqueta);
+  debounceEtiqueta = setTimeout(async () => {
+    try {
+      const resp = await fetch("/gastos/etiqueta_color", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ etiqueta, color: nuevoColor })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      /* refrescar borde de la tarjeta en el grid */
+      document.querySelectorAll(".etiqueta-card").forEach(card => {
+        if (card.textContent.trim() === etiqueta) {
+          card.style.borderLeft = `4px solid ${nuevoColor}`;
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar color: " + err.message);
+    }
+  }, 250);
+}
+
   
   // Al cargar la sección, listamos las etiquetas
   document.addEventListener("DOMContentLoaded", () => {
