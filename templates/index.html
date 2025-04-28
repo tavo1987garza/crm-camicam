@@ -2697,21 +2697,32 @@ function initCalendario() {
 /***********************************************
  * PINTAR COLORES EN LOS REPORTES
  ***********************************************/
- function pintarColorReporte(anio) {
-  const color = yearColors[anio] || "#1e88e5";
+// Funcion para pintar el color del borde y de los encabezados
+function pintarColorReporte(anio) {
+  const color = yearColors[anio] || "#1e88e5";   // fallback
 
-  ["resultado-ingresos-anual", "resultado-servicios"].forEach(id => {
+  /* ── bordes de los contenedores ────────────────────────── */
+  ["resultado-ingresos-anual","resultado-servicios"].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.style.borderLeft = `4px solid ${color}`;
   });
 
+  /* ── encabezados de las tablas ─────────────────────────── */
   document.querySelectorAll(
     "#resultado-ingresos-anual table thead, #resultado-servicios table thead"
   ).forEach(thead => {
-    thead.style.background = color;
-    thead.style.color      = "#fff";
+    // color al <thead>
+    thead.style.setProperty("background", color, "important");
+    thead.style.setProperty("color", "#fff", "important");
+
+    // color a cada <th> (por si tienen estilos propios)
+    thead.querySelectorAll("th").forEach(th => {
+      th.style.setProperty("background", color, "important");
+      th.style.setProperty("color", "#fff", "important");
+    });
   });
 }
+
 
 //Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
 // =======================================
