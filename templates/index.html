@@ -1024,6 +1024,40 @@
    ESTILOS PARA LA SECCIÓN DE REPORTES
    ========================================= */ 
 
+/* ───── Estilos al inicio de la seccion Reportes──── */   
+   #reporte-anio-anual {
+     width: 140px;
+     padding: 10px 14px;
+     border: 2px solid #ced4da;
+     border-radius: 8px;
+     font-size: 15px;
+     transition: border-color 0.25s, box-shadow 0.25s;
+   }
+   #reporte-anio-anual:focus {
+     border-color: #1e88e5;
+     outline: none;
+     box-shadow: 0 0 0 3px rgba(30,136,229,0.25);
+   }
+   
+   /* Botón “Ver reporte anual” */
+   #btn-reporte-anual {
+     margin-left: 10px;
+     background: #1e88e5;
+     color: #fff;
+     border: none;
+     padding: 11px 20px;
+     border-radius: 8px;
+     font-size: 15px;
+     cursor: pointer;
+     font-weight: 600;
+     transition: background 0.25s, transform 0.15s;
+   }
+   #btn-reporte-anual:hover   { background:#1565c0; }
+   #btn-reporte-anual:active  { transform: scale(0.97); }
+   #btn-reporte-anual:focus   { outline:none; box-shadow:0 0 0 3px rgba(30,136,229,0.25);}
+
+
+/* ───── Estilos para los contenedores de los reportes──── */
 .reportes-container {
     background: white;
     padding: 20px;
@@ -1697,15 +1731,17 @@
                 <input type="number" id="reporte-anio-anual" placeholder="2025" min="2000">
               </div>
               <button onclick="verReporteIngresosAnual()">Ver Reporte Anual</button>
-              <div id="resultado-ingresos-anual" class="reporte-card"></div>
+         
+              <!-- Bloque para la sección de ingresos anuales-->
+              <div id="resultado-ingresos-anual" class="reporte-card hidden"></div>
             </section>
 
-            <!-- NUEVO: bloque para la gráfica -->
-            <div id="resultado-grafica" class="reporte-card"></div>
+              <!-- Bloque para la gráfica -->
+              <div id="resultado-grafica"        class="reporte-card hidden"></div>
             
-            <!-- Debajo, la sección de servicios anuales, sin botón -->
-            <div id="resultado-servicios" class="reporte-card"></div>
-          </div>
+              <!-- Bloque para la sección de servicios anuales-->
+              <div id="resultado-servicios"      class="reporte-card hidden"></div>
+            </div>
           
           <div id="gastos" class="seccion hidden">
             <h1>💸 Gastos</h1>
@@ -3418,6 +3454,10 @@ async function verReporteIngresosAnual() {
 
   divTabla.textContent = "Cargando reporte anual…";
 
+   // OCULTA los tres contenedores antes de pedir datos
+   ["resultado-ingresos-anual","resultado-grafica","resultado-servicios"]
+   .forEach(id => document.getElementById(id).classList.add("hidden"));
+
   try {
     const resp = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
     const data = await resp.json();
@@ -3466,8 +3506,9 @@ async function verReporteIngresosAnual() {
       <td>${totalCostos  .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
       <td>${totalUtilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
     </tr></tbody></table>`;
-
-    /* inyectar y colorear */
+    
+    // Muestra contenedor y colorea
+    divTabla.classList.remove("hidden");
     divTabla.innerHTML = html;
     pintarColorReporte(anio);
 
@@ -3482,11 +3523,13 @@ async function verReporteIngresosAnual() {
 
     /* ───────────── servicios anuales ─────────── */
     await verReporteServiciosAnual(anio);   // se repinta color dentro
+    document.getElementById("resultado-servicios").classList.remove("hidden");
     pintarColorReporte(anio);
 
   } catch (err) {
     console.error("Error en verReporteIngresosAnual:", err);
     divTabla.textContent = "Error al obtener el reporte anual.";
+    divTabla.classList.remove("hidden");
   }
 }
 
@@ -3496,6 +3539,7 @@ let graficaAnual = null;   // referencia para poder destruir/redibujar
 
 function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalEventos) {
   const cont = document.getElementById("resultado-grafica");
+  cont.classList.remove("hidden");     // 👈 muestra el bloque
   cont.innerHTML = `
     <h3>Ingresos / Costos / Utilidad en ${anio} / Eventos:${totalEventos}</h3>
     <canvas id="grafica-anual-canvas"></canvas>
