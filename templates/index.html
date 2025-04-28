@@ -3433,7 +3433,6 @@ async function verReporteIngresosAnual() {
     const utilidadesArr = [];
 
     let html  = `<h3>Reporte del año ${data.anio}</h3>`;
-    html     += `<p>Total de eventos contratados: <strong>${data.total_eventos}</strong></p>`;
     html     += `<table><thead><tr>
                    <th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th>
                  </tr></thead><tbody>`;
@@ -3497,7 +3496,7 @@ let graficaAnual = null;   // referencia para poder destruir/redibujar
 function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalEventos) {
   const cont = document.getElementById("resultado-grafica");
   cont.innerHTML = `
-    <h3>Ingresos / Costos / Utilidad en ${anio}     Eventos contratados:${totalEventos}</h3>
+    <h3>Ingresos / Costos / Utilidad / Eventos:${totalEventos} en ${anio}         <p>Eventos contados: ${data.eventosContados}</p></h3>
     <canvas id="grafica-anual-canvas"></canvas>
     
   `;
@@ -3608,7 +3607,6 @@ function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalE
             <tr><td>Audio Guest Book</td><td>${data.audioGuestBook}</td></tr>
           </tbody>
         </table>
-        <p>Eventos contados: ${data.eventosContados}</p>
       `;
   
       resultadoDiv.innerHTML = tableHTML;
