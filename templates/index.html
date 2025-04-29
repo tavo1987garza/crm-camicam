@@ -1396,10 +1396,50 @@
          </div>
 
 
-        <div id="panel" class="seccion">
-            <h1>📊 Panel</h1>
-            <p>Bienvenido al CRM de Camicam.</p>
+         <div id="panel" class="seccion hidden">
+          <div id="panel-wrapper" class="tarjetas-wrapper">
+        
+            <!-- 1. Logo de la empresa -->
+            <div id="logo-box">
+              <img id="logo-img" src="/config/logo.png" alt="Logo" />
+            </div>
+        
+            <!-- 2. Buscador de fechas -->
+            <div id="buscador-fechas" class="panel-card">
+              <h2>🔎 Buscar fecha</h2>
+        
+              <div class="fecha-search">
+                <input type="date" id="buscar-fecha-input" />
+                <button id="buscar-fecha-btn">Consultar</button>
+              </div>
+        
+              <div id="buscar-fecha-alert" class="alert hidden"></div>
+            </div>
+        
+            <!-- 3. Próximos 3 eventos -->
+            <div id="proximos-eventos" class="panel-card">
+              <h2>📌 Próximos eventos</h2>
+              <div id="postits-container" class="postits"></div>
+            </div>
+        
+            <!-- 4. Últimos 3 leads -->
+            <div id="ultimos-leads" class="panel-card">
+              <h2>🆕 Contacto inicial</h2>
+              <ul id="lista-leads"></ul>
+            </div>
+        
+            <!-- 5. KPI mensual -->
+            <div id="kpi-mes" class="panel-card kpi">
+              <h2>📊 Meta mensual</h2>
+              <div class="kpi-value">
+                <span id="kpi-actual">0</span> / <span id="kpi-meta">17</span>
+              </div>
+              <small id="kpi-sub">Eventos contratados este mes</small>
+            </div>
+        
+          </div><!-- /.tarjetas-wrapper -->
         </div>
+        
 
       
         <div id="leads" class="seccion hidden">
