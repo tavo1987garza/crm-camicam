@@ -108,28 +108,107 @@
     color: #fff;
 }
 
-        .content {
-            flex-grow: 1;
-            padding: 20px;
+        
+/* ───── Estilos para la seccion de PANEL──── */
+        /* Tarjeta genérica del panel */
+        .panel-card {
+          background:#f8f9fa;
+          padding:15px 20px;
+          border-radius:8px;
+          display:flex;
+          flex-direction:column;
+          gap:10px;
         }
-        .hidden {
-            display: none;
+        
+        /* Logo */
+        #logo-box {
+          align-self:center;
+          margin-bottom:10px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        #logo-img {
+          max-height:90px;
+          object-fit:contain;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
+        
+        /* Buscador de fechas */
+        .fecha-search {
+          display:flex;
+          gap:10px;
         }
-        th {
-            background-color: #4CAF50;
-            color: white;
+        #buscar-fecha-input {
+          flex:1;
+          padding:8px 12px;
+          border:2px solid #ced4da;
+          border-radius:6px;
         }
+        #buscar-fecha-btn {
+          background:#1e88e5;
+          color:#fff;
+          border:none;
+          border-radius:6px;
+          padding:8px 16px;
+          cursor:pointer;
+          font-weight:600;
+          transition:background .25s;
+        }
+        #buscar-fecha-btn:hover { background:#1565c0; }
+        
+        /* Alertas */
+        .alert {
+          margin-top:8px;
+          padding:10px 14px;
+          border-radius:6px;
+          font-weight:600;
+        }
+        .alert.disponible   { background:#e8f5e9; color:#2e7d32; }
+        .alert.registrado   { background:#fff8e1; color:#ff9800; }
+        .alert.no-disp      { background:#ffebee; color:#d32f2f; }
+        .hidden { display:none; }
+        
+        /* Post-it */
+        .postits {
+          display:flex;
+          flex-wrap:wrap;
+          gap:12px;
+        }
+        .postit {
+          width:160px;
+          min-height:120px;
+          background:#fffde7;
+          border:1px solid #f4e19e;
+          border-radius:6px;
+          box-shadow:0 1px 4px rgba(0,0,0,.1);
+          padding:12px;
+          position:relative;
+          cursor:pointer;
+          transition:transform .15s;
+        }
+        .postit:hover { transform:rotate(-1deg) scale(1.02); }
+        .postit:before {
+          content:"📌";
+          position:absolute;
+          top:-10px;
+          left:8px;
+          font-size:22px;
+          transform:rotate(-12deg);
+        }
+        
+        /* KPI */
+        .kpi {
+          align-items:center;
+          text-align:center;
+        }
+        .kpi-value {
+          font-size:38px;
+          font-weight:700;
+          color:#1e88e5;
+        }
+        #kpi-actual.green { color:#43a047; }
+        #kpi-actual.red   { color:#d32f2f; }
+        
 
-        /* 🔹 Contenedor principal de Leads */
+/* ───── Estilos para el Contenedor principal de Leads──── */
+       
 .leads-container {
     display: flex;
     gap: 10px;
@@ -1150,6 +1229,28 @@
     color: #1e88e5;
 }
 
+.content {
+  flex-grow: 1;
+  padding: 20px;
+}
+.hidden {
+  display: none;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+th {
+  background-color: #4CAF50;
+  color: white;
+}
+
+
 /* Estilos para el modal de edición (ya existente) */
 #edit-fecha-modal {
     /* Tus estilos existentes */
@@ -1993,6 +2094,94 @@ function mostrarSeccion(seccion, callback = null) {
         });
 
         let sonidoActivo = true; 
+
+
+
+
+/***********************
+========================
+    SECCION DE PANEL
+========================
+************************/
+
+/* === 1. Carga logo en el Panel ================= */
+async function cargarLogo() {
+  // /config/logo devuelve {url:"/media/logo.png"} o similar
+  const resp = await fetch("/config/logo");
+  const obj  = await resp.json();
+  if (obj.url) document.getElementById("logo-img").src = obj.url;
+}
+
+/* === 2. Buscador de fechas ===================== */
+document.getElementById("buscar-fecha-btn").onclick = async () => {
+  const iso = document.getElementById("buscar-fecha-input").value; // YYYY-MM-DD
+  if (!iso) return;
+  const r   = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
+  const res = await r.json();        // {count:0|1|2}
+  const alert = document.getElementById("buscar-fecha-alert");
+  const dateLargo = formatoFechaLargo(iso); // tu helper existente
+
+  alert.className = "alert"; // reset
+  if (res.count === 0) {
+    alert.textContent = `${dateLargo} está DISPONIBLE`;
+    alert.classList.add("disponible");
+  } else if (res.count === 1) {
+    alert.textContent = `Tenemos un evento REGISTRADO para ${dateLargo}`;
+    alert.classList.add("registrado");
+  } else {
+    alert.textContent = `${dateLargo} NO ESTÁ DISPONIBLE`;
+    alert.classList.add("no-disp");
+  }
+  alert.classList.remove("hidden");
+};
+
+/* === 3. Próximos 3 eventos ===================== */
+async function cargarProximosEventos() {
+  const r   = await fetch("/calendario/proximos?limite=3");
+  const obj = await r.json();        // [{id, fecha, titulo}, …]
+  const cont = document.getElementById("postits-container");
+  cont.innerHTML = "";
+  obj.forEach(ev => {
+    const div = document.createElement("div");
+    div.className = "postit";
+    div.innerHTML = `<strong>${formatoFechaLargo(ev.fecha)}</strong><br>${ev.titulo||""}`;
+    div.onclick = () => abrirModalFecha(ev.id); // tu modal de edición
+    cont.appendChild(div);
+  });
+}
+
+/* === 4. Últimos 3 leads ======================== */
+async function cargarUltimosLeads() {
+  const r   = await fetch("/leads/ultimos?limite=3");
+  const obj = await r.json();        // [{nombre, telefono}, …]
+  const ul  = document.getElementById("lista-leads");
+  ul.innerHTML = obj.map(ld => `<li>${ld.nombre} — ${ld.telefono}</li>`).join("");
+}
+
+/* === 5. KPI mensual ============================ */
+async function cargarKPI() {
+  const r = await fetch("/reportes/kpi_mes");   // {actual:12, meta:17}
+  const k = await r.json();
+  document.getElementById("kpi-actual").textContent = k.actual;
+  document.getElementById("kpi-meta").textContent   = k.meta;
+  const actualEl = document.getElementById("kpi-actual");
+  actualEl.className = k.actual >= k.meta ? "green" : "red";
+}
+
+/* === 6. Inicializar Panel ====================== */
+async function initPanel() {
+  await Promise.all([
+    cargarLogo(),
+    cargarProximosEventos(),
+    cargarUltimosLeads(),
+    cargarKPI()
+  ]);
+}
+
+/* Llama initPanel() cuando se muestra la sección Panel */
+mostrarSeccion("panel", initPanel);
+
+
 
 
 /***********************
