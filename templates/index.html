@@ -1042,6 +1042,7 @@
    /* Botón “Ver reporte anual” */
    #btn-reporte-anual,
    #btn-nueva-etiqueta {
+     align-self: flex-start; 
      margin-left: 10px;
      background: #1e88e5;
      color: #fff;
@@ -1054,6 +1055,9 @@
      transition: background 0.25s, transform 0.15s;
    }
    
+
+
+
    #btn-reporte-anual:hover,
    #btn-nueva-etiqueta:hover   { background:#1565c0; }
    #btn-reporte-anual:active,
@@ -1336,8 +1340,11 @@
   flex-wrap: wrap;
   gap: 15px;
   margin-top: 15px;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;  
 }
-
+ 
 
   
 
