@@ -3796,7 +3796,7 @@ async function cargarEtiquetasEnVista() {
     card.className = "etiqueta-card";
     card.style.borderLeft = `4px solid ${color}`;
     card.innerHTML = `<h3>${row.etiqueta}</h3>`;
-    card.onclick = () => abrirModalEtiqueta(row.etiqueta, colorFinal);
+    card.onclick = () => abrirModalEtiqueta(row.etiqueta, color);
     cont.appendChild(card);
   });
 }
