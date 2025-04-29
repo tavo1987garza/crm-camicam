@@ -1449,6 +1449,28 @@ th {
 }
  
 
+
+/* =========================================
+   ESTILOS PARA SECCION CONFIGURACION
+   ========================================= */ 
+.config-logo {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-width:260px;
+}
+#logo-preview {
+  max-width:100%;
+  max-height:120px;
+  object-fit:contain;
+  border:1px solid #e0e0e0;
+  border-radius:6px;
+}
+#logo-msg { font-weight:600; margin-top:6px; }
+#logo-msg.success { color:#43a047; }
+#logo-msg.error   { color:#d32f2f; }
+
+
   
 
     </style>
@@ -2019,12 +2041,40 @@ th {
           
         <div id="configuracion" class="seccion hidden">
             <h1>⚙️ Configuración</h1>
+
+            <h2>Logo de la empresa</h2>
+            <div class="config-logo">
+              <img id="logo-preview" src="/config/logo.png" alt="Logo actual" />
+              <input type="file" id="logo-file" accept="image/*" />
+              <button id="logo-upload-btn">Subir logo</button>
+              <span id="logo-msg" class="hidden"></span>
+            </div>
+        
             <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
             <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
         </div>
     </div>
 
     <div id="alerta-mensaje" class="notification"></div>
+
+
+    <!-- sección Configuración -->
+<div id="configuracion" class="seccion hidden">
+    <h1>⚙️ Configuración</h1>
+
+    <h2>Logo de la empresa</h2>
+    <div class="config-logo">
+      <img id="logo-preview" src="/config/logo.png" alt="Logo actual" />
+      <input type="file" id="logo-file" accept="image/*" />
+      <button id="logo-upload-btn">Subir logo</button>
+      <span id="logo-msg" class="hidden"></span>
+    </div>
+
+    <!-- otros ajustes… -->
+
+  
+</div>
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -2094,8 +2144,6 @@ function mostrarSeccion(seccion, callback = null) {
         });
 
         let sonidoActivo = true; 
-
-
 
 
 /***********************
@@ -3729,6 +3777,8 @@ async function eliminarAnio(anio) {
    SECCION DE REPORTES
 ========================
 ************************/
+
+
 //REPORTE DE INGRESOS POR AÑO
 /***********************************************
  * REPORTE INGRESOS + COSTOS + UTILIDAD (ANUAL)
@@ -4213,6 +4263,53 @@ function cambiarColorEtiqueta(etiqueta, nuevoColor) {
     });
   }, 250);
 }
+
+
+
+/***********************
+========================
+SECCION DE CONFIGURACIÓN
+========================
+************************/
+
+document.getElementById("logo-upload-btn").onclick = async () => {
+  const fileInp = document.getElementById("logo-file");
+  const msg     = document.getElementById("logo-msg");
+  msg.className = "hidden";
+  if (!fileInp.files.length) { msg.textContent = "Selecciona un archivo"; msg.classList.add("error"); return; }
+
+  const formData = new FormData();
+  formData.append("logo", fileInp.files[0]);
+
+  try {
+    const r   = await fetch("/config/logo", { method:"POST", body:formData });
+    const res = await r.json();
+    if (res.error) throw new Error(res.error);
+
+    // Actualiza previews: Configuración + Panel
+    document.getElementById("logo-preview").src = res.url + "?v=" + Date.now();
+    const panelImg = document.getElementById("logo-img");
+    if (panelImg) panelImg.src = res.url + "?v=" + Date.now();
+
+    msg.textContent = "Logo actualizado ✔";
+    msg.classList.add("success");
+    msg.classList.remove("hidden");
+  } catch(e) {
+    console.error(e);
+    msg.textContent = "Error: " + e.message;
+    msg.classList.add("error");
+    msg.classList.remove("hidden");
+  }
+};
+
+/* Vista previa inmediata al elegir archivo */
+document.getElementById("logo-file").onchange = e => {
+  const file = e.target.files[0];
+  if (file) {
+    document.getElementById("logo-preview").src = URL.createObjectURL(file);
+  }
+};
+
 
   
   // Al cargar la sección, listamos las etiquetas
