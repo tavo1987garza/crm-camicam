@@ -2671,6 +2671,9 @@ const yearColors = {};
 
 // ▸ Colores automáticos de reserva → ahora también global
 const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
+// ───────── Variables globales de Gastos ─────────
+let debounceEtiqueta = null;   // ← aquí, antes de llamar a cambiarColorEtiqueta
+
 
 function initCalendario() {
     // 1. Cargar leads en el select (para formulario de agregar fecha)
