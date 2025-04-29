@@ -44,6 +44,88 @@ def conectar_db():
 def liberar_db(conn):
     if conn:
         db_pool.putconn(conn)
+        
+        
+        
+##################################
+#----------SECCION PANEL----------
+##################################   
+
+
+# 📌 Endpoint para la visualzacion de Próximos eventos        
+from datetime import date
+
+@app.route("/calendario/proximos")
+def proximos_eventos():
+    lim = int(request.args.get("limite", 3))
+    conn = conectar_db(); cur = conn.cursor()
+    cur.execute("""
+      SELECT 
+        id,
+        TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD') AS fecha,
+        COALESCE(titulo,'') AS titulo
+      FROM calendario
+      WHERE fecha AT TIME ZONE 'UTC' >= %s
+      ORDER BY fecha ASC
+      LIMIT %s
+    """, (date.today(), lim))
+    rows = cur.fetchall()
+    liberar_db(conn)
+    return jsonify([{"id":r[0],"fecha":r[1],"titulo":r[2]} for r in rows])
+
+
+# 📌 Endpoint para mostras los Ultimos Leads
+@app.route("/leads/ultimos")
+def ultimos_leads():
+    lim = int(request.args.get("limite", 3))
+    conn = conectar_db(); cur = conn.cursor()
+    cur.execute("""
+      SELECT id, nombre, telefono
+      FROM leads
+      ORDER BY id DESC
+      LIMIT %s
+    """, (lim,))
+    rows = cur.fetchall()
+    liberar_db(conn)
+    return jsonify([{"id":r[0],"nombre":r[1],"telefono":r[2]} for r in rows])
+
+from datetime import datetime
+
+
+# 📌 Endpoint para mostrar el FPI ensual (La meta mensual)
+@app.route("/reportes/kpi_mes")
+def kpi_mes():
+    hoy = datetime.utcnow()
+    mes = hoy.month
+    anio = hoy.year
+
+    conn = conectar_db(); cur = conn.cursor()
+    # actual: count eventos en el mes actual
+    cur.execute("""
+      SELECT COUNT(*) 
+      FROM calendario 
+      WHERE EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC')=%s
+        AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC')=%s
+    """, (anio, mes))
+    actual = cur.fetchone()[0]
+
+    # meta: lee de tabla config
+    cur.execute("""
+      SELECT valor 
+      FROM config 
+      WHERE clave='meta_mensual'
+    """)
+    row = cur.fetchone()
+    meta = int(row[0]) if row and row[0].isdigit() else 15
+
+    liberar_db(conn)
+    return jsonify({"actual": actual, "meta": meta})
+
+
+
+##################################
+#----------SECCION LEADS----------
+##################################   
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
