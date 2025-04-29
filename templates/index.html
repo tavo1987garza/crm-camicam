@@ -3939,22 +3939,28 @@ function toggleFormularioAgregarGastoEtiqueta() {
 
 
 //Funcion para cambiar el color a la etiqueta de gastos
-let debounceEtiqueta = null;
 function cambiarColorEtiqueta(etiqueta, nuevoColor) {
   clearTimeout(debounceEtiqueta);
+
   debounceEtiqueta = setTimeout(async () => {
+    console.log("▶️  Guardando color", nuevoColor, "para", etiqueta);
+
     const resp = await fetch("/gastos/etiqueta_color", {
-      method: "POST",
+      method : "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ etiqueta, color: nuevoColor })
+      body   : JSON.stringify({ etiqueta, color:nuevoColor })
     });
     const data = await resp.json();
+    console.log("🟢 Respuesta BD:", data);
+
     if (data.error) { alert(data.error); return; }
 
-    // Actualiza la tarjeta en el grid sin recargar
+    // — actualiza borde —
     document.querySelectorAll(".etiqueta-card").forEach(card => {
+      console.log("↪️  Revisa tarjeta:", card.textContent.trim());
       if (card.textContent.trim() === etiqueta) {
         card.style.borderLeft = `4px solid ${nuevoColor}`;
+        console.log("✅ Borde actualizado");
       }
     });
   }, 250);
