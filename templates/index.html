@@ -1841,16 +1841,14 @@
         </button>
       </div>
 
-       <!-- Icono para borrar la etiqueta completa -->
+
        <div class="modal-buttons" style="display:flex; gap:12px;">
+        <!-- Icono para borrar la etiqueta completa --> 
+        <button class="delete-btn" onclick="eliminarEtiquetaCompleta()">🗑️</button>
+         <!-- Icono para cambiar el color del border-left de la etiqueta  -->
         <label for="picker-etiqueta-color" class="icon-btn" title="Cambiar color">
-          <i class="fas fa-fill-drip"></i>
-        </label>
+          <i class="fas fa-fill-drip"></i></label>
         <input type="color" id="picker-etiqueta-color" class="hidden" />
-      
-        <button class="delete-btn" onclick="eliminarEtiquetaCompleta()">
-          🗑️
-        </button>
       </div>
     </div>
   </div>
