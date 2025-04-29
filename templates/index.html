@@ -807,9 +807,10 @@
 /* =========================================
    ESTILOS PARA LA SECCIÓN DE CALENDARIO
    ========================================= */
-
+#panel,
 #calendario,
-#reportes {
+#reportes,
+#gastos {
     background: white;
     padding: 20px;
     border-radius: 10px;
@@ -1803,8 +1804,6 @@
 
 
           <div id="gastos" class="seccion hidden">
-
-            <div class="tarjetas-wrapper">
             <h1>💸 Gastos</h1>
           
             <!-- Botón/ícono para agregar nueva etiqueta -->
@@ -1815,7 +1814,6 @@
             <!-- Contenedor donde se listarán las etiquetas existentes -->
             <div id="lista-etiquetas" class="etiquetas-container"></div>
           </div>
-        </div>
  
           <!-- MODAL para Crear Etiqueta -->
 <div id="modal-nueva-etiqueta" class="modal hidden">
