@@ -77,7 +77,7 @@ def proximos_eventos():
 # 📌 Endpoint para mostras los Ultimos Leads
 @app.route("/leads/ultimos")
 def ultimos_leads():
-    lim = int(request.args.get("limite", 3))
+    lim = int(request.args.get("limite", 5))
     conn = conectar_db(); cur = conn.cursor()
     cur.execute("""
       SELECT id, nombre, telefono
