@@ -1554,7 +1554,7 @@ th {
             <div id="kpi-mes" class="panel-card kpi">
               <h2>📊 Meta mensual</h2>
               <div class="kpi-value">
-                <span id="kpi-actual">0</span> / <span id="kpi-meta">17</span>
+                <span id="kpi-actual">0</span> / <span id="kpi-meta">15</span>
               </div>
               <small id="kpi-sub">Eventos contratados este mes</small>
             </div>
@@ -2208,7 +2208,7 @@ async function cargarUltimosLeads() {
 
 /* === 5. KPI mensual ============================ */
 async function cargarKPI() {
-  const r = await fetch("/reportes/kpi_mes");   // {actual:12, meta:17}
+  const r = await fetch("/reportes/kpi_mes");   // {actual:12, meta:15}
   const k = await r.json();
   document.getElementById("kpi-actual").textContent = k.actual;
   document.getElementById("kpi-meta").textContent   = k.meta;
