@@ -113,7 +113,7 @@ def kpi_mes():
     cur.execute("""
       SELECT valor 
       FROM config 
-      WHERE clave='meta_mensual'
+      WHERE clave='meta_mensual' 
     """)
     row = cur.fetchone()
     meta = int(row[0]) if row and row[0].isdigit() else 15

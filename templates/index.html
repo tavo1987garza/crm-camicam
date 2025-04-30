@@ -2153,7 +2153,7 @@ function mostrarSeccion(seccion, callback = null) {
 ************************/
 
 /* === 1. Carga logo en el Panel ================= */
-async function cargarLogo() { 
+async function cargarLogo() {  
   // /config/logo devuelve {url:"/media/logo.png"} o similar
   const resp = await fetch("/config/logo");
   const obj  = await resp.json();
