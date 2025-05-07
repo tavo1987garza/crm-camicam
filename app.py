@@ -11,7 +11,7 @@ import re
 import time 
 import base64
 import uuid
-from datetime import datetime, timezone 
+from datetime import datetime, timezone, date 
 from flask import send_from_directory
 
 app = Flask(__name__)
@@ -53,7 +53,6 @@ def liberar_db(conn):
 
 
 # 📌 Endpoint para la visualzacion de Próximos eventos        
-from datetime import date
 
 @app.route("/calendario/proximos")
 def proximos_eventos():
@@ -88,8 +87,6 @@ def ultimos_leads():
     rows = cur.fetchall()
     liberar_db(conn)
     return jsonify([{"id":r[0],"nombre":r[1],"telefono":r[2]} for r in rows])
-
-from datetime import datetime
 
 
 # 📌 Endpoint para mostrar el FPI ensual (La meta mensual)
