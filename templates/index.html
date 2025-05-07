@@ -2128,7 +2128,7 @@ function mostrarSeccion(seccion, callback = null) {
         if (callback) callback();
     }
 }
-        
+           
 
         // 🔹 Conectar con WebSockets
                 
@@ -4274,33 +4274,37 @@ SECCION DE CONFIGURACIÓN
 
 document.getElementById("logo-upload-btn").onclick = async () => {
   const fileInp = document.getElementById("logo-file");
-  const msg     = document.getElementById("logo-msg");
+  const msg = document.getElementById("logo-msg");
   msg.className = "hidden";
-  if (!fileInp.files.length) { msg.textContent = "Selecciona un archivo"; msg.classList.add("error"); return; }
-
+  if (!fileInp.files.length) {
+    msg.textContent = "Selecciona un archivo";
+    msg.classList.add("error");
+    msg.classList.remove("hidden");
+    return;
+  }
   const formData = new FormData();
   formData.append("logo", fileInp.files[0]);
-
   try {
-    const r   = await fetch("/config/logo", { method:"POST", body:formData });
-    const res = await r.json();
-    if (res.error) throw new Error(res.error);
-
-    // Actualiza previews: Configuración + Panel
-    document.getElementById("logo-preview").src = res.url + "?v=" + Date.now();
+    const res = await fetch("/config/logo", { method: "POST", body: formData });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    // Actualiza ambos previews
+    document.getElementById("logo-preview").src = data.url + "?v=" + Date.now();
     const panelImg = document.getElementById("logo-img");
-    if (panelImg) panelImg.src = res.url + "?v=" + Date.now();
-
+    if (panelImg) panelImg.src = data.url + "?v=" + Date.now();
     msg.textContent = "Logo actualizado ✔";
     msg.classList.add("success");
     msg.classList.remove("hidden");
-  } catch(e) {
+    // Opcional: recargar el logo en otras partes
+    cargarLogo();
+  } catch (e) {
     console.error(e);
     msg.textContent = "Error: " + e.message;
     msg.classList.add("error");
     msg.classList.remove("hidden");
   }
 };
+
 
 /* Vista previa inmediata al elegir archivo */
 document.getElementById("logo-file").onchange = e => {
