@@ -56,7 +56,7 @@ def liberar_db(conn):
 
 @app.route("/calendario/proximos")
 def proximos_eventos():
-    lim = int(request.args.get("limite", 3))
+    lim = int(request.args.get("limite", 5))
     conn = conectar_db(); cur = conn.cursor()
     cur.execute("""
       SELECT 

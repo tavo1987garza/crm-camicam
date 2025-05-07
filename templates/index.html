@@ -2163,7 +2163,7 @@ document.getElementById("buscar-fecha-btn").onclick = async () => {
 
 /* === 3. Próximos 3 eventos ===================== */
 async function cargarProximosEventos() {
-  const r   = await fetch("/calendario/proximos?limite=3");
+  const r   = await fetch("/calendario/proximos?limite=5");
   const obj = await r.json();        // [{id, fecha, titulo}, …]
   const cont = document.getElementById("postits-container");
   cont.innerHTML = "";
