@@ -2059,8 +2059,27 @@ th {
 
     <script>
 
+      /* === 1. Carga logo en el Panel ================= */
+      async function cargarLogo() {
+        try {
+          const resp = await fetch("/config/logo");
+          const obj  = await resp.json();
+          const url  = obj.url + "?v=" + Date.now();
+          // Panel (header)
+          const panelImg = document.getElementById("logo-img");
+          if (panelImg) panelImg.src = url;
+          // Configuración (preview)
+          const preview  = document.getElementById("logo-preview");
+          if (preview) preview.src = url;
+        } catch (e) {
+          console.error("Error cargando logo:", e);
+        }
+      }
+
 document.addEventListener("DOMContentLoaded", function () {
     console.log("📌 DOM completamente cargado. Configurando eventos.");
+
+    cargarLogo();
 
     // Solo cargar leads si la sección está visible
     let seccionLeads = document.getElementById("leads");
@@ -2134,16 +2153,6 @@ function mostrarSeccion(seccion, callback = null) {
 ========================
 ************************/
 
-/* === 1. Carga logo en el Panel ================= */
-async function cargarLogoConfig() {
-  try {
-    const resp = await fetch("/config/logo");
-    const obj  = await resp.json();           // { url:"/static/logo/logo.png" }
-    document.getElementById("logo-preview").src = obj.url + "?v=" + Date.now();
-  } catch (e) {
-    console.error("Error cargando logo:", e);
-  }
-}
 
 
 /* === 2. Buscador de fechas ===================== */
