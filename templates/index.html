@@ -2099,7 +2099,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 // 🔹 Resaltar la sección activa
-function mostrarSeccion(seccion, callback = null) {
+/*function mostrarSeccion(seccion, callback = null) {
     document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
     let elemento = document.getElementById(seccion);
 
@@ -2126,8 +2126,47 @@ function mostrarSeccion(seccion, callback = null) {
         }
 
         if (callback) callback();
+
+        if (seccion === 'panel' && callback) {
+          callback();   // aquí llamas a initPanel
+        } else if (callback) {
+          callback();
+        }
     }
+}*/
+
+
+function mostrarSeccion(seccion, callback = null) {
+  // Esconde todas…
+  document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
+  const elemento = document.getElementById(seccion);
+  if (!elemento) return;
+
+  // Muestra la que toca
+  elemento.classList.remove('hidden');
+
+  // Resalta en el sidebar
+  document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`)?.classList.add('active');
+
+  // Lógica particular por sección
+  if (seccion === 'calendario') {
+    initCalendario();
+    cargarLeadsEnSelect();
+  } else if (seccion === 'gastos') {
+    cargarEtiquetasEnVista();
+  } else if (seccion === 'configuracion') {
+    cargarLogo();
+  }
+
+  // Llama una sola vez al callback apropiado
+  if (seccion === 'panel') {
+    initPanel();
+  } else if (callback) {
+    callback();
+  }
 }
+
            
 
         // 🔹 Conectar con WebSockets
@@ -2157,41 +2196,44 @@ function mostrarSeccion(seccion, callback = null) {
 
 
 /* === Inicializar Panel y Buscador de Fechas === */
-function initPanel() {
-  // 1) Carga logo, eventos, leads, KPI…
-  cargarLogo();
-  cargarProximosEventos();
-  cargarUltimosLeads();
-  cargarKPI();
+async function initPanel() {
+  // 1) Carga datos
+  await Promise.all([
+    cargarLogo(),
+    cargarProximosEventos(),
+    cargarUltimosLeads(),
+    cargarKPI()
+  ]);
 
-  // 2) Ahora que #panel está en el DOM, engancha el buscador
+  // 2) Ahora sí engancha el buscador de fechas
   const btnBuscar = document.getElementById("buscar-fecha-btn");
   if (btnBuscar) {
     btnBuscar.onclick = async () => {
-      /* … tu lógica de fetch, alertas … */
-      
-  const iso = document.getElementById("buscar-fecha-input").value; // YYYY-MM-DD
-  if (!iso) return;
-  const r   = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
-  const res = await r.json();        // {count:0|1|2}
-  const alert = document.getElementById("buscar-fecha-alert");
-  const dateLargo = formatoFechaLargo(iso); // tu helper existente
+      const iso = document.getElementById("buscar-fecha-input").value;
+      if (!iso) return;
+      const r   = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
+      const res = await r.json();
+      const alerta = document.getElementById("buscar-fecha-alert");
+      const dateLargo = formatoFechaLargo(iso);
 
-  alert.className = "alert"; // reset
-  if (res.count === 0) {
-    alert.textContent = `${dateLargo} está DISPONIBLE`;
-    alert.classList.add("disponible");
-  } else if (res.count === 1) {
-    alert.textContent = `Tenemos un evento REGISTRADO para ${dateLargo}`;
-    alert.classList.add("registrado");
-  } else {
-    alert.textContent = `${dateLargo} NO ESTÁ DISPONIBLE`;
-    alert.classList.add("no-disp");
-  }
-  alert.classList.remove("hidden");
+      alerta.className = "alert";
+      if (res.count === 0) {
+        alerta.textContent = `${dateLargo} está DISPONIBLE`;
+        alerta.classList.add("disponible");
+      } else if (res.count === 1) {
+        alerta.textContent = `Tenemos un evento REGISTRADO para ${dateLargo}`;
+        alerta.classList.add("registrado");
+      } else {
+        alerta.textContent = `${dateLargo} NO ESTÁ DISPONIBLE`;
+        alerta.classList.add("no-disp");
+      }
+      alerta.classList.remove("hidden");
     };
   }
+
+  // 3) (Opcional) Si hay más botones en Panel, engánchalos aquí
 }
+
 
 
 
