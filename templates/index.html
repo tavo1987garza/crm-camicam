@@ -192,6 +192,16 @@
           font-size:22px;
           transform:rotate(-12deg);
         }
+        /* Resumen de servicios en postist */
+        .serv-list {
+          margin: 8px 0 0 0;
+          padding-left: 18px;
+          font-size: 0.9rem;
+        }
+        .serv-list li {
+          line-height: 1.3;
+        }
+        
         
         /* KPI */
         .kpi {
@@ -2041,7 +2051,8 @@ th {
             <div class="config-logo">
               <img id="logo-preview" src="" alt="Logo actual" />
               <input type="file" id="logo-file" accept="image/*" />
-              <button id="logo-upload-btn">Subir logo</button>
+              <button id="logo-upload-btn" type="button">Subir logo</button>
+
               <span id="logo-msg" class="hidden"></span>
             </div>
         
@@ -2136,7 +2147,7 @@ document.addEventListener("DOMContentLoaded", function () {
 }*/
 
 
-function mostrarSeccion(seccion, callback = null) {
+function mostrarSeccion(seccion, callback = null) { 
   // Esconde todas…
   document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
   const elemento = document.getElementById(seccion);
@@ -2156,9 +2167,8 @@ function mostrarSeccion(seccion, callback = null) {
   } else if (seccion === 'gastos') {
     cargarEtiquetasEnVista();
   } else if (seccion === 'configuracion') {
-    cargarLogo();
+    initConfiguracion();
   }
-
   // Llama una sola vez al callback apropiado
   if (seccion === 'panel') {
     initPanel();
@@ -2237,27 +2247,48 @@ async function initPanel() {
 
 
 
-/* === 3. Próximos 3 eventos ===================== 
+/* === 3. Próximos 5 eventos ===================== */
 async function cargarProximosEventos() {
   const r   = await fetch("/calendario/proximos?limite=5");
   const obj = await r.json();        // [{id, fecha, titulo, servicios}, …]
   const cont = document.getElementById("postits-container");
   cont.innerHTML = "";
+
   obj.forEach(ev => {
     const div = document.createElement("div");
     div.className = "postit";
+
+    // Construye resumen de servicios
+    const s = ev.servicios || {};
+    const lista = [];
+    if (s.cabinaFotos)              lista.push("Cabina de Fotos");
+    if (s.cabina360)                lista.push("Cabina 360");
+    if (s.caritoDeShotsSinAlcohol)  lista.push("Shots sin alcohol");
+    if (s.caritoDeShotsConAlcohol)  lista.push("Shots con alcohol");
+    if (s.lluviaDeMariposas)        lista.push("Lluvia de Mariposas");
+    if (s.lluviaMetalica)           lista.push("Lluvia Metálica");
+    if (s.nieblaDePiso)             lista.push("Niebla de Piso");
+    if (s.scrapbook)                lista.push("Scrapbook");
+    if (s.audioGuestBook)           lista.push("Audio Guest Book");
+    if (s.letrasGigantes > 0)       lista.push(`${s.letrasGigantes} Letras Gigantes`);
+    if (s.chisperos > 0)            lista.push(`${s.chisperos} Chisperos`);
+
+    const serviciosHTML = lista.length
+      ? `<ul class="serv-list">${lista.map(x=>`<li>${x}</li>`).join("")}</ul>`
+      : `<em>— sin servicios —</em>`;
+
     div.innerHTML = `
       <strong>${formatoFechaLargo(ev.fecha)}</strong><br>
       ${ev.titulo || ""}<br>
-      <em>${ev.servicios || "— sin servicios —"}</em>
+      ${serviciosHTML}
     `;
     div.onclick = () => abrirModalFecha(ev.id);
     cont.appendChild(div);
   });
-} */
+}
 
 
-/* === 3. Próximos 3 eventos ===================== */
+/* === 3. Próximos 5 eventos ===================== 
 async function cargarProximosEventos() {
   const r   = await fetch("/calendario/proximos?limite=5");
   const obj = await r.json();        // [{id, fecha, titulo}, …]
@@ -2270,7 +2301,7 @@ async function cargarProximosEventos() {
     div.onclick = () => abrirModalFecha(ev.id); // tu modal de edición
     cont.appendChild(div);
   });
-}
+}*/
 
 
 /* === 4. Últimos 3 leads ======================== */
@@ -4337,47 +4368,67 @@ SECCION DE CONFIGURACIÓN
 ========================
 ************************/
 
-document.getElementById("logo-upload-btn").onclick = async () => {
+async function initConfiguracion() {
+  // 1) Carga la vista previa del logo actual
+  await cargarLogo();
+
+  // 2) Bind del input file y botón
   const fileInp = document.getElementById("logo-file");
-  const msg = document.getElementById("logo-msg");
-  msg.className = "hidden";
-  if (!fileInp.files.length) {
-    msg.textContent = "Selecciona un archivo";
-    msg.classList.add("error");
-    msg.classList.remove("hidden");
-    return;
+  const preview = document.getElementById("logo-preview");
+  const upload  = document.getElementById("logo-upload-btn");
+  const msg     = document.getElementById("logo-msg");
+
+  if (fileInp) {
+    fileInp.onchange = e => {
+      const file = e.target.files[0];
+      if (file && preview) preview.src = URL.createObjectURL(file);
+    };
   }
-  const formData = new FormData();
-  formData.append("logo", fileInp.files[0]);
-  try {
-    const res = await fetch("/config/logo", { method: "POST", body: formData });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    // Actualiza ambos previews
-    document.getElementById("logo-preview").src = data.url + "?v=" + Date.now();
-    const panelImg = document.getElementById("logo-img");
-    if (panelImg) panelImg.src = data.url + "?v=" + Date.now();
-    msg.textContent = "Logo actualizado ✔";
-    msg.classList.add("success");
-    msg.classList.remove("hidden");
-    // Opcional: recargar el logo en otras partes
-    cargarLogo();
-  } catch (e) {
-    console.error(e);
-    msg.textContent = "Error: " + e.message;
-    msg.classList.add("error");
-    msg.classList.remove("hidden");
+
+  if (upload) {
+    upload.onclick = async () => {
+      msg.className = "hidden";
+      if (!fileInp.files.length) {
+        msg.textContent = "Selecciona un archivo";
+        msg.className = "error";
+        return;
+      }
+      const form = new FormData();
+      form.append("logo", fileInp.files[0]);
+
+      try {
+        const res = await fetch("/config/logo", { method:"POST", body:form });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // Actualiza preview y panel
+        const url = data.url + "?v="+Date.now();
+        preview.src = url;
+        const panelImg = document.getElementById("logo-img");
+        if (panelImg) panelImg.src = url;
+
+        msg.textContent = "Logo actualizado ✔";
+        msg.className = "success";
+      } catch (e) {
+        msg.textContent = "Error: " + e.message;
+        msg.className = "error";
+      }
+    };
   }
-};
+}
+
+// Desde el sidebar o tu código de navegación:
+mostrarSeccion("configuracion", initConfiguracion);
 
 
-/* Vista previa inmediata al elegir archivo */
+
+/* Vista previa inmediata al elegir archivo 
 document.getElementById("logo-file").onchange = e => {
   const file = e.target.files[0];
   if (file) {
     document.getElementById("logo-preview").src = URL.createObjectURL(file);
   }
-};
+}; */
 
 
   
