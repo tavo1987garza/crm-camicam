@@ -72,6 +72,13 @@ def checar_fecha():
 
 # 📌 Endpoint para la visualzacion de Próximos eventos        
 
+
+
+
+
+
+# 📌 Endpoint para la visualzacion de Próximos eventos        
+
 @app.route("/calendario/proximos")
 def proximos_eventos():
     lim = int(request.args.get("limite", 5))
@@ -80,8 +87,7 @@ def proximos_eventos():
       SELECT 
         id,
         TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD') AS fecha,
-        COALESCE(titulo,'') AS titulo,
-        COALESCE(servicios,'') AS servicios
+        COALESCE(titulo,'') AS titulo
       FROM calendario
       WHERE fecha AT TIME ZONE 'UTC' >= %s
       ORDER BY fecha ASC
@@ -89,11 +95,7 @@ def proximos_eventos():
     """, (date.today(), lim))
     rows = cur.fetchall()
     liberar_db(conn)
-    # Ahora r[3] es servicios
-    return jsonify([
-      { "id": r[0], "fecha": r[1], "titulo": r[2], "servicios": r[3] }
-      for r in rows
-    ])
+    return jsonify([{"id":r[0],"fecha":r[1],"titulo":r[2]} for r in rows])
 
 
 

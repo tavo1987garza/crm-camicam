@@ -1523,7 +1523,7 @@ th {
         
             <!-- 1. Logo de la empresa -->
             <div id="logo-box">
-              <img id="logo-img" src="/config/logo.png" alt="Logo" />
+              <img id="logo-img" alt="Logo" />
             </div>
         
             <!-- 2. Buscador de fechas -->
@@ -2155,8 +2155,21 @@ function mostrarSeccion(seccion, callback = null) {
 
 
 
-/* === 2. Buscador de fechas ===================== */
-document.getElementById("buscar-fecha-btn").onclick = async () => {
+
+/* === Inicializar Panel y Buscador de Fechas === */
+function initPanel() {
+  // 1) Carga logo, eventos, leads, KPI…
+  cargarLogo();
+  cargarProximosEventos();
+  cargarUltimosLeads();
+  cargarKPI();
+
+  // 2) Ahora que #panel está en el DOM, engancha el buscador
+  const btnBuscar = document.getElementById("buscar-fecha-btn");
+  if (btnBuscar) {
+    btnBuscar.onclick = async () => {
+      /* … tu lógica de fetch, alertas … */
+      
   const iso = document.getElementById("buscar-fecha-input").value; // YYYY-MM-DD
   if (!iso) return;
   const r   = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
@@ -2176,9 +2189,13 @@ document.getElementById("buscar-fecha-btn").onclick = async () => {
     alert.classList.add("no-disp");
   }
   alert.classList.remove("hidden");
-};
+    };
+  }
+}
 
-/* === 3. Próximos 3 eventos ===================== */
+
+
+/* === 3. Próximos 3 eventos ===================== 
 async function cargarProximosEventos() {
   const r   = await fetch("/calendario/proximos?limite=5");
   const obj = await r.json();        // [{id, fecha, titulo, servicios}, …]
@@ -2193,6 +2210,22 @@ async function cargarProximosEventos() {
       <em>${ev.servicios || "— sin servicios —"}</em>
     `;
     div.onclick = () => abrirModalFecha(ev.id);
+    cont.appendChild(div);
+  });
+} */
+
+
+/* === 3. Próximos 3 eventos ===================== */
+async function cargarProximosEventos() {
+  const r   = await fetch("/calendario/proximos?limite=5");
+  const obj = await r.json();        // [{id, fecha, titulo}, …]
+  const cont = document.getElementById("postits-container");
+  cont.innerHTML = "";
+  obj.forEach(ev => {
+    const div = document.createElement("div");
+    div.className = "postit";
+    div.innerHTML = `<strong>${formatoFechaLargo(ev.fecha)}</strong><br>${ev.titulo||""}`;
+    div.onclick = () => abrirModalFecha(ev.id); // tu modal de edición
     cont.appendChild(div);
   });
 }
@@ -2214,16 +2247,6 @@ async function cargarKPI() {
   document.getElementById("kpi-meta").textContent   = k.meta;
   const actualEl = document.getElementById("kpi-actual");
   actualEl.className = k.actual >= k.meta ? "green" : "red";
-}
-
-/* === 6. Inicializar Panel ====================== */
-async function initPanel() {
-  await Promise.all([
-    cargarLogo(),
-    cargarProximosEventos(),
-    cargarUltimosLeads(),
-    cargarKPI()
-  ]);
 }
 
 /* Llama initPanel() cuando se muestra la sección Panel */
