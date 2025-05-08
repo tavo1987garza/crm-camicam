@@ -13,7 +13,7 @@ import base64
 import uuid
 from datetime import datetime, timezone, date 
 from flask import send_from_directory
-
+import json
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -71,31 +71,53 @@ def checar_fecha():
 
 
 # 📌 Endpoint para la visualzacion de Próximos eventos        
-
-
 @app.route("/calendario/proximos")
 def proximos_eventos():
-    lim = int(request.args.get("limite", 5))
-    conn = conectar_db(); cur = conn.cursor()
-    cur.execute("""
-      SELECT 
-        id,
-        TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD') AS fecha,
-        COALESCE(titulo,'') AS titulo,
-        COALESCE(servicios::text, '{}') AS servicios
-      FROM calendario
-      WHERE fecha AT TIME ZONE 'UTC' >= %s
-      ORDER BY fecha ASC
-      LIMIT %s
-    """, (date.today(), lim))
-    rows = cur.fetchall()
-    liberar_db(conn)
-    return jsonify([{
-      "id":        r[0],
-      "fecha":     r[1],
-      "titulo":    r[2],
-      "servicios": json.loads(r[3])  # parsea el JSON serializado
-    } for r in rows])
+    try:
+        # 1) Parámetro límite
+        lim = int(request.args.get("limite", 5))
+
+        # 2) Consulta
+        conn = conectar_db()
+        cur  = conn.cursor()
+        cur.execute("""
+          SELECT 
+            id,
+            TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD') AS fecha,
+            COALESCE(titulo,'') AS titulo,
+            COALESCE(servicios::text, '{}')   AS servicios_text
+          FROM calendario
+          WHERE fecha AT TIME ZONE 'UTC' >= %s
+          ORDER BY fecha ASC
+          LIMIT %s
+        """, (date.today(), lim))
+
+        rows = cur.fetchall()
+        liberar_db(conn)
+
+        # 3) Construcción segura de JSON
+        eventos = []
+        for r in rows:
+            raw = r[3]
+            try:
+                servicios = json.loads(raw) if isinstance(raw, str) else raw
+            except Exception as e:
+                app.logger.error(f"Error parseando servicios JSON (‘{raw}’): {e}")
+                servicios = {}
+
+            eventos.append({
+                "id":        r[0],
+                "fecha":     r[1],
+                "titulo":    r[2],
+                "servicios": servicios
+            })
+
+        return jsonify(eventos), 200
+
+    except Exception as exc:
+        # Log completo de la excepción
+        app.logger.exception("500 en /calendario/proximos")
+        return jsonify({"error":"Ocurrió un error al obtener próximos eventos"}), 500
 
 
 
