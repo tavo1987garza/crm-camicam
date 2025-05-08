@@ -2106,9 +2106,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (localStorage.getItem("sidebarCollapsed") === "true") {
         sidebar.classList.add("collapsed");
     }
-    
-    cargarAnios();              // ← llena yearColors apenas arranca la app
-    cargarEtiquetasEnVista(); 
+   
 });
 
 
@@ -2175,6 +2173,7 @@ function mostrarSeccion(seccion, callback = null) {
   // Llama una sola vez al callback apropiado
   if (seccion === 'panel') {
     initPanel();
+
   } else if (callback) {
     callback();
   }
