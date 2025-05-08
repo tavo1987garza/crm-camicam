@@ -194,13 +194,15 @@
         }
         /* Resumen de servicios en postist */
         .serv-list {
-          margin: 8px 0 0 0;
+          margin: 6px 0 0 0;
           padding-left: 18px;
           font-size: 0.9rem;
-        }
-        .serv-list li {
           line-height: 1.3;
         }
+        .serv-list li {
+          list-style: disc outside;
+        }
+        
         
         
         /* KPI */
@@ -1515,7 +1517,8 @@ th {
         <i class="fas fa-cash-register"></i> <!-- 🔹 Icono moderno -->
         <span>Gastos</span>
     </button>
-    <button onclick="mostrarSeccion('configuracion')" class="sidebar-btn">
+    <button onclick="mostrarSeccion('configuracion, initConfiguracion')" class="sidebar-btn">
+
         <i class="fas fa-cog"></i> <!-- 🔹 Icono moderno -->
         <span>Configuración</span>
     </button>
@@ -2248,33 +2251,39 @@ async function initPanel() {
 
 
 /* === 3. Próximos 5 eventos ===================== */
+/* === 3. Próximos 5 eventos con servicios ==== */
 async function cargarProximosEventos() {
   const r   = await fetch("/calendario/proximos?limite=5");
-  const obj = await r.json();        // [{id, fecha, titulo, servicios}, …]
+  if (!r.ok) {
+    console.error("Error al obtener próximos eventos:", await r.text());
+    return;
+  }
+  const arr = await r.json();
   const cont = document.getElementById("postits-container");
+  if (!cont) return;
   cont.innerHTML = "";
 
-  obj.forEach(ev => {
+  arr.forEach(ev => {
     const div = document.createElement("div");
     div.className = "postit";
 
-    // Construye resumen de servicios
+    // Construir resumen de servicios
     const s = ev.servicios || {};
-    const lista = [];
-    if (s.cabinaFotos)              lista.push("Cabina de Fotos");
-    if (s.cabina360)                lista.push("Cabina 360");
-    if (s.caritoDeShotsSinAlcohol)  lista.push("Shots sin alcohol");
-    if (s.caritoDeShotsConAlcohol)  lista.push("Shots con alcohol");
-    if (s.lluviaDeMariposas)        lista.push("Lluvia de Mariposas");
-    if (s.lluviaMetalica)           lista.push("Lluvia Metálica");
-    if (s.nieblaDePiso)             lista.push("Niebla de Piso");
-    if (s.scrapbook)                lista.push("Scrapbook");
-    if (s.audioGuestBook)           lista.push("Audio Guest Book");
-    if (s.letrasGigantes > 0)       lista.push(`${s.letrasGigantes} Letras Gigantes`);
-    if (s.chisperos > 0)            lista.push(`${s.chisperos} Chisperos`);
+    const items = [];
+    if (s.cabinaFotos)             items.push("Cabina de Fotos");
+    if (s.cabina360)               items.push("Cabina 360");
+    if (s.caritoDeShotsSinAlcohol) items.push("Shots sin alcohol");
+    if (s.caritoDeShotsConAlcohol) items.push("Shots con alcohol");
+    if (s.lluviaDeMariposas)       items.push("Lluvia de Mariposas");
+    if (s.lluviaMetalica)          items.push("Lluvia Metálica");
+    if (s.nieblaDePiso)            items.push("Niebla de Piso");
+    if (s.scrapbook)               items.push("Scrapbook");
+    if (s.audioGuestBook)          items.push("Audio Guest Book");
+    if (s.letrasGigantes > 0)      items.push(`${s.letrasGigantes} Letras Gigantes`);
+    if (s.chisperos > 0)           items.push(`${s.chisperos} Chisperos`);
 
-    const serviciosHTML = lista.length
-      ? `<ul class="serv-list">${lista.map(x=>`<li>${x}</li>`).join("")}</ul>`
+    const serviciosHTML = items.length
+      ? `<ul class="serv-list">${items.map(x=>`<li>${x}</li>`).join("")}</ul>`
       : `<em>— sin servicios —</em>`;
 
     div.innerHTML = `
@@ -2282,10 +2291,12 @@ async function cargarProximosEventos() {
       ${ev.titulo || ""}<br>
       ${serviciosHTML}
     `;
+
     div.onclick = () => abrirModalFecha(ev.id);
     cont.appendChild(div);
   });
 }
+
 
 
 /* === 3. Próximos 5 eventos ===================== 
@@ -4367,17 +4378,17 @@ function cambiarColorEtiqueta(etiqueta, nuevoColor) {
 SECCION DE CONFIGURACIÓN
 ========================
 ************************/
-
 async function initConfiguracion() {
-  // 1) Carga la vista previa del logo actual
+  // 1️⃣ Cargar el logo actual
   await cargarLogo();
 
-  // 2) Bind del input file y botón
+  // 2️⃣ Elementos
   const fileInp = document.getElementById("logo-file");
   const preview = document.getElementById("logo-preview");
   const upload  = document.getElementById("logo-upload-btn");
   const msg     = document.getElementById("logo-msg");
 
+  // 3️⃣ Preview inmediato al elegir
   if (fileInp) {
     fileInp.onchange = e => {
       const file = e.target.files[0];
@@ -4385,33 +4396,37 @@ async function initConfiguracion() {
     };
   }
 
+  // 4️⃣ Handler de subida
   if (upload) {
     upload.onclick = async () => {
       msg.className = "hidden";
       if (!fileInp.files.length) {
         msg.textContent = "Selecciona un archivo";
         msg.className = "error";
+        msg.classList.remove("hidden");
         return;
       }
       const form = new FormData();
       form.append("logo", fileInp.files[0]);
 
       try {
-        const res = await fetch("/config/logo", { method:"POST", body:form });
+        const res  = await fetch("/config/logo", { method: "POST", body: form });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        // Actualiza preview y panel
-        const url = data.url + "?v="+Date.now();
-        preview.src = url;
+        const url = data.url + "?v=" + Date.now();
+        // Actualizar ambas vistas
+        if (preview)   preview.src   = url;
         const panelImg = document.getElementById("logo-img");
         if (panelImg) panelImg.src = url;
 
         msg.textContent = "Logo actualizado ✔";
         msg.className = "success";
-      } catch (e) {
+        msg.classList.remove("hidden");
+      } catch(e) {
         msg.textContent = "Error: " + e.message;
         msg.className = "error";
+        msg.classList.remove("hidden");
       }
     };
   }

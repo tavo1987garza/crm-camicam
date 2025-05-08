@@ -71,6 +71,8 @@ def checar_fecha():
 
 
 # 📌 Endpoint para la visualzacion de Próximos eventos        
+
+
 @app.route("/calendario/proximos")
 def proximos_eventos():
     lim = int(request.args.get("limite", 5))
@@ -80,7 +82,7 @@ def proximos_eventos():
         id,
         TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD') AS fecha,
         COALESCE(titulo,'') AS titulo,
-        COALESCE(servicios, '{}'::json) AS servicios
+        COALESCE(servicios::text, '{}') AS servicios
       FROM calendario
       WHERE fecha AT TIME ZONE 'UTC' >= %s
       ORDER BY fecha ASC
@@ -88,13 +90,12 @@ def proximos_eventos():
     """, (date.today(), lim))
     rows = cur.fetchall()
     liberar_db(conn)
-    # r[3] es ya un objeto JSON (si usas psycopg2 con JSON)
-    return jsonify([
-      {"id":r[0], "fecha":r[1], "titulo":r[2], "servicios": r[3]}
-      for r in rows
-    ])
-
-
+    return jsonify([{
+      "id":        r[0],
+      "fecha":     r[1],
+      "titulo":    r[2],
+      "servicios": json.loads(r[3])  # parsea el JSON serializado
+    } for r in rows])
 
 
 
