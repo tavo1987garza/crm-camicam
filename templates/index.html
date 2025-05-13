@@ -2071,7 +2071,7 @@ th {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-    <script>
+    <script> 
 
       /* === 1. Carga logo en el Panel ================= */
       async function cargarLogo() {
@@ -2090,7 +2090,7 @@ th {
         }
       }
 
-document.addEventListener("DOMContentLoaded", function () {
+/*document.addEventListener("DOMContentLoaded", function () {
     console.log("📌 DOM completamente cargado. Configurando eventos.");
 
     cargarLogo();
@@ -2107,6 +2107,15 @@ document.addEventListener("DOMContentLoaded", function () {
         sidebar.classList.add("collapsed");
     }
    
+});*/
+
+// DOMContentLoaded sólo para inits globales
+document.addEventListener("DOMContentLoaded", () => {
+  cargarLogo();
+  // estado del sidebar
+  if (localStorage.getItem("sidebarCollapsed")==="true") {
+    document.querySelector(".sidebar")?.classList.add("collapsed");
+  }
 });
 
 
@@ -2147,34 +2156,43 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 }*/
 
-
 function mostrarSeccion(seccion, callback = null) { 
-  // Esconde todas…
+  // 1) Ocultar todas…
   document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
   const elemento = document.getElementById(seccion);
   if (!elemento) return;
 
-  // Muestra la que toca
+  // 2) Mostrar la que toca
   elemento.classList.remove('hidden');
 
-  // Resalta en el sidebar
+  // 3) Resaltar el botón del sidebar
   document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`)?.classList.add('active');
 
-  // Lógica particular por sección
+  // 4) Lógica particular por sección
+  if (seccion === "leads") {
+    cargarLeads(); 
+  }
   if (seccion === 'calendario') {
     initCalendario();
     cargarLeadsEnSelect();
-  } else if (seccion === 'gastos') {
-    cargarEtiquetasEnVista();
-  } else if (seccion === 'configuracion') {
-    initConfiguracion();
+    return;
   }
-  // Llama una sola vez al callback apropiado
+  if (seccion === 'gastos') {
+    cargarEtiquetasEnVista();
+    return;
+  }
+  if (seccion === 'configuracion') {
+    initConfiguracion();
+    return;
+  }
   if (seccion === 'panel') {
     initPanel();
+    return;
+  }
 
-  } else if (callback) {
+  // 5) Si te pasaron otro callback, lo ejecutas aquí
+  if (callback) {
     callback();
   }
 }
