@@ -1,21 +1,27 @@
 
 
-from flask import Flask, request, jsonify, render_template
-from flask_socketio import SocketIO
 import os
+import json
+import re
+import time
+import base64
+import uuid
+from datetime import datetime, timezone, date
+
+import requests
 import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
-import requests
-import re
-import time 
-import base64
-import uuid
-from datetime import datetime, timezone, date 
-from flask import send_from_directory
-import json
+
+from flask import (
+    Flask, request, jsonify, render_template, send_from_directory,
+    current_app
+)
+from flask_socketio import SocketIO
+
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
 
 # 📌 Ruta raíz
 @app.route("/") 
@@ -779,60 +785,74 @@ def agregar_fecha_manual():
 
   
 # 📌 Obtener todas las fechas ocupadas + colores por año
+
+
 @app.route("/calendario/fechas_ocupadas", methods=["GET"])
 def fechas_ocupadas():
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
+    conn = None
     try:
+        # 1) Conexión
+        conn = conectar_db()
+        if not conn:
+            raise RuntimeError("No hay conexión a la base de datos")
+
         cursor = conn.cursor()
 
-        # --- 1) Fechas con toda tu info ------------------------------
+        # 2) Fechas y detalles
         cursor.execute("""
             SELECT 
                 c.id,
                 TO_CHAR(c.fecha AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS fecha,
                 c.lead_id, 
-                COALESCE(c.titulo, '')  AS titulo,
-                COALESCE(c.notas, '')   AS notas,
-                COALESCE(c.ticket, 0)   AS ticket,
-                c.servicios,
-                l.nombre               AS lead_nombre,
-                EXTRACT(YEAR FROM c.fecha AT TIME ZONE 'UTC') AS anio
+                COALESCE(c.titulo, '')    AS titulo,
+                COALESCE(c.notas, '')     AS notas,
+                COALESCE(c.ticket, 0)::float AS ticket,
+                c.servicios::text         AS servicios_text,
+                l.nombre                  AS lead_nombre,
+                EXTRACT(YEAR FROM c.fecha AT TIME ZONE 'UTC')::int AS anio
             FROM calendario c
             LEFT JOIN leads l ON c.lead_id = l.id
             ORDER BY c.fecha DESC
         """)
+        filas = cursor.fetchall()
+
         fechas = []
-        for row in cursor.fetchall():
+        for row in filas:
+            # parsear el JSON de servicios
+            try:
+                servicios = json.loads(row[6])
+            except Exception:
+                servicios = {}
+                app.logger.warning(f"Servicios malformados: {row[6]}")
+
             fechas.append({
-                "id"        : row[0],
-                "fecha"     : row[1],
-                "lead_id"   : row[2],
-                "titulo"    : row[3],
-                "notas"     : row[4],
-                "ticket"    : float(row[5]) if row[5] else 0.0,
-                "servicios" : row[6] or {},
+                "id":          row[0],
+                "fecha":       row[1],
+                "lead_id":     row[2],
+                "titulo":      row[3],
+                "notas":       row[4],
+                "ticket":      row[5],
+                "servicios":   servicios,
                 "lead_nombre": row[7],
-                "anio"      : int(row[8]) if row[8] else None
+                "anio":        row[8]
             })
 
-        # --- 2) Colores definidos manualmente ------------------------
+        # 3) Colores manuales
         cursor.execute("SELECT anio, color FROM anio_color")
-        colores = {int(row[0]): row[1] for row in cursor.fetchall()}  # {2025:"#1e88e5", …}
+        colores = {int(r[0]): r[1] for r in cursor.fetchall()}
 
-        # --- 3) Respuesta -------------------------------------------
-        return jsonify({
-            "fechas" : fechas,
-            "colores": colores           # 👈  nuevo campo
-        }), 200
+        return jsonify({"fechas": fechas, "colores": colores}), 200
 
     except Exception as e:
-        print(f"Error en fechas_ocupadas: {e}")
-        return jsonify({"error": "Error al procesar fechas"}), 500
+        # Loguea el error completo en Heroku
+        app.logger.exception("Error en /calendario/fechas_ocupadas")
+
+        # Devuelve un cuerpo “vacío” pero con status 200 para no romper la UI
+        return jsonify({"fechas": [], "colores": {}}), 200
+
     finally:
-        liberar_db(conn)
+        if conn:
+            liberar_db(conn)
 
 
 @app.route("/calendario/check", methods=["GET"])

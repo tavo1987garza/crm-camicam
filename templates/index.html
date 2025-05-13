@@ -2265,9 +2265,6 @@ async function initPanel() {
 }
 
 
-
-
-/* === 3. Próximos 5 eventos ===================== */
 /* === 3. Próximos 5 eventos con servicios ==== */
 async function cargarProximosEventos() {
   const r   = await fetch("/calendario/proximos?limite=5");
@@ -2316,20 +2313,6 @@ async function cargarProximosEventos() {
 
 
 
-/* === 3. Próximos 5 eventos ===================== 
-async function cargarProximosEventos() {
-  const r   = await fetch("/calendario/proximos?limite=5");
-  const obj = await r.json();        // [{id, fecha, titulo}, …]
-  const cont = document.getElementById("postits-container");
-  cont.innerHTML = "";
-  obj.forEach(ev => {
-    const div = document.createElement("div");
-    div.className = "postit";
-    div.innerHTML = `<strong>${formatoFechaLargo(ev.fecha)}</strong><br>${ev.titulo||""}`;
-    div.onclick = () => abrirModalFecha(ev.id); // tu modal de edición
-    cont.appendChild(div);
-  });
-}*/
 
 
 /* === 4. Últimos 3 leads ======================== */
