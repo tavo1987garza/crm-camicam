@@ -29,55 +29,32 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 def home():
     return "¡CRM de Camicam funcionando!"
 
+# 📌 Configuración de la conexión con *connection pooling*
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-
-
-
-# 📌 Configuración de la URL de la base de datos
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    app.logger.critical("Falta configurar DATABASE_URL en las variables de entorno")
-    raise RuntimeError("Falta configurar DATABASE_URL")
-
-# 📌 Inicializar el pool de conexiones
 try:
-    db_pool = pool.SimpleConnectionPool(
-        minconn=1,
-        maxconn=10,
-        dsn=DATABASE_URL,
-        sslmode="require"
-    )
-    app.logger.info("Pool de conexiones a la base de datos iniciado con éxito")
+    db_pool = pool.SimpleConnectionPool(1, 10, dsn=DATABASE_URL, sslmode="require")
 except Exception as e:
-    app.logger.error(f"Error al inicializar el pool de conexiones: {e}")
+    print("❌ Error al conectar con la base de datos:", str(e))
     db_pool = None
 
 def conectar_db():
-    """Obtiene una conexión del pool."""
     if db_pool is None:
-        app.logger.error("Intento de conectar sin pool inicializado")
+        print("❌ No se pudo iniciar el pool de conexiones")
         return None
     try:
         return db_pool.getconn()
     except Exception as e:
-        app.logger.error(f"Error al obtener conexión del pool: {e}")
+        print("❌ Error al obtener conexión del pool:", str(e))
         return None
 
 def liberar_db(conn):
-    """Devuelve la conexión al pool."""
-    if not conn or db_pool is None:
-        return
-    try:
+    if conn:
         db_pool.putconn(conn)
-    except Exception as e:
-        app.logger.error(f"Error al liberar conexión al pool: {e}")
+        
 
-@app.teardown_appcontext
-def cerrar_pool(exception=None):
-    """Cierra todas las conexiones cuando la app se apaga."""
-    if db_pool:
-        db_pool.closeall()
-        app.logger.info("Pool de conexiones cerrado")
+
+
 
         
         
