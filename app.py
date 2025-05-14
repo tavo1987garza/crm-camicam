@@ -29,29 +29,53 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 def home():
     return "¡CRM de Camicam funcionando!"
 
-# 📌 Configuración de la conexión con *connection pooling*
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
+
+# 📌 Configuración de la URL de la base de datos
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    app.logger.critical("Falta configurar DATABASE_URL en las variables de entorno")
+    raise RuntimeError("Falta configurar DATABASE_URL")
+
+# 📌 Inicializar el pool de conexiones
 try:
-    db_pool = pool.SimpleConnectionPool(1, 10, dsn=DATABASE_URL, sslmode="require")
+    db_pool = pool.SimpleConnectionPool(
+        minconn=1,
+        maxconn=10,
+        dsn=DATABASE_URL,
+        sslmode="require"
+    )
+    app.logger.info("Pool de conexiones a la base de datos iniciado con éxito")
 except Exception as e:
-    print("❌ Error al conectar con la base de datos:", str(e))
+    app.logger.error(f"Error al inicializar el pool de conexiones: {e}")
     db_pool = None
 
 def conectar_db():
+    """Obtiene una conexión del pool."""
     if db_pool is None:
-        print("❌ No se pudo iniciar el pool de conexiones")
+        app.logger.error("Intento de conectar sin pool inicializado")
         return None
     try:
         return db_pool.getconn()
     except Exception as e:
-        print("❌ Error al obtener conexión del pool:", str(e))
+        app.logger.error(f"Error al obtener conexión del pool: {e}")
         return None
 
 def liberar_db(conn):
-    if conn:
+    """Devuelve la conexión al pool."""
+    if not conn or db_pool is None:
+        return
+    try:
         db_pool.putconn(conn)
-        
+    except Exception as e:
+        app.logger.error(f"Error al liberar conexión al pool: {e}")
+
+@app.teardown_appcontext
+def cerrar_pool(exception=None):
+    """Cierra todas las conexiones cuando la app se apaga."""
+    if db_pool:
+        db_pool.closeall()
+        app.logger.info("Pool de conexiones cerrado")
 
 
 
@@ -83,101 +107,97 @@ def checar_fecha():
 
 
 # 📌 Endpoint para la visualzacion de Próximos eventos        
+
+
 @app.route("/calendario/proximos")
 def proximos_eventos():
     try:
-        # 1) Parámetro límite
         lim = int(request.args.get("limite", 5))
-
-        # 2) Consulta
         conn = conectar_db()
-        cur  = conn.cursor()
+        if not conn:
+            raise RuntimeError("DB pool no inicializado")
+        cur = conn.cursor()
         cur.execute("""
-          SELECT 
-            id,
-            TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD') AS fecha,
-            COALESCE(titulo,'') AS titulo,
-            COALESCE(servicios::text, '{}')   AS servicios_text
+          SELECT id,
+                 TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD'),
+                 COALESCE(titulo,''),
+                 COALESCE(servicios::text,'{}')
           FROM calendario
           WHERE fecha AT TIME ZONE 'UTC' >= %s
           ORDER BY fecha ASC
           LIMIT %s
         """, (date.today(), lim))
-
         rows = cur.fetchall()
         liberar_db(conn)
 
-        # 3) Construcción segura de JSON
-        eventos = []
-        for r in rows:
-            raw = r[3]
+        out = []
+        for id_, fecha, titulo, servicios_text in rows:
             try:
-                servicios = json.loads(raw) if isinstance(raw, str) else raw
-            except Exception as e:
-                app.logger.error(f"Error parseando servicios JSON (‘{raw}’): {e}")
+                servicios = json.loads(servicios_text)
+            except:
                 servicios = {}
+                current_app.logger.warning(f"Servicios JSON inválido: {servicios_text}")
+            out.append({"id": id_, "fecha": fecha, "titulo": titulo, "servicios": servicios})
+        return jsonify(out), 200
 
-            eventos.append({
-                "id":        r[0],
-                "fecha":     r[1],
-                "titulo":    r[2],
-                "servicios": servicios
-            })
-
-        return jsonify(eventos), 200
-
-    except Exception as exc:
-        # Log completo de la excepción
-        app.logger.exception("500 en /calendario/proximos")
-        return jsonify({"error":"Ocurrió un error al obtener próximos eventos"}), 500
-
+    except Exception:
+        current_app.logger.exception("Error en /calendario/proximos")
+        return jsonify([]), 200
 
 
 
 # 📌 Endpoint para mostras los Ultimos Leads
+
+
 @app.route("/leads/ultimos")
 def ultimos_leads():
-    lim = int(request.args.get("limite", 3))
-    conn = conectar_db(); cur = conn.cursor()
-    cur.execute("""
-      SELECT id, nombre, telefono
-      FROM leads
-      ORDER BY id DESC
-      LIMIT %s
-    """, (lim,))
-    rows = cur.fetchall()
-    liberar_db(conn)
-    return jsonify([{"id":r[0],"nombre":r[1],"telefono":r[2]} for r in rows])
+    try:
+        lim = int(request.args.get("limite", 3))
+        conn = conectar_db()
+        if not conn:
+            raise RuntimeError("DB pool no inicializado")
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT id, nombre, telefono FROM leads ORDER BY id DESC LIMIT %s", (lim,))
+        rows = cur.fetchall()
+        liberar_db(conn)
+        return jsonify(rows), 200
+
+    except Exception:
+        current_app.logger.exception("Error en /leads/ultimos")
+        return jsonify([]), 200
 
 
 # 📌 Endpoint para mostrar el FPI ensual (La meta mensual)
+
+
 @app.route("/reportes/kpi_mes")
 def kpi_mes():
-    hoy = datetime.utcnow()
-    mes = hoy.month
-    anio = hoy.year
+    try:
+        hoy = datetime.utcnow()
+        mes, anio = hoy.month, hoy.year
 
-    conn = conectar_db(); cur = conn.cursor()
-    # actual: count eventos en el mes actual
-    cur.execute("""
-      SELECT COUNT(*) 
-      FROM calendario 
-      WHERE EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC')=%s
-        AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC')=%s
-    """, (anio, mes))
-    actual = cur.fetchone()[0]
+        conn = conectar_db()
+        if not conn:
+            raise RuntimeError("DB pool no inicializado")
+        cur = conn.cursor()
+        cur.execute("""
+          SELECT COUNT(*) FROM calendario
+           WHERE EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC')=%s
+             AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC')=%s
+        """, (anio, mes))
+        actual = cur.fetchone()[0]
 
-    # meta: lee de tabla config
-    cur.execute("""
-      SELECT valor 
-      FROM config 
-      WHERE clave='meta_mensual' 
-    """)
-    row = cur.fetchone()
-    meta = int(row[0]) if row and row[0].isdigit() else 15
+        cur.execute("SELECT valor FROM config WHERE clave='meta_mensual'")
+        row = cur.fetchone()
+        meta = int(row[0]) if row and row[0].isdigit() else 15
 
-    liberar_db(conn)
-    return jsonify({"actual": actual, "meta": meta})
+        liberar_db(conn)
+        return jsonify({"actual": actual, "meta": meta}), 200
+
+    except Exception:
+        current_app.logger.exception("Error en /reportes/kpi_mes")
+        # Fallback: actual = 0, meta = 15
+        return jsonify({"actual": 0, "meta": 15}), 200
 
 
 
@@ -1466,15 +1486,26 @@ def subir_logo():
 
 
 # RUTA PARA OBTENER LOGO
+
+
 @app.route("/config/logo", methods=["GET"])
 def obtener_logo():
-    conn = conectar_db()
-    cur  = conn.cursor()
-    cur.execute("SELECT valor FROM config WHERE clave='logo_url'")
-    row = cur.fetchone()
-    url = row[0] if row else "/static/logo/default.png"
-    return jsonify({"url": url})
+    try:
+        conn = conectar_db()
+        if not conn:
+            raise RuntimeError("DB pool no inicializado")
+        cur = conn.cursor()
+        cur.execute("SELECT valor FROM config WHERE clave='logo_url'")
+        row = cur.fetchone()
+        liberar_db(conn)
 
+        url = row[0] if row and row[0] else "/static/logo/default.png"
+        return jsonify({"url": url}), 200
+
+    except Exception:
+        current_app.logger.exception("Error en GET /config/logo")
+        # Fallback silencioso
+        return jsonify({"url": "/static/logo/default.png"}), 200
 
 
 
