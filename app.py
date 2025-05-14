@@ -70,12 +70,7 @@ def liberar_db(conn):
     except Exception as e:
         app.logger.error(f"Error al liberar conexión al pool: {e}")
 
-@app.teardown_appcontext
-def cerrar_pool(exception=None):
-    """Cierra todas las conexiones cuando la app se apaga."""
-    if db_pool:
-        db_pool.closeall()
-        app.logger.info("Pool de conexiones cerrado")
+
 
 
 
