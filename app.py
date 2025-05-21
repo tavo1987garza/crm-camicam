@@ -1443,64 +1443,58 @@ def eliminar_etiqueta():
         
         
         
-        
-        
-        
-        
 # RUTA PARA SUBIR LOGO 
 @app.route("/config/logo", methods=["POST"])
 def subir_logo():
-    if "logo" not in request.files:
-        return jsonify({"error":"Archivo faltante"}), 400
+    file = request.files.get("logo")
+    if not file or file.filename == "":
+        return jsonify({"error": "Archivo inválido"}), 400
 
-    file = request.files["logo"]
-    if file.filename == "":
-        return jsonify({"error":"Archivo inválido"}), 400
+    # 1) Convertir a data-URI
+    mime = file.content_type  # p.e. 'image/png'
+    data = base64.b64encode(file.read()).decode()  
+    uri  = f"data:{mime};base64,{data}"
 
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in [".png", ".jpg", ".jpeg", ".gif"]:
-        return jsonify({"error":"Formato no soportado"}), 400
+    # 2) Guardar en config
+    try:
+        conn = conectar_db()
+        if not conn:
+            raise RuntimeError("DB no disponible")
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO config (clave, valor)
+            VALUES ('logo_base64', %s)
+            ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
+        """, (uri,))
+        conn.commit()
+    finally:
+        liberar_db(conn)
 
-    filename = f"logo{ext}"
-    path     = os.path.join("static", "logo", filename)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    file.save(path)
+    # 3) Responder al cliente con la URL nueva
+    return jsonify({"url": uri}), 200
 
-    # guarda URL en tabla config (clave 'logo_url')
-    conn = conectar_db()
-    cur  = conn.cursor()
-    cur.execute("""
-        INSERT INTO config (clave, valor)
-        VALUES ('logo_url', %s)
-        ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
-    """, ("/static/logo/"+filename,))
-    conn.commit()
-    liberar_db(conn)
 
-    return jsonify({"url": "/static/logo/"+filename}), 200
 
 
 # RUTA PARA OBTENER LOGO
-
-
 @app.route("/config/logo", methods=["GET"])
 def obtener_logo():
     try:
         conn = conectar_db()
         if not conn:
-            raise RuntimeError("DB pool no inicializado")
+            raise RuntimeError("DB no disponible")
         cur = conn.cursor()
-        cur.execute("SELECT valor FROM config WHERE clave='logo_url'")
+        cur.execute("SELECT valor FROM config WHERE clave='logo_base64'")
         row = cur.fetchone()
+    finally:
         liberar_db(conn)
 
-        url = row[0] if row and row[0] else "/static/logo/default.png"
-        return jsonify({"url": url}), 200
+    # Si existe un valor, lo devolvemos; si no, fallback a un default estático
+    if row and row[0]:
+        return jsonify({"url": row[0]}), 200
 
-    except Exception:
-        current_app.logger.exception("Error en GET /config/logo")
-        # Fallback silencioso
-        return jsonify({"url": "/static/logo/default.png"}), 200
+    # Fallback
+    return jsonify({"url": "/static/logo/default.png"}), 200
 
 
 
