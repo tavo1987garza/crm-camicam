@@ -2074,21 +2074,31 @@ th {
     <script> 
 
       /* === 1. Carga logo en el Panel ================= */
-      async function cargarLogo() {
-        try {
-          const resp = await fetch("/config/logo");
-          const obj  = await resp.json();
-          const url  = obj.url + "?v=" + Date.now();
-          // Panel (header)
-          const panelImg = document.getElementById("logo-img");
-          if (panelImg) panelImg.src = url;
-          // Configuración (preview)
-          const preview  = document.getElementById("logo-preview");
-          if (preview) preview.src = url;
-        } catch (e) {
-          console.error("Error cargando logo:", e);
-        }
-      } 
+    
+
+  async function cargarLogo() {
+  try {
+    const resp = await fetch("/config/logo");
+    const obj  = await resp.json();
+    let url    = obj.url;
+
+    // Si no es data:URI, le pegamos un cache-busting
+    if (!url.startsWith("data:")) {
+      url += "?v=" + Date.now();
+    }
+
+    // Panel (header)
+    const panelImg = document.getElementById("logo-img");
+    if (panelImg) panelImg.src = url;
+
+    // Configuración (preview)
+    const preview  = document.getElementById("logo-preview");
+    if (preview)  preview.src = url;
+  } catch (e) {
+    console.error("Error cargando logo:", e);
+  }
+}
+
 
 /*document.addEventListener("DOMContentLoaded", function () {
     console.log("📌 DOM completamente cargado. Configurando eventos.");
@@ -2199,7 +2209,7 @@ function mostrarSeccion(seccion, callback = null) {
 
            
 
-        // 🔹 Conectar con WebSockets
+        // 🔹 Conectar con WebSockets 
                 
 /*==============================================================
 //CON ESTO CONECTAMOS CON WEBSOCKET Actualizacion en Tiempo Real
