@@ -2065,6 +2065,67 @@ th {
     </div>
 
     <div id="alerta-mensaje" class="notification"></div>  
+
+    <button class="add-button" onclick="mostrarModalConfig()">
+  ⚙️ Configurar Integraciones 
+</button>
+
+<!-- Modal genérico para Configuración de Credenciales -->
+<div id="modal-config-credentials" class="modal hidden">
+  <div class="modal-content">
+    <button class="close-btn" onclick="cerrarModalConfig()">✖</button>
+    <h2>⚙️ Credenciales de Integración</h2>
+
+    <form id="form-config-credentials">
+
+      <div class="form-group">
+      <label for="whatsapp_token">WhatsApp Access Token:</label>
+      <input type="password" id="whatsapp_token" placeholder="••••••••••" />
+    </div>
+    <div class="form-group">
+      <label for="whatsapp_phone_id">WhatsApp Phone Number ID:</label>
+      <input type="text" id="whatsapp_phone_id" placeholder="Ej. 1234567890" />
+    </div>
+    <div class="form-group">
+      <label for="whatsapp_verify_token">WhatsApp Verify Token:</label>
+      <input type="password" id="whatsapp_verify_token" placeholder="••••••••••" />
+    </div>
+
+    <!-- Agrega aquí campos para Messenger, Instagram, etc. -->
+    <div class="form-group">
+      <label for="fb_page_token">Facebook Page Token:</label>
+      <input type="password" id="fb_page_token" placeholder="••••••••••" />
+    </div>
+    <div class="form-group">
+      <label for="instagram_token">Instagram Access Token:</label>
+      <input type="password" id="instagram_token" placeholder="••••••••••" />
+    </div>
+
+    <!-- Agrega aquí campos para OpenAI -->
+      <div class="form-group">
+        <label for="openai_api_key">OpenAI API Key:</label>
+        <input type="password" id="openai_api_key" placeholder="••••••••••" />
+      </div>
+
+      <!-- Agrega aquí campos para n8n -->
+    <div class="form-group">
+      <label for="n8n_url">URL de n8n:</label>
+      <input type="url" id="n8n_url" placeholder="https://tu-n8n.example.com"/>
+    </div>
+    <div class="form-group">
+      <label for="n8n_api_key">API Key de n8n:</label>
+      <input type="password" id="n8n_api_key" placeholder="••••••••••"/>
+    </div>
+
+      <div class="modal-buttons">
+        <button type="button" class="save-btn" onclick="guardarCredenciales()">Guardar</button>
+        <button type="button" class="cancel-btn" onclick="cerrarModalConfig()">Cancelar</button>
+      </div>
+      <span id="config-cred-msg" class="hidden"></span>
+    </form>
+  </div>
+</div>
+
 </div>
 
 
@@ -4442,18 +4503,107 @@ async function initConfiguracion() {
   }
 }
 
+//CARGAR LAS CREDENCIALES
+// 1️⃣ Abrir y cargar
+function mostrarModalConfig() {
+  cargarCredencialesEnModal();
+  document.getElementById("modal-config-credentials").classList.remove("hidden");
+}
+
+// 2️⃣ Cerrar
+function cerrarModalConfig() {
+  document.getElementById("modal-config-credentials").classList.add("hidden");
+}
+
+// 3️⃣ Cargar valores existentes en los inputs
+async function cargarCredencialesEnModal() {
+  try {
+    // Mensajería
+    const resMens = await fetch("/config/mensajeria");
+    const mens = await resMens.json();
+    document.getElementById("whatsapp_token").value       = mens.whatsapp_token     || "";
+    document.getElementById("whatsapp_phone_id").value    = mens.whatsapp_phone_id  || "";
+    document.getElementById("whatsapp_verify_token").value = mens.whatsapp_verify_token || "";
+    document.getElementById("fb_page_token").value        = mens.fb_page_token      || "";
+    document.getElementById("instagram_token").value      = mens.instagram_token    || "";
+
+    // OpenAI
+    const resIa = await fetch("/config/ia");
+    const ia    = await resIa.json();
+    document.getElementById("openai_api_key").value = ia.openai_api_key || "";
+
+    // n8n
+    const resN8 = await fetch("/config/n8n");
+    const n8    = await resN8.json();
+    document.getElementById("n8n_url").value     = n8.n8n_url     || "";
+    document.getElementById("n8n_api_key").value = n8.n8n_api_key || "";
+  } catch (e) {
+    console.error("Error cargando credenciales:", e);
+  }
+}
+
+// 4️⃣ Guardar todos los bloques de credenciales juntos
+async function guardarCredenciales() {
+  const msgEl = document.getElementById("config-cred-msg");
+  msgEl.className = "hidden";
+
+  // Prepara payloads
+  const mensPayload = {
+    whatsapp_token:       document.getElementById("whatsapp_token").value.trim(),
+    whatsapp_phone_id:    document.getElementById("whatsapp_phone_id").value.trim(),
+    whatsapp_verify_token: document.getElementById("whatsapp_verify_token").value.trim(),
+    fb_page_token:        document.getElementById("fb_page_token").value.trim(),
+    instagram_token:      document.getElementById("instagram_token").value.trim()
+  };
+  const iaPayload = {
+    openai_api_key:       document.getElementById("openai_api_key").value.trim()
+  };
+  const n8nPayload = {
+    n8n_url:              document.getElementById("n8n_url").value.trim(),
+    n8n_api_key:          document.getElementById("n8n_api_key").value.trim()
+  };
+
+  try {
+    // Mensajería
+    let res = await fetch("/config/mensajeria", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(mensPayload)
+    });
+    let data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // IA
+    res = await fetch("/config/ia", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(iaPayload)
+    });
+    data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // n8n
+    res = await fetch("/config/n8n", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(n8nPayload)
+    });
+    data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    msgEl.textContent = "Credenciales guardadas ✔";
+    msgEl.className   = "success";
+    setTimeout(cerrarModalConfig, 800);
+  } catch (e) {
+    msgEl.textContent = "Error: " + e.message;
+    msgEl.className   = "error";
+  }
+  msgEl.classList.remove("hidden");
+}
+
+
 // Desde el sidebar o tu código de navegación:
 mostrarSeccion("configuracion", initConfiguracion);
 
 
 
-/* Vista previa inmediata al elegir archivo 
-document.getElementById("logo-file").onchange = e => {
-  const file = e.target.files[0];
-  if (file) {
-    document.getElementById("logo-preview").src = URL.createObjectURL(file);
-  }
-}; */
 
 
   

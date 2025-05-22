@@ -1498,6 +1498,60 @@ def obtener_logo():
 
 
 
+# 📌 Endpoint para Mensajería
+@app.route("/config/mensajeria", methods=["GET","POST"])
+def config_mensajeria():
+    if request.method == "GET":
+        conn = conectar_db(); cur = conn.cursor()
+        cur.execute("SELECT clave,valor FROM config WHERE clave LIKE 'mensajeria:%'")
+        rows = cur.fetchall(); liberar_db(conn)
+        return jsonify({k.split(":",1)[1]:v for k,v in rows})
+    # POST
+    data = request.json or {}
+    conn = conectar_db(); cur = conn.cursor()
+    for k,v in data.items():
+        cur.execute("""INSERT INTO config(clave,valor)
+                       VALUES (%s,%s)
+                       ON CONFLICT(clave) DO UPDATE SET valor=EXCLUDED.valor""",
+                    (f"mensajeria:{k}", v))
+    conn.commit(); liberar_db(conn)
+    return jsonify({"ok":True})
+
+# IA (OpenAI)
+@app.route("/config/ia", methods=["GET","POST"])
+def config_ia():
+    if request.method == "GET":
+        conn = conectar_db(); cur = conn.cursor()
+        cur.execute("SELECT valor FROM config WHERE clave='openai:api_key'")
+        row = cur.fetchone(); liberar_db(conn)
+        return jsonify({"openai_api_key": row[0] if row else ""})
+    key = request.json.get("openai_api_key","")
+    conn = conectar_db(); cur = conn.cursor()
+    cur.execute("""INSERT INTO config(clave,valor)
+                   VALUES ('openai:api_key',%s)
+                   ON CONFLICT(clave) DO UPDATE SET valor=EXCLUDED.valor""",
+                (key,))
+    conn.commit(); liberar_db(conn)
+    return jsonify({"ok":True})
+
+# n8n
+@app.route("/config/n8n", methods=["GET","POST"])
+def config_n8n():
+    if request.method == "GET":
+        conn = conectar_db(); cur = conn.cursor()
+        cur.execute("SELECT clave,valor FROM config WHERE clave LIKE 'n8n:%'")
+        rows = cur.fetchall(); liberar_db(conn)
+        return jsonify({k.split(":",1)[1]:v for k,v in rows})
+    data = request.json or {}
+    conn = conectar_db(); cur = conn.cursor()
+    for k,v in data.items():
+        cur.execute("""INSERT INTO config(clave,valor)
+                       VALUES (%s,%s)
+                       ON CONFLICT(clave) DO UPDATE SET valor=EXCLUDED.valor""",
+                    (f"n8n:{k}", v))
+    conn.commit(); liberar_db(conn)
+    return jsonify({"ok":True})
+
 
 
 # 📌 Endpoint para renderizar el Dashboard Web
