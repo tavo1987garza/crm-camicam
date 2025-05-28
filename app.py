@@ -15,12 +15,15 @@ from psycopg2.extras import RealDictCursor
 
 from flask import (
     Flask, request, jsonify, render_template, send_from_directory,
-    current_app
+    current_app, g, abort
 )
 from flask_socketio import SocketIO
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+from functools import wraps
+
 
 
 
@@ -1552,6 +1555,25 @@ def config_n8n():
     conn.commit(); liberar_db(conn)
     return jsonify({"ok":True})
 
+
+# Decorador genérico que verifica permisos antes de ejecutar un endpoin
+def requires_permission(action):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            user = g.current_user
+            if not user.has_permission(action):
+                abort(403)
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+# Proteccion de Rutas
+@app.route("/pipeline/mover", methods=["POST"])
+@requires_permission("move_pipeline")
+def mover_pipeline():
+    # lógica para mover lead
+    ...
 
 
 # 📌 Endpoint para renderizar el Dashboard Web

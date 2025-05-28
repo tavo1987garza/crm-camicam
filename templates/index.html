@@ -2061,9 +2061,20 @@ th {
         
             <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
             <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
-             <button class="add-button" onclick="mostrarModalConfig()">
+             <!-- Botón para ingresar las crednciales  -->
+            <button class="add-button" onclick="mostrarModalConfig()">
   ⚙️ Configurar Integraciones 
 </button>
+ <!-- Botón para Invitar a un vendedor  -->
+<div id="modal-usuarios" class="modal hidden">
+  <div class="modal-content">
+    <button class="close-btn" onclick="cerrarModal('modal-usuarios')">✖</button>
+    <h2>👥 Gestor de Usuarios</h2>
+    <ul id="lista-usuarios"></ul>
+    <button class="add-button" onclick="mostrarModalInvitar()">➕ Invitar Usuario</button>
+  </div>
+</div>
+
         </div>
     </div>
 
@@ -4597,6 +4608,19 @@ async function guardarCredenciales() {
     msgEl.className   = "error";
   }
   msgEl.classList.remove("hidden");
+}
+
+
+//Cargar Lista de Usuarios
+async function cargarUsuarios() {
+  const res = await fetch("/users?tenant_id=" + g.current_user.tenant_id);
+  const users = await res.json(); // [{id,email,roles:[…]},…]
+  const ul = document.getElementById("lista-usuarios");
+  ul.innerHTML = users.map(u =>
+    `<li>${u.email} — Roles: ${u.roles.join(", ")}
+      <button onclick="editarRoles(${u.id})">⚙️ Roles</button>
+    </li>`
+  ).join("");
 }
 
 
