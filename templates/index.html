@@ -4611,7 +4611,7 @@ async function guardarCredenciales() {
 }
 
 
-//Cargar Lista de Usuarios
+//Cargar Lista de Usuarios 
 async function cargarUsuarios() {
   const res = await fetch("/users?tenant_id=" + g.current_user.tenant_id);
   const users = await res.json(); // [{id,email,roles:[…]},…]

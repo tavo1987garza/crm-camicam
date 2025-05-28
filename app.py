@@ -24,7 +24,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 from functools import wraps
 
-
+from werkzeug.security import generate_password_hash
 
 
 # 📌 Ruta raíz
@@ -1574,6 +1574,125 @@ def requires_permission(action):
 def mover_pipeline():
     # lógica para mover lead
     ...
+
+
+
+# 📌 Endpoint para gestión de usuarios y roles en el CRM
+# Helper: decorator de permisos (asume que g.current_user está cargado)
+def requires_permission(action):
+    def decorator(f):
+        from functools import wraps
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            user = g.current_user
+            if not user.has_permission(action):
+                abort(403)
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+# 1) GET /users?tenant_id=...
+@app.route("/users", methods=["GET"])
+@requires_permission("view_users")
+def listar_usuarios():
+    tenant_id = request.args.get("tenant_id", type=int)
+    if not tenant_id:
+        return jsonify({"error":"tenant_id requerido"}), 400
+
+    conn = conectar_db(); cur = conn.cursor()
+    # Traemos usuario y sus roles en array
+    cur.execute("""
+      SELECT u.id, u.email,
+        ARRAY(
+          SELECT r.name
+          FROM user_roles ur
+          JOIN roles r ON ur.role_id = r.id
+          WHERE ur.user_id = u.id
+        ) AS roles
+      FROM users u
+      WHERE u.tenant_id = %s
+    """, (tenant_id,))
+    rows = cur.fetchall()
+    liberar_db(conn)
+
+    usuarios = [{"id":r[0], "email":r[1], "roles": r[2]} for r in rows]
+    return jsonify(usuarios), 200
+
+
+# 2) POST /users/invite
+@app.route("/users/invite", methods=["POST"])
+@requires_permission("manage_users")
+def invitar_usuario():
+    data = request.json or {}
+    email     = data.get("email", "").strip()
+    tenant_id = data.get("tenant_id")
+    if not email or not tenant_id:
+        return jsonify({"error":"email y tenant_id son requeridos"}), 400
+
+    # Generar password temporal o token de registro
+    temp_password = uuid.uuid4().hex[:8]
+    pw_hash = generate_password_hash(temp_password)
+
+    conn = conectar_db(); cur = conn.cursor()
+    try:
+        # Crear usuario con rol 'seller' por defecto
+        cur.execute("""
+          INSERT INTO users (email, password_hash, tenant_id)
+          VALUES (%s, %s, %s)
+          RETURNING id
+        """, (email, pw_hash, tenant_id))
+        user_id = cur.fetchone()[0]
+        # Asignar rol 'seller'
+        cur.execute("""
+          INSERT INTO user_roles (user_id, role_id)
+          SELECT %s, id FROM roles WHERE name='seller'
+        """, (user_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        liberar_db(conn)
+        return jsonify({"error":str(e)}), 500
+    liberar_db(conn)
+
+    # Enviar email con credenciales temporales y/o link de registro
+    # aquí pondrías tu lógica de envío de correo...
+    enviar_email(
+      to=email,
+      subject="Invitación a tu CRM",
+      body=f"Te hemos invitado. Tu contraseña temporal es: {temp_password}"
+    )
+
+    return jsonify({"ok":True, "user_id": user_id}), 201
+
+
+# 3) POST /users/<id>/roles
+@app.route("/users/<int:user_id>/roles", methods=["POST"])
+@requires_permission("manage_users")
+def actualizar_roles(user_id):
+    data = request.json or {}
+    roles = data.get("roles")
+    if not isinstance(roles, list):
+        return jsonify({"error":"Se requiere un array 'roles'"}), 400
+
+    conn = conectar_db(); cur = conn.cursor()
+    try:
+        # Borrar roles previos
+        cur.execute("DELETE FROM user_roles WHERE user_id=%s", (user_id,))
+        # Insertar nuevos
+        for role_name in roles:
+            cur.execute("""
+              INSERT INTO user_roles (user_id, role_id)
+              SELECT %s, id FROM roles WHERE name = %s
+            """, (user_id, role_name))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        liberar_db(conn)
+        return jsonify({"error":str(e)}), 500
+    liberar_db(conn)
+
+    return jsonify({"ok":True}), 200
+
 
 
 # 📌 Endpoint para renderizar el Dashboard Web
