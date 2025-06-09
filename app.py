@@ -105,8 +105,6 @@ def checar_fecha():
 
 
 # 📌 Endpoint para la visualzacion de Próximos eventos        
-
-
 @app.route("/calendario/proximos")
 def proximos_eventos():
     try:
@@ -145,8 +143,6 @@ def proximos_eventos():
 
 
 # 📌 Endpoint para mostras los Ultimos Leads
-
-
 @app.route("/leads/ultimos")
 def ultimos_leads():
     try:
@@ -165,9 +161,7 @@ def ultimos_leads():
         return jsonify([]), 200
 
 
-# 📌 Endpoint para mostrar el FPI ensual (La meta mensual)
-
-
+# 📌 Endpoint para mostrar el KPI ensual (La meta mensual)
 @app.route("/reportes/kpi_mes")
 def kpi_mes():
     try:
@@ -422,9 +416,6 @@ def crear_lead():
 
     finally:
         liberar_db(conn)
-
-
-
 
 
 # 📌 Endpoint para actualizar estado de Lead
@@ -756,9 +747,9 @@ def agregar_fecha_manual():
         cursor.execute("SELECT COUNT(*) FROM calendario WHERE fecha = %s", (fecha_str,))
         ya_hay = cursor.fetchone()[0]
 
-        if ya_hay >= 2:
+        if ya_hay >= 4:
             return jsonify({"ok": False,
-                            "mensaje": f"El {fecha_str} ya tiene 2 eventos registrados."}), 200
+                            "mensaje": f"El {fecha_str} ya tiene 4 eventos registrados."}), 200
 
         if ya_hay == 1 and not force:
             # Hay 1 evento y aún no confirmas el segundo
@@ -809,8 +800,6 @@ def agregar_fecha_manual():
 
   
 # 📌 Obtener todas las fechas ocupadas + colores por año
-
-
 @app.route("/calendario/fechas_ocupadas", methods=["GET"])
 def fechas_ocupadas():
     conn = None
