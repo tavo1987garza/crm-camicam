@@ -743,19 +743,33 @@ def agregar_fecha_manual():
         else:
             servicios_json = {}
             
-          # 1️⃣  ¿Cuántos eventos hay ya ese día?
+          # 1️⃣  ¿Cuántos eventos hay ya ese día? solo se puede agregar hasta 4 eventos 
         cursor.execute("SELECT COUNT(*) FROM calendario WHERE fecha = %s", (fecha_str,))
         ya_hay = cursor.fetchone()[0]
-
-        if ya_hay >= 4:
-            return jsonify({"ok": False,
-                            "mensaje": f"El {fecha_str} ya tiene 4 eventos registrados."}), 200
 
         if ya_hay == 1 and not force:
             # Hay 1 evento y aún no confirmas el segundo
             return jsonify({"ok": False,
                             "second_possible": True,
                             "mensaje": f"Ya hay un evento el {fecha_str}. ¿Agregar un segundo?"}), 200
+
+        if ya_hay == 2 and not force:
+            # Hay 2 evento y aún no confirmas el tercero
+            return jsonify({"ok": False,
+                            "second_possible": True,
+                            "mensaje": f"Ya hay 2 eventos el {fecha_str}. ¿Agregar un tercero?"}), 200
+            
+        if ya_hay == 3 and not force:
+            # Hay 3 evento y aún no confirmas el cuarto
+            return jsonify({"ok": False,
+                            "second_possible": True,
+                            "mensaje": f"Ya hay 3 eventos el {fecha_str}. ¿Agregar un cuarto?"}), 200
+            
+        if ya_hay >= 4:
+            # Aqui manejamos el limite de hasta 4 eventos 
+            return jsonify({"ok": False,
+                            "mensaje": f"El {fecha_str} a alcanzado el limite de 4 eventos registrados."}), 200
+
 
 
         # Insertar en la tabla calendario
