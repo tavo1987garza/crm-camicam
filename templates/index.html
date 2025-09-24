@@ -2699,36 +2699,46 @@ document.body.addEventListener("click", function () {
         }
 
           //Actualiza la lista de chats a un lado del telefono
-        function actualizarListaChats(remitente, mensaje) {
-  let chatLista = document.getElementById("lista-chats");
-  let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
+          function actualizarListaChats(remitente, mensaje) {
+            let chatLista = document.getElementById("lista-chats");
+            let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
+        
+            if (!chatExistente) {
+                fetch(`/mensajes_chat?id=${remitente}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let nombre = data.nombre || remitente;
+        
+                        // Crear un nuevo chat si no existe
+                        let div = document.createElement("div");
+                        div.classList.add("chat-item");
+                        div.setAttribute("data-remitente", remitente);
+                        div.onclick = function () {
+                            seleccionarChat(div);
+                        };
+        
+                        div.innerHTML = `
+                            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                            <div class="chat-info">
+                                <div class="chat-name">${nombre}</div>
+                                <div class="chat-last-message">${mensaje}</div>
+                            </div>
+                            <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                        `;
+                        chatLista.appendChild(div);
+                        chatExistente = div;
+                    })
+                    .catch(error => console.error("❌ Error al obtener nombre del lead:", error));
+            } else {
+                // ✅ Si el chat ya existe, actualizar correctamente
+                chatExistente.querySelector(".chat-last-message").textContent = mensaje;
+                chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            }
+        
+            return chatExistente;
+        }
+        
 
-  if (!chatExistente) {
-    fetch(`/mensajes_chat?id=${remitente}`)
-      .then(response => response.json())
-      .then(data => {
-        let nombre = data.nombre || remitente;
-        let div = document.createElement("div");
-        div.classList.add("chat-item");
-        div.setAttribute("data-remitente", remitente);
-        div.onclick = function () { seleccionarChat(div); };
-        div.innerHTML = `
-          <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
-          <div class="chat-info">
-            <div class="chat-name">${nombre}</div>
-            <div class="chat-last-message">${mensaje}</div>
-          </div>
-          <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-        `;
-        chatLista.appendChild(div);
-      })
-      .catch(error => console.error("❌ Error al obtener nombre del lead:", error));
-  } else {
-    chatExistente.querySelector(".chat-last-message").textContent = mensaje;
-    chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  return chatExistente;
-}
 
 
         function cargarChat() {
