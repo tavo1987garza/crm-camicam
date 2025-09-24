@@ -194,7 +194,7 @@ def kpi_mes():
 
 
 ##################################
-#----------SECCION LEADS----------
+#----------SECCION LEADS---------- 
 ##################################   
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
@@ -202,17 +202,21 @@ def kpi_mes():
 def recibir_mensaje():
     datos = request.json
     plataforma = datos.get("plataforma")
-    # Convertir remitente a string para poder hacer slicing o concatenar
     remitente = str(datos.get("remitente", ""))
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")  # podría ser "enviado", "recibido", "recibido_imagen", "enviado_imagen", etc.
+    tipo = datos.get("tipo")
 
-    # ✅ Validaciones: asegurarse de tener plataforma, remitente y mensaje
-    if not plataforma or not remitente or not mensaje:
+    if not plataforma or not remitente or mensaje is None:
         return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
 
-    # Permitir valores para mensajes de texto y de imagen
-    if tipo not in ["enviado", "recibido", "recibido_imagen", "enviado_imagen"]:
+    # Ampliar tipos válidos (texto, imagen y opcional video)
+    tipos_validos = {
+        "enviado", "recibido",
+        "recibido_imagen", "enviado_imagen",
+        "recibido_video", "enviado_video"
+    }
+    if tipo not in tipos_validos:
+        # Por compatibilidad, cualquier cosa desconocida se trata como recibido (texto)
         tipo = "recibido"
 
     conn = conectar_db()
@@ -222,12 +226,11 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # 🔸 Verificar si existe un lead con ese teléfono
+        # crear lead si no existe (igual que lo tenías)
         cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
-        lead = cursor.fetchone()   # lead será None si no hay fila, o una tupla (id, nombre)
-
+        lead = cursor.fetchone()
+        lead_id = None
         if not lead:
-            # Si no hay lead, creamos uno con nombre por defecto
             nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
             cursor.execute("""
                 INSERT INTO leads (nombre, telefono, estado)
@@ -235,24 +238,18 @@ def recibir_mensaje():
                 ON CONFLICT (telefono) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente))
-            lead_id_row = cursor.fetchone()  # Esto será una tupla con el nuevo id (o None si no se insertó)
-            if lead_id_row:
-                lead_id = lead_id_row[0]  # Extraemos el entero id
-            else:
-                lead_id = None
+            row = cursor.fetchone()
+            if row:
+                lead_id = row[0]
         else:
-            # Si sí existe, lead[0] es el id, lead[1] es el nombre
             lead_id = lead[0]
-            nombre_por_defecto = None  # porque ya tenemos el lead existente
 
-        # 🔸 Insertar el nuevo mensaje en la tabla `mensajes`
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
             VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo))  # Aquí usamos el tipo correcto sin sobreescribir imágenes
+        """, (plataforma, remitente, mensaje, tipo))
         conn.commit()
 
-        # 🔸 Emitir evento socket.io para el frontend
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
@@ -260,16 +257,10 @@ def recibir_mensaje():
             "tipo": tipo
         })
 
-        # 🔸 Si se creó / existe un lead_id, emitimos 'nuevo_lead'
         if lead_id:
-            if not lead:  # Si recién lo creamos, usamos nombre_por_defecto
-                lead_nombre = nombre_por_defecto
-            else:
-                lead_nombre = lead[1]  # lead[1] es el nombre que ya estaba en la DB
-
             socketio.emit("nuevo_lead", {
-                "id": lead_id,  # Usamos directamente lead_id (entero)
-                "nombre": lead_nombre if lead_nombre else "",
+                "id": lead_id,
+                "nombre": (lead[1] if lead else nombre_por_defecto) or "",
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
             })
@@ -279,7 +270,6 @@ def recibir_mensaje():
     except Exception as e:
         print(f"❌ Error en /recibir_mensaje: {str(e)}")
         return jsonify({"error": "Error interno del servidor"}), 500
-
     finally:
         liberar_db(conn)
 
