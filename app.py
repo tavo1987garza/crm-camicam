@@ -277,55 +277,66 @@ def recibir_mensaje():
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com"
 
-@app.route("/enviar_mensaje", methods=["POST"])  
+@app.route("/enviar_mensaje", methods=["POST"])
 def enviar_mensaje():
     datos = request.json
     telefono = datos.get("telefono")
-    tipo = datos.get("tipo", "texto")   # 'texto' por defecto
-    url_imagen = datos.get("url")       # solo relevante si es imagen
+    tipo = datos.get("tipo", "texto")
+    url_imagen = datos.get("url")
+    url_video = datos.get("url_video")
     caption = datos.get("caption", "")
     mensaje_texto = datos.get("mensaje")
 
     if not telefono:
         return jsonify({"error": "Número de teléfono es obligatorio"}), 400
 
-    # Enviamos la orden al bot:
+    # Imagen
     if tipo == "imagen":
         if not url_imagen:
             return jsonify({"error": "Falta la URL de la imagen"}), 400
-
         payload = {"telefono": telefono, "imageUrl": url_imagen, "caption": caption}
         max_intentos = 3
         for intento in range(max_intentos):
             try:
-                respuesta = requests.post(f"{CAMIBOT_API_URL}/enviar_imagen",
-                                          json=payload,
-                                          timeout=5)
-                if respuesta.status_code == 200:
+                r = requests.post(f"{CAMIBOT_API_URL}/enviar_imagen", json=payload, timeout=5)
+                if r.status_code == 200:
                     break
             except requests.exceptions.RequestException as e:
-                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
+                print(f"⚠️ Intento {intento + 1} fallido (imagen): {str(e)}")
                 time.sleep(2)
         return jsonify({"mensaje": "Imagen enviada correctamente"}), 200
 
-    else:
-        # Caso: Texto
-        if not mensaje_texto:
-            return jsonify({"error": "Falta el 'mensaje' de texto"}), 400
-
-        payload = {"telefono": telefono, "mensaje": mensaje_texto}
+    # ⬇️ Video
+    if tipo == "video":
+        if not url_video:
+            return jsonify({"error": "Falta la URL del video"}), 400
+        payload = {"telefono": telefono, "videoUrl": url_video, "caption": caption}
         max_intentos = 3
         for intento in range(max_intentos):
             try:
-                respuesta = requests.post(f"{CAMIBOT_API_URL}/enviar_mensaje",
-                                          json=payload,
-                                          timeout=5)
-                if respuesta.status_code == 200:
+                r = requests.post(f"{CAMIBOT_API_URL}/enviar_video", json=payload, timeout=5)
+                if r.status_code == 200:
                     break
             except requests.exceptions.RequestException as e:
-                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
+                print(f"⚠️ Intento {intento + 1} fallido (video): {str(e)}")
                 time.sleep(2)
-        return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
+        return jsonify({"mensaje": "Video enviado correctamente"}), 200
+
+    # Texto
+    if not mensaje_texto:
+        return jsonify({"error": "Falta el 'mensaje' de texto"}), 400
+
+    payload = {"telefono": telefono, "mensaje": mensaje_texto}
+    max_intentos = 3
+    for intento in range(max_intentos):
+        try:
+            r = requests.post(f"{CAMIBOT_API_URL}/enviar_mensaje", json=payload, timeout=5)
+            if r.status_code == 200:
+                break
+        except requests.exceptions.RequestException as e:
+            print(f"⚠️ Intento {intento + 1} fallido (texto): {str(e)}")
+            time.sleep(2)
+    return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
  
 

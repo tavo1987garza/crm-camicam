@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -2280,12 +2278,9 @@ function mostrarSeccion(seccion, callback = null) {
   }
 }
 
-           
-
-        // 🔹 Conectar con WebSockets 
                 
 /*==============================================================
-//CON ESTO CONECTAMOS CON WEBSOCKET Actualizacion en Tiempo Real
+// 🔹CON ESTO CONECTAMOS CON WEBSOCKET Actualizacion en Tiempo Real
 ===============================================================*/
         let socket = io.connect(window.location.origin);
         socket.on("connect", () => {
@@ -2304,12 +2299,8 @@ function mostrarSeccion(seccion, callback = null) {
     SECCION DE PANEL
 ========================
 ************************/
-
-
-
-
 /* === Inicializar Panel y Buscador de Fechas === */
-async function initPanel() {
+async function initPanel() { 
   // 1) Carga datos
   await Promise.all([
     cargarLogo(),
@@ -2432,42 +2423,42 @@ SECCION DE LEADS Y CHAT
 //RECIBE MENSAJE DESDE EL BOT (TEXTO O IMAGEN)
 =============================================*/
 socket.on("nuevo_mensaje", (data) => {
-    console.log("📩 Nuevo mensaje recibido:", data);
-  
-    // Determinar el tipo de mensaje
-    let tipoMensaje;
-    if (data.tipo === "enviado") {
-      tipoMensaje = "enviado";
-    } else if (data.tipo === "enviado_imagen") {
-      tipoMensaje = "enviado_imagen";
-    } else if (data.tipo === "recibido_imagen") {
-      tipoMensaje = "recibido_imagen";
-    } else {
-      tipoMensaje = "recibido";
-    }
-  
-    // Actualizar la lista de chats: si es imagen, mostramos "Foto"
-    const textoParaLista = tipoMensaje.includes("imagen") ? "Foto" : data.mensaje;
-    actualizarListaChats(data.remitente, textoParaLista);
-  
-    // Agregar el mensaje al chat abierto (si coincide el remitente)
-    const chatSeleccionado = document.querySelector(".chat-item.selected");
-    if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
-      const chatBox = document.getElementById("chat-messages");
-      const divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
-      chatBox.appendChild(divMensaje);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-  
-    // Mostrar notificación para mensajes recibidos (texto o imagen)
-    if (tipoMensaje === "recibido" || tipoMensaje === "recibido_imagen") {
-      mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
-      reproducirSonido();
-    }
-  
-    // Actualizar el último mensaje en la lista de leads
-    actualizarUltimoMensajeLead(data.remitente, textoParaLista);
-  });
+  console.log("📩 Nuevo mensaje recibido:", data);
+
+  // Tipo normalizado
+  let tipoMensaje;
+  if (data.tipo === "enviado") tipoMensaje = "enviado";
+  else if (data.tipo === "enviado_imagen") tipoMensaje = "enviado_imagen";
+  else if (data.tipo === "recibido_imagen") tipoMensaje = "recibido_imagen";
+  else if (data.tipo === "enviado_video") tipoMensaje = "enviado_video";
+  else if (data.tipo === "recibido_video") tipoMensaje = "recibido_video";
+  else tipoMensaje = "recibido";
+
+  // Texto para la lista
+  const textoParaLista = tipoMensaje.includes("imagen")
+    ? "Foto"
+    : tipoMensaje.includes("video")
+    ? "Video"
+    : data.mensaje;
+
+  actualizarListaChats(data.remitente, textoParaLista);
+
+  // Agregar al chat activo
+  const chatSeleccionado = document.querySelector(".chat-item.selected");
+  if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
+    const chatBox = document.getElementById("chat-messages");
+    const divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
+    chatBox.appendChild(divMensaje);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  if (tipoMensaje === "recibido" || tipoMensaje === "recibido_imagen" || tipoMensaje === "recibido_video") {
+    mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+    reproducirSonido();
+  }
+
+  actualizarUltimoMensajeLead(data.remitente, textoParaLista);
+});
   
         
     
@@ -2664,27 +2655,22 @@ document.getElementById("mensaje-input").addEventListener("keydown", function (e
 
 //Vista de mensajes en el Chatbox
 function cargarMensajesChat(remitente) {
-    fetch(`/mensajes_chat?id=${remitente}`)
-        .then(response => response.json())
-        .then(data => {
-            // Actualizar el nombre del remitente en la barra superior del simulador de teléfono
-            let nombreLead = data.nombre || remitente; // Usar el teléfono si no hay nombre
-            document.getElementById("chat-usuario").textContent = nombreLead;
-
-            // Cargar los mensajes en el chat
-            let chatBox = document.getElementById("chat-messages");
-            chatBox.innerHTML = ""; // Limpiar el chat antes de cargar nuevos mensajes
-
-            data.mensajes.forEach(msg => {
-                let div = crearMensajeChat(msg.mensaje, msg.tipo);
-                chatBox.appendChild(div);
-            });
-
-            // Auto-scroll al último mensaje
-            chatBox.scrollTop = chatBox.scrollHeight;
-        })
-        .catch(error => console.error("❌ Error al cargar mensajes:", error));
+  fetch(`/mensajes_chat?id=${remitente}`)
+    .then(response => response.json())
+    .then(data => {
+      const nombreLead = data.nombre || remitente;
+      document.getElementById("chat-usuario").textContent = nombreLead;
+      const chatBox = document.getElementById("chat-messages");
+      chatBox.innerHTML = "";
+      (data.mensajes || []).forEach(msg => {
+        const div = crearMensajeChat(msg.mensaje, msg.tipo);
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    })
+    .catch(error => console.error("❌ Error al cargar mensajes:", error));
 }
+
 
 // 🔹 Función para reproducir sonido
 function reproducirSonido() {
@@ -2713,45 +2699,36 @@ document.body.addEventListener("click", function () {
         }
 
           //Actualiza la lista de chats a un lado del telefono
-          function actualizarListaChats(remitente, mensaje) {
-            let chatLista = document.getElementById("lista-chats");
-            let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
-        
-            if (!chatExistente) {
-                fetch(`/mensajes_chat?id=${remitente}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        let nombre = data.nombre || remitente;
-        
-                        // Crear un nuevo chat si no existe
-                        let div = document.createElement("div");
-                        div.classList.add("chat-item");
-                        div.setAttribute("data-remitente", remitente);
-                        div.onclick = function () {
-                            seleccionarChat(div);
-                        };
-        
-                        div.innerHTML = `
-                            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
-                            <div class="chat-info">
-                                <div class="chat-name">${nombre}</div>
-                                <div class="chat-last-message">${mensaje}</div>
-                            </div>
-                            <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                        `;
-                        chatLista.appendChild(div);
-                        chatExistente = div;
-                    })
-                    .catch(error => console.error("❌ Error al obtener nombre del lead:", error));
-            } else {
-                // ✅ Si el chat ya existe, actualizar correctamente
-                chatExistente.querySelector(".chat-last-message").textContent = mensaje;
-                chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-            }
-        
-            return chatExistente;
-        }
-        
+        function actualizarListaChats(remitente, mensaje) {
+  let chatLista = document.getElementById("lista-chats");
+  let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
+
+  if (!chatExistente) {
+    fetch(`/mensajes_chat?id=${remitente}`)
+      .then(response => response.json())
+      .then(data => {
+        let nombre = data.nombre || remitente;
+        let div = document.createElement("div");
+        div.classList.add("chat-item");
+        div.setAttribute("data-remitente", remitente);
+        div.onclick = function () { seleccionarChat(div); };
+        div.innerHTML = `
+          <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+          <div class="chat-info">
+            <div class="chat-name">${nombre}</div>
+            <div class="chat-last-message">${mensaje}</div>
+          </div>
+          <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+        `;
+        chatLista.appendChild(div);
+      })
+      .catch(error => console.error("❌ Error al obtener nombre del lead:", error));
+  } else {
+    chatExistente.querySelector(".chat-last-message").textContent = mensaje;
+    chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  return chatExistente;
+}
 
 
         function cargarChat() {
@@ -2803,56 +2780,46 @@ document.body.addEventListener("click", function () {
         } 
 
 
-        
-/**
- * Crea el elemento HTML que representa un mensaje, ya sea de texto o de imagen.
- * @param {string} mensaje - El contenido del mensaje. Para imágenes, es la URL.
- * @param {string} tipo - El tipo de mensaje ("enviado", "recibido", "enviado_imagen", "recibido_imagen").
- * @returns {HTMLElement} El elemento HTML que contiene el mensaje.
+  /**
+ * Crea el elemento HTML que representa un mensaje, de texto/imagen/(opcional) video.
+ * Seguridad: no inyectar HTML arbitrario; usar textContent en textos.
  */
- function crearMensajeChat(mensaje, tipo) {
-    const div = document.createElement("div");
-    div.classList.add("mensaje");
-  
-    if (tipo === "enviado_imagen" || tipo === "recibido_imagen") {
-      // Para mensajes de imagen: crear un <img> con la URL
-      const img = document.createElement("img");
-      img.src = mensaje;  // Aquí 'mensaje' es la URL de la imagen.
-      img.alt = "Imagen enviada";
-      img.style.maxWidth = "200px";
-      img.style.borderRadius = "8px";
-      div.appendChild(img);
-  
-      // Asignar clase según la alineación deseada
-      if (tipo === "enviado_imagen") {
-        div.classList.add("mensaje-enviado");
-      } else {
-        div.classList.add("mensaje-recibido");
-      }
-    } else {
-      // Para mensajes de texto: 
-      // Si el contenido parece contener HTML (por ejemplo, comienza con una etiqueta)
-      if (/<[a-z][\s\S]*>/i.test(mensaje.trim())) {
-        // Insertamos el HTML directamente
-        div.innerHTML = mensaje;
-      } else {
-        // Caso de texto plano, usar textContent
-        div.textContent = mensaje;
-      }
-      // Asignar clases para mensajes de texto
-      if (tipo === "enviado") {
-        div.classList.add("mensaje-enviado");
-      } else {
-        div.classList.add("mensaje-recibido");
-      }
-    }
+function crearMensajeChat(mensaje, tipo) {
+  const div = document.createElement("div");
+  div.classList.add("mensaje");
+
+  // Imagen
+  if (tipo === "enviado_imagen" || tipo === "recibido_imagen") {
+    const img = document.createElement("img");
+    img.src = mensaje;
+    img.alt = "Imagen";
+    img.style.maxWidth = "200px";
+    img.style.borderRadius = "8px";
+    div.appendChild(img);
+    div.classList.add(tipo.startsWith("enviado") ? "mensaje-enviado" : "mensaje-recibido");
     return div;
   }
-  
 
-  
-          
+  // Video
+  if (tipo === "enviado_video" || tipo === "recibido_video") {
+    const video = document.createElement("video");
+    video.controls = true; // ⬅️ por UX
+    video.style.maxWidth = "220px";
+    const source = document.createElement("source");
+    source.src = mensaje;
+    source.type = "video/mp4";
+    video.appendChild(source);
+    div.appendChild(video);
+    div.classList.add(tipo.startsWith("enviado") ? "mensaje-enviado" : "mensaje-recibido");
+    return div;
+  }
 
+  // Texto
+  div.textContent = String(mensaje ?? "");
+  div.classList.add(tipo === "enviado" ? "mensaje-enviado" : "mensaje-recibido");
+  return div;
+}
+  
         function cargarLeads() {
             fetch("/leads")
                 .then(response => response.json())
@@ -2889,49 +2856,50 @@ document.body.addEventListener("click", function () {
                 .catch(error => console.error("❌ Error al cargar leads:", error));
         }
         
-        // 🔹  Funcion para Abrir el chat
-        function irAChat(telefono) {
-            mostrarSeccion("chat", () => {
-                let chatLista = document.getElementById("lista-chats");
-                let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
-                
-                // Si el chat no existe en la lista, crearlo
-                if (!chatExistente) {
-                    let div = document.createElement("div");
-                    div.classList.add("chat-item");
-                    div.setAttribute("data-remitente", telefono);
-                    div.onclick = function () {
-                        seleccionarChat(div);
-                    };
-                    
-                    // Cargar mensajes existentes para obtener el último mensaje y la hora
-                    fetch(`/mensajes_chat?id=${telefono}`)
-                        .then(response => response.json())
-                        .then(mensajes => {
-                            let ultimoMensaje = mensajes.length > 0 ? mensajes[mensajes.length - 1].mensaje : "No hay mensajes";
-                            let horaUltimoMensaje = mensajes.length > 0 ? new Date(mensajes[mensajes.length - 1].fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
+     
         
-                            div.innerHTML = `
-                                <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
-                                <div class="chat-info">
-                                    <div class="chat-name">${telefono}</div>
-                                    <div class="chat-last-message">${ultimoMensaje}</div>
-                                </div>
-                                <div class="chat-time">${horaUltimoMensaje}</div>
-                            `;
-                            chatLista.appendChild(div);
-                            chatExistente = div;
-        
-                            // Seleccionar automáticamente el chat y habilitar input
-                            seleccionarChat(chatExistente);
-                        })
-                        .catch(error => console.error("❌ Error al cargar mensajes:", error));
-                } else {
-                    // Si el chat ya existe, seleccionarlo y habilitar input
-                    seleccionarChat(chatExistente);
-                }
-            });
-        }
+/* 🔹 Abrir chat desde lead: corregir consumo de /mensajes_chat */
+function irAChat(telefono) {
+  mostrarSeccion("chat", () => {
+    const chatLista = document.getElementById("lista-chats");
+    let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
+
+    if (!chatExistente) {
+      const div = document.createElement("div");
+      div.classList.add("chat-item");
+      div.setAttribute("data-remitente", telefono);
+      div.onclick = function () { seleccionarChat(div); };
+
+      fetch(`/mensajes_chat?id=${telefono}`)
+        .then(r => r.json())
+        .then(payload => {
+          // payload = { nombre, mensajes }
+          const nombre = payload.nombre || telefono;
+          const msgs = payload.mensajes || [];
+          const last = msgs.length ? msgs[msgs.length - 1] : null;
+          const lastText = last
+            ? (last.tipo?.includes("imagen") ? "Foto" : (last.mensaje ?? ""))
+            : "No hay mensajes";
+          const lastTime = last ? new Date(last.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
+
+          div.innerHTML = `
+            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+            <div class="chat-info">
+              <div class="chat-name">${nombre}</div>
+              <div class="chat-last-message">${lastText}</div>
+            </div>
+            <div class="chat-time">${lastTime}</div>
+          `;
+          chatLista.appendChild(div);
+          chatExistente = div;
+          seleccionarChat(chatExistente);
+        })
+        .catch(err => console.error("❌ Error al cargar mensajes:", err));
+    } else {
+      seleccionarChat(chatExistente);
+    }
+  });
+}
         
         // 🔹 Evento de arrastre
         function drag(event) {
