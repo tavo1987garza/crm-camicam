@@ -197,6 +197,86 @@ def kpi_mes():
 #----------SECCION LEADS---------- 
 ##################################   
 
+# 📌 NUEVO: Guardar contexto del bot
+@app.route("/leads/context", methods=["POST"])
+def guardar_contexto_lead():
+    try:
+        datos = request.json
+        telefono = datos.get("telefono")
+        contexto = datos.get("context")
+        
+        if not telefono or not contexto:
+            return jsonify({"error": "Faltan datos: telefono o context"}), 400
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión a BD"}), 500
+
+        cursor = conn.cursor()
+        
+        # Crear o actualizar contexto
+        cursor.execute("""
+            INSERT INTO leads (telefono, contexto, last_activity) 
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (telefono) 
+            DO UPDATE SET contexto = EXCLUDED.contexto, last_activity = NOW()
+        """, (telefono, json.dumps(contexto)))
+        
+        conn.commit()
+        return jsonify({"mensaje": "Contexto guardado"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /leads/context: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+
+# 📌 NUEVO: Obtener contexto del bot
+@app.route("/leads/context", methods=["GET"])
+def obtener_contexto_lead():
+    try:
+        telefono = request.args.get("telefono")
+        if not telefono:
+            return jsonify({"error": "Falta teléfono"}), 400
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión a BD"}), 500
+
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT contexto FROM leads WHERE telefono = %s", (telefono,))
+        resultado = cursor.fetchone()
+        
+        if resultado and resultado['contexto']:
+            return jsonify({"context": json.loads(resultado['contexto'])}), 200
+        else:
+            return jsonify({"context": None}), 200
+
+    except Exception as e:
+        print(f"❌ Error en GET /leads/context: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+
+# 📌 NUEVO: Limpiar contextos antiguos (ejecutar diariamente)
+@app.route("/leads/cleanup_context", methods=["POST"])
+def limpiar_contextos():
+    try:
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión"}), 500
+
+        cursor = conn.cursor()
+        cursor.execute("UPDATE leads SET contexto = NULL WHERE last_activity < NOW() - INTERVAL '30 days'")
+        conn.commit()
+        
+        return jsonify({"mensaje": "Contextos antiguos limpiados"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+        
+
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
@@ -338,7 +418,6 @@ def enviar_mensaje():
             time.sleep(2)
     return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
- 
 
 # 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
