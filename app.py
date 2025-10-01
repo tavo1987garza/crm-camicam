@@ -200,6 +200,7 @@ def kpi_mes():
 # 📌 NUEVO: Guardar contexto del bot
 @app.route("/leads/context", methods=["POST"])
 def guardar_contexto_lead():
+    conn = None
     try:
         datos = request.json
         telefono = datos.get("telefono")
@@ -216,11 +217,18 @@ def guardar_contexto_lead():
         
         # Crear o actualizar contexto
         cursor.execute("""
-            INSERT INTO leads (telefono, contexto, last_activity) 
-            VALUES (%s, %s, NOW())
+            INSERT INTO leads (telefono, nombre, estado, contexto, last_activity) 
+            VALUES (%s, %s, 'Contacto Inicial', %s, NOW())
             ON CONFLICT (telefono) 
-            DO UPDATE SET contexto = EXCLUDED.contexto, last_activity = NOW()
-        """, (telefono, json.dumps(contexto)))
+            DO UPDATE SET 
+                contexto = EXCLUDED.contexto, 
+                last_activity = NOW(),
+                estado = CASE 
+                    WHEN leads.estado = 'Finalizado' THEN 'Contacto Inicial' 
+                    ELSE leads.estado 
+                END
+            RETURNING id
+        """, (telefono, f"Lead {telefono[-4:]}", json.dumps(contexto)))
         
         conn.commit()
         return jsonify({"mensaje": "Contexto guardado"}), 200
@@ -229,11 +237,13 @@ def guardar_contexto_lead():
         print(f"❌ Error en /leads/context: {str(e)}")
         return jsonify({"error": "Error interno"}), 500
     finally:
-        liberar_db(conn)
-
-# 📌 NUEVO: Obtener contexto del bot
+        if conn:
+            liberar_db(conn)
+            
+            
 @app.route("/leads/context", methods=["GET"])
 def obtener_contexto_lead():
+    conn = None
     try:
         telefono = request.args.get("telefono")
         if not telefono:
@@ -244,7 +254,12 @@ def obtener_contexto_lead():
             return jsonify({"error": "Error de conexión a BD"}), 500
 
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT contexto FROM leads WHERE telefono = %s", (telefono,))
+        cursor.execute("""
+            SELECT contexto, last_activity 
+            FROM leads 
+            WHERE telefono = %s AND contexto IS NOT NULL
+        """, (telefono,))
+        
         resultado = cursor.fetchone()
         
         if resultado and resultado['contexto']:
@@ -256,7 +271,9 @@ def obtener_contexto_lead():
         print(f"❌ Error en GET /leads/context: {str(e)}")
         return jsonify({"error": "Error interno"}), 500
     finally:
-        liberar_db(conn)
+        if conn:
+            liberar_db(conn)
+            
 
 # 📌 NUEVO: Limpiar contextos antiguos (ejecutar diariamente)
 @app.route("/leads/cleanup_context", methods=["POST"])
