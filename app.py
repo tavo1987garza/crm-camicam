@@ -191,7 +191,7 @@ def kpi_mes():
         # Fallback: actual = 0, meta = 15
         return jsonify({"actual": 0, "meta": 15}), 200
 
-
+ 
 
 ##################################
 #----------SECCION LEADS---------- 
@@ -292,6 +292,32 @@ def limpiar_contextos():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+        
+# 📌 Obtener ID de lead por teléfono
+@app.route("/lead_id", methods=["GET"])
+def obtener_lead_id():
+    telefono = request.args.get("telefono")
+    if not telefono:
+        return jsonify({"error": "Falta el parámetro 'telefono'"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión a BD"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM leads WHERE telefono = %s", (telefono,))
+        row = cursor.fetchone()
+        if row:
+            return jsonify({"id": row[0]}), 200
+        else:
+            return jsonify({"error": "Lead no encontrado"}), 404
+    except Exception as e:
+        print(f"❌ Error en /lead_id: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+        
         
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
