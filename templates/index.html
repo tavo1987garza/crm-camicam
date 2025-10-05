@@ -2414,7 +2414,7 @@ mostrarSeccion("panel", initPanel);
 
 
 /***********************
-========================
+========================  
 SECCION DE LEADS Y CHAT
 ========================
 ************************/
@@ -2520,6 +2520,33 @@ socket.on("nuevo_lead", (data) => {
 
         setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
     }
+});
+
+// 🔹 Manejar actualización de estado en tiempo real
+socket.on("lead_estado_actualizado", (data) => {
+  console.log("🔄 Estado actualizado:", data);
+
+  const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
+  if (!leadElement) return;
+
+  const telefono = leadElement.getAttribute("data-telefono");
+  const nombre = leadElement.querySelector(".lead-nombre").textContent;
+
+  // Remover de columna actual
+  const columnaActual = leadElement.closest(".leads-column");
+  if (columnaActual) columnaActual.querySelector(".leads-list").removeChild(leadElement);
+
+  // Mover a nueva columna
+  const nuevaColumna = document.querySelector(`[data-estado="${data.estado_nuevo}"]`);
+  if (nuevaColumna) {
+    const leadsList = nuevaColumna.querySelector(".leads-list");
+    if (leadsList) {
+      // Reaplicar clases y eventos
+      leadElement.classList.add("lead-mensaje-nuevo");
+      setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
+      leadsList.appendChild(leadElement);
+    }
+  }
 });
 
 /*====================================

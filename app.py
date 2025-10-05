@@ -191,7 +191,7 @@ def kpi_mes():
         # Fallback: actual = 0, meta = 15
         return jsonify({"actual": 0, "meta": 15}), 200
 
- 
+   
 
 ##################################
 #----------SECCION LEADS---------- 
@@ -318,7 +318,6 @@ def obtener_lead_id():
     finally:
         liberar_db(conn)
         
-        
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
@@ -349,10 +348,12 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # crear lead si no existe (igual que lo tenías)
+        # Verificar si el lead ya existe
         cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
         lead = cursor.fetchone()
         lead_id = None
+        lead_creado = False
+
         if not lead:
             nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
             cursor.execute("""
@@ -364,15 +365,18 @@ def recibir_mensaje():
             row = cursor.fetchone()
             if row:
                 lead_id = row[0]
+                lead_creado = True
         else:
             lead_id = lead[0]
 
+        # Guardar el mensaje
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
             VALUES (%s, %s, %s, 'Nuevo', %s)
         """, (plataforma, remitente, mensaje, tipo))
         conn.commit()
 
+        # Notificar nuevo mensaje a todos los clientes conectados
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
@@ -380,10 +384,11 @@ def recibir_mensaje():
             "tipo": tipo
         })
 
-        if lead_id:
+        # Notificar SOLO si se creó un lead nuevo (evita duplicados)
+        if lead_creado:
             socketio.emit("nuevo_lead", {
                 "id": lead_id,
-                "nombre": (lead[1] if lead else nombre_por_defecto) or "",
+                "nombre": nombre_por_defecto,
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
             })
@@ -395,7 +400,8 @@ def recibir_mensaje():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-
+        
+        
 
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com"
@@ -542,6 +548,7 @@ def crear_lead():
 
 
 # 📌 Endpoint para actualizar estado de Lead
+# 📌 Endpoint para actualizar estado de Lead
 @app.route("/cambiar_estado_lead", methods=["POST"])
 def cambiar_estado_lead():
     try:
@@ -550,16 +557,38 @@ def cambiar_estado_lead():
         nuevo_estado = datos.get("estado")
         if not lead_id or nuevo_estado not in ["Contacto Inicial", "En proceso", "Seguimiento", "Cliente", "No cliente"]:
             return jsonify({"error": "Datos incorrectos"}), 400
-        conn = conectar_db()
-        if conn:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE leads SET estado = %s WHERE id = %s", (nuevo_estado, lead_id))
-            conn.commit()
-            conn.close()
-        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión a la base de datos"}), 500
+
+        cursor = conn.cursor()
+
+        # Obtener el teléfono del lead para el evento en tiempo real
+        cursor.execute("SELECT telefono FROM leads WHERE id = %s", (lead_id,))
+        row = cursor.fetchone()
+        telefono = row[0] if row else None
+
+        # Actualizar el estado en la base de datos
+        cursor.execute("UPDATE leads SET estado = %s WHERE id = %s", (nuevo_estado, lead_id))
+        conn.commit()
+
+        # Emitir evento en tiempo real al frontend
+        if telefono:
+            socketio.emit("lead_estado_actualizado", {
+                "id": lead_id,
+                "estado_nuevo": nuevo_estado,
+                "telefono": telefono
+            })
+
+        conn.close()
+        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /cambiar_estado_lead: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    
+    
 # 📌 Ruta para eliminar un lead
 @app.route("/eliminar_lead", methods=["POST"])
 def eliminar_lead():
@@ -1702,7 +1731,7 @@ def mover_pipeline():
     ...
 
 
-
+ 
 # 📌 Endpoint para gestión de usuarios y roles en el CRM
 # Helper: decorator de permisos (asume que g.current_user está cargado)
 def requires_permission(action):
