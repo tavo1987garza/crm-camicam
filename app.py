@@ -320,6 +320,7 @@ def obtener_lead_id():
         
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
+# 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
     datos = request.json
@@ -369,12 +370,39 @@ def recibir_mensaje():
         else:
             lead_id = lead[0]
 
-        # Guardar el mensaje
+        # Guardar el mensaje en la tabla `mensajes`
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
             VALUES (%s, %s, %s, 'Nuevo', %s)
         """, (plataforma, remitente, mensaje, tipo))
         conn.commit()
+
+        # 🔹 Procesar eventos especiales del bot para cambiar estado
+        if tipo == "enviado" and isinstance(mensaje, str) and mensaje.startswith("EVENT:lead_seguimiento"):
+            try:
+                partes = mensaje.split(" ", 2)
+                if len(partes) >= 2:
+                    tipo_seguimiento = partes[1]
+                    if tipo_seguimiento == "XV":
+                        nuevo_estado = "Seguimiento XV"
+                    elif tipo_seguimiento == "Boda":
+                        nuevo_estado = "Seguimiento Boda"
+                    else:
+                        nuevo_estado = "Seguimiento Otro"
+
+                    # Actualizar estado en la base de datos
+                    cursor.execute("UPDATE leads SET estado = %s WHERE telefono = %s", (nuevo_estado, remitente))
+                    conn.commit()
+
+                    # Emitir evento en tiempo real al frontend
+                    if lead_id:
+                        socketio.emit("lead_estado_actualizado", {
+                            "id": lead_id,
+                            "estado_nuevo": nuevo_estado,
+                            "telefono": remitente
+                        })
+            except Exception as e:
+                print(f"⚠️ Error procesando evento de seguimiento: {str(e)}")
 
         # Notificar nuevo mensaje a todos los clientes conectados
         socketio.emit("nuevo_mensaje", {
@@ -400,8 +428,7 @@ def recibir_mensaje():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-        
-        
+             
 
 # 📌 Enviar respuesta a Camibot con reintento automático
 CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com"
@@ -548,16 +575,21 @@ def crear_lead():
 
 
 # 📌 Endpoint para actualizar estado de Lead
-# 📌 Endpoint para actualizar estado de Lead
 @app.route("/cambiar_estado_lead", methods=["POST"])
 def cambiar_estado_lead():
     try:
         datos = request.json
         lead_id = datos.get("id")
         nuevo_estado = datos.get("estado")
-        if not lead_id or nuevo_estado not in ["Contacto Inicial", "En proceso", "Seguimiento", "Cliente", "No cliente"]:
+        # ✅ Estados actualizados
+        estados_validos = [
+            "Contacto Inicial", "En proceso",
+            "Seguimiento XV", "Seguimiento Boda", "Seguimiento Otro",
+            "Cliente", "No cliente"
+        ]
+        if not lead_id or nuevo_estado not in estados_validos:
             return jsonify({"error": "Datos incorrectos"}), 400
-
+        
         conn = conectar_db()
         if not conn:
             return jsonify({"error": "Error de conexión a la base de datos"}), 500

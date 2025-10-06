@@ -318,7 +318,15 @@
     background: #ffe0b2; /* Naranja claro */
 }
 
-[data-estado="Seguimiento"] .lead {
+[data-estado="Seguimiento XV"] .lead {
+    background: #e6c8edff; /* Morado claro */
+}
+
+[data-estado="Seguimiento Boda"] .lead {
+    background: #edc8c8ff; /* rojo claro */
+}
+
+[data-estado="Seguimiento Otro"] .lead {
     background: #dcedc8; /* Verde claro */
 }
 
@@ -1617,8 +1625,16 @@ th {
                     <h3>🔄 En proceso</h3>
                     <div class="leads-list"></div>
                 </div>
-                <div class="leads-column" data-estado="Seguimiento">
-                    <h3>📌 Seguimiento</h3>
+                <div class="leads-column" data-estado="Seguimiento XV">
+                    <h3>👑 Seguimiento XV</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="Seguimiento Boda">
+                    <h3>💍 Seguimiento Boda</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="Seguimiento Otro">
+                    <h3>✨ Seguimiento Otro</h3>
                     <div class="leads-list"></div>
                 </div>
                 <div class="leads-column" data-estado="Cliente">
@@ -1632,7 +1648,7 @@ th {
             </div>
         </div>
 
-    
+
 
         <div id="chat" class="seccion hidden">            
             <div class="chat-container">
@@ -2937,9 +2953,6 @@ function irAChat(telefono) {
         function drag(event) {
             event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
         }
-        
-      
-        
         // 🔹 Manejar el evento de soltar
         function drop(event, nuevoEstado) {
             event.preventDefault();
