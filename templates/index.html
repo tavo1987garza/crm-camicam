@@ -2499,13 +2499,14 @@ function actualizarUltimoMensajeLead(telefono, mensaje) {
 socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
 
-    let estado = "Contacto Inicial"; // 🔹 El estado predeterminado
+    let estado = "Contacto Inicial";
     let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
 
     if (leadList) {
         let leadElement = document.createElement("div");
         leadElement.classList.add("lead", "lead-nuevo");
-        leadElement.setAttribute("data-telefono", data.telefono); // 🔹 Agregar teléfono al atributo
+        leadElement.setAttribute("data-id", data.id);        // ✅ AGREGA ESTA LÍNEA
+        leadElement.setAttribute("data-telefono", data.telefono);
 
         leadElement.innerHTML = `
             <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
@@ -2517,7 +2518,6 @@ socket.on("nuevo_lead", (data) => {
         `;
 
         leadList.appendChild(leadElement);
-
         setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
     }
 });
