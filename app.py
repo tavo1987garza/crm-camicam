@@ -581,31 +581,37 @@ def cambiar_estado_lead():
         datos = request.json
         lead_id = datos.get("id")
         nuevo_estado = datos.get("estado")
-        # ✅ Estados actualizados
-        estados_validos = [
-            "Contacto Inicial", "En proceso",
-            "Seguimiento XV", "Seguimiento Boda", "Seguimiento Otro",
-            "Cliente", "No cliente"
-        ]
-        if not lead_id or nuevo_estado not in estados_validos:
-            return jsonify({"error": "Datos incorrectos"}), 400
         
+        # ✅ Lista COMPLETA de estados válidos (incluyendo los nuevos)
+        estados_validos = [
+            "Contacto Inicial",
+            "En proceso",
+            "Seguimiento XV",
+            "Seguimiento Boda",
+            "Seguimiento Otro",
+            "Cliente",
+            "No cliente"
+        ]
+        
+        if not lead_id or nuevo_estado not in estados_validos:
+            return jsonify({"error": "Estado no válido"}), 400
+
         conn = conectar_db()
         if not conn:
-            return jsonify({"error": "Error de conexión a la base de datos"}), 500
+            return jsonify({"error": "Error de conexión"}), 500
 
         cursor = conn.cursor()
 
-        # Obtener el teléfono del lead para el evento en tiempo real
+        # Obtener el teléfono del lead para el evento
         cursor.execute("SELECT telefono FROM leads WHERE id = %s", (lead_id,))
         row = cursor.fetchone()
         telefono = row[0] if row else None
 
-        # Actualizar el estado en la base de datos
+        # Actualizar estado
         cursor.execute("UPDATE leads SET estado = %s WHERE id = %s", (nuevo_estado, lead_id))
         conn.commit()
 
-        # Emitir evento en tiempo real al frontend
+        # Emitir evento en tiempo real
         if telefono:
             socketio.emit("lead_estado_actualizado", {
                 "id": lead_id,
