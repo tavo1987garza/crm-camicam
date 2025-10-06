@@ -2522,31 +2522,34 @@ socket.on("nuevo_lead", (data) => {
     }
 });
 
-// 🔹 Manejar actualización de estado en tiempo real
+
 socket.on("lead_estado_actualizado", (data) => {
-  console.log("🔄 Estado actualizado:", data);
+  console.log("🔄 lead_estado_actualizado recibido:", data);
 
-  const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
-  if (!leadElement) return;
+  const moveLead = () => {
+    const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
+    if (!leadElement) {
+      // Reintentar en 300ms (por si aún no se renderiza)
+      setTimeout(moveLead, 300);
+      return;
+    }
 
-  const telefono = leadElement.getAttribute("data-telefono");
-  const nombre = leadElement.querySelector(".lead-nombre").textContent;
+    const columnaActual = leadElement.closest(".leads-column");
+    if (columnaActual) {
+      const listaActual = columnaActual.querySelector(".leads-list");
+      if (listaActual) listaActual.removeChild(leadElement);
+    }
 
-  // Remover de columna actual
-  const columnaActual = leadElement.closest(".leads-column");
-  if (columnaActual) columnaActual.querySelector(".leads-list").removeChild(leadElement);
-
-  // Mover a nueva columna
-  const nuevaColumna = document.querySelector(`[data-estado="${data.estado_nuevo}"]`);
-  if (nuevaColumna) {
-    const leadsList = nuevaColumna.querySelector(".leads-list");
-    if (leadsList) {
-      // Reaplicar clases y eventos
+    const nuevaColumna = document.querySelector(`.leads-column[data-estado="${data.estado_nuevo}"] .leads-list`);
+    if (nuevaColumna) {
       leadElement.classList.add("lead-mensaje-nuevo");
       setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
-      leadsList.appendChild(leadElement);
+      nuevaColumna.appendChild(leadElement);
+      console.log("✅ Lead movido a:", data.estado_nuevo);
     }
-  }
+  };
+
+  moveLead();
 });
 
 /*====================================
