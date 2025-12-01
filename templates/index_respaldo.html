@@ -1,0 +1,4614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <title>CRM Camicam</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            background: #333;
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        /* 🔹 Estilos del Sidebar */
+.sidebar {
+    width: 60px;
+    background: #333;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease-in-out; /* 🔹 Transición suave al colapsar/expandir */
+    align-items: center;
+}
+
+/* 🔹 Botones del Sidebar */
+.sidebar-btn {
+    text-align: left;
+    gap: 10px; /* 🔹 Espacio entre icono y texto */
+    background: transparent;
+    border: none;
+    margin: 5px 0;
+    padding: 10px;
+    cursor: pointer;
+    width: 100%;
+    display: flex;
+    flex-direction: column; /* Apilar icono y texto verticalmente */
+    align-items: center;
+    transition: background 0.2s ease-in-out;
+}
+  
+
+.sidebar-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-btn.active {
+    background: #1e88e5; /* 🔹 Resaltar la sección activa */
+}
+
+
+.sidebar-btn.active i,
+.sidebar-btn.active span {
+    color: #fff;
+}
+
+/* 🔹 Iconos modernos */
+.sidebar-btn i {
+    font-size: 24px; /* Icono más grande */
+    margin-bottom: 5px;
+    color: #aaa; /* Color gris para apariencia monocromática */
+    transition: transform 0.2s ease-in-out, background 0.2s, color 0.2s;
+}
+    
+/* Efecto hover: agrandar el icono */
+.sidebar-btn:hover i {
+    transform: scale(1.5);
+}
+
+/* Texto debajo del icono */
+.sidebar-btn span {
+    font-size: 12px;
+    color: #aaa; /* Color gris por defecto */
+    transition: color 0.2s;
+}
+
+/* Efecto hover: resalta ligeramente el fondo */
+.sidebar-btn:hover {
+    background: transparent; /* Quita el cuadrado gris completo */
+}
+
+/* Estado activo: fondo de color y icono/texto en blanco */
+.sidebar-btn.active {
+    background: transparent; /* Quita el cuadrado azul completo */
+}
+
+
+
+.sidebar-btn.active i {
+    background: #1e88e5;
+    color: #fff;
+    border-radius: 50%;
+    padding: 10px; /* Ajusta el padding según el tamaño del icono para lograr el círculo deseado */
+}
+
+.sidebar-btn.active span {
+    color: #fff;
+}
+
+        
+/* ───── Estilos para la seccion de PANEL──── */
+        /* Tarjeta genérica del panel */
+        .panel-card {
+          background:#f8f9fa;
+          padding:15px 20px;
+          border-radius:8px;
+          display:flex;
+          flex-direction:column;
+          gap:10px;
+        }
+        
+        /* Logo */
+        #logo-box {
+          align-self:center;
+          margin-bottom:10px;
+        }
+        #logo-img {
+          max-height:90px;
+          object-fit:contain;
+        }
+        
+        /* Buscador de fechas */
+        .fecha-search {
+          display:flex;
+          gap:10px;
+        }
+        #buscar-fecha-input {
+          flex:1;
+          padding:8px 12px;
+          border:2px solid #ced4da;
+          border-radius:6px;
+        }
+        #buscar-fecha-btn {
+          background:#1e88e5;
+          color:#fff;
+          border:none;
+          border-radius:6px;
+          padding:8px 16px;
+          cursor:pointer;
+          font-weight:600;
+          transition:background .25s;
+        }
+        #buscar-fecha-btn:hover { background:#1565c0; }
+        
+        /* Alertas */
+        .alert {
+          margin-top:8px;
+          padding:10px 14px;
+          border-radius:6px;
+          font-weight:600;
+        }
+        .alert.disponible   { background:#e8f5e9; color:#2e7d32; }
+        .alert.registrado   { background:#fff8e1; color:#ff9800; }
+        .alert.no-disp      { background:#ffebee; color:#d32f2f; }
+        .hidden { display:none; }
+        
+        /* Post-it */
+        .postits {
+          display:flex;
+          flex-wrap:wrap;
+          gap:12px;
+        }
+        .postit {
+          width:160px;
+          min-height:120px;
+          background:#fffde7;
+          border:1px solid #f4e19e;
+          border-radius:6px;
+          box-shadow:0 1px 4px rgba(0,0,0,.1);
+          padding:12px;
+          position:relative;
+          cursor:pointer;
+          transition:transform .15s;
+        }
+        .postit:hover { transform:rotate(-1deg) scale(1.02); }
+        .postit:before {
+          content:"📌";
+          position:absolute;
+          top:-10px;
+          left:8px;
+          font-size:22px;
+          transform:rotate(-12deg);
+        }
+        /* Resumen de servicios en postist */
+        .serv-list {
+          margin: 6px 0 0 0;
+          padding-left: 18px;
+          font-size: 0.9rem;
+          line-height: 1.3;
+        }
+        .serv-list li {
+          list-style: disc outside;
+        }
+        
+        
+        
+        /* KPI */
+        .kpi {
+          align-items:center;
+          text-align:center;
+        }
+        .kpi-value {
+          font-size:38px;
+          font-weight:700;
+          color:#1e88e5;
+        }
+        #kpi-actual.green { color:#43a047; }
+        #kpi-actual.red   { color:#d32f2f; }
+        
+
+/* ───── Estilos para el Contenedor principal de Leads──── */
+       
+.leads-container {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 10px;
+    justify-content: center; /* Centra las columnas */
+}
+
+/* 🔹 Cada columna de Leads */
+.leads-column {
+    min-width: 180px;
+    max-width: 220px;
+    flex-grow: 1;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: all 0.3s ease-in-out; /* 🔹 Transición suave para todas las propiedades */
+    background: white; /* 🔹 Fondo blanco por defecto */
+    border: 1px solid #e0e0e0; /* 🔹 Borde sutil */
+}
+
+/* 🔹 Efecto al pasar el cursor */
+.leads-column:hover {
+    transform: scale(1.02); /* 🔹 Escala más pequeña para un efecto más sutil */
+    box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.2); /* 🔹 Sombra más pronunciada */
+    border-color: #1e88e5; /* 🔹 Cambiar color del borde al hacer hover */
+}
+
+/* 🔹 Colores para cada columna */ 
+[data-estado="Contacto Inicial"] {
+    background: #e3f2fd; /* Azul claro */
+    border-left: 5px solid #1e88e5;
+}
+
+[data-estado="En proceso"] {
+    background: #fff3e0; /* Naranja claro */
+    border-left: 5px solid #ff9800;
+}
+
+[data-estado="Seguimiento"] {
+    background: #f1f8e9; /* Verde claro */
+    border-left: 5px solid #43a047;
+}
+
+[data-estado="Cliente"] {
+    background: #e8f5e9; /* Verde pastel */
+    border-left: 5px solid #2e7d32;
+}
+
+[data-estado="No cliente"] {
+    background: #ffebee; /* Rojo claro */
+    border-left: 5px solid #d32f2f;
+}
+
+
+/* 🔹 Lista de Leads dentro de cada columna */
+.leads-list {
+    min-height: 100px;
+    padding: 10px;
+    background: white;
+    border-radius: 5px;
+    margin-top: 10px;
+    box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* 🔹 Estilo de cada Lead. Transparentes inicialmente */
+.lead {
+    background: transparent;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+    font-size: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out; /* 🔹 Transición suave */
+    border: 1px solid #e0e0e0; /* 🔹 Borde sutil */
+}
+
+/* 🔹 Efecto al pasar el cursor sobre un Lead */
+.lead:hover {
+    background: #f5f5f5; /* 🔹 Fondo gris claro */
+    transform: translateY(-2px); /* 🔹 Levantar ligeramente el lead */
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1); /* 🔹 Sombra sutil */
+}
+
+/* 🔹 Cuando se suelta un lead, tomará el color de la columna */
+[data-estado="Contacto Inicial"] .lead {
+    background: #bbdefb; /* Azul claro */
+}
+
+[data-estado="En proceso"] .lead {
+    background: #ffe0b2; /* Naranja claro */
+}
+
+[data-estado="Seguimiento"] .lead {
+    background: #dcedc8; /* Verde claro */
+}
+
+[data-estado="Cliente"] .lead {
+    background: #c8e6c9; /* Verde pastel */
+}
+
+[data-estado="No cliente"] .lead {
+    background: #ffcdd2; /* Rojo claro */
+}
+
+/* 🔹 Estilo cuando se arrastra un lead */
+.lead.dragging {
+    opacity: 0.5; /* 🔹 Hacer el lead semi-transparente */
+    transform: scale(0.95); /* 🔹 Reducir ligeramente el tamaño */
+}
+
+/* 🔹 Estilo cuando una columna está lista para recibir un lead */
+.leads-column.dragover {
+    background: #d3f9d8; /* 🔹 Color de fondo cuando se arrastra un lead */
+    border: 2px dashed #4CAF50; /* 🔹 Borde punteado */
+    transition: all 0.3s ease-in-out; /* 🔹 Transición suave */
+}
+
+/* 🔹 Botón de eliminar dentro del lead */
+.lead button {
+    background: transparent;
+    border: none;
+    color: #d32f2f;
+    cursor: pointer;
+    font-size: 18px;
+    transition: color 0.2s ease-in-out;
+}
+
+.lead button:hover {
+    color: red;
+}
+
+
+.lead-mensaje-nuevo {
+    background: #c8e6c9 !important; /* Verde claro */
+    transition: background 0.5s ease-in-out;
+}
+
+.lead-mensaje-nuevo:hover {
+    background: #a5d6a7 !important; /* Un poco más oscuro al pasar el mouse */
+}
+
+.lead-content {
+    text-align: center;
+}
+
+.lead-nombre {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+}
+
+
+.lead-ultimo-mensaje {
+    font-size: 14px;
+    color: #666;
+    overflow: hidden; /* 🔹 Oculta el texto que se desborda */
+    text-overflow: ellipsis; /* 🔹 Muestra "..." si el texto es demasiado largo */
+    white-space: nowrap; /* 🔹 Evita que el texto se divida en varias líneas */
+    max-width: 100px; /* 🔹 Limita el ancho del mensaje */
+    cursor: pointer; /* 🔹 Cambia el cursor a pointer */
+    transition: color 0.2s ease-in-out; /* 🔹 Transición suave para el color */
+}
+
+/* 🔹 Efecto al pasar el cursor sobre el último mensaje */
+.lead-ultimo-mensaje:hover {
+    color: #1e88e5; /* 🔹 Cambia el color al pasar el cursor */
+    text-decoration: underline; /* 🔹 Subraya el texto */
+}
+
+
+/* 🔹 Formulario para agregar lead */
+.form-container {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    margin-top: 10px;
+}
+
+/* 🔹 Inputs estilizados */
+.form-container input {
+    width: 90%;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    outline: none;
+    transition: border 0.3s ease-in-out;
+}
+
+.form-container input:focus {
+    border: 1px solid #1e88e5;
+}
+
+/* 🔹 Botón para agregar lead */
+.form-container button {
+    width: 100%;
+    padding: 8px;
+    background: #1e88e5;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease-in-out;
+}
+
+.form-container button:hover {
+    background: #1565c0;
+}
+
+        .leads-column.dragover {
+            background: #d3f9d8; /* Color de fondo cuando se arrastra un lead */
+        }
+
+        
+        #lead-form input[type="text"],
+#lead-form textarea {
+    width: 100%;             /* Ocupa el ancho completo del contenedor */
+    padding: 10px;           /* Espaciado interno */
+    margin: 10px 0;          /* Separación vertical entre campos */
+    border: 1px solid #ccc;  /* Borde suave */
+    border-radius: 4px;      /* Bordes redondeados */
+    font-size: 14px;         /* Tamaño de fuente */
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;  /* Incluye padding y borde en el ancho */
+}
+
+#lead-form input[type="text"]:focus,
+#lead-form textarea:focus {
+    border-color: #1e88e5;   /* Resalta el borde cuando el campo está activo */
+    outline: none;
+}
+
+#lead-form textarea {
+    resize: vertical;        /* Permite ajustar la altura verticalmente */
+    min-height: 80px;         /* Altura mínima del textarea */
+}
+
+
+        /* 🔹 Estilizar el botón de agregar */
+#toggle-form {
+    width: 100%;
+    padding: 8px;
+    background: #1e88e5;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease-in-out;
+}
+
+#toggle-form:hover {
+    background: #1565c0;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+
+.modal-content {
+    position: relative;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 350px;
+    max-height: 80vh;
+    overflow-y: auto;
+    text-align: center;
+}
+
+
+/* 🔹 Botón de cerrar modal dentro del lead */
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #aaa;
+    transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+    color: #000;
+}
+
+
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 10px;
+}
+
+
+
+.delete-btn:hover {
+    background: #b71c1c;
+}
+
+.save-btn {
+    background: #1e88e5;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease-in-out;
+}
+
+.save-btn:hover {
+    background: #1565c0;
+}
+
+/* Estilos para los inputs y textarea dentro del modal */
+.modal-content input[type="text"],
+.modal-content textarea {
+    width: 100%;            /* Ocupa el ancho completo del contenedor */
+    padding: 10px;          /* Espaciado interno para mayor comodidad */
+    margin: 10px 0;         /* Separación vertical entre elementos */
+    border: 1px solid #ccc; /* Borde suave */
+    border-radius: 4px;     /* Bordes redondeados */
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box; /* Incluye padding y border en el cálculo del ancho */
+}
+
+/* Cambio de color en foco */
+.modal-content input[type="text"]:focus,
+.modal-content textarea:focus {
+    border-color: #1e88e5; /* Azul para destacar el campo activo */
+    outline: none;
+}
+
+/* Para el textarea, permitir redimensionamiento vertical y definir altura mínima */
+.modal-content textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: red;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+
+
+        .chat-container {
+            display: flex;
+            height: 80vh;
+        }
+        .chat-list {
+            width: 30%;
+            background: #f1f1f1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .chat-box {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #ccc;
+            padding: 10px;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .mensaje {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 5px;
+            word-wrap: break-word;
+            display: inline-block;
+        }
+        
+        .mensaje-enviado {
+            background: #dcf8c6; /* Verde claro de WhatsApp */
+            align-self: flex-end;
+            text-align: right;
+        }
+        
+        .mensaje-recibido {
+            background: #ffffff; /* Blanco */
+            border: 1px solid #ddd;
+            align-self: flex-start;
+            text-align: left;
+        }
+        
+        .chat-input {
+            display: flex;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            padding: 10px;
+        }
+        .chat-input button {
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+      
+        /* 🔹 Contenedor general */
+        .chat-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            height: 80vh;
+            justify-content: center;
+        }
+        
+        
+        /* 🔹 Contenedor de la lista de chats */
+.chat-list {
+    width: 350px;
+    background: #f1f1f1;
+    border-radius: 10px;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* 🔹 Estilos del título "Chats" */
+.chat-list h1 {
+    text-align: center;
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #075e54;
+}
+
+/* 🔹 Tarjeta de chat individual */
+.chat-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 5px;
+    transition: background 0.3s ease-in-out;
+    position: relative;
+}
+
+/* 🔹 Resaltar el chat seleccionado */
+.chat-item.selected {
+    background: #d4f8c6;
+}
+
+/* 🔹 Imagen de perfil del chat */
+.chat-item img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+/* 🔹 Contenedor de la info del chat */
+.chat-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* 🔹 Nombre del contacto */
+.chat-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* 🔹 Último mensaje (pequeño y gris) */
+.chat-last-message {
+    font-size: 14px;
+    color: #777;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+
+/* 🔹 Hora del último mensaje (arriba a la derecha) */
+.chat-time {
+    font-size: 12px;
+    color: #888;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+}
+
+
+
+        
+        /* 🔹 Contenedor del teléfono */
+        .phone {
+            width: 360px;
+            height: 600px;
+            background: #fff;
+            border-radius: 30px;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 8px solid #000;
+            position: relative;
+        }
+        
+        /* 🔹 Barra superior (nombre y estado del chat) */
+        .phone-header {
+            background: #075e54;
+            color: white;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .phone-header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .phone-header img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+        }
+        
+        /* 🔹 Mensajes */
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: #efe7dd;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 🔹 Mensaje ENVIADO (alineado a la derecha) */
+        .mensaje {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 15px;
+            margin: 5px;
+            word-wrap: break-word;
+            font-size: 14px;
+            position: relative;
+        }
+        
+        .mensaje-enviado {
+            background: #dcf8c6;
+            align-self: flex-end;
+        }
+        
+        .mensaje-recibido {
+            background: white;
+            border: 1px solid #ddd;
+            align-self: flex-start;
+        }
+
+        
+        /* 🔹 Input de chat */
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #ccc;
+        }
+        
+        .chat-input input {
+            flex-grow: 1;
+            padding: 10px;
+            border: none;
+            outline: none;
+            border-radius: 20px;
+            background: #f1f1f1;
+        }
+        
+        .chat-input button {
+            padding: 10px;
+            background: #25d366;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 20px;
+            margin-left: 5px;
+        }
+        
+        /* 🔹 Responsive 
+        @media (max-width: 768px) {
+            .chat-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .chat-list {
+                width: 100%;
+            }
+        }*/
+        
+        /* 🔹 Media Query para hacer que siempre sea de dos columnas */
+@media (max-width: 1024px) {
+    
+
+    .chat-list {
+        width: 40%; /* 🔹 Se ajusta en pantallas más pequeñas */
+        min-width: 250px;
+    }
+
+    .phone {
+        width: 55%; /* 🔹 Se mantiene al lado derecho */
+        min-width: 320px;
+    }
+}
+
+/* 🔹 Para pantallas aún más pequeñas */
+@media (max-width: 768px) {
+   
+
+    .chat-list {
+        width: 45%;
+        min-width: 220px;
+    }
+
+    .phone {
+        width: 50%;
+        min-width: 300px;
+    }
+}
+
+
+/* =========================================
+   ESTILOS PARA LA SECCIÓN DE CALENDARIO
+   ========================================= */
+#panel,
+#calendario,
+#reportes,
+#gastos {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Fechas ocupadas */
+#lista-fechas-ocupadas {  
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+#lista-fechas-ocupadas li {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* border-left: 4px solid #1e88e5; */
+    transition: all 0.2s ease;
+}
+
+#lista-fechas-ocupadas li:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+#lista-fechas-ocupadas button {
+    padding: 5px 10px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+#lista-fechas-ocupadas button:first-of-type {
+    background: #1e88e5;
+    color: white;
+}
+
+#lista-fechas-ocupadas button:last-of-type {
+    background: #dc3545;
+    color: white;
+}
+
+#lista-fechas-ocupadas button:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
+}
+
+/* Formulario para agregar fechas */
+#calendario label {
+    display: block;
+    margin: 15px 0 5px;
+    font-weight: 600;
+    color: #495057;
+}
+
+#calendario input[type="date"],
+#calendario input[type="text"],
+#calendario input[type="number"],
+#calendario select,
+#calendario textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+#calendario input[type="date"]:focus,
+#calendario input[type="text"]:focus,
+#calendario input[type="number"]:focus,
+#calendario select:focus,
+#calendario textarea:focus {
+    border-color: #1e88e5;
+    outline: none;
+}
+
+/* Checkboxes de servicios */
+#calendario h3 {
+    margin: 20px 0 10px;
+    color: #495057;
+}
+
+.service-checkbox {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.service-checkbox input[type="checkbox"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+    accent-color: #1e88e5;
+}
+
+.service-checkbox label {
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* Botón para agregar fecha */
+#calendario > button {
+    background: #1e88e5;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+    width: 100%;
+    transition: background 0.3s;
+}
+
+#calendario > button:hover {
+    background: #1565c0;
+}
+
+.anios-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .anio-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 120px;
+    text-align: center;
+    transition: background 0.2s ease;
+  }
+  
+  .anio-card:hover {
+    background: #e9ecef;
+  }
+  
+  /* ───── CONTENEDOR de tarjetas-mes ──── */
+#lista-meses {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 columnas iguales */
+  gap: 15px;                              /* mismo espacio que años */
+}
+
+/* ───── TARJETA de mes (mismo look que .anio-card) ──── */
+.mes-card {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  border-left: 4px solid #1e88e5;         /* JS lo sobrescribe */
+  transition: background 0.2s ease;
+}
+
+.mes-card:hover {
+  background: #e9ecef;
+}
+
+/* ───── Icono de cambiar color de los border-left──── */
+.year-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 25px;
+  align-items: center;
+}
+
+/* (Si prefieres sombra como antes, vuelve a añadir box-shadow) */
+
+/* ───── FORMATO EN LA LISTA DE FECHA Y TITULO: Jue. 01 de Mayo  •  XV RENATA──── */
+.fecha-info  {
+  display: flex;
+  align-items: center;
+  gap: 6px;                 /* espacio entre elementos */
+}
+
+.dot-sep     {
+  font-weight: 700;         /* punto grueso */
+  color: #6c757d;           /* gris medio */
+}
+
+.fecha-fecha {
+  color: #6c757d;           /* fecha en gris suave */
+  font-size: 0.9rem;
+}
+
+.fecha-titulo {
+  font-weight: 700;         /* título destacado */
+  color: #212529;           /* casi negro */
+}
+
+
+
+/* Si quieres que el next event tenga además un fondo o cambio extra, puedes hacerlo así: */
+/*#lista-fechas-ocupadas li.next-event {*/
+  /*  background-color: rgba(0, 0, 0, 0.1)!important; /* Por ejemplo, un fondo ligeramente oscuro */
+    /* Mantendrás el border-left que ya se asigna dinámicamente */
+    /*}*/
+
+
+/* =========================================
+   ESTILOS PARA LA SECCIÓN DE REPORTES
+   ========================================= */ 
+
+/* ───── Estilos al inicio de la seccion Reportes──── */   
+   #reporte-anio-anual {
+     width: 140px;
+     padding: 10px 14px;
+     border: 2px solid #ced4da;
+     border-radius: 8px;
+     font-size: 15px;
+     transition: border-color 0.25s, box-shadow 0.25s;
+   }
+   #reporte-anio-anual:focus {
+     border-color: #1e88e5;
+     outline: none;
+     box-shadow: 0 0 0 3px rgba(30,136,229,0.25);
+   }
+   
+   /* Botón “Ver reporte anual” */
+   #btn-reporte-anual,
+   #btn-nueva-etiqueta {
+     align-self: flex-start; 
+     margin-left: 10px;
+     background: #1e88e5;
+     color: #fff;
+     border: none;
+     padding: 11px 20px;
+     border-radius: 8px;
+     font-size: 15px;
+     cursor: pointer;
+     font-weight: 600;
+     transition: background 0.25s, transform 0.15s;
+   }
+   
+
+
+
+   #btn-reporte-anual:hover,
+   #btn-nueva-etiqueta:hover   { background:#1565c0; }
+   #btn-reporte-anual:active,
+   #btn-nueva-etiqueta:active  { transform: scale(0.97); }
+   #btn-reporte-anual:focus,
+   #btn-nueva-etiqueta:focus   { outline:none; box-shadow:0 0 0 3px rgba(30,136,229,0.25); }
+
+   .inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;        /* espacio entre input y botón */
+  }
+  
+
+/* ───── Estilos para los contenedores de los reportes──── */
+.reportes-container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Filtros de reportes */
+.report-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.report-filters label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.report-filters select,
+.report-filters input {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.report-filters button {
+    background: #1e88e5;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.report-filters button:hover {
+    background: #1565c0;
+}
+
+/* Resultados de reportes */
+#resultado-ingresos-anual,
+#resultado-servicios, #resultado-grafica {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 20px;
+    margin-bottom: 30px;
+}
+
+
+#resultado-servicios ul {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+#resultado-servicios li {   
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#resultado-servicios p:last-child {
+    font-weight: 600;
+    margin-top: 10px;
+    color: #1e88e5;
+}
+
+.content {
+  flex-grow: 1;
+  padding: 20px;
+}
+.hidden {
+  display: none;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+th {
+  background-color: #4CAF50;
+  color: white;
+}
+
+
+/* Estilos para el modal de edición (ya existente) */
+#edit-fecha-modal {
+    /* Tus estilos existentes */
+}
+
+/* Añadir Audio Guest Book al grid de servicios */
+#resultado-servicios ul {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+/* Estilos para la lista de servicios en reportes */
+#resultado-servicios ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    padding: 0;
+}
+
+#resultado-servicios li {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    list-style: none;
+}
+
+#resultado-servicios li:nth-child(odd) {
+    background: #f8f9fa;
+}
+
+#resultado-servicios p:first-child {
+    font-weight: bold;
+    color: #1e88e5;
+    margin-bottom: 10px;
+}
+
+
+
+
+/* =========================================
+   ESTILOS PARA MODAL DE AGREGAR FECHA
+   ========================================= */ 
+
+/* Estilos para el grid de servicios */
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 15px 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.service-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: white;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.service-item input[type="checkbox"] {
+    transform: scale(1.2);
+    margin-right: 8px;
+}
+
+/* Para los inputs numéricos */
+.service-item input[type="number"] {
+    width: 60px;
+    padding: 5px;
+    margin-left: 8px;
+}
+
+.form-group {
+    margin-bottom: 10px;
+  }
+  
+  .reporte-card {
+    margin-top: 15px;
+    margin-bottom: 85px; 
+    padding: 10px;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  table, th, td {
+    border: 1px solid #ccc;
+  }
+  
+  th, td {
+    padding: 8px;
+    text-align: left;
+  }
+
+
+  /* =========================================
+  ESTILOS PARA ETIQUETAS
+  ========================================= */ 
+
+  /* Contenedor de etiquetas */
+.etiquetas-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.etiqueta-item {
+  padding: 8px 12px;
+  background: #f0f0f0;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.2s;
+}
+
+.etiqueta-item:hover {
+  background-color: #e0e0e0;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+}
+
+.close-btn {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.hidden {
+  display: none;
+}
+
+.form-group {
+  margin-bottom: 10px;
+}
+
+/* Estilos para etiquetas de la seccion Gastos*/
+.etiqueta-card {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 120px;
+  text-align: center;
+  transition: background 0.2s ease;
+}
+.etiqueta-card:hover { background:#e9ecef; }
+
+/* Wrapper “tarjetas-wrapper” = mismo look que Calendario */
+.tarjetas-wrapper {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 15px;
+  flex-direction: column; 
+  gap: 12px;
+  align-items: flex-start;  
+}
+ 
+
+
+/* =========================================
+   ESTILOS PARA SECCION CONFIGURACION
+   ========================================= */ 
+.config-logo {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-width:260px;
+}
+#logo-preview {
+  max-width:100%;
+  max-height:120px;
+  object-fit:contain;
+  border:1px solid #e0e0e0;
+  border-radius:6px;
+}
+#logo-msg { font-weight:600; margin-top:6px; }
+#logo-msg.success { color:#43a047; }
+#logo-msg.error   { color:#d32f2f; }
+
+
+  
+
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+     <button onclick="mostrarSeccion('cuenta')" class="sidebar-btn">
+      <i class="fas fa-user"></i>
+      <span>Cuenta</span>
+  </button>
+    <button onclick="mostrarSeccion('panel')" class="sidebar-btn">
+        <i class="fas fa-chart-line"></i> <!-- 🔹 Icono moderno -->
+        <span>Panel</span>
+    </button>
+    <button onclick="mostrarSeccion('leads', cargarLeads)" class="sidebar-btn">
+        <i class="fas fa-envelope"></i> <!-- 🔹 Icono moderno -->
+        <span>Leads</span>
+    </button>
+    <button onclick="mostrarSeccion('chat', cargarChat)" class="sidebar-btn">
+        <i class="fas fa-comments"></i> <!-- 🔹 Icono moderno -->
+        <span>Chat</span>
+    </button>
+        <button onclick="mostrarSeccion('calendario')" class="sidebar-btn">
+      <i class="fas fa-calendar-alt"></i>
+      <span>Calendario</span>
+  </button>
+    <button onclick="mostrarSeccion('reportes')" class="sidebar-btn">
+        <i class="fas fa-chart-pie"></i> <!-- 🔹 Icono moderno -->
+        <span>Reportes</span>
+    </button>
+    <button onclick="mostrarSeccion('gastos', initGastos)" class="sidebar-btn">
+        <i class="fas fa-cash-register"></i> <!-- 🔹 Icono moderno -->
+        <span>Gastos</span>
+    </button>
+    <button onclick="mostrarSeccion('configuracion', initConfiguracion)" class="sidebar-btn">
+
+        <i class="fas fa-cog"></i> <!-- 🔹 Icono moderno -->
+        <span>Configuración</span>
+    </button>
+</div>
+    
+    <div class="content">
+
+        <div id="cuenta" class="seccion hidden">
+           <h1>👤 Cuenta</h1>
+           <p>Cuenta</p>
+         </div>
+
+
+         <div id="panel" class="seccion">
+        
+            <!-- 1. Logo de la empresa -->
+            <div id="logo-box">
+              <img id="logo-img" alt="Logo" />
+            </div>
+        
+            <!-- 2. Buscador de fechas -->
+            <div id="buscador-fechas" class="panel-card">
+              <h2>🔎 Buscar fecha</h2>
+        
+              <div class="fecha-search">
+                <input type="date" id="buscar-fecha-input" />
+                <button id="buscar-fecha-btn">Consultar</button>
+              </div>
+        
+              <div id="buscar-fecha-alert" class="alert hidden"></div>
+            </div>
+        
+            <!-- 3. Próximos 3 eventos -->
+            <div id="proximos-eventos" class="panel-card">
+              <h2>📌 Próximos eventos</h2>
+              <div id="postits-container" class="postits"></div>
+            </div>
+        
+            <!-- 4. Últimos 3 leads -->
+            <div id="ultimos-leads" class="panel-card">
+              <h2>🆕 Contacto inicial</h2>
+              <ul id="lista-leads"></ul>
+            </div>
+        
+            <!-- 5. KPI mensual -->
+            <div id="kpi-mes" class="panel-card kpi">
+              <h2>📊 Meta mensual</h2>
+              <div class="kpi-value">
+                <span id="kpi-actual">0</span> / <span id="kpi-meta">15</span>
+              </div>
+              <small id="kpi-sub">Eventos contratados este mes</small>
+            </div>
+        </div>
+        
+
+      
+        <div id="leads" class="seccion hidden">
+            <h1>📩 Leads</h1>
+
+            <div class="leads-container" id="leads-container">
+
+                <div class="leads-column" data-estado="Contacto Inicial">
+                    <h3>📞 Contacto inicial</h3>
+                    <div class="leads-list"></div>
+                    <div class="form-container">
+                        <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
+                        <div id="lead-form" class="hidden">
+                            <input type="text" id="lead-nombre" placeholder="Nombre" required>
+                            <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                            <textarea id="lead-notas" placeholder="Notas"></textarea>
+                            <button onclick="crearLead()">Agregar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal para edición de Leads -->
+<div id="edit-lead-modal" class="modal hidden">
+    <div class="modal-content">
+        <button class="close-btn" onclick="cerrarModal()">✖</button>
+        <h2>✏️ Editar Lead</h2>
+        <input type="hidden" id="edit-lead-id">
+        <input type="text" id="edit-lead-nombre" placeholder="Nombre">
+        <input type="text" id="edit-lead-telefono" placeholder="Teléfono" disabled>
+        <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
+        
+        <!-- Contenedor de botones alineados -->
+        <div class="modal-buttons">
+            <button class="delete-btn" onclick="eliminarLeadDesdeModal()">
+                🗑️
+            </button>
+            
+        </div>
+    </div>
+</div>
+
+
+                <div class="leads-column" data-estado="En proceso">
+                    <h3>🔄 En proceso</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="Seguimiento">
+                    <h3>📌 Seguimiento</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="Cliente">
+                    <h3>✅ Cliente</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="No cliente">
+                    <h3>🚫 No cliente</h3>
+                    <div class="leads-list"></div>
+                </div>
+            </div>
+        </div>
+
+    
+
+        <div id="chat" class="seccion hidden">            
+            <div class="chat-container">
+                <!-- 🔹 Lista de conversaciones -->
+                <div class="chat-list" id="chat-list">
+                    <h1>💬 Chats</h1>
+                    <div id="lista-chats"></div>
+                </div>
+        
+                <!-- 🔹 Teléfono con chat -->
+                <div class="phone">
+                    <!-- 🔹 Barra superior (nombre y estado del chat) -->
+                    <div class="phone-header">
+                        <div class="user-info">
+                            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+                            <span id="chat-usuario">Selecciona un chat</span>
+                        </div>
+                        <div class="icons">
+                            <span>📶</span>
+                            <span>🔋</span>
+                        </div>
+                    </div>
+        
+                    <!-- 🔹 Chat -->
+                    <div class="chat-messages" id="chat-messages"></div>
+        
+                    <!-- 🔹 Input para enviar mensajes -->
+                    <div class="chat-input">
+                        <!-- Botón para adjuntar imagen -->
+                        <button id="adjuntar-imagen-btn" onclick="document.getElementById('imagen-input').click(); return false;">
+                        <i class="fas fa-paperclip"></i>
+                        </button>
+                        <!-- Input file oculto -->
+                        <input type="file" id="imagen-input" accept="image/*" style="display: none;">
+                        <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..." disabled>
+                        <button onclick="enviarMensaje()" disabled>📤</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    
+
+        <div id="calendario" class="seccion hidden">
+            <h1>📅 Calendario</h1>
+            
+            <!-- Vista de Años -->
+            <div id="vista-anios">
+              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Años</h2>
+                <button onclick="mostrarFormularioAnio()" class="add-button">➕ Agregar Año</button>
+              </div>
+              <div id="lista-anios" class="anios-grid"></div>
+            </div>
+          
+            
+            <!-- Vista de Eventos para un Año (inicialmente oculta) -->
+            <div id="vista-eventos-anio" class="hidden">
+              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div class="anio-header" style="display: flex; align-items: center; gap: 10px;">
+                  <button onclick="volverAVistaMeses()" class="back-button">← Meses</button>
+                  <h2 id="anio-actual"></h2>
+                </div>
+                
+              </div>
+              <ul id="lista-fechas-ocupadas"></ul>
+            </div>
+            
+            <div id="vista-meses" class="hidden">
+              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button onclick="volverAVistaAnios()">← Años</button>
+                <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
+                </div>  
+              <h2 id="meses-titulo"></h2>
+              <div id="lista-meses" class="card-container"></div>
+              <!-- Acciones de año (eliminar / cambiar color) -->
+              <div id="year-actions" class="year-actions hidden">
+              <!-- 🗑️ Eliminar año -->
+                <button id="btn-borrar-anio" class="icon-btn delete-btn" title="Eliminar año">
+                <i class="fas fa-trash-alt"></i>
+                </button>
+
+              <!-- 🎨 Cambiar color -->
+              <label for="year-color-picker" class="icon-btn" title="Cambiar color">
+              <i class="fas fa-fill-drip"></i>
+               </label>
+               <input type="color" id="year-color-picker" class="hidden" />
+              </div>
+            </div>
+        
+            <!-- Modal para Agregar Año -->
+            <div id="add-anio-modal" class="modal hidden">
+              <div class="modal-content">
+                <button class="close-btn" onclick="cerrarAddAnioModal()">✖</button>
+                <h2>➕ Agregar Nuevo Año</h2>
+
+                <!-- Año-->
+                <label for="anio-input">Año:</label>
+                <input type="number" 
+                       id="anio-input" 
+                       min="2000" 
+                       max="2100" 
+                       class="modal-input" />
+                       
+                <!-- Color-->
+                <label for="color-input">Asignar un color:</label>
+                <input type="color" 
+                       id="color-input" 
+                       value="#1e88e5"
+                       class="modal-imput" />
+
+                <!--Botones-->
+                <div class="modal-buttons">
+                  <button onclick="agregarAnio()" class="save-btn">Guardar</button>
+                  <button onclick="cerrarAddAnioModal()" class="cancel-btn">Cancelar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal para Agregar Fecha -->
+            <div id="add-fecha-modal" class="modal hidden">
+                <div class="modal-content">
+                    <button class="close-btn" onclick="cerrarAddFechaModal()">✖</button>
+                    <h2>➕ Agregar Nueva Fecha</h2>
+                    
+                    <label for="fecha-input">Fecha:</label>
+                    <input type="date" id="fecha-input" />
+                    
+                    <label for="lead-select">Asignar a Lead (opcional):</label>
+                    <select id="lead-select">
+                        <option value="">-- Sin Lead --</option>
+                    </select>
+                    
+                    <label for="titulo-input">Título del evento:</label>
+                    <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
+                    
+                    <label for="notas-textarea">Notas:</label>
+                    <textarea id="notas-textarea" rows="3" placeholder="Observaciones..."></textarea>
+                    
+                    
+
+                    <label for="ticket-input">Ticket de venta ($):</label>
+                    <input type="text" id="ticket-input" placeholder="0" />
+
+        
+                    <h3>Servicios Contratados</h3>
+                    <div class="services-grid">
+                        <!-- Fila 1 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="cabinaFotos" />
+                            <label for="cabinaFotos">Cabina de Fotos</label>
+                        </div>
+                        <div class="service-item">
+                            <input type="checkbox" id="cabina360" />
+                            <label for="cabina360">Cabina 360</label>
+                        </div>
+                        
+                        <!-- Fila 2 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="caritoDeShotsSinAlcohol" />
+                            <label for="caritoDeShotsSinAlcohol">Shots Sin Alcohol</label>
+                        </div>
+                        <div class="service-item">
+                            <input type="checkbox" id="caritoDeShotsConAlcohol" />
+                            <label for="caritoDeShotsConAlcohol">Shots Con Alcohol</label>
+                        </div>
+                        
+                        <!-- Fila 3 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="lluviaDeMariposas" />
+                            <label for="lluviaDeMariposas">Lluvia de Mariposas</label>
+                        </div>
+                        <div class="service-item">
+                            <input type="checkbox" id="lluviaMetalica" />
+                            <label for="lluviaMetalica">Lluvia Metálica</label>
+                        </div>
+                        
+                        <!-- Fila 4 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="nieblaDePiso" />
+                            <label for="nieblaDePiso">Niebla de Piso</label>
+                        </div>
+                        <div class="service-item">
+                            <input type="checkbox" id="scrapbook" />
+                            <label for="scrapbook">Scrapbook</label>
+                        </div>
+                        
+                        <!-- Fila 5 -->
+                        <div class="service-item">
+                            <input type="checkbox" id="audioGuestBook" />
+                            <label for="audioGuestBook">Audio Guest Book</label>
+                        </div>
+                        
+                        <!-- Inputs numéricos -->
+                        <div class="service-item">
+                            <label for="letrasGigantes">Letras Gigantes:</label>
+                            <input type="number" id="letrasGigantes" min="0" value="0" />
+                        </div>
+                        
+                        <div class="service-item">
+                            <label for="chisperos">Chisperos:</label>
+                            <input type="number" id="chisperos" min="0" value="0" />
+                        </div>
+                    </div>
+                    
+                    <div class="modal-buttons">
+                        <button onclick="agregarFechaManual()" class="save-btn">Guardar</button>
+                        <button onclick="cerrarAddFechaModal()" class="cancel-btn">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL para EDITAR Fechas Ocupadas -->
+        <div id="edit-fecha-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="close-btn" onclick="cerrarModalFecha()">✖</button>
+                <h2>✏️ Editar Fecha Ocupada</h2>
+            
+                <!-- id de la fila -->
+                <input type="hidden" id="edit-fecha-id">
+            
+                <label>Fecha:</label>
+                <input type="date" id="edit-fecha-input" disabled />
+            
+                <label>Título:</label>
+                <input type="text" id="edit-fecha-titulo" class="auto-save-input"/>
+            
+                <label>Notas:</label>
+                <textarea id="edit-fecha-notas" class="auto-save-input"></textarea>
+            
+            
+                
+                <label>Ticket:</label>
+                <input type="text" id="edit-fecha-ticket" class="auto-save-input" placeholder="0" />
+
+                <h3>Servicios</h3>
+                <div style="margin-left:20px;">
+                    <!-- Todos los checkboxes y inputs numéricos deben tener la clase auto-save-input -->
+                    <!-- Cabina de Fotos (checkbox) -->
+                    <input type="checkbox" id="edit-cabinaFotos" class="auto-save-input"/>
+                    <label for="edit-cabinaFotos">Cabina de Fotos</label>
+                    <br><br>
+        
+                    <!-- Cabina 360 (checkbox) -->
+                    <input type="checkbox" id="edit-cabina360" class="auto-save-input"/>
+                    <label for="edit-cabina360">Cabina 360</label>
+                    <br><br>
+        
+                    <!-- Carrito de Shots sin Alcohol (checkbox) -->
+                    <input type="checkbox" id="edit-caritoDeShotsSinAlcohol" class="auto-save-input"/>
+                    <label for="edit-caritoDeShotsSinAlcohol">Carrito De Shots Sin Alcohol</label>
+                    <br><br>
+        
+                    <!-- Carrito de Shots con Alcohol (checkbox) -->
+                    <input type="checkbox" id="edit-caritoDeShotsConAlcohol" class="auto-save-input"/>
+                    <label for="edit-caritoDeShotsConAlcohol">Carrito De Shots Con Alcohol</label>
+                    <br><br>
+        
+                    <!-- Lluvia de Mariposas (checkbox) -->
+                    <input type="checkbox" id="edit-lluviaDeMariposas" class="auto-save-input"/>
+                    <label for="edit-lluviaDeMariposas">Lluvia de Mariposas</label>
+                    <br><br>
+        
+                    <!-- Lluvia Metálica (checkbox) - CORREGIDO -->
+                    <input type="checkbox" id="edit-lluviaMetalica" class="auto-save-input"/>
+                    <label for="edit-lluviaMetalica">Lluvia Metálica</label>
+                    <br><br>
+        
+                    <!-- Niebla de Piso (checkbox) -->
+                    <input type="checkbox" id="edit-nieblaDePiso" class="auto-save-input"/>
+                    <label for="edit-nieblaDePiso">Niebla de Piso</label>
+                    <br><br>
+        
+                    <!-- Scrapbook (checkbox) -->
+                    <input type="checkbox" id="edit-scrapbook" class="auto-save-input"/>
+                    <label for="edit-scrapbook">Scrapbook</label>
+                    <br><br>  
+
+                    <!-- Audio Guest Book (checkbox) -->
+                    <input type="checkbox" id="edit-audioGuestBook" class="auto-save-input"/>
+                    <label for="edit-audioGuestBook">Audio Guest Book</label>
+                    <br><br>
+        
+                    <!-- Letras Gigantes (numérico) -->
+                    <label for="edit-letrasGigantes">Letras Gigantes:</label>
+                    <input type="number" id="edit-letrasGigantes" min="0" value="0" class="auto-save-input"/>
+                    <br><br>
+        
+                    <!-- Chisperos (numérico) -->
+                    <label for="edit-chisperos">Chisperos:</label>
+                    <input type="number" id="edit-chisperos" min="0" value="0" class="auto-save-input"/>
+                    <br><br>
+                </div>
+            
+                <div class="modal-buttons">
+                    <button class="delete-btn" onclick="eliminarFechaDesdeModal()">🗑️</button>
+                  </div>
+                </div>
+              </div>
+            
+
+        <div id="reportes" class="seccion hidden">
+            <h1>📈 Reportes</h1>
+          
+            <!-- SOLO dejamos la parte de Reporte Anual -->
+            <section id="reporte-ingresos-anual">
+              <h2>Reporte Anual Desglosado por Mes</h2>
+            
+              <!-- Agrupamos input + botón -->
+              <div class="form-group inline">
+                <label for="reporte-anio-anual">Año:</label>
+                <input
+                  type="number"
+                  id="reporte-anio-anual"
+                  placeholder="2025"
+                  min="2000"
+                />
+            
+                <!-- Botón con el id que usa el CSS -->
+                <button id="btn-reporte-anual" onclick="verReporteIngresosAnual()">
+                  Ver reporte anual
+                </button>
+              </div>
+            
+            
+              <div id="resultado-ingresos-anual" class="reporte-card hidden"></div>
+            </section>
+            
+
+              <!-- Bloque para la gráfica -->
+              <div id="resultado-grafica"        class="reporte-card hidden"></div>
+            
+              <!-- Bloque para la sección de servicios anuales-->
+              <div id="resultado-servicios"      class="reporte-card hidden"></div>
+            </div>
+          
+          
+
+
+
+          <div id="gastos" class="seccion hidden">
+            <h1>💸 Gastos</h1>
+          
+            <!-- Botón/ícono para agregar nueva etiqueta -->
+            <button id="btn-nueva-etiqueta" onclick="abrirModalNuevaEtiqueta()">
+              ➕ Nueva Etiqueta
+            </button>
+          
+            <!-- Contenedor donde se listarán las etiquetas existentes -->
+            <div id="lista-etiquetas" class="etiquetas-container"></div>
+          </div>
+ 
+          <!-- MODAL para Crear Etiqueta -->
+<div id="modal-nueva-etiqueta" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarModalNuevaEtiqueta()">✖</span>
+      <h2>Crear Nueva Etiqueta</h2>
+  
+      <input type="text" id="nueva-etiqueta-input" placeholder="Nombre de la etiqueta" />
+      <button onclick="agregarNuevaEtiqueta()">Crear Etiqueta</button>
+    </div>
+  </div>
+
+  <!-- Modal para ver/editar una etiqueta existente -->
+<div id="modal-etiqueta" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarModalEtiqueta()">✖</span>
+      
+      <!-- Encabezado con título de la etiqueta y botón/basura para borrarla -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>
+          <span id="etiqueta-nombre"></span>
+        </h2>
+           
+      </div>
+      
+      <!-- Aquí se listarán los gastos de esta etiqueta -->
+      <div id="modal-etiqueta-contenido"></div>
+  
+      <!-- Botón para agregar gasto a la etiqueta -->
+      <button onclick="toggleFormularioAgregarGastoEtiqueta()">
+        ➕ Agregar gasto a esta etiqueta
+      </button>
+  
+      <!-- Formulario oculto para añadir gasto -->
+      <div id="form-agregar-gasto-etiqueta" class="hidden">
+        <div class="form-group">
+          <label for="gasto-etiqueta-monto">Monto:</label>
+          <input type="text" id="gasto-etiqueta-monto" placeholder="$0" />
+        </div>
+        <div class="form-group">
+          <label for="gasto-etiqueta-descripcion">Descripción:</label>
+          <input type="text" id="gasto-etiqueta-descripcion" placeholder="Descripción del gasto" />
+        </div>
+        <button onclick="agregarGastoPorEtiqueta()">
+          Registrar Gasto
+        </button>
+      </div>
+
+
+       <div class="modal-buttons" style="display:flex; gap:12px;">
+        <!-- Icono para borrar la etiqueta completa --> 
+        <button class="delete-btn" onclick="eliminarEtiquetaCompleta()">🗑️</button>
+         <!-- Icono para cambiar el color del border-left de la etiqueta  -->
+        <label for="picker-etiqueta-color" class="icon-btn" title="Cambiar color">
+          <i class="fas fa-fill-drip"></i></label>
+        <input type="color" id="picker-etiqueta-color" class="hidden" />
+      </div>
+    </div>
+  </div>
+          
+        <div id="configuracion" class="seccion hidden">
+            <h1>⚙️ Configuración</h1>
+
+            <h2>Logo de la empresa</h2>
+            <div class="config-logo">
+              <img id="logo-preview" src="" alt="Logo actual" />
+              <input type="file" id="logo-file" accept="image/*" />
+              <button id="logo-upload-btn" type="button">Subir logo</button>
+
+              <span id="logo-msg" class="hidden"></span>
+            </div>
+        
+            <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
+            <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
+             <!-- Botón para ingresar las crednciales  -->
+            <button class="add-button" onclick="mostrarModalConfig()">
+  ⚙️ Configurar Integraciones 
+</button>
+ <!-- Botón para Invitar a un vendedor  -->
+<div id="modal-usuarios" class="modal hidden">
+  <div class="modal-content">
+    <button class="close-btn" onclick="cerrarModal('modal-usuarios')">✖</button>
+    <h2>👥 Gestor de Usuarios</h2>
+    <ul id="lista-usuarios"></ul>
+    <button class="add-button" onclick="mostrarModalInvitar()">➕ Invitar Usuario</button>
+  </div>
+</div>
+
+        </div>
+    </div>
+
+    <div id="alerta-mensaje" class="notification"></div>  
+
+    
+
+<!-- Modal genérico para Configuración de Credenciales -->
+<div id="modal-config-credentials" class="modal hidden">
+  <div class="modal-content">
+    <button class="close-btn" onclick="cerrarModalConfig()">✖</button>
+    <h2>⚙️ Credenciales de Integración</h2>
+
+    <form id="form-config-credentials">
+
+      <div class="form-group">
+      <label for="whatsapp_token">WhatsApp Access Token:</label>
+      <input type="password" id="whatsapp_token" placeholder="••••••••••" />
+    </div>
+    <div class="form-group">
+      <label for="whatsapp_phone_id">WhatsApp Phone Number ID:</label>
+      <input type="text" id="whatsapp_phone_id" placeholder="Ej. 1234567890" />
+    </div>
+    <div class="form-group">
+      <label for="whatsapp_verify_token">WhatsApp Verify Token:</label>
+      <input type="password" id="whatsapp_verify_token" placeholder="••••••••••" />
+    </div>
+
+    <!-- Agrega aquí campos para Messenger, Instagram, etc. -->
+    <div class="form-group">
+      <label for="fb_page_token">Facebook Page Token:</label>
+      <input type="password" id="fb_page_token" placeholder="••••••••••" />
+    </div>
+    <div class="form-group">
+      <label for="instagram_token">Instagram Access Token:</label>
+      <input type="password" id="instagram_token" placeholder="••••••••••" />
+    </div>
+
+    <!-- Agrega aquí campos para OpenAI -->
+      <div class="form-group">
+        <label for="openai_api_key">OpenAI API Key:</label>
+        <input type="password" id="openai_api_key" placeholder="••••••••••" />
+      </div>
+
+      <!-- Agrega aquí campos para n8n -->
+    <div class="form-group">
+      <label for="n8n_url">URL de n8n:</label>
+      <input type="url" id="n8n_url" placeholder="https://tu-n8n.example.com"/>
+    </div>
+    <div class="form-group">
+      <label for="n8n_api_key">API Key de n8n:</label>
+      <input type="password" id="n8n_api_key" placeholder="••••••••••"/>
+    </div>
+
+      <div class="modal-buttons">
+        <button type="button" class="save-btn" onclick="guardarCredenciales()">Guardar</button>
+        <button type="button" class="cancel-btn" onclick="cerrarModalConfig()">Cancelar</button>
+      </div>
+      <span id="config-cred-msg" class="hidden"></span>
+    </form>
+  </div>
+</div>
+
+</div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script> 
+
+      /* === 1. Carga logo en el Panel ================= */
+    
+
+  async function cargarLogo() {
+  try {
+    const resp = await fetch("/config/logo");
+    const obj  = await resp.json();
+    let url    = obj.url;
+
+    // Si no es data:URI, le pegamos un cache-busting
+    if (!url.startsWith("data:")) {
+      url += "?v=" + Date.now();
+    }
+
+    // Panel (header)
+    const panelImg = document.getElementById("logo-img");
+    if (panelImg) panelImg.src = url;
+
+    // Configuración (preview)
+    const preview  = document.getElementById("logo-preview");
+    if (preview)  preview.src = url;
+  } catch (e) {
+    console.error("Error cargando logo:", e);
+  }
+}
+
+
+/*document.addEventListener("DOMContentLoaded", function () {
+    console.log("📌 DOM completamente cargado. Configurando eventos.");
+
+    cargarLogo();
+
+    // Solo cargar leads si la sección está visible
+    let seccionLeads = document.getElementById("leads");
+    if (seccionLeads && !seccionLeads.classList.contains("hidden")) {
+        cargarLeads();
+    }
+
+    // Cargar el estado del sidebar al iniciar
+    let sidebar = document.querySelector(".sidebar");
+    if (localStorage.getItem("sidebarCollapsed") === "true") {
+        sidebar.classList.add("collapsed");
+    }
+   
+});*/
+
+// DOMContentLoaded sólo para inits globales
+document.addEventListener("DOMContentLoaded", () => {
+  cargarLogo();
+  // estado del sidebar
+  if (localStorage.getItem("sidebarCollapsed")==="true") {
+    document.querySelector(".sidebar")?.classList.add("collapsed");
+  }
+});
+
+
+// 🔹 Resaltar la sección activa
+/*function mostrarSeccion(seccion, callback = null) {
+    document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
+    let elemento = document.getElementById(seccion);
+
+    if (elemento) {
+        elemento.classList.remove('hidden');
+
+        // Resaltar el botón activo
+        document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`).classList.add('active');
+
+        // Cargar automáticamente el calendario si es la sección correspondiente
+        if (seccion === 'calendario') {
+            initCalendario();
+            cargarLeadsEnSelect(); // También cargamos los leads para el select
+        }
+
+          // Cargar etiquetas cuando se muestra la sección de gastos
+          if (seccion === 'gastos') {
+            cargarEtiquetasEnVista();
+        }
+
+          if (seccion === 'configuracion') {
+            cargarLogo();
+        }
+
+        if (callback) callback();
+
+        if (seccion === 'panel' && callback) {
+          callback();   // aquí llamas a initPanel
+        } else if (callback) {
+          callback();
+        }
+    }
+}*/
+
+function mostrarSeccion(seccion, callback = null) { 
+  // 1) Ocultar todas…
+  document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
+  const elemento = document.getElementById(seccion);
+  if (!elemento) return;
+
+  // 2) Mostrar la que toca
+  elemento.classList.remove('hidden');
+
+  // 3) Resaltar el botón del sidebar
+  document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`)?.classList.add('active');
+
+  // 4) Lógica particular por sección
+  if (seccion === "leads") {
+    cargarLeads(); 
+  }
+  if (seccion === 'calendario') {
+    initCalendario();
+    cargarLeadsEnSelect();
+    return;
+  }
+  if (seccion === 'gastos') {
+    cargarEtiquetasEnVista();
+    return;
+  }
+  if (seccion === 'configuracion') {
+    initConfiguracion();
+    return;
+  }
+  if (seccion === 'panel') {
+    initPanel();
+    return;
+  }
+
+  // 5) Si te pasaron otro callback, lo ejecutas aquí
+  if (callback) {
+    callback();
+  }
+}
+
+                
+/*==============================================================
+// 🔹CON ESTO CONECTAMOS CON WEBSOCKET Actualizacion en Tiempo Real
+===============================================================*/
+        let socket = io.connect(window.location.origin);
+        socket.on("connect", () => {
+            console.log("✅ Conectado a WebSockets.");
+        });
+        
+        socket.on("connect_error", (error) => {
+            console.error("❌ Error en la conexión WebSocket:", error);
+        });
+
+        let sonidoActivo = true; 
+
+
+/***********************
+========================
+    SECCION DE PANEL
+========================
+************************/
+/* === Inicializar Panel y Buscador de Fechas === */
+async function initPanel() { 
+  // 1) Carga datos
+  await Promise.all([
+    cargarLogo(),
+    cargarProximosEventos(),
+    cargarUltimosLeads(),
+    cargarKPI()
+  ]);
+
+  // 2) Ahora sí engancha el buscador de fechas
+  const btnBuscar = document.getElementById("buscar-fecha-btn");
+  if (btnBuscar) {
+    btnBuscar.onclick = async () => {
+      const iso = document.getElementById("buscar-fecha-input").value;
+      if (!iso) return;
+      const r   = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
+      const res = await r.json();
+      const alerta = document.getElementById("buscar-fecha-alert");
+      const dateLargo = formatoFechaLargo(iso);
+
+      alerta.className = "alert";
+      if (res.count === 0) {
+        alerta.textContent = `${dateLargo} está DISPONIBLE`;
+        alerta.classList.add("disponible");
+      } else if (res.count === 1) {
+        alerta.textContent = `Tenemos un evento REGISTRADO para ${dateLargo}`;
+        alerta.classList.add("registrado");
+      } else {
+        alerta.textContent = `${dateLargo} NO ESTÁ DISPONIBLE`;
+        alerta.classList.add("no-disp");
+      }
+      alerta.classList.remove("hidden");
+    };
+  }
+
+  // 3) (Opcional) Si hay más botones en Panel, engánchalos aquí
+}
+
+
+/* === 3. Próximos 5 eventos con servicios ==== */
+async function cargarProximosEventos() {
+  const r   = await fetch("/calendario/proximos?limite=5");
+  if (!r.ok) {
+    console.error("Error al obtener próximos eventos:", await r.text());
+    return;
+  }
+  const arr = await r.json();
+  const cont = document.getElementById("postits-container");
+  if (!cont) return;
+  cont.innerHTML = "";
+
+  arr.forEach(ev => {
+    const div = document.createElement("div");
+    div.className = "postit";
+
+    // Construir resumen de servicios
+    const s = ev.servicios || {};
+    const items = [];
+    if (s.cabinaFotos)             items.push("Cabina de Fotos");
+    if (s.cabina360)               items.push("Cabina 360");
+    if (s.caritoDeShotsSinAlcohol) items.push("Shots sin alcohol");
+    if (s.caritoDeShotsConAlcohol) items.push("Shots con alcohol");
+    if (s.lluviaDeMariposas)       items.push("Lluvia de Mariposas");
+    if (s.lluviaMetalica)          items.push("Lluvia Metálica");
+    if (s.nieblaDePiso)            items.push("Niebla de Piso");
+    if (s.scrapbook)               items.push("Scrapbook");
+    if (s.audioGuestBook)          items.push("Audio Guest Book");
+    if (s.letrasGigantes > 0)      items.push(`${s.letrasGigantes} Letras Gigantes`);
+    if (s.chisperos > 0)           items.push(`${s.chisperos} Chisperos`);
+
+    const serviciosHTML = items.length
+      ? `<ul class="serv-list">${items.map(x=>`<li>${x}</li>`).join("")}</ul>`
+      : `<em>— sin servicios —</em>`;
+
+    div.innerHTML = `
+      <strong>${formatoFechaLargo(ev.fecha)}</strong><br>
+      ${ev.titulo || ""}<br>
+      ${serviciosHTML}
+    `;
+
+    div.onclick = () => abrirModalFecha(ev.id);
+    cont.appendChild(div);
+  });
+}
+
+
+
+
+
+/* === 4. Últimos 3 leads ======================== */
+async function cargarUltimosLeads() {
+  const r   = await fetch("/leads/ultimos?limite=3");
+  const obj = await r.json();        // [{nombre, telefono}, …]
+  const ul  = document.getElementById("lista-leads");
+  ul.innerHTML = obj.map(ld => `<li>${ld.nombre} — ${ld.telefono}</li>`).join("");
+}
+
+/* === 5. KPI mensual ============================ */
+async function cargarKPI() {
+  const r = await fetch("/reportes/kpi_mes");   // {actual:12, meta:15}
+  const k = await r.json();
+  document.getElementById("kpi-actual").textContent = k.actual;
+  document.getElementById("kpi-meta").textContent   = k.meta;
+  const actualEl = document.getElementById("kpi-actual");
+  actualEl.className = k.actual >= k.meta ? "green" : "red";
+}
+
+/* Llama initPanel() cuando se muestra la sección Panel */
+mostrarSeccion("panel", initPanel);
+
+
+
+
+/***********************
+========================
+SECCION DE LEADS Y CHAT
+========================
+************************/
+        
+/*============================================
+//RECIBE MENSAJE DESDE EL BOT (TEXTO O IMAGEN)
+=============================================*/
+socket.on("nuevo_mensaje", (data) => {
+  console.log("📩 Nuevo mensaje recibido:", data);
+
+  // Tipo normalizado
+  let tipoMensaje;
+  if (data.tipo === "enviado") tipoMensaje = "enviado";
+  else if (data.tipo === "enviado_imagen") tipoMensaje = "enviado_imagen";
+  else if (data.tipo === "recibido_imagen") tipoMensaje = "recibido_imagen";
+  else if (data.tipo === "enviado_video") tipoMensaje = "enviado_video";
+  else if (data.tipo === "recibido_video") tipoMensaje = "recibido_video";
+  else tipoMensaje = "recibido";
+
+  // Texto para la lista
+  const textoParaLista = tipoMensaje.includes("imagen")
+    ? "Foto"
+    : tipoMensaje.includes("video")
+    ? "Video"
+    : data.mensaje;
+
+  actualizarListaChats(data.remitente, textoParaLista);
+
+  // Agregar al chat activo
+  const chatSeleccionado = document.querySelector(".chat-item.selected");
+  if (chatSeleccionado && chatSeleccionado.getAttribute("data-remitente") === data.remitente) {
+    const chatBox = document.getElementById("chat-messages");
+    const divMensaje = crearMensajeChat(data.mensaje, tipoMensaje);
+    chatBox.appendChild(divMensaje);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  if (tipoMensaje === "recibido" || tipoMensaje === "recibido_imagen" || tipoMensaje === "recibido_video") {
+    mostrarNotificacion(`Nuevo mensaje de ${data.remitente}`);
+    reproducirSonido();
+  }
+
+  actualizarUltimoMensajeLead(data.remitente, textoParaLista);
+});
+  
+        
+    
+
+// 🔹 Función para mostrar notificaciones (solo para mensajes "recibidos")
+function mostrarNotificacion(mensaje) {
+    let alerta = document.getElementById("alerta-mensaje");
+    alerta.textContent = mensaje;
+    alerta.style.display = "block";
+
+    // Ocultar después de 5s
+    setTimeout(() => {
+        alerta.style.display = "none";
+    }, 5000);
+}
+
+
+// 🔹 Función para actualizar el último mensaje en la sección de leads
+function actualizarUltimoMensajeLead(telefono, mensaje) {
+    let leads = document.querySelectorAll(".lead");
+
+    leads.forEach((lead) => {
+        if (lead.getAttribute("data-telefono") === telefono) {
+            let mensajeElemento = lead.querySelector(".lead-ultimo-mensaje");
+            if (mensajeElemento) {
+                mensajeElemento.textContent = mensaje;
+            }
+            lead.classList.add("lead-mensaje-nuevo"); // Agregar animación de mensaje nuevo
+
+            setTimeout(() => {
+                lead.classList.remove("lead-mensaje-nuevo"); // Quitar animación después de 3s
+            }, 3000);
+        }
+    });
+}
+
+
+socket.on("nuevo_lead", (data) => {
+    console.log("🆕 Nuevo lead creado automáticamente:", data);
+
+    let estado = "Contacto Inicial"; // 🔹 El estado predeterminado
+    let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+
+    if (leadList) {
+        let leadElement = document.createElement("div");
+        leadElement.classList.add("lead", "lead-nuevo");
+        leadElement.setAttribute("data-telefono", data.telefono); // 🔹 Agregar teléfono al atributo
+
+        leadElement.innerHTML = `
+            <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
+                <strong class="lead-nombre">${data.nombre}</strong>
+                <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${data.telefono}')">
+                    ${data.ultimo_mensaje ? data.ultimo_mensaje : "No hay mensajes recientes"}
+                </p>
+            </div>
+        `;
+
+        leadList.appendChild(leadElement);
+
+        setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+    }
+});
+
+/*====================================
+//RESPONDER A LOS MENSAJES UNIFICADO
+=====================================*/
+function enviarMensaje() {
+    let input = document.getElementById("mensaje-input");
+    let mensaje = input.value.trim();
+    let chatSeleccionado = document.querySelector(".chat-item.selected");
+
+    if (!mensaje) {
+        alert("Escribe un mensaje antes de enviar.");
+        return;
+    }
+
+    if (!chatSeleccionado) {
+        alert("Selecciona un chat antes de enviar un mensaje.");
+        return;
+    }
+
+    let remitente = chatSeleccionado.getAttribute("data-remitente");
+
+    fetch("/enviar_mensaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telefono: remitente, mensaje: mensaje })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert("Error al enviar mensaje: " + data.error);
+        } else {
+            // Limpiar el input después de enviar el mensaje
+            input.value = "";
+        }
+    })
+    .catch(error => console.error("❌ Error al enviar mensaje:", error));
+}
+
+/*==================================== 
+// ADJUNTAR IMAGEN DESDE EL CRM
+=====================================*/
+document.getElementById("imagen-input").addEventListener("change", async function (event) {
+    const file = event.target.files[0];
+    if (!file) return; // Si el usuario cancela o no selecciona ningún archivo.
+  
+    // Crear FormData y añadir el archivo con la key "imagen"
+    const formData = new FormData();
+    formData.append("imagen", file);
+  
+    try {
+      // 1) Llamada al endpoint del Bot para subir la imagen a S3.
+      // La URL debe apuntar al endpoint '/upload_imagen' que implementaste en el Bot.
+      const botUploadURL = "https://cami-bot-7d4110f9197c.herokuapp.com/upload_imagen";
+      const uploadResp = await fetch(botUploadURL, {
+        method: "POST",
+        body: formData
+      });
+  
+      // Verificar si la respuesta HTTP es exitosa
+      if (!uploadResp.ok) {
+        const errorText = await uploadResp.text();
+        throw new Error(`Error al subir imagen: ${uploadResp.status}, ${errorText}`);
+      }
+  
+      // Parsear la respuesta JSON
+      const uploadData = await uploadResp.json();
+      if (uploadData.error) {
+        alert("Error al subir imagen: " + uploadData.error);
+        return;
+      }
+  
+      // La respuesta debe incluir la URL pública de la imagen en S3.
+      const imagenUrl = uploadData.url;
+      console.log("URL de la imagen:", imagenUrl);
+  
+      // 2) Ahora, realizar la segunda llamada fetch para enviar la imagen
+      // al endpoint que envía el mensaje a WhatsApp. Puedes hacerlo directamente
+      // llamando al endpoint del Bot, por ejemplo: "/enviar_imagen".
+      const botSendURL = "https://cami-bot-7d4110f9197c.herokuapp.com/enviar_imagen";
+      // Obtener el teléfono del chat seleccionado.
+      const telefono = document.querySelector(".chat-item.selected")?.getAttribute("data-remitente");
+      if (!telefono) {
+        alert("Selecciona un chat antes de enviar una imagen.");
+        return;
+      }
+  
+      // Construir el payload para enviar la imagen
+      const payload = {
+        telefono: telefono,
+        imageUrl: imagenUrl,
+        caption: "Foto enviada desde el CRM" // Puedes personalizar el caption o quitarlo
+      };
+  
+      // Enviar la imagen al Bot
+      const sendResp = await fetch(botSendURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+  
+      // Verificar si la respuesta HTTP es exitosa
+      if (!sendResp.ok) {
+        const errorText2 = await sendResp.text();
+        throw new Error(`Error al enviar imagen: ${sendResp.status}, ${errorText2}`);
+      }
+      const sendData = await sendResp.json();
+      if (sendData.error) {
+        alert("Error al enviar imagen: " + sendData.error);
+      } else {
+        console.log("Imagen enviada correctamente al bot.");
+      }
+  
+    } catch (error) {
+      console.error("Error subiendo/enviando imagen:", error);
+      alert(error.message);
+    } finally {
+      // Limpiar el input para permitir volver a adjuntar una imagen
+      event.target.value = "";
+    }
+  });  
+
+
+/*======================================================================
+// Detectar cuando se presiona "Enter" en el campo de entrada de mensaje
+======================================================================*/
+document.getElementById("mensaje-input").addEventListener("keydown", function (event) {
+    if (event.key === "Enter") { // Verifica si la tecla presionada es "Enter"
+        event.preventDefault(); // Evita que se haga un salto de línea en el input
+        enviarMensaje(); // Llama a la función de envío
+    }
+});
+
+//Vista de mensajes en el Chatbox
+function cargarMensajesChat(remitente) {
+  fetch(`/mensajes_chat?id=${remitente}`)
+    .then(response => response.json())
+    .then(data => {
+      const nombreLead = data.nombre || remitente;
+      document.getElementById("chat-usuario").textContent = nombreLead;
+      const chatBox = document.getElementById("chat-messages");
+      chatBox.innerHTML = "";
+      (data.mensajes || []).forEach(msg => {
+        const div = crearMensajeChat(msg.mensaje, msg.tipo);
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    })
+    .catch(error => console.error("❌ Error al cargar mensajes:", error));
+}
+
+
+// 🔹 Función para reproducir sonido
+function reproducirSonido() {
+    if (sonidoActivo) {
+        let audio = new Audio("https://cami-cam.com/wp-content/uploads/2025/02/SD_NAVIGATE_41.mp3");
+        audio.play().catch(error => {
+            console.warn("⚠️ No se pudo reproducir el sonido.", error);
+        });
+    }
+}
+
+// Habilitar el sonido cuando el usuario interactúe con la página
+document.body.addEventListener("click", function () {
+    sonidoActivo = true;
+});
+
+
+        function toggleNotificaciones() {
+            notificacionesActivas = !notificacionesActivas;
+            document.getElementById("toggle-notif").textContent = notificacionesActivas ? "🔔 Notificaciones: ON" : "🔕 Notificaciones: OFF";
+        }
+
+        function toggleSonido() {
+            sonidoActivo = !sonidoActivo;
+            document.getElementById("toggle-sonido").textContent = sonidoActivo ? "🔊 Sonido: ON" : "🔈 Sonido: OFF";
+        }
+
+          //Actualiza la lista de chats a un lado del telefono
+          function actualizarListaChats(remitente, mensaje) {
+  let chatLista = document.getElementById("lista-chats");
+  let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
+
+  if (!chatExistente) {
+    fetch(`/mensajes_chat?id=${remitente}`)
+      .then(response => response.json())
+      .then(data => {
+        let nombre = data.nombre || remitente;
+        let div = document.createElement("div");
+        div.classList.add("chat-item");
+        div.setAttribute("data-remitente", remitente);
+        div.onclick = function () { seleccionarChat(div); };
+        div.innerHTML = `
+          <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+          <div class="chat-info">
+            <div class="chat-name">${nombre}</div>
+            <div class="chat-last-message">${mensaje}</div>
+          </div>
+          <div class="chat-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+        `;
+        chatLista.appendChild(div);
+      })
+      .catch(error => console.error("❌ Error al obtener nombre del lead:", error));
+  } else {
+    chatExistente.querySelector(".chat-last-message").textContent = mensaje;
+    chatExistente.querySelector(".chat-time").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  return chatExistente;
+}
+        
+
+
+
+        function cargarChat() {
+            fetch("/mensajes")
+                .then(response => response.json())
+                .then(mensajes => {
+                    let lista = document.getElementById("lista-chats");
+                    lista.innerHTML = "";
+                    let remitentes = {};
+        
+                    // Agrupar mensajes por remitente y obtener el último
+                    mensajes.forEach(msg => {
+                        if (!remitentes[msg.remitente]) {
+                            remitentes[msg.remitente] = { mensajes: [] };
+                        }
+                        remitentes[msg.remitente].mensajes.push(msg);
+                    });
+        
+                    // Crear los elementos de la lista de chats
+                    Object.keys(remitentes).forEach(remitente => {
+                        let mensajesRemitente = remitentes[remitente].mensajes;
+        
+                        // Ordenar los mensajes por fecha y obtener el más reciente
+                        mensajesRemitente.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                        let ultimoMensaje = mensajesRemitente[mensajesRemitente.length - 1];
+        
+                        // Actualizar la lista de chats
+                        actualizarListaChats(remitente, ultimoMensaje.mensaje);
+                    });
+                })
+                .catch(error => console.error("❌ Error al cargar chats:", error));
+        }
+
+
+        
+        //Funcion para seleccionar los chats a un lado del chatbox (Telefono)
+        function seleccionarChat(chatDiv) {
+            document.querySelectorAll(".chat-item").forEach(div => div.classList.remove("selected"));
+            chatDiv.classList.add("selected");
+        
+            let remitente = chatDiv.getAttribute("data-remitente");
+            document.getElementById("chat-usuario").textContent = remitente;
+        
+            cargarMensajesChat(remitente);
+        
+            // Habilitar el input y botón de envío
+            document.getElementById("mensaje-input").disabled = false;
+            document.querySelector(".chat-input button").disabled = false;
+        } 
+
+
+  /**
+ * Crea el elemento HTML que representa un mensaje, de texto/imagen/(opcional) video.
+ * Seguridad: no inyectar HTML arbitrario; usar textContent en textos.
+ */
+function crearMensajeChat(mensaje, tipo) {
+  const div = document.createElement("div");
+  div.classList.add("mensaje");
+
+  // Imagen
+  if (tipo === "enviado_imagen" || tipo === "recibido_imagen") {
+    const img = document.createElement("img");
+    img.src = mensaje;
+    img.alt = "Imagen";
+    img.style.maxWidth = "200px";
+    img.style.borderRadius = "8px";
+    div.appendChild(img);
+    div.classList.add(tipo.startsWith("enviado") ? "mensaje-enviado" : "mensaje-recibido");
+    return div;
+  }
+
+  // Video
+  if (tipo === "enviado_video" || tipo === "recibido_video") {
+    const video = document.createElement("video");
+    video.controls = true; // ⬅️ por UX
+    video.style.maxWidth = "220px";
+    const source = document.createElement("source");
+    source.src = mensaje;
+    source.type = "video/mp4";
+    video.appendChild(source);
+    div.appendChild(video);
+    div.classList.add(tipo.startsWith("enviado") ? "mensaje-enviado" : "mensaje-recibido");
+    return div;
+  }
+
+  // Texto
+  div.textContent = String(mensaje ?? "");
+  div.classList.add(tipo === "enviado" ? "mensaje-enviado" : "mensaje-recibido");
+  return div;
+}
+  
+        function cargarLeads() {
+            fetch("/leads")
+                .then(response => response.json())
+                .then(leads => {
+                    document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
+                    leads.forEach(lead => {
+                        let estadoLimpio = lead.estado.trim();
+                        let leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
+        
+                        if (leadList) {
+                            let leadElement = document.createElement("div");
+                            leadElement.classList.add("lead", "lead-nuevo");
+                            leadElement.setAttribute("data-id", lead.id);
+                            leadElement.setAttribute("data-telefono", lead.telefono);
+                            leadElement.setAttribute("draggable", "true");
+                            leadElement.ondragstart = (event) => drag(event);
+                            leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
+        
+                            leadElement.innerHTML = `
+                                <div class="lead-content">
+                                    <strong class="lead-nombre">${lead.nombre}</strong>
+                                    <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">
+                                        ${lead.ultimo_mensaje || "No hay mensajes recientes"}
+                                    </p>
+                                </div>
+                            `;
+        
+                            leadList.appendChild(leadElement);
+        
+                            setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+                        }
+                    });
+                })
+                .catch(error => console.error("❌ Error al cargar leads:", error));
+        }
+        
+     
+        
+/* 🔹 Abrir chat desde lead: corregir consumo de /mensajes_chat */
+function irAChat(telefono) {
+  mostrarSeccion("chat", () => {
+    const chatLista = document.getElementById("lista-chats");
+    let chatExistente = document.querySelector(`.chat-item[data-remitente='${telefono}']`);
+
+    if (!chatExistente) {
+      const div = document.createElement("div");
+      div.classList.add("chat-item");
+      div.setAttribute("data-remitente", telefono);
+      div.onclick = function () { seleccionarChat(div); };
+
+      fetch(`/mensajes_chat?id=${telefono}`)
+        .then(r => r.json())
+        .then(payload => {
+          // payload = { nombre, mensajes }
+          const nombre = payload.nombre || telefono;
+          const msgs = payload.mensajes || [];
+          const last = msgs.length ? msgs[msgs.length - 1] : null;
+          const lastText = last
+            ? (last.tipo?.includes("imagen") ? "Foto" : (last.mensaje ?? ""))
+            : "No hay mensajes";
+          const lastTime = last ? new Date(last.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
+
+          div.innerHTML = `
+            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
+            <div class="chat-info">
+              <div class="chat-name">${nombre}</div>
+              <div class="chat-last-message">${lastText}</div>
+            </div>
+            <div class="chat-time">${lastTime}</div>
+          `;
+          chatLista.appendChild(div);
+          chatExistente = div;
+          seleccionarChat(chatExistente);
+        })
+        .catch(err => console.error("❌ Error al cargar mensajes:", err));
+    } else {
+      seleccionarChat(chatExistente);
+    }
+  });
+}
+        
+        // 🔹 Evento de arrastre
+        function drag(event) {
+            event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
+        }
+        
+      
+        
+        // 🔹 Manejar el evento de soltar
+        function drop(event, nuevoEstado) {
+            event.preventDefault();
+            let leadId = event.dataTransfer.getData("text");
+            
+            fetch("/cambiar_estado_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: leadId, estado: nuevoEstado })
+            })
+            .then(() => cargarLeads()) // 🔹 Recargar la lista para reflejar cambios
+            .catch(error => console.error("Error al cambiar estado del lead:", error));
+        }
+        
+
+        document.getElementById("leads-container").addEventListener("dragstart", (event) => {
+            if (event.target.classList.contains("lead")) {
+                event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
+            }
+        });
+
+          // 🔹 Permitir soltar en las columnas
+        document.querySelectorAll(".leads-column").forEach(column => {
+            column.ondragover = (event) => event.preventDefault();
+            column.ondrop = (event) => {
+                event.preventDefault();
+                let leadId = event.dataTransfer.getData("text");
+                let newEstado = column.getAttribute("data-estado");
+                let leadElement = document.querySelector(`[data-id='${leadId}']`);
+        
+                // 🔹 Cambiar el fondo del lead al color de la nueva columna
+                if (leadElement) {
+                    leadElement.style.background = window.getComputedStyle(column).backgroundColor;
+                }
+        
+                // 🔹 Enviar la actualización al backend
+                fetch("/cambiar_estado_lead", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: leadId, estado: newEstado })
+                }).then(() => cargarLeads()); // Recargar para reflejar cambios
+            };
+        });
+        
+
+        function crearLead() {
+            let nombre = document.getElementById("lead-nombre").value.trim();
+            let telefono = document.getElementById("lead-telefono").value.trim();
+            let notas = document.getElementById("lead-notas").value.trim();
+        
+            if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
+                alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
+                return;
+            }
+        
+            fetch("/crear_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ nombre, telefono, notas })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Error al crear lead: " + data.error);
+                } else {
+                    alert(data.mensaje);
+                    cargarLeads();
+                    document.getElementById("lead-nombre").value = "";
+                    document.getElementById("lead-telefono").value = "";
+                    document.getElementById("lead-notas").value = "";
+                    toggleFormulario();
+                }
+            })
+            .catch(error => {
+                console.error("❌ Error al crear lead:", error);
+                alert("Error al crear lead. Inténtalo de nuevo.");
+            });
+        }
+
+        function toggleFormulario() {
+            let form = document.getElementById("lead-form");
+            let button = document.getElementById("toggle-form");
+        
+            if (form.classList.contains("hidden")) {
+                form.classList.remove("hidden"); // 🔹 Mostrar formulario
+                button.textContent = "✖ Cerrar"; // 🔹 Cambiar el botón a "Cerrar"
+            } else {
+                form.classList.add("hidden"); // 🔹 Ocultar formulario
+                button.textContent = "➕ Agregar Lead"; // 🔹 Volver a mostrar el botón original
+            }
+        }
+        
+        function eliminarLeadDesdeModal() {
+            let leadId = document.getElementById("edit-lead-id").value;
+            let telefono = document.getElementById("edit-lead-telefono").value;
+        
+            eliminarLead(leadId, telefono); // 🔹 Reutilizamos la función de eliminación
+            cerrarModal(); // 🔹 Cerramos el modal después de eliminar
+        }
+        
+
+        function eliminarLead(leadId, telefono) {
+            if (!confirm("¿Seguro que quieres eliminar este lead y todos sus mensajes?")) {
+                return;
+            }
+        
+            fetch("/eliminar_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: leadId, telefono: telefono })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                cargarLeads();
+                cargarChat(); // 🔹 También actualizar la lista de chats
+                cerrarModal(); // 🔹 Cerrar el modal si estaba abierto
+            })
+            .catch(error => console.error("❌ Error al eliminar lead:", error));
+        }
+         
+
+        function editarNota(id, nombre, telefono, notas) {
+            let nuevaNota = prompt(`Editar nota de ${nombre}:`, notas);
+            if (nuevaNota === null) return; // Si el usuario cancela, no hacer nada
+        
+            fetch("/editar_lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, nombre, telefono, notas: nuevaNota })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.mensaje);
+                cargarLeads();  // 🔹 Recargar la lista de leads
+            })
+            .catch(error => console.error("❌ Error al actualizar nota:", error));
+        }
+        
+       
+
+        function abrirModalEditar(id, nombre, telefono, notas) {
+  document.getElementById("edit-lead-id").value = id;
+  document.getElementById("edit-lead-nombre").value = nombre;
+  document.getElementById("edit-lead-telefono").value = telefono;
+  document.getElementById("edit-lead-notas").value = notas || "";
+
+  // Guarda los valores originales en el modal para comparación
+  let modal = document.getElementById("edit-lead-modal");
+  modal.dataset.originalNombre = nombre;
+  modal.dataset.originalNotas = notas || "";
+
+  // Muestra el modal (en este ejemplo, cambiamos la propiedad display)
+  modal.style.display = "flex";
+}
+
+        
+       
+
+        function cerrarModal() {
+  let modal = document.getElementById("edit-lead-modal");
+  
+  let originalNombre = modal.dataset.originalNombre;
+  let originalNotas = modal.dataset.originalNotas;
+  
+  let currentNombre = document.getElementById("edit-lead-nombre").value.trim();
+  let currentNotas = document.getElementById("edit-lead-notas").value.trim();
+  
+  // Si se detecta algún cambio, guardar automáticamente
+  if (currentNombre !== originalNombre || currentNotas !== originalNotas) {
+    guardarEdicionLead();
+  }
+  
+  modal.style.display = "none";
+}
+
+        function guardarEdicionLead() {
+  let id = document.getElementById("edit-lead-id").value;
+  let nombre = document.getElementById("edit-lead-nombre").value.trim();
+  let telefono = document.getElementById("edit-lead-telefono").value.trim(); // No se modifica
+  let notas = document.getElementById("edit-lead-notas").value.trim();
+
+  // Aquí puedes agregar validaciones adicionales para 'nombre' y 'notas' si lo consideras necesario.
+
+  fetch("/editar_lead", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, nombre, telefono, notas })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        alert("❌ Error: " + data.error);
+      } else {
+        alert("✅ Lead actualizado correctamente");
+        // Actualiza la lista de leads o lo que sea necesario
+        cargarLeads();
+      }
+    })
+    .catch(error => console.error("❌ Error al actualizar lead:", error));
+}
+  
+ 
+/***********************
+========================
+  SECCION DE CALENDARIO
+========================
+************************/
+//Variables Globales
+let anioSeleccionado = null;
+const yearColors = {};  
+
+// ▸ Colores automáticos de reserva → ahora también global
+const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
+// ───────── Variables globales de Gastos ─────────
+let debounceEtiqueta = null;   // ← aquí, antes de llamar a cambiarColorEtiqueta
+
+
+function initCalendario() {
+    // 1. Cargar leads en el select (para formulario de agregar fecha)
+    cargarLeadsEnSelect();
+    
+    // 2. Cargar la vista de años (en lugar de cargarCalendario())
+    cargarAnios();
+    
+    // 3. Opcional: Resetear año seleccionado
+    anioSeleccionado = null;
+}
+
+
+/** 📡 Evento que el backend emite tras insertar una fecha */
+socket.on("calendario_actualizado", data => {
+  console.log("📡 Calendario actualizado:", data);
+
+  // 1) Vuelve a pintar la lista de años (tarjetas)
+  cargarAnios(true); 
+
+  // 2) Si el usuario ya está dentro de ese año, actualiza la lista de eventos
+  if (anioSeleccionado === data.anio) {
+    cargarCalendario();   // usa la variable global anioSeleccionado
+  }
+});
+
+
+
+
+/***********************
+========================
+  VISTA DE AÑOS
+========================
+************************/
+function initCalendario() {
+  // 0)  Apaga todo para un estado limpio
+  document.getElementById("vista-anios").classList.remove("hidden");
+  document.getElementById("vista-meses").classList.add("hidden");
+  document.getElementById("vista-eventos-anio").classList.add("hidden");
+
+  anioSeleccionado = null;
+
+  // 1)  Rellena selects, carga tarjetas
+  cargarLeadsEnSelect();
+  cargarAnios();               
+}
+
+
+
+//Esta función utiliza el endpoint /calendario/fechas_ocupadas para extraer los años de las fechas y agruparlos:
+/***********************************************
+ * CARGAR TARJETAS DE AÑOS (con soporte de color
+ * manual desde la BD y fallback automático)
+ ***********************************************/
+ function cargarAnios(force = false) {
+  fetch("/calendario/fechas_ocupadas")
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+
+      const cont = document.getElementById("lista-anios");
+      cont.innerHTML = "";
+
+      const añosDeFechas = new Set(
+        (data.fechas || []).map(f => new Date(f.fecha).getFullYear())
+      );
+      const añosDeColores = new Set(
+        Object.keys(data.colores || {}).map(Number)
+      );
+
+      // ➟ unión de ambos conjuntos
+      const anios = [...new Set([...añosDeFechas, ...añosDeColores])]
+                    .sort((a, b) => b - a);          // DESC
+
+      if (anios.length === 0) {
+        cont.innerHTML = '<p class="no-data">No hay fechas registradas.</p>';
+        return;
+      }
+
+      anios.forEach((anio, idx) => {
+        /* ---------- color ---------- */
+        const color = (data.colores || {})[anio] ??
+                      coloresBorde[idx % coloresBorde.length];
+        yearColors[anio] = color;
+
+        /* ---------- eventos ---------- */
+        const total = (data.fechas || []).filter(f =>
+          new Date(f.fecha).getFullYear() === anio
+        ).length;
+
+        /* ---------- tarjeta ---------- */
+        const card = document.createElement("div");
+        card.className = "anio-card";
+        card.style.borderLeft = `4px solid ${color}`;
+        card.innerHTML = `
+          <h3>${anio}</h3>
+          <span class="event-count">${total} evento${total !== 1 ? 's' : ''}</span>
+        `;
+        card.onclick = () =>
+          mostrarMesesDelAnio(anio, data.fechas, color);
+
+        cont.appendChild(card);
+      });
+    })
+    .catch(err => {
+      console.error("Error al cargar años:", err);
+      alert("Error al cargar años: " + err.message);
+    });
+}
+
+
+/***********************************************
+ * PINTAR COLORES EN LOS REPORTES
+ ***********************************************/
+// Funcion para pintar el color del borde y de los encabezados
+function pintarColorReporte(anio) {
+  const color = yearColors[anio] || "#1e88e5";   // fallback
+
+  /* ── bordes de los contenedores ────────────────────────── */
+  ["resultado-ingresos-anual", "resultado-grafica", "resultado-servicios"]
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.borderLeft = `4px solid ${color}`;
+    });
+
+  /* ── encabezados de las tablas ─────────────────────────── */
+  document.querySelectorAll(
+    "#resultado-ingresos-anual table thead, #resultado-servicios table thead"
+  ).forEach(thead => {
+    thead.style.setProperty("background", color, "important");
+    thead.style.setProperty("color", "#fff", "important");
+
+    thead.querySelectorAll("th").forEach(th => {
+      th.style.setProperty("background", color, "important");
+      th.style.setProperty("color", "#fff", "important");
+    });
+  });
+
+  /* ── título de la gráfica ──────────────────────────────── */
+  const grafTitle = document.querySelector("#resultado-grafica h3");
+  if (grafTitle) grafTitle.style.color = color;
+}
+
+
+
+//Esta función filtra las fechas correspondientes al año seleccionado y actualiza el DOM para mostrar la vista de eventos:
+// =======================================
+//  Vista de eventos → agrupado por MES
+// =======================================
+function mostrarMesesDelAnio(anio, todasLasFechas, colorAnio = "#1e88e5") {
+  anioSeleccionado = anio;
+
+  /* ── 1. agrupar por mes ─────────────────────────── */
+  const grupos = {};
+  todasLasFechas.forEach(ev => {
+    const [yy, mm] = ev.fecha.split("-");   // "2027", "05"
+    if (+yy !== anio) return;
+    const m = +mm - 1;                      // 0-11
+    (grupos[m] ||= []).push(ev);
+  });
+
+  /* ── 2. preparar vista ──────────────────────────── */
+  document.getElementById("vista-anios").classList.add("hidden");
+  document.getElementById("vista-eventos-anio").classList.add("hidden");
+  document.getElementById("vista-meses").classList.remove("hidden");
+  document.getElementById("meses-titulo").textContent = `Eventos ${anio}`;
+
+  const cont = document.getElementById("lista-meses");
+  cont.innerHTML = "";
+
+  const nombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  for (let m = 0; m < 12; m++) {
+    const lista = grupos[m] || [];
+    if (lista.length === 0) continue;
+
+    const card = document.createElement("div");
+    card.className = "mes-card";
+    card.style.borderLeft = `4px solid ${colorAnio}`;
+    card.innerHTML = `<h3>${nombres[m]}</h3><span class="event-count">${lista.length}</span>`;
+    card.onclick = () => mostrarEventosDelMes(anio, m, lista, colorAnio);
+    cont.appendChild(card);
+  }
+
+  /* ── 3. acciones de año (borrar / cambiar color) ── */
+  document.getElementById("year-actions").classList.remove("hidden");
+
+  // registrar color en cache global si aún no existía
+  if (!yearColors[anio]) yearColors[anio] = colorAnio;
+
+  // botón de borrar
+  document.getElementById("btn-borrar-anio").onclick = () => eliminarAnio(anio);
+
+  // picker de color
+  const picker = document.getElementById("year-color-picker");
+  picker.value  = colorAnio;                                 // ← color actual
+  picker.oninput = e => cambiarColorAnio(anio, e.target.value);
+}
+
+
+
+/* ---------------  Eventos de un mes --------------- */
+function mostrarEventosDelMes(anio, mes, lista, colorAnio) {
+  // ordenar con comparación de strings "YYYY-MM-DD"
+  lista.sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+
+  /* preparar vista */
+  document.getElementById("vista-meses").classList.add("hidden");
+  document.getElementById("vista-eventos-anio").classList.remove("hidden");
+  document.getElementById("anio-actual").textContent =
+    `Eventos ${["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+               "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes]} ${anio}`;
+
+  const ul = document.getElementById("lista-fechas-ocupadas");
+  ul.innerHTML = "";
+
+  const hoyISO = new Date().toISOString().slice(0, 10);           // "YYYY-MM-DD"
+  const proxIdx = lista.findIndex(ev => ev.fecha >= hoyISO);
+
+  lista.forEach((ev, idx) => {
+    /* dia/mes SIN Date()  */
+    const dia = formatoFechaLargo(ev.fecha);   // ← “Jue. 01 de Mayo”
+
+    const li = document.createElement("li");    
+    li.innerHTML = `
+      <div class="fecha-info">
+        <span class="fecha-fecha">${dia}</span>
+        <span class="dot-sep">•</span>
+        ${ev.titulo ? `<span class="fecha-titulo">${ev.titulo}</span>` : ""}
+      </div>
+      <i class="fas fa-chevron-right"></i>`;
+    
+    li.onclick = () => abrirModalFecha(ev.id);
+    li.style.borderLeft = `4px solid ${colorAnio}`;
+
+    /* resalta próximo evento */
+    if (proxIdx !== -1 && idx === proxIdx) {
+      li.classList.add("next-event");
+      li.style.backgroundColor = hexToRgba(colorAnio, 0.6);
+    }
+    ul.appendChild(li);
+  });
+}
+
+
+
+//  función para disminuir los valores RGB y obtener un color más oscuro:
+function darkenColor(hex, amount) {
+  // Elimina '#' si existe
+  let usePound = false;
+  if (hex[0] === "#") {
+    hex = hex.slice(1);
+    usePound = true;
+  }
+  
+  let num = parseInt(hex, 16);
+  let r = Math.max((num >> 16) - amount, 0);
+  let g = Math.max(((num >> 8) & 0x00FF) - amount, 0);
+  let b = Math.max((num & 0x0000FF) - amount, 0);
+  
+  return (usePound ? "#" : "") + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+
+
+
+// Funcion para convertir el color hexadecimal a formato RGBA y establecer un valor para el canal alfa (transparencia).
+function hexToRgba(hex, alpha) {
+  // Elimina el símbolo '#' si está presente
+  hex = hex.replace("#", "");
+  
+  // Si el código es corto (3 dígitos), duplicarlo a 6 dígitos
+  if (hex.length === 3) {
+    hex = hex.split('').map(char => char + char).join('');
+  }
+  
+  const r = parseInt(hex.substring(0,2), 16);
+  const g = parseInt(hex.substring(2,4), 16);
+  const b = parseInt(hex.substring(4,6), 16);
+  
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function formatoFechaLargo(iso) {
+  // iso = "YYYY-MM-DD"
+  // Usamos mediodía local (12:00) para evitar desfases UTC-6
+  const date = new Date(iso + "T12:00:00");
+  const dias = ["Dom.", "Lun.", "Mar.", "Mié.", "Jue.", "Vie.", "Sáb."];
+  const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                 "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  const dd   = date.getDate().toString().padStart(2, "0");
+  const dia  = dias[date.getDay()];              // "Jue."
+  const mes  = meses[date.getMonth()];           // "Mayo"
+
+  return `${dia} ${dd} de ${mes}`;               // "Jue. 01 de Mayo"
+}
+  
+  
+/* ───────── Volver a la lista de AÑOS ───────── */
+function volverAVistaAnios() {
+  document.getElementById("vista-eventos-anio").classList.add("hidden");
+  document.getElementById("vista-meses").classList.add("hidden");
+  document.getElementById("vista-anios").classList.remove("hidden");
+
+  // ocultar acciones de año
+  document.getElementById("year-actions").classList.add("hidden");
+
+  anioSeleccionado = null;
+  cargarAnios();
+}
+
+/* ───────── Volver a la lista de MESES ───────── */
+function volverAVistaMeses() {
+  document.getElementById("vista-eventos-anio").classList.add("hidden");
+  document.getElementById("vista-meses").classList.remove("hidden");
+
+  // volver a mostrar acciones de año
+  document.getElementById("year-actions").classList.remove("hidden");
+}
+
+
+/***********************
+========================
+  AGREGAR NUEVO AÑO
+========================
+************************/
+
+function mostrarFormularioAnio() {
+  const anioDefault = new Date().getFullYear();
+  document.getElementById("anio-input").value = anioDefault;
+
+  // pre-selecciona el color automático que tocaría
+  const idx = Object.keys(yearColors).length;
+  const autoColor = coloresBorde[idx % coloresBorde.length];
+  document.getElementById("color-input").value = autoColor;
+
+  document.getElementById("add-anio-modal").style.display = "flex";
+}
+
+
+function cerrarAddAnioModal() {
+    document.getElementById('add-anio-modal').style.display = 'none';
+}
+
+async function agregarAnio() {
+  const anio  = parseInt(document.getElementById("anio-input").value);
+  const color = document.getElementById("color-input").value;
+
+  if (!anio || anio < 2000 || anio > 2100) {
+    alert("Año inválido"); return;
+  }
+
+  // 1️⃣  Backend: guarda año+color
+  const resp = await fetch("/calendario/agregar_anio", {
+    method: "POST",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify({ anio, color })
+  });
+  const data = await resp.json();
+  if (data.error) { alert(data.error); return; }
+
+  // 2️⃣ Recargar tarjetas
+  cerrarAddAnioModal();
+  cargarAnios(true);            //  true = refresco forzado
+}
+
+    
+    /**
+     * Llamado cuando abrimos la sección Calendario
+     * con: mostrarSeccion('calendario', initCalendario).
+     */
+    
+    /*=========================================
+       1) MOSTRAR FECHAS OCUPADAS EN UNA LISTA
+    =========================================*/
+    // ============== 1) CARGAR LISTA DE FECHAS ==============
+    function cargarCalendario() {
+      if (!anioSeleccionado) return;
+    
+      fetch("/calendario/fechas_ocupadas")
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+    
+          // 👉  Mismo algoritmo de colores que en cargarAnios()
+          const anios = [...new Set(data.fechas
+                          .map(f => new Date(f.fecha).getFullYear()))]
+                          .sort((a,b) => b - a);
+          const coloresBorde = ["#1e88e5", "#ff9800", "#43a047", "#d32f2f", "#2e7d32"];
+          const idx = anios.indexOf(anioSeleccionado);
+          const color = coloresBorde[idx % coloresBorde.length];
+    
+          mostrarMesesDelAnio(anioSeleccionado, data.fechas, color);
+
+        })
+        .catch(e => {
+          console.error("Error en cargarCalendario:", e);
+          mostrarNotificacion("Error al cargar eventos: " + e.message, "error");
+        });
+    }
+    
+    /*=========================================
+       2) CARGAR LEADS PARA EL <select> LEAD
+    =========================================*/
+    function cargarLeadsEnSelect() {
+      fetch("/leads")
+        .then(resp => resp.json())
+        .then(leads => {
+          // leads es un array de objetos, 
+          // por ejemplo: [ {id: 1, nombre: "Carlos", telefono: "...", ...}, ... ]
+          const select = document.getElementById("lead-select");
+          select.innerHTML = '<option value="">-- Sin Lead --</option>';
+    
+          leads.forEach(ld => {
+            const option = document.createElement("option");
+            option.value = ld.id;
+            option.textContent = ld.nombre;
+            select.appendChild(option);
+          });
+        })
+        .catch(err => {
+          console.error("Error fetch /leads:", err);
+        });
+    }
+    
+
+    /*=========================================
+       3) AGREGAR FECHA MANUALMENTE
+    =========================================*/
+
+// ============== 2) ABRIR AGREGAR NUEVA FECHA  ==============
+      function mostrarFormularioFecha() {
+        // Cargar leads en el select cada vez que se abre
+        cargarLeadsEnSelect();
+        document.getElementById('add-fecha-modal').style.display = 'flex';
+        
+        // Resetear formulario
+        document.getElementById('fecha-input').value = '';
+        document.getElementById('titulo-input').value = '';
+        document.getElementById('notas-textarea').value = '';
+        document.getElementById('ticket-input').value = '';
+        // Resetear checkboxes...
+    }
+    
+    function cerrarAddFechaModal() {
+        document.getElementById('add-fecha-modal').style.display = 'none';
+    }
+    
+    
+// ============== 2) AGREGAR NUEVA FECHA MANUAL ==============
+// Agregar evento para formatear el input cuando pierde el foco
+document.getElementById("ticket-input").addEventListener("blur", function() {
+    // Extraer solo los dígitos y el punto decimal
+    let numericValue = parseFloat(this.value.replace(/[^0-9.]/g, ''));
+    if (!isNaN(numericValue)) {
+      this.value = numericValue.toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+    }
+  }); 
+  
+
+//Aquí se añade la validación para que la fecha ingresada pertenezca al año seleccionado:
+  function agregarFechaManual(force = false) {
+    const fecha = document.getElementById("fecha-input").value;
+    
+    // Validar que la fecha corresponda al año seleccionado (si aplica)
+    if (anioSeleccionado) {
+      const anioFecha = new Date(fecha).getFullYear();
+      if (anioFecha !== anioSeleccionado) {
+        alert(`La fecha debe pertenecer al año ${anioSeleccionado}`);
+        return;
+      }
+    }
+    
+    const lead_id = document.getElementById("lead-select").value;
+    const titulo = document.getElementById("titulo-input").value.trim();
+    const notas = document.getElementById("notas-textarea").value.trim();
+    
+    const ticketInput = document.getElementById("ticket-input").value;
+    const ticketStr = ticketInput.replace(/[^0-9.]/g, '');
+    const ticketNum = parseFloat(ticketStr) || 0;
+    
+    // Procesamiento de servicios (igual que en tu código original)
+    const letrasGigantes = parseInt(document.getElementById("letrasGigantes").value) || 0;
+    const chisperos = parseInt(document.getElementById("chisperos").value) || 0;
+    const cabinaFotos = document.getElementById("cabinaFotos").checked ? 1 : 0;
+    const cabina360 = document.getElementById("cabina360").checked ? 1 : 0;
+    const caritoDeShotsSinAlcohol = document.getElementById("caritoDeShotsSinAlcohol").checked ? 1 : 0;
+    const caritoDeShotsConAlcohol = document.getElementById("caritoDeShotsConAlcohol").checked ? 1 : 0;
+    const lluviaDeMariposas = document.getElementById("lluviaDeMariposas").checked ? 1 : 0;
+    const lluviaMetalica = document.getElementById("lluviaMetalica").checked ? 1 : 0;
+    const nieblaDePiso = document.getElementById("nieblaDePiso").checked ? 1 : 0;
+    const scrapbook = document.getElementById("scrapbook").checked ? 1 : 0;
+    const audioGuestBook = document.getElementById("audioGuestBook").checked ? 1 : 0;
+    
+    const serviciosObj = {
+      letrasGigantes,
+      chisperos,
+      cabinaFotos,
+      cabina360,
+      caritoDeShotsSinAlcohol,
+      caritoDeShotsConAlcohol,
+      lluviaDeMariposas,
+      lluviaMetalica,
+      nieblaDePiso,
+      scrapbook,
+      audioGuestBook
+    };
+    
+    const payload = {
+      fecha,
+      lead_id: lead_id ? parseInt(lead_id) : null,
+      titulo,
+      notas,
+      ticket: ticketNum,
+      servicios: serviciosObj
+    };
+    
+    payload.force = force;                       // ← manda el flag
+
+    fetch("/calendario/agregar_manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.second_possible) {
+          // Mostrar confirmación
+          if (confirm(data.mensaje)) {
+            agregarFechaManual(true);              // llamada recursiva con force=true
+          }
+          return;
+        }
+        if (data.ok) {
+          alert(data.mensaje);
+          // Limpiar campos
+          document.getElementById("fecha-input").value = "";
+          document.getElementById("lead-select").value = "";
+          document.getElementById("titulo-input").value = "";
+          document.getElementById("notas-textarea").value = "";
+          document.getElementById("ticket-input").value = "";
+          document.getElementById("letrasGigantes").value = "0";
+          document.getElementById("chisperos").value = "0";
+          document.getElementById("cabinaFotos").checked = false;
+          document.getElementById("cabina360").checked = false;
+          document.getElementById("caritoDeShotsSinAlcohol").checked = false;
+          document.getElementById("caritoDeShotsConAlcohol").checked = false;
+          document.getElementById("lluviaDeMariposas").checked = false;
+          document.getElementById("lluviaMetalica").checked = false;
+          document.getElementById("nieblaDePiso").checked = false;
+          document.getElementById("scrapbook").checked = false;
+          document.getElementById("audioGuestBook").checked = false;
+    
+          cerrarAddFechaModal();
+          // Volver a cargar la vista de años para reflejar el cambio (o actualizar la vista de eventos si prefieres)
+          cargarAnios();
+        } else {
+          alert(data.mensaje);
+        }
+      })
+      .catch(err => {
+        console.error("Error al agregar fecha manual:", err);
+        alert("Error al agregar fecha.");
+      });
+  }
+  
+  
+  
+// ============== 3) ABRIR MODAL DE EDICIÓN ==============
+function abrirModalFecha(calId) {
+    fetch(`/calendario/detalle/${calId}`)
+        .then(r => r.json())
+        .then(data => {
+          const fecha = new Date(data.fecha + 'T00:00:00');
+            const fechaFormateada = fecha.toISOString().split('T')[0];
+            
+            
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
+
+            // Llenar inputs
+            document.getElementById("edit-fecha-id").value = data.id;
+            document.getElementById("edit-fecha-input").value = fechaFormateada;
+            document.getElementById("edit-fecha-titulo").value = data.titulo || "";
+            document.getElementById("edit-fecha-notas").value = data.notas || "";
+               // Aquí, para el ticket, antes de formatearlo, se asigna su valor
+      // Suponiendo que data.ticket sea numérico
+      const editTicket = document.getElementById("edit-fecha-ticket");
+      // Puedes asignar el valor crudo o ya formateado, según lo que desees
+      editTicket.value = data.ticket ? parseFloat(data.ticket).toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }) : '';
+
+      // Asignar el event listener para formatear al perder el foco
+      editTicket.addEventListener("blur", function() {
+        let numericValue = parseFloat(this.value.replace(/[^0-9.]/g, ''));
+        if (!isNaN(numericValue)) {
+          this.value = numericValue.toLocaleString('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          });
+        }
+      });
+
+            // Servicios
+            const serv = data.servicios || {};
+            document.getElementById("edit-cabinaFotos").checked = (serv.cabinaFotos === 1);
+            document.getElementById("edit-cabina360").checked = (serv.cabina360 === 1);
+            document.getElementById("edit-caritoDeShotsSinAlcohol").checked = (serv.caritoDeShotsSinAlcohol === 1);
+            document.getElementById("edit-caritoDeShotsConAlcohol").checked = (serv.caritoDeShotsConAlcohol === 1);
+            document.getElementById("edit-lluviaDeMariposas").checked = (serv.lluviaDeMariposas === 1);
+            document.getElementById("edit-lluviaMetalica").checked = (serv.lluviaMetalica === 1); 
+            document.getElementById("edit-nieblaDePiso").checked = (serv.nieblaDePiso === 1);
+            document.getElementById("edit-scrapbook").checked = (serv.scrapbook === 1);
+            document.getElementById("edit-audioGuestBook").checked = (serv.audioGuestBook === 1);
+            document.getElementById("edit-letrasGigantes").value = serv.letrasGigantes || 0;
+            document.getElementById("edit-chisperos").value = serv.chisperos || 0;
+
+        // Configurar eventos de auto-guardado
+        configurarAutoGuardado();
+
+        // Mostrar el modal
+        document.getElementById("edit-fecha-modal").style.display = "flex";
+    })
+    .catch(err => console.error("Error abrirModalFecha:", err));
+}
+
+function configurarAutoGuardado() {
+    // Agregar event listeners a todos los inputs con clase auto-save-input
+    document.querySelectorAll('.auto-save-input').forEach(input => {
+        input.addEventListener('change', guardarEdicionFecha);
+        // Para inputs de texto que no disparan 'change' hasta perder foco
+        if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+            input.addEventListener('blur', guardarEdicionFecha);
+        }
+    });
+}
+
+// Función para cerrar el modal
+function cerrarModalFecha() {
+    // Primero removemos los event listeners para evitar memory leaks
+    document.querySelectorAll('.auto-save-input').forEach(input => {
+        input.removeEventListener('change', guardarEdicionFecha);
+        if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+            input.removeEventListener('blur', guardarEdicionFecha);
+        }
+    });
+    
+    document.getElementById("edit-fecha-modal").style.display = "none";
+}
+
+// Función modificada para guardar cambios
+function guardarEdicionFecha() {
+    let calId = document.getElementById("edit-fecha-id").value;
+    let titulo = document.getElementById("edit-fecha-titulo").value.trim();
+    let notas = document.getElementById("edit-fecha-notas").value.trim();
+
+     // Extraer y transformar el valor del ticket
+     let ticketInput = document.getElementById("edit-fecha-ticket").value.trim();
+     let ticketStr = ticketInput.replace(/[^0-9.]/g, '');
+     let ticketNum = parseFloat(ticketStr) || 0;
+
+    
+    // Obtener valores de servicios
+    let serviciosActual = {
+        letrasGigantes: parseInt(document.getElementById("edit-letrasGigantes").value) || 0,
+        chisperos: parseInt(document.getElementById("edit-chisperos").value) || 0,
+        cabinaFotos: document.getElementById("edit-cabinaFotos").checked ? 1 : 0,
+        cabina360: document.getElementById("edit-cabina360").checked ? 1 : 0,
+        caritoDeShotsSinAlcohol: document.getElementById("edit-caritoDeShotsSinAlcohol").checked ? 1 : 0,
+        caritoDeShotsConAlcohol: document.getElementById("edit-caritoDeShotsConAlcohol").checked ? 1 : 0,
+        lluviaDeMariposas: document.getElementById("edit-lluviaDeMariposas").checked ? 1 : 0,
+        lluviaMetalica: document.getElementById("edit-lluviaMetalica").checked ? 1 : 0, 
+        nieblaDePiso: document.getElementById("edit-nieblaDePiso").checked ? 1 : 0,
+        scrapbook: document.getElementById("edit-scrapbook").checked ? 1 : 0, 
+        audioGuestBook: document.getElementById("edit-audioGuestBook").checked ? 1 : 0
+    };
+    
+    let payload = {
+        titulo,
+        notas,
+        ticket: ticketNum,
+        servicios: serviciosActual
+    };
+    
+    // Usamos un pequeño timeout para evitar múltiples llamadas rápidas
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    
+    this.debounceTimer = setTimeout(() => {
+        fetch(`/calendario/editar/${calId}`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    console.error("Error al guardar:", data.error);
+                } else if (data.ok) {
+                    console.log("Cambios guardados automáticamente");
+                    cargarCalendario();
+                }
+            })
+            .catch(err => console.error("Error al guardar:", err));
+    }, 500); // 500ms de delay
+}
+
+// Función para eliminar (se mantiene igual)
+function eliminarFechaDesdeModal() {
+    if (!confirm("¿Seguro que quieres eliminar esta fecha?")) return;
+    
+    let calId = document.getElementById("edit-fecha-id").value;
+    fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert("Error: " + data.error);
+            } else if (data.ok) {
+                cargarCalendario();
+                cerrarModalFecha();
+            }
+        })
+        .catch(err => console.error(err));
+}
+   
+//Funcion para cambiar el color
+let cambiarColorTimer = null;   // debounce
+
+function cambiarColorAnio(anio, nuevoColor) {
+  clearTimeout(cambiarColorTimer);
+  cambiarColorTimer = setTimeout(async () => {
+    try {
+      const resp = await fetch("/calendario/anio_color", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anio, color: nuevoColor })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      // Actualiza cache y refresca vistas
+      yearColors[anio] = nuevoColor;
+      cargarAnios(true);                 // repinta tarjetas
+      pintarColorReporte(anio);          // repinta reportes abiertos
+      // repinta bordes de los meses y lista de eventos:
+      document.querySelectorAll(".mes-card").forEach(m => {
+        m.style.borderLeft = `4px solid ${nuevoColor}`;
+      });
+      document.querySelectorAll("#lista-fechas-ocupadas li")
+              .forEach(li => li.style.borderLeft = `4px solid ${nuevoColor}`);
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar color: " + err.message);
+    }
+  }, 250);     // guarda cuando el usuario “deja” de mover el picker
+}
+
+//Funcion para eliminar años y todos sus datos con contraseña
+async function eliminarAnio(anio) {
+  const pass = prompt(
+    `⚠️ Vas a eliminar TODAS las fechas del año ${anio}.\n` +
+    "Esta operación no se puede deshacer.\n\n" +
+    "Ingresa la contraseña para continuar:"
+  );
+  if (pass !== "camicam2013") {
+    alert("Contraseña incorrecta. Operación cancelada.");
+    return;
+  }
+
+  if (!confirm(`¿Seguro que quieres borrar el año ${anio} completo?`))
+    return;
+
+  try {
+    const resp = await fetch(`/calendario/anio/${anio}`, { method: "DELETE" });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    alert(`Año ${anio} eliminado.`);
+    // Recargar tablero completo
+    anioSeleccionado = null;
+    cargarAnios(true);
+    document.getElementById("vista-meses").classList.add("hidden");
+    document.getElementById("vista-anios").classList.remove("hidden");
+    document.getElementById("year-actions").classList.add("hidden");
+  } catch (err) {
+    console.error(err);
+    alert("Error al eliminar el año: " + err.message);
+  }
+}
+
+
+
+/***********************
+========================
+   SECCION DE REPORTES
+========================
+************************/
+
+
+//REPORTE DE INGRESOS POR AÑO
+/***********************************************
+ * REPORTE INGRESOS + COSTOS + UTILIDAD (ANUAL)
+ * Ahora genera también la gráfica triple y pinta
+ * los encabezados con el color del año
+ ***********************************************/
+async function verReporteIngresosAnual() {
+  const anioInput = document.getElementById("reporte-anio-anual").value.trim();
+  const anio      = parseInt(anioInput, 10);
+  const divTabla  = document.getElementById("resultado-ingresos-anual");
+
+  if (!anio) {
+    divTabla.textContent = "Ingresa un año válido.";
+    return;
+  }
+
+  divTabla.textContent = "Cargando reporte anual…";
+
+   // OCULTA los tres contenedores antes de pedir datos
+   ["resultado-ingresos-anual","resultado-grafica","resultado-servicios"]
+   .forEach(id => document.getElementById(id).classList.add("hidden"));
+
+  try {
+    const resp = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
+    const data = await resp.json();
+    if (data.error) { divTabla.textContent = "Error: " + data.error; return; }
+
+    /* ───────────── construir tabla ───────────── */
+    const mesesNombre = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                         "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+    let totalIngresos = 0, totalCostos = 0, totalUtilidad = 0;
+
+    const ingresosArr   = [];
+    const costosArr     = [];
+    const utilidadesArr = [];
+
+    let html  = `<h3>Reporte del año ${data.anio}</h3>`;
+    html     += `<table><thead><tr>
+                   <th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th>
+                 </tr></thead><tbody>`;
+
+    for (let mes = 1; mes <= 12; mes++) {
+      const ingreso  = data.ingresos_anual[mes] || 0;
+      const costo    = data.costos_anual   ? (data.costos_anual[mes] || 0) : 0;
+      const utilidad = ingreso - costo;
+
+      totalIngresos += ingreso;
+      totalCostos   += costo;
+      totalUtilidad += utilidad;
+
+      ingresosArr  .push(ingreso);
+      costosArr    .push(costo);
+      utilidadesArr.push(utilidad);
+
+      html += `<tr>
+        <td>${mesesNombre[mes-1]}</td>
+        <td>${ingreso .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+        <td>${costo   .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+        <td>${utilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+      </tr>`;
+    }
+
+    /* totales */
+    html += `<tr style="font-weight:bold">
+      <td>TOTALES</td>
+      <td>${totalIngresos.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+      <td>${totalCostos  .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+      <td>${totalUtilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+    </tr></tbody></table>`;
+    
+    // Muestra contenedor y colorea
+    divTabla.classList.remove("hidden");
+    divTabla.innerHTML = html;
+    pintarColorReporte(anio);
+
+    /* ───────────── generar gráfica ───────────── */
+    generarGraficaAnual(
+      anio,
+      ingresosArr,
+      costosArr,
+      utilidadesArr,
+      data.total_eventos
+    );
+
+    /* ───────────── servicios anuales ─────────── */
+    await verReporteServiciosAnual(anio);   // se repinta color dentro
+    document.getElementById("resultado-servicios").classList.remove("hidden");
+    pintarColorReporte(anio);
+
+  } catch (err) {
+    console.error("Error en verReporteIngresosAnual:", err);
+    divTabla.textContent = "Error al obtener el reporte anual.";
+    divTabla.classList.remove("hidden");
+  }
+}
+
+
+//REPORTE DE INGRESOS GRÁFICA
+let graficaAnual = null;   // referencia para poder destruir/redibujar
+
+function generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, totalEventos) {
+  const cont = document.getElementById("resultado-grafica");
+  cont.classList.remove("hidden");     // 👈 muestra el bloque
+  cont.innerHTML = `
+    <h3>Ingresos / Costos / Utilidad en ${anio} / Eventos:${totalEventos}</h3>
+    <canvas id="grafica-anual-canvas"></canvas>
+  `;
+
+  // Colorear borde y headline con el tono del año
+  const colorAnio = yearColors[anio] || "#1e88e5";
+  cont.style.borderLeft = `4px solid ${colorAnio}`;
+  cont.querySelector("h3").style.color = colorAnio;
+
+  /* ── si la gráfica ya existía, destrúyela para evitar fugas de memoria ── */
+  if (graficaAnual) graficaAnual.destroy();
+
+  const ctx = document.getElementById("grafica-anual-canvas");
+
+  graficaAnual = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"],
+      datasets: [
+        {
+          label: "Ingresos",
+          data: ingresosArr,
+          borderColor: "#FFC107",
+          backgroundColor: "transparent",
+          tension: 0.25,
+          pointRadius: 3
+        },
+        {
+          label: "Costos",
+          data: costosArr,
+          borderColor: "#F44336",
+          backgroundColor: "transparent",
+          tension: 0.25,
+          pointRadius: 3
+        },
+        {
+          label: "Utilidad",
+          data: utilidadesArr,
+          borderColor: "#4CAF50",
+          backgroundColor: "transparent",
+          tension: 0.25,
+          pointRadius: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,          // full width, 400 px alto
+      scales: {
+        y: {
+          ticks: {
+            callback: v => v.toLocaleString("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0})
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.label + ": " +
+              ctx.formattedValue.toLocaleString("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0})
+          }
+        },
+        legend: { position: "top" }
+      }
+    }
+  });
+
+
+const graphHeight = 320;        // altura visible de la gráfica
+ctx.parentElement.style.height = graphHeight + 50 + "px"; // +50 px para el texto
+ctx.style.maxHeight = graphHeight + "px";                 // opcional: evita que crezca
+
+}
+
+  
+//REPORTE DE SERVICIOS CONTRATADOS
+  async function verReporteServiciosAnual(anio) {
+    const resultadoDiv = document.getElementById("resultado-servicios"); // Un contenedor debajo del reporte anual
+    resultadoDiv.textContent = "Cargando servicios anuales...";
+  
+    try {
+      const response = await fetch(`/reportes/servicios_anual?anio=${anio}`);
+      const data = await response.json();
+  
+      if (data.error) {
+        resultadoDiv.textContent = "Error: " + data.error;
+        return;
+      }
+  
+      // Construir la tabla con los datos de servicios para TODO el año
+      let tableHTML = `
+        <h3>Servicios Contratados en ${data.anio}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Servicio</th>
+              <th>Cantidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Letras Gigantes</td><td>${data.letrasGigantes}</td></tr>
+            <tr><td>Chisperos</td><td>${data.chisperos}</td></tr>
+            <tr><td>Cabina Fotos</td><td>${data.cabinaFotos}</td></tr>
+            <tr><td>Cabina 360</td><td>${data.cabina360}</td></tr>
+            <tr><td>Shots Sin Alcohol</td><td>${data.caritoDeShotsSinAlcohol}</td></tr>
+            <tr><td>Shots Con Alcohol</td><td>${data.caritoDeShotsConAlcohol}</td></tr>
+            <tr><td>Lluvia de Mariposas</td><td>${data.lluviaDeMariposas}</td></tr>
+            <tr><td>Lluvia Metálica</td><td>${data.lluviaMetalica}</td></tr>
+            <tr><td>Niebla de Piso</td><td>${data.nieblaDePiso}</td></tr>
+            <tr><td>Scrapbook</td><td>${data.scrapbook}</td></tr>
+            <tr><td>Audio Guest Book</td><td>${data.audioGuestBook}</td></tr>
+          </tbody>
+        </table>
+      `;
+  
+      resultadoDiv.innerHTML = tableHTML;
+      /* Repintar encabezados ahora que la tabla ya existe */
+      pintarColorReporte(anio);
+    } catch (err) {
+      console.error("Error reporte_servicios_anual:", err);
+      resultadoDiv.textContent = "Error al obtener el reporte de servicios anuales.";
+    }
+  }
+  
+      
+/***********************
+========================
+    SECCION DE GASTO
+========================
+************************/
+      document.getElementById("gasto-monto").addEventListener("blur", function() {
+        let numericValue = parseFloat(this.value.replace(/[^0-9.]/g, ''));
+        if (!isNaN(numericValue)) {
+          this.value = numericValue.toLocaleString('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          });
+        }
+      });
+
+/*=====================================================
+FUNCION PARA MOSTRAS LAS ETIQUETAS EN LA SECCION GASTOS
+======================================================*/
+      function initGastos() {
+        // Aquí invocas tu cargador de etiquetas
+        cargarEtiquetasEnVista();
+      }
+      
+// Abre modal para nueva etiqueta
+function abrirModalNuevaEtiqueta() {
+    document.getElementById('modal-nueva-etiqueta').classList.remove("hidden");
+  }
+  
+  // Cerrar modal nueva etiqueta
+  function cerrarModalNuevaEtiqueta() {
+    document.getElementById('modal-nueva-etiqueta').classList.add("hidden");
+  }
+  
+// Reutilizamos la misma lógica para crear la etiqueta
+  async function agregarNuevaEtiqueta() {
+    const nuevaEtiqueta = document.getElementById("nueva-etiqueta-input").value.trim();
+    if (!nuevaEtiqueta) {
+      alert("Ingresa el nombre de la etiqueta");
+      return;
+    }
+  
+    try {
+      const response = await fetch("/gastos/agregar_etiqueta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ etiqueta: nuevaEtiqueta })
+      });
+      const data = await response.json();
+  
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+  
+      alert("Etiqueta creada correctamente.");
+      // **Aquí recargamos la lista de etiquetas**
+      cargarEtiquetasEnVista(); 
+      cerrarModalNuevaEtiqueta();   // ← Cierra el modal
+      document.getElementById("nueva-etiqueta-input").value = ""; // ← Limpia
+    } catch (err) {
+      console.error("Error al agregar etiqueta:", err);
+    }
+  }
+  
+      
+// Listar etiquetas en la vista
+
+
+
+async function cargarEtiquetasEnVista() {
+  const resp = await fetch("/gastos/etiquetas");
+  const data = await resp.json();
+
+  const cont = document.getElementById("lista-etiquetas");
+  cont.innerHTML = "";
+
+  data.etiquetas.forEach((row, idx) => {
+    const color = row.color || coloresBorde[idx % coloresBorde.length];
+
+    const card  = document.createElement("div");
+    card.className = "etiqueta-card";
+    card.style.borderLeft = `4px solid ${color}`;
+    card.innerHTML = `<h3>${row.etiqueta}</h3>`;
+    card.onclick = () => abrirModalEtiqueta(row.etiqueta, color);
+    cont.appendChild(card);
+  });
+}
+
+
+  
+  // Abre el modal para una etiqueta existente
+  async function abrirModalEtiqueta(etiqueta, colorActual = "#1e88e5") {
+    // Título
+    document.getElementById("etiqueta-nombre").textContent = etiqueta;
+  
+    // Prepara picker
+    const picker = document.getElementById("picker-etiqueta-color");
+    picker.value   = colorActual;
+    picker.oninput = e => cambiarColorEtiqueta(etiqueta, e.target.value);
+  
+    // Carga de gastos (sin cambios)
+    try {
+      const r   = await fetch(`/gastos/por_etiqueta?etiqueta=${encodeURIComponent(etiqueta)}`);
+      const obj = await r.json();
+      const cont = document.getElementById("modal-etiqueta-contenido");
+  
+      if (obj.error) {
+        cont.textContent = "No se pudo obtener los gastos para esta etiqueta.";
+      } else if (obj.gastos?.length) {
+        cont.innerHTML = "<ul>" + obj.gastos.map(g => {
+          const monto = parseFloat(g.monto).toLocaleString("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0});
+          return `<li>
+                    ${monto} - ${g.descripcion} <em>(${g.fecha})</em>
+                    <span style="color:red; margin-left:10px; cursor:pointer;"
+                          onclick="eliminarGasto('${g.id}','${etiqueta}')">X</span>
+                  </li>`;
+        }).join("") + "</ul>";
+      } else {
+        cont.textContent = "No hay gastos registrados para esta etiqueta.";
+      }
+    } catch (err) {
+      console.error(err);
+      document.getElementById("modal-etiqueta-contenido").textContent =
+        "Error al obtener los gastos.";
+    }
+  
+    document.getElementById("modal-etiqueta").classList.remove("hidden");
+  }
+  
+  
+
+  // Cierra el modal de etiqueta
+  function cerrarModalEtiqueta() {
+    document.getElementById("modal-etiqueta").classList.add("hidden");
+  }
+
+  // Muestra/oculta el form de agregar gasto a la etiqueta
+function toggleFormularioAgregarGastoEtiqueta() {
+    const form = document.getElementById("form-agregar-gasto-etiqueta");
+    form.classList.toggle("hidden");
+  }
+  
+  // Agrega un gasto a la etiqueta actual
+  async function agregarGastoPorEtiqueta() {
+    const etiqueta = document.getElementById("etiqueta-nombre").textContent;
+    const montoInput = document.getElementById("gasto-etiqueta-monto").value;
+    const montoStr = montoInput.replace(/[^0-9.]/g, '');
+    const monto = parseFloat(montoStr) || 0;
+    const descripcion = document.getElementById("gasto-etiqueta-descripcion").value.trim();
+  
+    const payload = { monto, etiqueta, descripcion };
+    
+    try {
+      const response = await fetch("/gastos/agregar", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+      alert(`Gasto agregado para la etiqueta: ${etiqueta}`);
+  
+      // Limpiar formulario
+      document.getElementById("gasto-etiqueta-monto").value = "";
+      document.getElementById("gasto-etiqueta-descripcion").value = "";
+      document.getElementById("form-agregar-gasto-etiqueta").classList.add("hidden");
+  
+      // Refrescar el contenido del modal
+      abrirModalEtiqueta(etiqueta);
+  
+    } catch(err) {
+      console.error("Error al agregar gasto por etiqueta:", err);
+      alert("Error al agregar gasto.");
+    }
+  }
+  
+  // Eliminar un gasto individual
+  async function eliminarGasto(gastoId, etiqueta) {
+    if (!confirm("¿Deseas eliminar este gasto?")) return;
+    
+    try {
+      const response = await fetch(`/gastos/eliminar/${gastoId}`, {
+        method: "POST"
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+      // Recargamos la lista de gastos para la etiqueta
+      abrirModalEtiqueta(etiqueta);
+    } catch(err) {
+      console.error("Error al eliminar gasto:", err);
+    }
+  }
+  
+  // Eliminar la etiqueta completa (y sus gastos)
+  async function eliminarEtiquetaCompleta() {
+    const etiqueta = document.getElementById("etiqueta-nombre").textContent;
+    if (!confirm(`¿Seguro que deseas eliminar la etiqueta "${etiqueta}" con todos sus gastos?`)) return;
+  
+    try {
+      const response = await fetch("/gastos/eliminar_etiqueta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ etiqueta })
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+      alert(`Etiqueta "${etiqueta}" eliminada`);
+      cerrarModalEtiqueta();
+      // recargar la lista principal
+      cargarEtiquetasEnVista();
+    } catch (err) {
+      console.error("Error al eliminar etiqueta:", err);
+    }
+  }
+
+
+//Funcion para cambiar el color a la etiqueta de gastos
+function cambiarColorEtiqueta(etiqueta, nuevoColor) {
+  clearTimeout(debounceEtiqueta);
+
+  debounceEtiqueta = setTimeout(async () => {
+    console.log("▶️  Guardando color", nuevoColor, "para", etiqueta);
+
+    const resp = await fetch("/gastos/etiqueta_color", {
+      method : "POST",
+      headers: {"Content-Type":"application/json"},
+      body   : JSON.stringify({ etiqueta, color:nuevoColor })
+    });
+    const data = await resp.json();
+    console.log("🟢 Respuesta BD:", data);
+
+    if (data.error) { alert(data.error); return; }
+
+    // — actualiza borde —
+    document.querySelectorAll(".etiqueta-card").forEach(card => {
+      console.log("↪️  Revisa tarjeta:", card.textContent.trim());
+      if (card.textContent.trim() === etiqueta) {
+        card.style.borderLeft = `4px solid ${nuevoColor}`;
+        console.log("✅ Borde actualizado");
+      }
+    });
+  }, 250);
+}
+
+
+
+/***********************
+========================
+SECCION DE CONFIGURACIÓN
+========================
+************************/
+async function initConfiguracion() {
+  // 1️⃣ Cargar el logo actual
+  await cargarLogo();
+
+  // 2️⃣ Elementos
+  const fileInp = document.getElementById("logo-file");
+  const preview = document.getElementById("logo-preview");
+  const upload  = document.getElementById("logo-upload-btn");
+  const msg     = document.getElementById("logo-msg");
+
+  // 3️⃣ Preview inmediato al elegir
+  if (fileInp) {
+    fileInp.onchange = e => {
+      const file = e.target.files[0];
+      if (file && preview) preview.src = URL.createObjectURL(file);
+    };
+  }
+
+  // 4️⃣ Handler de subida
+  if (upload) {
+    upload.onclick = async () => {
+      msg.className = "hidden";
+      if (!fileInp.files.length) {
+        msg.textContent = "Selecciona un archivo";
+        msg.className = "error";
+        msg.classList.remove("hidden");
+        return;
+      }
+      const form = new FormData();
+      form.append("logo", fileInp.files[0]);
+
+      try {
+        const res  = await fetch("/config/logo", { method: "POST", body: form });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const url = data.url + "?v=" + Date.now();
+        // Actualizar ambas vistas
+        if (preview)   preview.src   = url;
+        const panelImg = document.getElementById("logo-img");
+        if (panelImg) panelImg.src = url;
+
+        msg.textContent = "Logo actualizado ✔";
+        msg.className = "success";
+        msg.classList.remove("hidden");
+      } catch(e) {
+        msg.textContent = "Error: " + e.message;
+        msg.className = "error";
+        msg.classList.remove("hidden");
+      }
+    };
+  }
+}
+
+//CARGAR LAS CREDENCIALES
+// 1️⃣ Abrir y cargar
+function mostrarModalConfig() {
+  cargarCredencialesEnModal();
+  document.getElementById("modal-config-credentials").classList.remove("hidden");
+}
+
+// 2️⃣ Cerrar
+function cerrarModalConfig() {
+  document.getElementById("modal-config-credentials").classList.add("hidden");
+}
+
+// 3️⃣ Cargar valores existentes en los inputs
+async function cargarCredencialesEnModal() {
+  try {
+    // Mensajería
+    const resMens = await fetch("/config/mensajeria");
+    const mens = await resMens.json();
+    document.getElementById("whatsapp_token").value       = mens.whatsapp_token     || "";
+    document.getElementById("whatsapp_phone_id").value    = mens.whatsapp_phone_id  || "";
+    document.getElementById("whatsapp_verify_token").value = mens.whatsapp_verify_token || "";
+    document.getElementById("fb_page_token").value        = mens.fb_page_token      || "";
+    document.getElementById("instagram_token").value      = mens.instagram_token    || "";
+
+    // OpenAI
+    const resIa = await fetch("/config/ia");
+    const ia    = await resIa.json();
+    document.getElementById("openai_api_key").value = ia.openai_api_key || "";
+
+    // n8n
+    const resN8 = await fetch("/config/n8n");
+    const n8    = await resN8.json();
+    document.getElementById("n8n_url").value     = n8.n8n_url     || "";
+    document.getElementById("n8n_api_key").value = n8.n8n_api_key || "";
+  } catch (e) {
+    console.error("Error cargando credenciales:", e);
+  }
+}
+
+// 4️⃣ Guardar todos los bloques de credenciales juntos
+async function guardarCredenciales() {
+  const msgEl = document.getElementById("config-cred-msg");
+  msgEl.className = "hidden";
+
+  // Prepara payloads
+  const mensPayload = {
+    whatsapp_token:       document.getElementById("whatsapp_token").value.trim(),
+    whatsapp_phone_id:    document.getElementById("whatsapp_phone_id").value.trim(),
+    whatsapp_verify_token: document.getElementById("whatsapp_verify_token").value.trim(),
+    fb_page_token:        document.getElementById("fb_page_token").value.trim(),
+    instagram_token:      document.getElementById("instagram_token").value.trim()
+  };
+  const iaPayload = {
+    openai_api_key:       document.getElementById("openai_api_key").value.trim()
+  };
+  const n8nPayload = {
+    n8n_url:              document.getElementById("n8n_url").value.trim(),
+    n8n_api_key:          document.getElementById("n8n_api_key").value.trim()
+  };
+
+  try {
+    // Mensajería
+    let res = await fetch("/config/mensajeria", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(mensPayload)
+    });
+    let data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // IA
+    res = await fetch("/config/ia", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(iaPayload)
+    });
+    data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // n8n
+    res = await fetch("/config/n8n", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(n8nPayload)
+    });
+    data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    msgEl.textContent = "Credenciales guardadas ✔";
+    msgEl.className   = "success";
+    setTimeout(cerrarModalConfig, 800);
+  } catch (e) {
+    msgEl.textContent = "Error: " + e.message;
+    msgEl.className   = "error";
+  }
+  msgEl.classList.remove("hidden");
+}
+
+
+//Cargar Lista de Usuarios 
+async function cargarUsuarios() {
+  const res = await fetch("/users?tenant_id=" + g.current_user.tenant_id);
+  const users = await res.json(); // [{id,email,roles:[…]},…]
+  const ul = document.getElementById("lista-usuarios");
+  ul.innerHTML = users.map(u =>
+    `<li>${u.email} — Roles: ${u.roles.join(", ")}
+      <button onclick="editarRoles(${u.id})">⚙️ Roles</button>
+    </li>`
+  ).join("");
+}
+
+
+// Desde el sidebar o tu código de navegación:
+mostrarSeccion("configuracion", initConfiguracion);
+
+
+
+
+
+  
+  // Al cargar la sección, listamos las etiquetas
+  document.addEventListener("DOMContentLoaded", () => {
+    cargarEtiquetasEnVista();
+  });
+
+    </script> 
+</body>
+</html>
+
+
