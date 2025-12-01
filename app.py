@@ -243,36 +243,34 @@ def guardar_contexto_lead():
             
 @app.route("/leads/context", methods=["GET"])
 def obtener_contexto_lead():
-    conn = None
+    telefono = request.args.get("telefono")
+    if not telefono:
+        return jsonify({"error": "Falta teléfono"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"context": None}), 200  # nunca 500
+
     try:
-        telefono = request.args.get("telefono")
-        if not telefono:
-            return jsonify({"error": "Falta teléfono"}), 400
-
-        conn = conectar_db()
-        if not conn:
-            return jsonify({"error": "Error de conexión a BD"}), 500
-
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("""
-            SELECT contexto, last_activity 
-            FROM leads 
-            WHERE telefono = %s AND contexto IS NOT NULL
-        """, (telefono,))
-        
-        resultado = cursor.fetchone()
-        
-        if resultado and resultado['contexto']:
-            return jsonify({"context": json.loads(resultado['contexto'])}), 200
-        else:
+        cursor.execute("SELECT contexto FROM leads WHERE telefono = %s", (telefono,))
+        row = cursor.fetchone()
+        if not row or not row ['contexto']:
+            return jsonify({"context": None}), 200
+
+        # Intentar parsear, pero si falla, devolver None
+        try:
+            contexto = json.loads(row['contexto'])
+            return jsonify({"context": contexto}), 200
+        except (json.JSONDecodeError, TypeError, ValueError):
+            app.logger.warning(f"Contexto malformado para {telefono}")
             return jsonify({"context": None}), 200
 
     except Exception as e:
-        print(f"❌ Error en GET /leads/context: {str(e)}")
-        return jsonify({"error": "Error interno"}), 500
+        app.logger.error(f"Error inesperado en /leads/context: {e}")
+        return jsonify({"context": None}), 200  # 👈 nunca 500
     finally:
-        if conn:
-            liberar_db(conn)
+        liberar_db(conn)
             
 
 # 📌 NUEVO: Limpiar contextos antiguos (ejecutar diariamente)
