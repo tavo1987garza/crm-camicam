@@ -241,7 +241,7 @@ def guardar_contexto_lead():
             liberar_db(conn)
             
             
-@app.route("/leads/context", methods=["GET"])
+@app.route("/leads/context", methods=["GET"])   
 def obtener_contexto_lead():
     telefono = request.args.get("telefono")
     if not telefono:
