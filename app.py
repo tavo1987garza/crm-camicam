@@ -1,13 +1,12 @@
 
-
+from dotenv import load_dotenv
 import os
 import json
 import re
 import time
 import base64
-import uuid
+import uuid 
 from datetime import datetime, timezone, date
-
 import requests
 import psycopg2
 from psycopg2 import pool
@@ -26,6 +25,7 @@ from functools import wraps
 
 from werkzeug.security import generate_password_hash
 
+load_dotenv()
 
 # 📌 Ruta raíz
 @app.route("/") 
@@ -429,7 +429,8 @@ def recibir_mensaje():
              
 
 # 📌 Enviar respuesta a Camibot con reintento automático
-CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com"
+
+CAMIBOT_API_URL = os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
 
 @app.route("/enviar_mensaje", methods=["POST"])
 def enviar_mensaje():
