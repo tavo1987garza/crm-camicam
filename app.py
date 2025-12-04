@@ -240,39 +240,42 @@ def guardar_contexto_lead():
         if conn:
             liberar_db(conn)
             
-            
 @app.route("/leads/context", methods=["GET"])   
 def obtener_contexto_lead():
     telefono = request.args.get("telefono")
     if not telefono:
         return jsonify({"error": "Falta teléfono"}), 400
-
     conn = conectar_db()
     if not conn:
-        return jsonify({"context": None}), 200  # nunca 500
-
+        return jsonify({"context": None}), 200
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("SELECT contexto FROM leads WHERE telefono = %s", (telefono,))
         row = cursor.fetchone()
-        if not row or not row ['contexto']:
+        if not row or not row['contexto']:
             return jsonify({"context": None}), 200
-
-        # Intentar parsear, pero si falla, devolver None
-        try:
-            contexto = json.loads(row['contexto'])
-            return jsonify({"context": contexto}), 200
-        except (json.JSONDecodeError, TypeError, ValueError):
-            app.logger.warning(f"Contexto malformado para {telefono}")
-            return jsonify({"context": None}), 200
-
+        
+        contexto_raw = row['contexto']
+        
+        # Caso 1: ya es un dict (por columna JSONB en PostgreSQL)
+        if isinstance(contexto_raw, dict):
+            contexto = contexto_raw
+        # Caso 2: es una cadena JSON (por columna TEXT en PostgreSQL)
+        else:
+            try:
+                contexto = json.loads(contexto_raw)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                app.logger.warning(f"Contexto malformado para {telefono}: {contexto_raw}")
+                return jsonify({"context": None}), 200
+        
+        return jsonify({"context": contexto}), 200
     except Exception as e:
         app.logger.error(f"Error inesperado en /leads/context: {e}")
-        return jsonify({"context": None}), 200  # 👈 nunca 500
+        return jsonify({"context": None}), 200
     finally:
         liberar_db(conn)
-            
-
+        
+        
 # 📌 NUEVO: Limpiar contextos antiguos (ejecutar diariamente)
 @app.route("/leads/cleanup_context", methods=["POST"])
 def limpiar_contextos():
