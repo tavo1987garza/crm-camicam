@@ -74,13 +74,6 @@ def liberar_db(conn):
         app.logger.error(f"Error al liberar conexión al pool: {e}")
 
 
-
-
-
-
-        
-        
-        
 ##################################
 #----------SECCION PANEL----------
 ##################################   
@@ -89,57 +82,62 @@ def liberar_db(conn):
 @app.route("/calendario/checar_fecha")
 def checar_fecha():
     fecha = request.args.get("fecha")
+    if not fecha:
+        return jsonify({"error": "Falta parámetro 'fecha'"}), 400
     conn = conectar_db()
-    cur  = conn.cursor()
+    if not conn:
+        return jsonify({"count": 0}), 500  # fallback seguro
     try:
+        cur = conn.cursor()
         cur.execute("""
             SELECT COUNT(*)
             FROM calendario
             WHERE DATE(fecha AT TIME ZONE 'UTC') = %s
         """, (fecha,))
         cnt = cur.fetchone()[0]
+        return jsonify({"count": cnt}), 200
+    except Exception as e:
+        app.logger.exception("Error en /calendario/checar_fecha")
+        return jsonify({"count": 0}), 500
     finally:
         liberar_db(conn)
-    return jsonify({"count": cnt})
 
 
-
-# 📌 Endpoint para la visualzacion de Próximos eventos        
+# 📌 Endpoint para la visualzacion de Próximos eventos   
 @app.route("/calendario/proximos")
 def proximos_eventos():
     try:
         lim = int(request.args.get("limite", 5))
         conn = conectar_db()
         if not conn:
-            raise RuntimeError("DB pool no inicializado")
-        cur = conn.cursor()
-        cur.execute("""
-          SELECT id,
-                 TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD'),
-                 COALESCE(titulo,''),
-                 COALESCE(servicios::text,'{}')
-          FROM calendario
-          WHERE fecha AT TIME ZONE 'UTC' >= %s
-          ORDER BY fecha ASC
-          LIMIT %s
-        """, (date.today(), lim))
-        rows = cur.fetchall()
-        liberar_db(conn)
-
-        out = []
-        for id_, fecha, titulo, servicios_text in rows:
-            try:
-                servicios = json.loads(servicios_text)
-            except:
-                servicios = {}
-                current_app.logger.warning(f"Servicios JSON inválido: {servicios_text}")
-            out.append({"id": id_, "fecha": fecha, "titulo": titulo, "servicios": servicios})
-        return jsonify(out), 200
-
+            return jsonify([]), 500
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+              SELECT id,
+                     TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD'),
+                     COALESCE(titulo,''),
+                     COALESCE(servicios::text,'{}')
+              FROM calendario
+              WHERE fecha AT TIME ZONE 'UTC' >= %s
+              ORDER BY fecha ASC
+              LIMIT %s
+            """, (date.today(), lim))
+            rows = cur.fetchall()
+            out = []
+            for id_, fecha, titulo, servicios_text in rows:
+                try:
+                    servicios = json.loads(servicios_text)
+                except:
+                    servicios = {}
+                    current_app.logger.warning(f"Servicios JSON inválido: {servicios_text}")
+                out.append({"id": id_, "fecha": fecha, "titulo": titulo, "servicios": servicios})
+            return jsonify(out), 200
+        finally:
+            liberar_db(conn)
     except Exception:
         current_app.logger.exception("Error en /calendario/proximos")
         return jsonify([]), 200
-
 
 
 # 📌 Endpoint para mostras los Ultimos Leads
@@ -149,17 +147,18 @@ def ultimos_leads():
         lim = int(request.args.get("limite", 3))
         conn = conectar_db()
         if not conn:
-            raise RuntimeError("DB pool no inicializado")
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, nombre, telefono FROM leads ORDER BY id DESC LIMIT %s", (lim,))
-        rows = cur.fetchall()
-        liberar_db(conn)
-        return jsonify(rows), 200
-
+            return jsonify([]), 500
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT id, nombre, telefono FROM leads ORDER BY id DESC LIMIT %s", (lim,))
+            rows = cur.fetchall()
+            return jsonify(rows), 200
+        finally:
+            liberar_db(conn)
     except Exception:
         current_app.logger.exception("Error en /leads/ultimos")
         return jsonify([]), 200
-
+    
 
 # 📌 Endpoint para mostrar el KPI ensual (La meta mensual)
 @app.route("/reportes/kpi_mes")
@@ -167,30 +166,26 @@ def kpi_mes():
     try:
         hoy = datetime.utcnow()
         mes, anio = hoy.month, hoy.year
-
         conn = conectar_db()
         if not conn:
-            raise RuntimeError("DB pool no inicializado")
-        cur = conn.cursor()
-        cur.execute("""
-          SELECT COUNT(*) FROM calendario
-           WHERE EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC')=%s
-             AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC')=%s
-        """, (anio, mes))
-        actual = cur.fetchone()[0]
-
-        cur.execute("SELECT valor FROM config WHERE clave='meta_mensual'")
-        row = cur.fetchone()
-        meta = int(row[0]) if row and row[0].isdigit() else 15
-
-        liberar_db(conn)
-        return jsonify({"actual": actual, "meta": meta}), 200
-
+            return jsonify({"actual": 0, "meta": 15}), 500
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+              SELECT COUNT(*) FROM calendario
+               WHERE EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC')=%s
+                 AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC')=%s
+            """, (anio, mes))
+            actual = cur.fetchone()[0]
+            cur.execute("SELECT valor FROM config WHERE clave='meta_mensual'")
+            row = cur.fetchone()
+            meta = int(row[0]) if row and row[0].isdigit() else 15
+            return jsonify({"actual": actual, "meta": meta}), 200
+        finally:
+            liberar_db(conn)
     except Exception:
         current_app.logger.exception("Error en /reportes/kpi_mes")
-        # Fallback: actual = 0, meta = 15
         return jsonify({"actual": 0, "meta": 15}), 200
-
    
 
 ##################################
@@ -238,7 +233,8 @@ def guardar_contexto_lead():
         return jsonify({"error": "Error interno"}), 500
     finally:
         if conn:
-            liberar_db(conn)
+            liberar_db(conn)            
+          
             
 @app.route("/leads/context", methods=["GET"])   
 def obtener_contexto_lead():
@@ -247,7 +243,7 @@ def obtener_contexto_lead():
         return jsonify({"error": "Falta teléfono"}), 400
     conn = conectar_db()
     if not conn:
-        return jsonify({"context": None}), 200
+        return jsonify({"context": None}), 200  # nunca 500
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("SELECT contexto FROM leads WHERE telefono = %s", (telefono,))
@@ -300,11 +296,9 @@ def obtener_lead_id():
     telefono = request.args.get("telefono")
     if not telefono:
         return jsonify({"error": "Falta el parámetro 'telefono'"}), 400
-
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "Error de conexión a BD"}), 500
-
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM leads WHERE telefono = %s", (telefono,))
@@ -314,13 +308,12 @@ def obtener_lead_id():
         else:
             return jsonify({"error": "Lead no encontrado"}), 404
     except Exception as e:
-        print(f"❌ Error en /lead_id: {str(e)}")
+        app.logger.exception("Error en /lead_id")
         return jsonify({"error": "Error interno"}), 500
     finally:
         liberar_db(conn)
         
 
-# 📌 Endpoint para recibir mensajes desde WhatsApp
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
