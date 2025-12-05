@@ -235,7 +235,7 @@ def guardar_contexto_lead():
         if conn:
             liberar_db(conn)            
           
-            
+    
 @app.route("/leads/context", methods=["GET"])   
 def obtener_contexto_lead():
     telefono = request.args.get("telefono")
@@ -628,35 +628,34 @@ def eliminar_lead():
     try:
         datos = request.json
         lead_id = datos.get("id")
-        telefono = datos.get("telefono")  # Necesario para borrar sus mensajes
-
+        telefono = datos.get("telefono")
         if not lead_id or not telefono:
             return jsonify({"error": "Faltan datos"}), 400
 
         conn = conectar_db()
         if not conn:
             return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
         cursor = conn.cursor()
-
-        # 🔹 Eliminar todos los mensajes asociados al teléfono del lead
         cursor.execute("DELETE FROM mensajes WHERE remitente = %s", (telefono,))
-
-        # 🔹 Eliminar el lead de la tabla leads
         cursor.execute("DELETE FROM leads WHERE id = %s", (lead_id,))
-
         conn.commit()
         conn.close()
 
-        # 🔹 Notificar al frontend para actualizar la interfaz
+        # 🔹 Notificar al bot para limpiar su contexto
+        try:
+            requests.post(  # 👈 requests ya está disponible
+                f"{CAMIBOT_API_URL}/limpiar_contexto",
+                json={"telefono": telefono},
+                timeout=5
+            )
+        except Exception as e:
+            app.logger.warning(f"⚠️ No se pudo notificar al bot al eliminar lead {telefono}: {e}")
+
         socketio.emit("lead_eliminado", {"id": lead_id, "telefono": telefono})
-
         return jsonify({"mensaje": "Lead y sus mensajes eliminados correctamente"}), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
+    
 
 @app.route('/editar_lead', methods=['POST'])
 def editar_lead():
