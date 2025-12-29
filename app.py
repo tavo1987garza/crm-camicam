@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import time
 import base64
 import uuid 
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 import requests
 import psycopg2
 from psycopg2 import pool
@@ -15,7 +15,7 @@ from psycopg2.extras import RealDictCursor
 import secrets
 from flask import (
     Flask, request, jsonify, render_template, send_from_directory,
-    current_app, g, abort
+    current_app, redirect, url_for, session, g, abort, flash
 )
 from flask_socketio import SocketIO
 
@@ -2199,6 +2199,191 @@ def cambiar_password():
     except Exception as e:
         conn.rollback()
         print(f"❌ Error al cambiar contraseña: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+        
+
+
+@app.route("/recuperar_password", methods=["POST"])
+def recuperar_password():
+    """
+    Inicia el proceso de recuperación de contraseña.
+    Genera un token temporal y lo almacena en la base de datos.
+    """
+    datos = request.json
+    email = datos.get("email", "").strip().lower()
+    
+    if not email:
+        return jsonify({"error": "Email es requerido"}), 400
+
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no encontrado"}), 404
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+
+    try:
+        cur = conn.cursor()
+        # Verificar si el usuario existe
+        cur.execute("SELECT id FROM users WHERE email = %s AND cliente_id = %s", (email, cliente_id))
+        user = cur.fetchone()
+        
+        if not user:
+            # No revelar si el email existe o no (seguridad)
+            return jsonify({"mensaje": "Si el email existe, recibirás instrucciones"}), 200
+
+        # Generar token de recuperación
+        token = secrets.token_urlsafe(32)
+        expiracion = datetime.utcnow() + timedelta(hours=1)  # Válido por 1 hora
+        
+        # Guardar token en la tabla users (o crear tabla separada users_password_reset)
+        cur.execute("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(100);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_expiracion TIMESTAMP;
+        """)
+        
+        cur.execute("""
+            UPDATE users 
+            SET reset_token = %s, reset_expiracion = %s 
+            WHERE email = %s AND cliente_id = %s
+        """, (token, expiracion, email, cliente_id))
+        
+        conn.commit()
+        
+        # Aquí deberías enviar un email con el enlace
+        # Por ahora, solo logueamos el token (en producción, envía email)
+        reset_url = f"https://{request.host}/restablecer_password?token={token}"
+        print(f"🔗 Enlace de recuperación para {email}: {reset_url}")
+        
+        # En producción, descomenta esta línea y configura el envío de email
+        # enviar_email_recuperacion(email, reset_url)
+        
+        return jsonify({"mensaje": "Si el email existe, recibirás instrucciones"}), 200
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error en recuperar_password: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+
+@app.route("/restablecer_password", methods=["GET", "POST"])
+def restablecer_password():
+    """
+    Página para restablecer contraseña con token válido.
+    """
+    if request.method == "GET":
+        token = request.args.get("token")
+        if not token:
+            return "Token inválido", 400
+        
+        # Verificar token
+        cliente_id = obtener_cliente_id_de_subdominio()
+        if not cliente_id:
+            return "Cliente no encontrado", 404
+            
+        conn = conectar_db()
+        if not conn:
+            return "Error de conexión", 500
+            
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id FROM users 
+                WHERE reset_token = %s AND reset_expiracion > NOW() AND cliente_id = %s
+            """, (token, cliente_id))
+            
+            if not cur.fetchone():
+                return "Token inválido o expirado", 400
+                
+            return render_template_string("""
+                <!DOCTYPE html>
+                <html>
+                <head><title>Restablecer Contraseña</title></head>
+                <body>
+                    <h2>Restablecer Contraseña</h2>
+                    <form id="reset-form">
+                        <input type="hidden" id="token" value="{{ token }}">
+                        <input type="password" id="password1" placeholder="Nueva contraseña" required>
+                        <input type="password" id="password2" placeholder="Confirmar contraseña" required>
+                        <button type="submit">Restablecer</button>
+                    </form>
+                    <script>
+                        document.getElementById('reset-form').addEventListener('submit', async (e) => {
+                            e.preventDefault();
+                            const token = document.getElementById('token').value;
+                            const pass1 = document.getElementById('password1').value;
+                            const pass2 = document.getElementById('password2').value;
+                            
+                            if (pass1 !== pass2) {
+                                alert('Las contraseñas no coinciden');
+                                return;
+                            }
+                            if (pass1.length < 6) {
+                                alert('La contraseña debe tener al menos 6 caracteres');
+                                return;
+                            }
+                            
+                            const response = await fetch('/restablecer_password', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({token, password: pass1})
+                            });
+                            
+                            if (response.ok) {
+                                alert('Contraseña actualizada. Redirigiendo al login...');
+                                setTimeout(() => window.location.href = '/login', 2000);
+                            } else {
+                                const data = await response.json();
+                                alert(data.error || 'Error al restablecer');
+                            }
+                        });
+                    </script>
+                </body>
+                </html>
+            """, token=token)
+            
+        finally:
+            liberar_db(conn)
+    
+    # POST: actualizar contraseña
+    datos = request.json
+    token = datos.get("token")
+    password = datos.get("password")
+    
+    if not token or not password or len(password) < 6:
+        return jsonify({"error": "Datos inválidos"}), 400
+        
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no encontrado"}), 404
+        
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+        
+    try:
+        cur = conn.cursor()
+        # Verificar token y actualizar contraseña
+        nuevo_hash = generate_password_hash(password)
+        cur.execute("""
+            UPDATE users 
+            SET password_hash = %s, reset_token = NULL, reset_expiracion = NULL
+            WHERE reset_token = %s AND reset_expiracion > NOW() AND cliente_id = %s
+        """, (nuevo_hash, token, cliente_id))
+        
+        if cur.rowcount == 0:
+            return jsonify({"error": "Token inválido o expirado"}), 400
+            
+        conn.commit()
+        return jsonify({"mensaje": "Contraseña actualizada"}), 200
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error en restablecer_password POST: {str(e)}")
         return jsonify({"error": "Error interno"}), 500
     finally:
         liberar_db(conn)
