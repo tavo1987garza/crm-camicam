@@ -106,7 +106,152 @@
     color: #fff;
 }
 
-        
+       
+/* ───── Estilos para la seccion de CUENTA──── */
+.cuenta-info p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.cuenta-info strong {
+    color: #2c3e50;
+}
+
+.cuenta-info small {
+    color: #7f8c8d;
+    display: block;
+    margin-top: 8px;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+/* Asegurar que los panel-card tengan el mismo estilo */
+.panel-card {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.panel-card h2 {
+    margin: 0 0 12px 0;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+/* Estilos para formularios en cuenta */
+.form-group {
+    margin: 8px 0;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background-color 0.3s;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+.alert {
+    padding: 10px;
+    border-radius: 4px;
+    margin: 8px 0;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Modal styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+}
+
+.close-btn {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #7f8c8d;
+}
+
 /* ───── Estilos para la seccion de PANEL──── */
         /* Tarjeta genérica del panel */
         .panel-card {
@@ -1543,10 +1688,73 @@ th {
     
     <div class="content">
 
-        <div id="cuenta" class="seccion hidden">
-           <h1>👤 Cuenta</h1>
-           <p>Cuenta</p>
-         </div>
+         <div id="cuenta" class="seccion hidden">
+    <h1>👤 Cuenta</h1>
+    
+    <!-- Información del Negocio -->
+    <div class="panel-card">
+        <h2>🏢 Información del Negocio</h2>
+        <div class="cuenta-info">
+            <p><strong>Nombre:</strong> <span id="cuenta-negocio">Cargando...</span></p>
+            <p><strong>Plan:</strong> <span id="cuenta-plan">-</span></p>
+            <p><strong>Subdominio:</strong> <span id="cuenta-subdominio">-</span></p>
+            <p><small>Tu CRM: <a id="cuenta-url" href="#" target="_blank">-</a></small></p>
+        </div>
+        
+        <button id="btn-editar-negocio" class="btn btn-primary" style="margin-top: 12px;">
+            <i class="fas fa-edit"></i> Editar Información
+        </button>
+    </div>
+
+    <!-- Logo del Negocio -->
+    <div class="panel-card">
+        <h2>🖼️ Logo</h2>
+        <div id="logo-preview" style="text-align: center; margin: 12px 0;">
+            <img id="logo-cuenta-img" src="/static/logo/default.png" alt="Logo" style="max-height: 80px; max-width: 200px;">
+        </div>
+        <input type="file" id="logo-upload" accept="image/*" style="width: 100%; margin: 8px 0;">
+        <button id="btn-guardar-logo" class="btn btn-primary" style="width: 100%;">
+            <i class="fas fa-upload"></i> Actualizar Logo
+        </button>
+    </div>
+
+    <!-- Cambiar Contraseña -->
+    <div class="panel-card">
+        <h2>🔑 Cambiar Contraseña</h2>
+        <div class="form-group" style="margin: 8px 0;">
+            <input type="password" id="password-actual" placeholder="Contraseña actual" style="width: 100%; padding: 8px; margin: 4px 0;">
+            <input type="password" id="password-nueva" placeholder="Nueva contraseña" style="width: 100%; padding: 8px; margin: 4px 0;">
+            <input type="password" id="password-confirmar" placeholder="Confirmar contraseña" style="width: 100%; padding: 8px; margin: 4px 0;">
+        </div>
+        <button id="btn-cambiar-password" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+            <i class="fas fa-key"></i> Cambiar Contraseña
+        </button>
+        <div id="password-feedback" class="alert hidden" style="margin-top: 8px;"></div>
+    </div>
+
+    <!-- Cerrar Sesión -->
+    <div class="panel-card">
+        <h2>🔐 Seguridad</h2>
+        <button id="btn-logout" class="btn btn-danger" style="width: 100%; padding: 12px; margin-top: 10px;">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </button>
+    </div>
+
+    <!-- Modal para editar información del negocio -->
+    <div id="modal-editar-negocio" class="modal hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-btn" onclick="cerrarModalEditarNegocio()">✖</span>
+            <h2>Editar Información del Negocio</h2>
+            <div class="form-group">
+                <label>Nombre del Negocio</label>
+                <input type="text" id="negocio-nombre-edit" style="width: 100%; padding: 10px; margin: 8px 0;">
+            </div>
+            <button onclick="guardarInformacionNegocio()" class="btn btn-primary" style="width: 100%;">
+                Guardar Cambios
+            </button>
+        </div>
+    </div>
+</div>
 
 
          <div id="panel" class="seccion">
@@ -2171,6 +2379,201 @@ th {
 
     <script> 
 
+ /* === 0. Cargar información de la cuenta ================= */
+// Variables para almacenar datos temporales
+let datosCuenta = null;
+
+// Cargar información de la cuenta
+async function cargarInfoCuenta() {
+    try {
+        const response = await fetch('/api/cliente_actual');
+        if (response.ok) {
+            const data = await response.json();
+            datosCuenta = data;
+            document.getElementById('cuenta-negocio').textContent = data.nombre;
+            document.getElementById('cuenta-plan').textContent = 
+                data.plan === 'premium' ? 'Premium' : 'Básico';
+            document.getElementById('cuenta-subdominio').textContent = data.subdominio;
+            
+            const url = `https://${data.subdominio}.cami-cam.com`;
+            document.getElementById('cuenta-url').textContent = url;
+            document.getElementById('cuenta-url').href = url;
+            
+            // Cargar logo actual
+            cargarLogo();
+        }
+    } catch (error) {
+        console.error('Error al cargar info de la cuenta:', error);
+    }
+}
+
+// Cargar logo del cliente actual
+async function cargarLogo() {
+    try {
+        const response = await fetch('/config/logo');
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('logo-cuenta-img').src = data.url;
+        }
+    } catch (error) {
+        console.error('Error al cargar logo:', error);
+    }
+}
+
+// Función para cerrar sesión
+function handleLogout() {
+    if (confirm('¿Seguro que quieres cerrar sesión?')) {
+        fetch('/logout', { method: 'POST' })
+            .then(() => window.location.href = '/login')
+            .catch(error => console.error('Error al cerrar sesión:', error));
+    }
+}
+
+// Abrir modal de edición
+function abrirModalEditarNegocio() {
+    if (datosCuenta) {
+        document.getElementById('negocio-nombre-edit').value = datosCuenta.nombre;
+        document.getElementById('modal-editar-negocio').classList.remove('hidden');
+    }
+}
+
+// Cerrar modal de edición
+function cerrarModalEditarNegocio() {
+    document.getElementById('modal-editar-negocio').classList.add('hidden');
+}
+
+// Guardar información del negocio
+async function guardarInformacionNegocio() {
+    const nuevoNombre = document.getElementById('negocio-nombre-edit').value.trim();
+    if (!nuevoNombre) {
+        alert('El nombre del negocio no puede estar vacío');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/cliente_actual', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre: nuevoNombre })
+        });
+
+        if (response.ok) {
+            datosCuenta.nombre = nuevoNombre;
+            document.getElementById('cuenta-negocio').textContent = nuevoNombre;
+            cerrarModalEditarNegocio();
+            alert('Información actualizada correctamente');
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.error || 'No se pudo actualizar'));
+        }
+    } catch (error) {
+        console.error('Error al actualizar:', error);
+        alert('Error de conexión');
+    }
+}
+
+// Actualizar logo
+async function actualizarLogo() {
+    const fileInput = document.getElementById('logo-upload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Por favor selecciona una imagen');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    try {
+        const response = await fetch('/config/logo', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            await cargarLogo();
+            fileInput.value = ''; // Limpiar input
+            alert('Logo actualizado correctamente');
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.error || 'No se pudo actualizar el logo'));
+        }
+    } catch (error) {
+        console.error('Error al actualizar logo:', error);
+        alert('Error de conexión');
+    }
+}
+
+// Cambiar contraseña
+async function cambiarPassword() {
+    const passwordActual = document.getElementById('password-actual').value;
+    const passwordNueva = document.getElementById('password-nueva').value;
+    const passwordConfirmar = document.getElementById('password-confirmar').value;
+    
+    const feedback = document.getElementById('password-feedback');
+    feedback.classList.add('hidden');
+
+    // Validaciones
+    if (!passwordActual || !passwordNueva || !passwordConfirmar) {
+        mostrarFeedback('Todos los campos son requeridos', 'error');
+        return;
+    }
+
+    if (passwordNueva !== passwordConfirmar) {
+        mostrarFeedback('Las contraseñas nuevas no coinciden', 'error');
+        return;
+    }
+
+    if (passwordNueva.length < 6) {
+        mostrarFeedback('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/cambiar_password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                password_actual: passwordActual,
+                password_nueva: passwordNueva
+            })
+        });
+
+        if (response.ok) {
+            mostrarFeedback('Contraseña actualizada correctamente', 'success');
+            // Limpiar campos
+            document.getElementById('password-actual').value = '';
+            document.getElementById('password-nueva').value = '';
+            document.getElementById('password-confirmar').value = '';
+        } else {
+            const error = await response.json();
+            mostrarFeedback(error.error || 'Error al cambiar contraseña', 'error');
+        }
+    } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        mostrarFeedback('Error de conexión', 'error');
+    }
+}
+
+function mostrarFeedback(mensaje, tipo) {
+    const feedback = document.getElementById('password-feedback');
+    feedback.textContent = mensaje;
+    feedback.className = `alert alert-${tipo}`;
+    feedback.classList.remove('hidden');
+}
+
+// Inicializar la sección de cuenta
+function initCuenta() {
+    cargarInfoCuenta();
+    
+    // Event listeners
+    document.getElementById('btn-editar-negocio').addEventListener('click', abrirModalEditarNegocio);
+    document.getElementById('btn-guardar-logo').addEventListener('click', actualizarLogo);
+    document.getElementById('btn-cambiar-password').addEventListener('click', cambiarPassword);
+    document.getElementById('btn-logout').addEventListener('click', handleLogout);
+}
+
       /* === 1. Carga logo en el Panel ================= */
     
 
@@ -2264,6 +2667,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 }*/
 
+
+
 function mostrarSeccion(seccion, callback = null) { 
   // 1) Ocultar todas…
   document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
@@ -2278,7 +2683,10 @@ function mostrarSeccion(seccion, callback = null) {
   document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`)?.classList.add('active');
 
   // 4) Lógica particular por sección
-  if (seccion === "leads") {
+   if (seccion === 'cuenta') {
+        initCuenta();
+    }
+  if (seccion === 'leads') {
     cargarLeads(); 
   }
   if (seccion === 'calendario') {

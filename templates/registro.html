@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regístrate - CRM para Eventos</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 24px;
+            font-size: 28px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .subdomain-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .subdomain-group input {
+            flex: 1;
+        }
+        .domain-suffix {
+            color: #7f8c8d;
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 2px solid #e1e5e9;
+            white-space: nowrap;
+        }
+        .check-feedback {
+            margin-top: 6px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+        .available { color: #27ae60; }
+        .unavailable { color: #e74c3c; }
+        .checking { color: #f39c12; }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .success-message {
+            text-align: center;
+            padding: 20px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            color: #155724;
+            margin-top: 20px;
+        }
+        .login-link {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .login-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Crea tu CRM para Eventos</h1>
+        <form id="registroForm">
+            <div class="form-group">
+                <label for="nombre">Nombre de tu negocio</label>
+                <input type="text" id="nombre" name="nombre" required placeholder="Ej: Salón de Fiestas Elegante">
+            </div>
+            
+            <div class="form-group">
+                <label for="subdominio">Tu subdominio personalizado</label>
+                <div class="subdomain-group">
+                    <input type="text" id="subdominio" name="subdominio" 
+                           required placeholder="salonfiesta" 
+                           pattern="[a-z0-9-]{3,30}" 
+                           title="Solo letras, números y guiones (3-30 caracteres)">
+                    <span class="domain-suffix">.cami-cam.com</span>
+                </div>
+                <div class="check-feedback" id="subdomainFeedback"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Tu email</label>
+                <input type="email" id="email" name="email" required placeholder="tu@email.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="plan">Plan</label>
+                <select id="plan" name="plan">
+                    <option value="basico">Básico - $15/mes</option>
+                    <option value="premium">Premium - $30/mes</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn" id="submitBtn">Crear mi CRM</button>
+        </form>
+        
+        <div id="successMessage" class="success-message" style="display: none;">
+            <h2>¡Listo!</h2>
+            <p>Tu CRM está listo. Accede aquí:</p>
+            <p><a href="#" class="login-link" id="loginLink">https://<span id="subdomainResult"></span>.cami-cam.com/login</a></p>
+        </div>
+    </div>
+
+    <script>
+        let checkTimeout;
+        const subdominioInput = document.getElementById('subdominio');
+        const feedbackDiv = document.getElementById('subdomainFeedback');
+        const submitBtn = document.getElementById('submitBtn');
+        const successMessage = document.getElementById('successMessage');
+        const loginLink = document.getElementById('loginLink');
+        const subdomainResult = document.getElementById('subdomainResult');
+
+        // Validación en tiempo real del subdominio
+        subdominioInput.addEventListener('input', () => {
+            const subdominio = subdominioInput.value.trim().toLowerCase();
+            
+            // Limpiar timeout anterior
+            if (checkTimeout) clearTimeout(checkTimeout);
+            
+            // Reset feedback
+            feedbackDiv.className = 'check-feedback';
+            feedbackDiv.textContent = '';
+            
+            if (subdominio.length < 3) {
+                feedbackDiv.textContent = 'Mínimo 3 caracteres';
+                return;
+            }
+            
+            // Validar formato
+            const regex = /^[a-z0-9]([a-z0-9-]{1,28}[a-z0-9])?$/;
+            if (!regex.test(subdominio)) {
+                feedbackDiv.className = 'check-feedback unavailable';
+                feedbackDiv.textContent = 'Solo letras, números y guiones. No puede empezar/terminar con guión.';
+                return;
+            }
+            
+            // Palabras reservadas
+            const reservadas = ['www', 'crm', 'cotizador', 'api', 'admin', 'login', 'registro'];
+            if (reservadas.includes(subdominio)) {
+                feedbackDiv.className = 'check-feedback unavailable';
+                feedbackDiv.textContent = 'Este nombre no está disponible.';
+                return;
+            }
+            
+            // Verificar disponibilidad
+            feedbackDiv.className = 'check-feedback checking';
+            feedbackDiv.textContent = 'Verificando disponibilidad...';
+            
+            checkTimeout = setTimeout(() => {
+                fetch(`/check_subdominio?subdominio=${subdominio}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.disponible) {
+                            feedbackDiv.className = 'check-feedback available';
+                            feedbackDiv.textContent = '¡Disponible!';
+                        } else {
+                            feedbackDiv.className = 'check-feedback unavailable';
+                            feedbackDiv.textContent = 'Ya está en uso. Prueba otro.';
+                        }
+                    })
+                    .catch(() => {
+                        feedbackDiv.className = 'check-feedback';
+                        feedbackDiv.textContent = '';
+                    });
+            }, 500);
+        });
+
+        // Endpoint para verificar subdominio
+        async function verificarSubdominio(subdominio) {
+            try {
+                const response = await fetch(`/check_subdominio?subdominio=${encodeURIComponent(subdominio)}`);
+                const data = await response.json();
+                return data.disponible;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        // Manejar envío del formulario
+        document.getElementById('registroForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                nombre: formData.get('nombre'),
+                subdominio: formData.get('subdominio').toLowerCase(),
+                email: formData.get('email'),
+                plan: formData.get('plan')
+            };
+            
+            // Validación adicional
+            if (!data.subdominio || data.subdominio.length < 3) {
+                alert('Subdominio inválido');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creando...';
+            
+            try {
+                const response = await fetch('/registro', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Mostrar mensaje de éxito
+                    subdomainResult.textContent = data.subdominio;
+                    loginLink.href = `https://${data.subdominio}.cami-cam.com/login`;
+                    successMessage.style.display = 'block';
+                    document.getElementById('registroForm').style.display = 'none';
+                } else {
+                    alert(result.error || 'Error al registrar');
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Crear mi CRM';
+            }
+        });
+    </script>
+</body>
+</html>

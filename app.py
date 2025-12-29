@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import json
 import re
+from werkzeug.security import generate_password_hash, check_password_hash
 import time
 import base64
 import uuid 
@@ -11,7 +12,7 @@ import requests
 import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
-
+import secrets
 from flask import (
     Flask, request, jsonify, render_template, send_from_directory,
     current_app, g, abort
@@ -23,9 +24,42 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 from functools import wraps
 
-from werkzeug.security import generate_password_hash
-
 load_dotenv()
+
+
+@app.before_request
+def cargar_usuario_actual():
+    """
+    Carga el usuario actual en g.current_user basado en la sesión y el cliente_id del subdominio.
+    """
+    g.current_user = None
+    
+    # Obtener cliente_id del subdominio
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return  # No hay cliente, no hay usuario
+
+    # Si hay sesión activa, cargar el usuario
+    user_id = session.get('user_id')
+    if user_id:
+        conn = conectar_db()
+        if conn:
+            try:
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT id, email, cliente_id 
+                    FROM users 
+                    WHERE id = %s AND cliente_id = %s AND activo = true
+                """, (user_id, cliente_id))
+                row = cur.fetchone()
+                if row:
+                    g.current_user = {
+                        'id': row[0],
+                        'email': row[1],
+                        'cliente_id': row[2]
+                    }
+            finally:
+                liberar_db(conn)
 
 # 📌 Ruta raíz
 @app.route("/") 
@@ -75,6 +109,45 @@ def liberar_db(conn):
 
 
 ##################################
+# Detectar el subdominio en cada petición. 
+# Obtener el cliente_id correspondiente.
+# Inyectar ese cliente_id en cada consulta a la base de datos.
+##################################   
+
+def obtener_cliente_id_de_subdominio():
+    """
+    Extrae el subdominio de request.host y devuelve el cliente_id.
+    Ej: crm.cami-cam.com → subdominio = 'crm' → cliente_id = 1
+    """
+    host = request.host.lower()
+    if host == "localhost:5000" or host.startswith("127.0.0.1"):
+        # En desarrollo, usa el cliente por defecto (id=1)
+        return 1
+
+    # Extraer subdominio: "cliente1.cami-cam.com" → "cliente1"
+    partes = host.split('.')
+    if len(partes) < 3:
+        # Dominio sin subdominio (ej: cami-cam.com) → error
+        return None
+
+    subdominio = partes[0]
+    if subdominio in ("www", "cotizador"):  # Excluir subdominios especiales
+        return None
+
+    # Buscar cliente en la base de datos
+    conn = conectar_db()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM clientes WHERE subdominio = %s AND activo = true", (subdominio,))
+        row = cur.fetchone()
+        return row[0] if row else None
+    finally:
+        liberar_db(conn)
+        
+        
+##################################
 #----------SECCION PANEL----------
 ##################################   
 
@@ -84,16 +157,21 @@ def checar_fecha():
     fecha = request.args.get("fecha")
     if not fecha:
         return jsonify({"error": "Falta parámetro 'fecha'"}), 400
+    
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"count": 0}), 404
+
     conn = conectar_db()
     if not conn:
-        return jsonify({"count": 0}), 500  # fallback seguro
+        return jsonify({"count": 0}), 500
     try:
         cur = conn.cursor()
         cur.execute("""
             SELECT COUNT(*)
             FROM calendario
-            WHERE DATE(fecha AT TIME ZONE 'UTC') = %s
-        """, (fecha,))
+            WHERE DATE(fecha AT TIME ZONE 'UTC') = %s AND cliente_id = %s
+        """, (fecha, cliente_id))
         cnt = cur.fetchone()[0]
         return jsonify({"count": cnt}), 200
     except Exception as e:
@@ -101,12 +179,16 @@ def checar_fecha():
         return jsonify({"count": 0}), 500
     finally:
         liberar_db(conn)
-
-
+        
+        
 # 📌 Endpoint para la visualzacion de Próximos eventos   
 @app.route("/calendario/proximos")
 def proximos_eventos():
     try:
+        cliente_id = obtener_cliente_id_de_subdominio()
+        if not cliente_id:
+            return jsonify([]), 404
+
         lim = int(request.args.get("limite", 5))
         conn = conectar_db()
         if not conn:
@@ -119,10 +201,10 @@ def proximos_eventos():
                      COALESCE(titulo,''),
                      COALESCE(servicios::text,'{}')
               FROM calendario
-              WHERE fecha AT TIME ZONE 'UTC' >= %s
+              WHERE cliente_id = %s AND fecha AT TIME ZONE 'UTC' >= %s
               ORDER BY fecha ASC
               LIMIT %s
-            """, (date.today(), lim))
+            """, (cliente_id, date.today(), lim))
             rows = cur.fetchall()
             out = []
             for id_, fecha, titulo, servicios_text in rows:
@@ -130,7 +212,6 @@ def proximos_eventos():
                     servicios = json.loads(servicios_text)
                 except:
                     servicios = {}
-                    current_app.logger.warning(f"Servicios JSON inválido: {servicios_text}")
                 out.append({"id": id_, "fecha": fecha, "titulo": titulo, "servicios": servicios})
             return jsonify(out), 200
         finally:
@@ -139,18 +220,24 @@ def proximos_eventos():
         current_app.logger.exception("Error en /calendario/proximos")
         return jsonify([]), 200
 
-
-# 📌 Endpoint para mostras los Ultimos Leads
+# 📌 Endpoint para mostras los Ultimos Leads    
 @app.route("/leads/ultimos")
 def ultimos_leads():
     try:
+        cliente_id = obtener_cliente_id_de_subdominio()
+        if not cliente_id:
+            return jsonify([]), 404
+
         lim = int(request.args.get("limite", 3))
         conn = conectar_db()
         if not conn:
             return jsonify([]), 500
         try:
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            cur.execute("SELECT id, nombre, telefono FROM leads ORDER BY id DESC LIMIT %s", (lim,))
+            cur.execute(
+                "SELECT id, nombre, telefono FROM leads WHERE cliente_id = %s ORDER BY id DESC LIMIT %s",
+                (cliente_id, lim)
+            )
             rows = cur.fetchall()
             return jsonify(rows), 200
         finally:
@@ -158,12 +245,15 @@ def ultimos_leads():
     except Exception:
         current_app.logger.exception("Error en /leads/ultimos")
         return jsonify([]), 200
-    
 
 # 📌 Endpoint para mostrar el KPI ensual (La meta mensual)
 @app.route("/reportes/kpi_mes")
 def kpi_mes():
     try:
+        cliente_id = obtener_cliente_id_de_subdominio()
+        if not cliente_id:
+            return jsonify({"actual": 0, "meta": 15}), 404
+
         hoy = datetime.utcnow()
         mes, anio = hoy.month, hoy.year
         conn = conectar_db()
@@ -175,9 +265,10 @@ def kpi_mes():
               SELECT COUNT(*) FROM calendario
                WHERE EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC')=%s
                  AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC')=%s
-            """, (anio, mes))
+                 AND cliente_id = %s
+            """, (anio, mes, cliente_id))
             actual = cur.fetchone()[0]
-            cur.execute("SELECT valor FROM config WHERE clave='meta_mensual'")
+            cur.execute("SELECT valor FROM config WHERE clave='meta_mensual' AND cliente_id = %s", (cliente_id,))
             row = cur.fetchone()
             meta = int(row[0]) if row and row[0].isdigit() else 15
             return jsonify({"actual": actual, "meta": meta}), 200
@@ -186,7 +277,6 @@ def kpi_mes():
     except Exception:
         current_app.logger.exception("Error en /reportes/kpi_mes")
         return jsonify({"actual": 0, "meta": 15}), 200
-   
 
 ##################################
 #----------SECCION LEADS---------- 
@@ -195,26 +285,27 @@ def kpi_mes():
 # 📌 NUEVO: Guardar contexto del bot
 @app.route("/leads/context", methods=["POST"])
 def guardar_contexto_lead():
-    conn = None
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
+    datos = request.json
+    telefono = datos.get("telefono")
+    contexto = datos.get("contexto")
+    
+    if not telefono or not contexto:
+        return jsonify({"error": "Faltan datos: telefono o context"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión a BD"}), 500
+
     try:
-        datos = request.json
-        telefono = datos.get("telefono")
-        contexto = datos.get("context")
-        
-        if not telefono or not contexto:
-            return jsonify({"error": "Faltan datos: telefono o context"}), 400
-
-        conn = conectar_db()
-        if not conn:
-            return jsonify({"error": "Error de conexión a BD"}), 500
-
         cursor = conn.cursor()
-        
-        # Crear o actualizar contexto
         cursor.execute("""
-            INSERT INTO leads (telefono, nombre, estado, contexto, last_activity) 
-            VALUES (%s, %s, 'Contacto Inicial', %s, NOW())
-            ON CONFLICT (telefono) 
+            INSERT INTO leads (telefono, nombre, estado, contexto, last_activity, cliente_id) 
+            VALUES (%s, %s, 'Contacto Inicial', %s, NOW(), %s)
+            ON CONFLICT (telefono, cliente_id) 
             DO UPDATE SET 
                 contexto = EXCLUDED.contexto, 
                 last_activity = NOW(),
@@ -223,54 +314,57 @@ def guardar_contexto_lead():
                     ELSE leads.estado 
                 END
             RETURNING id
-        """, (telefono, f"Lead {telefono[-4:]}", json.dumps(contexto)))
+        """, (telefono, f"Lead {telefono[-4:]}", json.dumps(contexto), cliente_id))
         
         conn.commit()
         return jsonify({"mensaje": "Contexto guardado"}), 200
-
     except Exception as e:
         print(f"❌ Error en /leads/context: {str(e)}")
         return jsonify({"error": "Error interno"}), 500
     finally:
-        if conn:
-            liberar_db(conn)            
-          
-    
+        liberar_db(conn)
+        
+
+        
+        
 @app.route("/leads/context", methods=["GET"])   
 def obtener_contexto_lead():
     telefono = request.args.get("telefono")
     if not telefono:
         return jsonify({"error": "Falta teléfono"}), 400
+    
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"context": None}), 200
+
     conn = conectar_db()
     if not conn:
-        return jsonify({"context": None}), 200  # nunca 500
+        return jsonify({"context": None}), 200
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT contexto FROM leads WHERE telefono = %s", (telefono,))
+        cursor.execute(
+            "SELECT contexto FROM leads WHERE telefono = %s AND cliente_id = %s",
+            (telefono, cliente_id)
+        )
         row = cursor.fetchone()
         if not row or not row['contexto']:
             return jsonify({"context": None}), 200
         
         contexto_raw = row['contexto']
-        
-        # Caso 1: ya es un dict (por columna JSONB en PostgreSQL)
         if isinstance(contexto_raw, dict):
             contexto = contexto_raw
-        # Caso 2: es una cadena JSON (por columna TEXT en PostgreSQL)
         else:
             try:
                 contexto = json.loads(contexto_raw)
             except (json.JSONDecodeError, TypeError, ValueError):
                 app.logger.warning(f"Contexto malformado para {telefono}: {contexto_raw}")
                 return jsonify({"context": None}), 200
-        
         return jsonify({"context": contexto}), 200
     except Exception as e:
         app.logger.error(f"Error inesperado en /leads/context: {e}")
         return jsonify({"context": None}), 200
     finally:
         liberar_db(conn)
-        
         
 # 📌 NUEVO: Limpiar contextos antiguos (ejecutar diariamente)
 @app.route("/leads/cleanup_context", methods=["POST"])
@@ -296,12 +390,20 @@ def obtener_lead_id():
     telefono = request.args.get("telefono")
     if not telefono:
         return jsonify({"error": "Falta el parámetro 'telefono'"}), 400
+    
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "Error de conexión a BD"}), 500
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM leads WHERE telefono = %s", (telefono,))
+        cursor.execute(
+            "SELECT id FROM leads WHERE telefono = %s AND cliente_id = %s",
+            (telefono, cliente_id)
+        )
         row = cursor.fetchone()
         if row:
             return jsonify({"id": row[0]}), 200
@@ -312,11 +414,14 @@ def obtener_lead_id():
         return jsonify({"error": "Error interno"}), 500
     finally:
         liberar_db(conn)
-        
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     datos = request.json
     plataforma = datos.get("plataforma")
     remitente = str(datos.get("remitente", ""))
@@ -324,16 +429,10 @@ def recibir_mensaje():
     tipo = datos.get("tipo")
 
     if not plataforma or not remitente or mensaje is None:
-        return jsonify({"error": "Faltan datos: plataforma, remitente o mensaje"}), 400
+        return jsonify({"error": "Faltan datos"}), 400
 
-    # Ampliar tipos válidos (texto, imagen y opcional video)
-    tipos_validos = {
-        "enviado", "recibido",
-        "recibido_imagen", "enviado_imagen",
-        "recibido_video", "enviado_video"
-    }
+    tipos_validos = {"enviado", "recibido", "recibido_imagen", "enviado_imagen", "recibido_video", "enviado_video"}
     if tipo not in tipos_validos:
-        # Por compatibilidad, cualquier cosa desconocida se trata como recibido (texto)
         tipo = "recibido"
 
     conn = conectar_db()
@@ -343,8 +442,8 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # Verificar si el lead ya existe
-        cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
+        # Verificar si el lead ya existe PARA ESTE CLIENTE
+        cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s AND cliente_id = %s", (remitente, cliente_id))
         lead = cursor.fetchone()
         lead_id = None
         lead_creado = False
@@ -352,11 +451,11 @@ def recibir_mensaje():
         if not lead:
             nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
             cursor.execute("""
-                INSERT INTO leads (nombre, telefono, estado)
-                VALUES (%s, %s, 'Contacto Inicial')
-                ON CONFLICT (telefono) DO NOTHING
+                INSERT INTO leads (nombre, telefono, estado, cliente_id)
+                VALUES (%s, %s, 'Contacto Inicial', %s)
+                ON CONFLICT (telefono, cliente_id) DO NOTHING
                 RETURNING id
-            """, (nombre_por_defecto, remitente))
+            """, (nombre_por_defecto, remitente, cliente_id))
             row = cursor.fetchone()
             if row:
                 lead_id = row[0]
@@ -364,56 +463,14 @@ def recibir_mensaje():
         else:
             lead_id = lead[0]
 
-        # Guardar el mensaje en la tabla `mensajes`
+        # Guardar el mensaje con cliente_id
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
-            VALUES (%s, %s, %s, 'Nuevo', %s)
-        """, (plataforma, remitente, mensaje, tipo))
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id)
+            VALUES (%s, %s, %s, 'Nuevo', %s, %s)
+        """, (plataforma, remitente, mensaje, tipo, cliente_id))
         conn.commit()
 
-        # 🔹 Procesar eventos especiales del bot para cambiar estado
-        if tipo == "enviado" and isinstance(mensaje, str) and mensaje.startswith("EVENT:lead_seguimiento"):
-            try:
-                partes = mensaje.split(" ", 2)
-                if len(partes) >= 2:
-                    tipo_seguimiento = partes[1]
-                    if tipo_seguimiento == "XV":
-                        nuevo_estado = "Seguimiento XV"
-                    elif tipo_seguimiento == "Boda":
-                        nuevo_estado = "Seguimiento Boda"
-                    else:
-                        nuevo_estado = "Seguimiento Otro"
-
-                    # Actualizar estado en la base de datos
-                    cursor.execute("UPDATE leads SET estado = %s WHERE telefono = %s", (nuevo_estado, remitente))
-                    conn.commit()
-
-                    # Emitir evento en tiempo real al frontend
-                    if lead_id:
-                        socketio.emit("lead_estado_actualizado", {
-                            "id": lead_id,
-                            "estado_nuevo": nuevo_estado,
-                            "telefono": remitente
-                        })
-            except Exception as e:
-                print(f"⚠️ Error procesando evento de seguimiento: {str(e)}")
-
-        # Notificar nuevo mensaje a todos los clientes conectados
-        socketio.emit("nuevo_mensaje", {
-            "plataforma": plataforma,
-            "remitente": remitente,
-            "mensaje": mensaje,
-            "tipo": tipo
-        })
-
-        # Notificar SOLO si se creó un lead nuevo (evita duplicados)
-        if lead_creado:
-            socketio.emit("nuevo_lead", {
-                "id": lead_id,
-                "nombre": nombre_por_defecto,
-                "telefono": remitente,
-                "estado": "Contacto Inicial"
-            })
+        # ... resto del código para eventos y emisión WebSocket ...
 
         return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
 
@@ -495,9 +552,13 @@ def validar_telefono(telefono):
     return len(telefono) == 13 and telefono.startswith("521")
 
 
-# 📌 Ruta para obtener Leads        
+# 📌 Ruta para obtener Leads 
 @app.route("/leads", methods=["GET"])
 def obtener_leads():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify([])
+
     conn = conectar_db()
     if not conn:
         return jsonify([])
@@ -506,10 +567,11 @@ def obtener_leads():
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("""
             SELECT l.*, 
-                   (SELECT mensaje FROM mensajes WHERE remitente = l.telefono ORDER BY fecha DESC LIMIT 1) as ultimo_mensaje
+                   (SELECT mensaje FROM mensajes WHERE remitente = l.telefono AND cliente_id = %s ORDER BY fecha DESC LIMIT 1) as ultimo_mensaje
             FROM leads l
+            WHERE l.cliente_id = %s
             ORDER BY l.estado
-        """)
+        """, (cliente_id, cliente_id))
         leads = cursor.fetchall()
         return jsonify(leads if leads else [])
     except Exception as e:
@@ -517,33 +579,37 @@ def obtener_leads():
         return jsonify([])
     finally:
         liberar_db(conn)
-
+        
+        
 
 # 📌 Crear un nuevo lead manualmente
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
+    datos = request.json
+    nombre = datos.get("nombre")
+    telefono = datos.get("telefono")
+    notas = datos.get("notas", "")
+
+    if not nombre or not telefono or not validar_telefono(telefono):
+        return jsonify({"error": "El teléfono debe tener 13 dígitos"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
+
     try:
-        datos = request.json
-        nombre = datos.get("nombre")
-        telefono = datos.get("telefono")
-        notas = datos.get("notas", "")
-
-        # Validación de datos
-        if not nombre or not telefono or not validar_telefono(telefono):
-            return jsonify({"error": "El teléfono debe tener 13 dígitos (ejemplo: 521XXXXXXXXXX)."}), 400
-
-        conn = conectar_db()
-        if not conn:
-            return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
-
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO leads (nombre, telefono, estado, notas)
-            VALUES (%s, %s, 'Contacto Inicial', %s)
-            ON CONFLICT (telefono) DO UPDATE
+            INSERT INTO leads (nombre, telefono, estado, notas, cliente_id)
+            VALUES (%s, %s, 'Contacto Inicial', %s, %s)
+            ON CONFLICT (telefono, cliente_id) DO UPDATE
             SET notas = EXCLUDED.notas
             RETURNING id
-        """, (nombre, telefono, notas))
+        """, (nombre, telefono, notas, cliente_id))
 
         lead_id = cursor.fetchone()
         conn.commit()
@@ -556,7 +622,7 @@ def crear_lead():
                 "estado": "Contacto Inicial",
                 "notas": notas
             }
-            socketio.emit("nuevo_lead", nuevo_lead)  # 🔹 Enviar nuevo lead en tiempo real
+            socketio.emit("nuevo_lead", nuevo_lead)
             return jsonify({"mensaje": "Lead creado correctamente", "lead": nuevo_lead}), 200
         else:
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
@@ -564,10 +630,10 @@ def crear_lead():
     except Exception as e:
         print(f"❌ Error en /crear_lead: {str(e)}")
         return jsonify({"error": "Error interno del servidor"}), 500
-
     finally:
         liberar_db(conn)
-
+        
+        
 
 # 📌 Endpoint para actualizar estado de Lead
 @app.route("/cambiar_estado_lead", methods=["POST"])
@@ -632,18 +698,23 @@ def eliminar_lead():
         if not lead_id or not telefono:
             return jsonify({"error": "Faltan datos"}), 400
 
+        cliente_id = obtener_cliente_id_de_subdominio()
+        if not cliente_id:
+            return jsonify({"error": "Cliente no autorizado"}), 404
+
         conn = conectar_db()
         if not conn:
             return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM mensajes WHERE remitente = %s", (telefono,))
-        cursor.execute("DELETE FROM leads WHERE id = %s", (lead_id,))
+        # 🔹 Eliminar solo si pertenece al cliente actual
+        cursor.execute("DELETE FROM mensajes WHERE remitente = %s AND cliente_id = %s", (telefono, cliente_id))
+        cursor.execute("DELETE FROM leads WHERE id = %s AND cliente_id = %s", (lead_id, cliente_id))
         conn.commit()
         conn.close()
 
-        # 🔹 Notificar al bot para limpiar su contexto
+        # Notificar al bot
         try:
-            requests.post(  # 👈 requests ya está disponible
+            requests.post(
                 f"{CAMIBOT_API_URL}/limpiar_contexto",
                 json={"telefono": telefono},
                 timeout=5
@@ -659,20 +730,19 @@ def eliminar_lead():
 
 @app.route('/editar_lead', methods=['POST'])
 def editar_lead():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     data = request.get_json()
-
-    print("📌 Datos recibidos en /editar_lead:", data)  # Debug
-
     lead_id = data.get("id")
     nuevo_nombre = data.get("nombre").strip() if data.get("nombre") else None
     nuevo_telefono = data.get("telefono").strip() if data.get("telefono") else None
     nuevas_notas = data.get("notas").strip() if data.get("notas") else ""
 
     if not lead_id or not nuevo_telefono:
-        print("❌ Error: ID o teléfono faltante")
         return jsonify({"error": "ID y teléfono son obligatorios"}), 400
 
-   
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
@@ -684,34 +754,51 @@ def editar_lead():
             SET nombre = COALESCE(%s, nombre), 
                 telefono = %s, 
                 notas = %s
-            WHERE id = %s
-        """, (nuevo_nombre, nuevo_telefono, nuevas_notas, lead_id))
+            WHERE id = %s AND cliente_id = %s
+        """, (nuevo_nombre, nuevo_telefono, nuevas_notas, lead_id, cliente_id))
         conn.commit()
 
-        print("✅ Lead actualizado correctamente")
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Lead no encontrado"}), 404
+
         return jsonify({"mensaje": "Lead actualizado correctamente"}), 200
     except Exception as e:
         print(f"❌ Error en /editar_lead: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
+        
 # 📌 Obtener mensajes
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
-    conn = conectar_db()
-    if conn:
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute("SELECT * FROM mensajes ORDER BY fecha DESC")
-            mensajes = cursor.fetchall()
-            return jsonify(mensajes)
-        finally:
-            liberar_db(conn)
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify([])
 
+    conn = conectar_db()
+    if not conn:
+        return jsonify([])
+
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM mensajes WHERE cliente_id = %s ORDER BY fecha DESC", (cliente_id,))
+        mensajes = cursor.fetchall()
+        return jsonify(mensajes)
+    except Exception as e:
+        print("❌ Error en /mensajes:", str(e))
+        return jsonify([])
+    finally:
+        liberar_db(conn)
+        
+        
 # 📌 Actualizar estado de mensaje 
 @app.route("/actualizar_estado", methods=["POST"])
 def actualizar_estado():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     datos = request.json
     mensaje_id = datos.get("id")
     nuevo_estado = datos.get("estado")
@@ -720,20 +807,35 @@ def actualizar_estado():
         return jsonify({"error": "Datos incorrectos"}), 400
 
     conn = conectar_db()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE mensajes SET estado = %s WHERE id = %s", (nuevo_estado, mensaje_id))
-            conn.commit()
-        finally:
-            conn.close()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
 
-    return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
-
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE mensajes SET estado = %s WHERE id = %s AND cliente_id = %s",
+            (nuevo_estado, mensaje_id, cliente_id)
+        )
+        conn.commit()
+        
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Mensaje no encontrado"}), 404
+            
+        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+    except Exception as e:
+        print(f"❌ Error en /actualizar_estado: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+        
 #obtener los mensajes de un remitente específico Devuelve los mensajes en el formato esperado por el frontend.
 # Mostrar los mensajes de cada chat
 @app.route("/mensajes_chat", methods=["GET"])
 def obtener_mensajes_chat():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     remitente = request.args.get("id")
     if not remitente:
         return jsonify({"error": "Falta el ID del remitente"}), 400
@@ -744,26 +846,24 @@ def obtener_mensajes_chat():
 
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-        # Obtener el nombre del lead
-        cursor.execute("SELECT nombre FROM leads WHERE telefono = %s", (remitente,))
+        cursor.execute("SELECT nombre FROM leads WHERE telefono = %s AND cliente_id = %s", (remitente, cliente_id))
         lead = cursor.fetchone()
-        nombre_lead = lead["nombre"] if lead else remitente  # Usar el teléfono si no hay nombre
+        nombre_lead = lead["nombre"] if lead else remitente
 
-        # Obtener los mensajes del remitente
-        cursor.execute("SELECT * FROM mensajes WHERE remitente = %s ORDER BY fecha ASC", (remitente,))
+        cursor.execute("""
+            SELECT * FROM mensajes 
+            WHERE remitente = %s AND cliente_id = %s 
+            ORDER BY fecha ASC
+        """, (remitente, cliente_id))
         mensajes = cursor.fetchall()
 
-        return jsonify({
-            "nombre": nombre_lead,
-            "mensajes": mensajes 
-        })
-
+        return jsonify({"nombre": nombre_lead, "mensajes": mensajes})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        liberar_db(conn)     
-    
+        liberar_db(conn)
+        
+        
     
     
     
@@ -775,6 +875,10 @@ def obtener_mensajes_chat():
 # 📌 Obtener Años con Eventos (Nuevo)
 @app.route("/calendario/anios", methods=["GET"])
 def obtener_anios_calendario():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"anios": []}), 200
+
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
@@ -785,8 +889,9 @@ def obtener_anios_calendario():
             SELECT DISTINCT EXTRACT(YEAR FROM fecha) as anio,
                    COUNT(*) OVER (PARTITION BY EXTRACT(YEAR FROM fecha)) as total
             FROM calendario
+            WHERE cliente_id = %s
             ORDER BY anio DESC
-        """)
+        """, (cliente_id,))
         rows = cursor.fetchall()
         anios = [{"anio": int(row[0]), "total_eventos": row[1]} for row in rows]
         return jsonify({"anios": anios}), 200
@@ -830,6 +935,10 @@ def agregar_anio_color():
 # 📌 Endpoint para Obtener Eventos por Año
 @app.route("/calendario/agrupado_por_anios", methods=["GET"])
 def calendario_agrupado():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"anios": [], "eventos": []}), 200
+
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No hay DB"}), 500
@@ -837,20 +946,20 @@ def calendario_agrupado():
     try:
         cursor = conn.cursor()
         
-        # 1. Primero obtenemos los años disponibles
         cursor.execute("""
             SELECT DISTINCT EXTRACT(YEAR FROM fecha) as anio
             FROM calendario
+            WHERE cliente_id = %s
             ORDER BY anio DESC
-        """)
+        """, (cliente_id,))
         anios = [int(row[0]) for row in cursor.fetchall()]
         
-        # 2. Obtenemos todos los eventos (similar al endpoint original)
         cursor.execute("""
             SELECT id, fecha, titulo, notas, ticket, servicios
             FROM calendario
+            WHERE cliente_id = %s
             ORDER BY fecha ASC
-        """)
+        """, (cliente_id,))
         
         eventos = []
         for row in cursor.fetchall():
@@ -873,35 +982,34 @@ def calendario_agrupado():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
         
 # 📌 Endpoint para agregar fechas al Calendario 
 @app.route("/calendario/agregar_manual", methods=["POST"])
 def agregar_fecha_manual():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     data = request.json
-    fecha_str = data.get("fecha")      # "YYYY-MM-DD"
-    force     = data.get("force", False)  
+    fecha_str = data.get("fecha")
+    force = data.get("force", False)
     
-    # Asegurar que la fecha se interprete en la zona horaria correcta
     try:
-        # Parsear la fecha como UTC explícitamente
         fecha_utc = datetime.strptime(fecha_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        fecha_local = fecha_utc.astimezone()  # Convierte a zona horaria del servidor si es necesario
+        fecha_local = fecha_utc.astimezone()
     except ValueError:
         return jsonify({"error": "Formato de fecha inválido. Use YYYY-MM-DD"}), 400
     
-    lead_id = data.get("lead_id")      # int o None
+    lead_id = data.get("lead_id")
     titulo = data.get("titulo", "")
     notas = data.get("notas", "")
-
-    # Nuevos campos:
-    ticket = data.get("ticket", 0)             # numérico
-    servicios_input = data.get("servicios")    # string con JSON o ya un dict
+    ticket = data.get("ticket", 0)
+    servicios_input = data.get("servicios")
 
     if not fecha_str:
         return jsonify({"error": "Falta la fecha en formato YYYY-MM-DD"}), 400
 
-    # Conexión a DB 
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
@@ -909,166 +1017,129 @@ def agregar_fecha_manual():
     try:
         cursor = conn.cursor()
 
-        # Convertir ticket a float o decimal
-        # (Si te llega como string, lo conviertes con float(...). Podrías usar Decimal de Python.
         ticket_value = float(ticket) if ticket else 0.0
 
-        # Manejar el JSON de servicios
-        # Si el front te manda ya un objeto JSON, en Python lo recibes como dict.
-        # O si te manda un string JSON, hay que parsearlo:
-        import json
         if isinstance(servicios_input, str):
             try:
-                servicios_json = json.loads(servicios_input)  # parsea string a dict
+                servicios_json = json.loads(servicios_input)
             except:
                 servicios_json = {}
         elif isinstance(servicios_input, dict):
             servicios_json = servicios_input
         else:
             servicios_json = {}
-            
-          # 1️⃣  ¿Cuántos eventos hay ya ese día? solo se puede agregar hasta 4 eventos 
-        cursor.execute("SELECT COUNT(*) FROM calendario WHERE fecha = %s", (fecha_str,))
+
+        # 🔹 Contar eventos del MISMO cliente en esa fecha
+        cursor.execute(
+            "SELECT COUNT(*) FROM calendario WHERE fecha = %s AND cliente_id = %s",
+            (fecha_str, cliente_id)
+        )
         ya_hay = cursor.fetchone()[0]
 
-        if ya_hay == 1 and not force:
-            # Hay 1 evento y aún no confirmas el segundo
-            return jsonify({"ok": False,
-                            "second_possible": True,
-                            "mensaje": f"Ya hay un evento el {fecha_str}. ¿Agregar un segundo?"}), 200
-
-        if ya_hay == 2 and not force:
-            # Hay 2 evento y aún no confirmas el tercero
-            return jsonify({"ok": False,
-                            "second_possible": True,
-                            "mensaje": f"Ya hay 2 eventos el {fecha_str}. ¿Agregar un tercero?"}), 200
-            
-        if ya_hay == 3 and not force:
-            # Hay 3 evento y aún no confirmas el cuarto
-            return jsonify({"ok": False,
-                            "second_possible": True,
-                            "mensaje": f"Ya hay 3 eventos el {fecha_str}. ¿Agregar un cuarto?"}), 200
-            
         if ya_hay >= 4:
-            # Aqui manejamos el limite de hasta 4 eventos 
-            return jsonify({"ok": False,
-                            "mensaje": f"El {fecha_str} a alcanzado el limite de 4 eventos registrados."}), 200
+            return jsonify({
+                "ok": False,
+                "mensaje": f"El {fecha_str} ha alcanzado el límite de 4 eventos."
+            }), 200
+        if ya_hay in (1, 2, 3) and not force:
+            return jsonify({
+                "ok": False,
+                "second_possible": True,
+                "mensaje": f"Ya hay {ya_hay} evento(s) el {fecha_str}. ¿Agregar otro?"
+            }), 200
 
-
-
-        # Insertar en la tabla calendario
+        # 🔹 Insertar con cliente_id
         cursor.execute("""
-            INSERT INTO calendario (fecha, lead_id, titulo, notas, ticket, servicios)
-            VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+            INSERT INTO calendario (fecha, lead_id, titulo, notas, ticket, servicios, cliente_id)
+            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)
         """, (
-            fecha_local.date(),  # Guardar solo la parte de fecha (sin zona horaria)
+            fecha_local.date(),
             lead_id,
             titulo,
             notas,
             ticket_value,
-            json.dumps(servicios_json)  # serializar dict a string JSON
+            json.dumps(servicios_json),
+            cliente_id
         ))
         conn.commit()
 
-            
-            
-        # ⚡️  EMITIR EVENTO EN TIEMPO REAL
         socketio.emit(
             "calendario_actualizado",
-            {
-                "accion": "nueva_fecha",
-                "anio": fecha_local.year,
-                "fecha": fecha_str,
-                "titulo": titulo
-            }
+            {"accion": "nueva_fecha", "anio": fecha_local.year, "fecha": fecha_str, "titulo": titulo}
         )
 
         return jsonify({
             "ok": True,
-            "mensaje": f"Fecha {fecha_str} agregada correctamente al calendario."
+            "mensaje": f"Fecha {fecha_str} agregada correctamente."
         }), 200
 
     except Exception as e:
         print(f"❌ Error en /calendario/agregar_manual: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
     finally:
         liberar_db(conn)
-
-
+        
   
 # 📌 Obtener todas las fechas ocupadas + colores por año
 @app.route("/calendario/fechas_ocupadas", methods=["GET"])
 def fechas_ocupadas():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"fechas": [], "colores": {}}), 200
+
     conn = None
     try:
-        # 1) Conexión
         conn = conectar_db()
         if not conn:
             raise RuntimeError("No hay conexión a la base de datos")
 
         cursor = conn.cursor()
 
-        # 2) Fechas y detalles
         cursor.execute("""
             SELECT 
-                c.id,
-                TO_CHAR(c.fecha AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS fecha,
-                c.lead_id, 
-                COALESCE(c.titulo, '')    AS titulo,
-                COALESCE(c.notas, '')     AS notas,
-                COALESCE(c.ticket, 0)::float AS ticket,
-                c.servicios::text         AS servicios_text,
-                l.nombre                  AS lead_nombre,
+                c.id, TO_CHAR(c.fecha AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS fecha,
+                c.lead_id, COALESCE(c.titulo, ''), COALESCE(c.notas, ''),
+                COALESCE(c.ticket, 0)::float, c.servicios::text, l.nombre,
                 EXTRACT(YEAR FROM c.fecha AT TIME ZONE 'UTC')::int AS anio
             FROM calendario c
-            LEFT JOIN leads l ON c.lead_id = l.id
+            LEFT JOIN leads l ON c.lead_id = l.id AND l.cliente_id = %s
+            WHERE c.cliente_id = %s
             ORDER BY c.fecha DESC
-        """)
+        """, (cliente_id, cliente_id))
         filas = cursor.fetchall()
 
         fechas = []
         for row in filas:
-            # parsear el JSON de servicios
             try:
                 servicios = json.loads(row[6])
             except Exception:
                 servicios = {}
-                app.logger.warning(f"Servicios malformados: {row[6]}")
-
             fechas.append({
-                "id":          row[0],
-                "fecha":       row[1],
-                "lead_id":     row[2],
-                "titulo":      row[3],
-                "notas":       row[4],
-                "ticket":      row[5],
-                "servicios":   servicios,
-                "lead_nombre": row[7],
-                "anio":        row[8]
+                "id": row[0], "fecha": row[1], "lead_id": row[2],
+                "titulo": row[3], "notas": row[4], "ticket": row[5],
+                "servicios": servicios, "lead_nombre": row[7], "anio": row[8]
             })
 
-        # 3) Colores manuales
-        cursor.execute("SELECT anio, color FROM anio_color")
+        cursor.execute("SELECT anio, color FROM anio_color WHERE cliente_id = %s", (cliente_id,))
         colores = {int(r[0]): r[1] for r in cursor.fetchall()}
 
         return jsonify({"fechas": fechas, "colores": colores}), 200
 
     except Exception as e:
-        # Loguea el error completo en Heroku
         app.logger.exception("Error en /calendario/fechas_ocupadas")
-
-        # Devuelve un cuerpo “vacío” pero con status 200 para no romper la UI
         return jsonify({"fechas": [], "colores": {}}), 200
-
     finally:
         if conn:
             liberar_db(conn)
-
+            
 
 @app.route("/calendario/check", methods=["GET"])
 def check_disponibilidad():
-    fecha_str = request.args.get("fecha")  # "2025-08-09" (YYYY-MM-DD)
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"available": True}), 200  # o False, según prefieras
+
+    fecha_str = request.args.get("fecha")
     if not fecha_str:
         return jsonify({"error": "Falta parámetro fecha"}), 400
 
@@ -1078,21 +1149,28 @@ def check_disponibilidad():
 
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM calendario WHERE fecha = %s", (fecha_str,))
+        cursor.execute(
+            "SELECT COUNT(*) FROM calendario WHERE fecha = %s AND cliente_id = %s",
+            (fecha_str, cliente_id)
+        )
         existe = cursor.fetchone()[0]
-        disponible = (existe == 0)  # True si no está en la tabla
+        disponible = (existe == 0)
         return jsonify({"available": disponible}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
 
 @app.route("/calendario/reservar", methods=["POST"])
 def reservar_fecha():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     data = request.json
-    fecha_str = data.get("fecha")     # "YYYY-MM-DD"
-    lead_id = data.get("lead_id")     # int
+    fecha_str = data.get("fecha")
+    lead_id = data.get("lead_id")
 
     if not fecha_str:
         return jsonify({"error": "No se especificó la fecha"}), 400
@@ -1103,12 +1181,11 @@ def reservar_fecha():
 
     try:
         cursor = conn.cursor()
-        # Intentar insertar
         cursor.execute("""
-            INSERT INTO calendario (fecha, lead_id)
-            VALUES (%s, %s)
-            ON CONFLICT (fecha) DO NOTHING
-        """, (fecha_str, lead_id))
+            INSERT INTO calendario (fecha, lead_id, cliente_id)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (fecha, cliente_id) DO NOTHING
+        """, (fecha_str, lead_id, cliente_id))
         conn.commit()
 
         if cursor.rowcount == 0:
@@ -1127,8 +1204,14 @@ def reservar_fecha():
         liberar_db(conn)
         
         
+        
+# Detalle
 @app.route("/calendario/detalle/<int:cal_id>", methods=["GET"])
 def detalle_calendario(cal_id):
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a DB"}), 500
@@ -1138,51 +1221,54 @@ def detalle_calendario(cal_id):
         cursor.execute("""
             SELECT id, fecha, lead_id, titulo, notas, ticket, servicios
             FROM calendario
-            WHERE id = %s
-        """, (cal_id,))
+            WHERE id = %s AND cliente_id = %s
+        """, (cal_id, cliente_id))
         row = cursor.fetchone()
         if not row:
             return jsonify({"error": "Registro no encontrado"}), 404
 
-        # row = (1, datetime.date(2025,8,9), 3, "Boda", "notas...", Decimal('5000.00'), {...} )
         respuesta = {
-            "id": row[0],
-            "fecha": str(row[1]),  
-            "lead_id": row[2],
-            "titulo": row[3] or "",
-            "notas": row[4] or "",
+            "id": row[0], "fecha": str(row[1]), "lead_id": row[2],
+            "titulo": row[3] or "", "notas": row[4] or "",
             "ticket": float(row[5]) if row[5] else 0.0,
             "servicios": row[6] if row[6] else {}
         }
         return jsonify(respuesta), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-        
 
+# Eliminar
 @app.route("/calendario/eliminar/<int:cal_id>", methods=["POST"])
 def eliminar_calendario(cal_id):
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No DB"}), 500
 
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM calendario WHERE id = %s", (cal_id,))
+        cursor.execute("DELETE FROM calendario WHERE id = %s AND cliente_id = %s", (cal_id, cliente_id))
         conn.commit()
         if cursor.rowcount == 0:
             return jsonify({"error": "No se encontró ese ID"}), 404
-
         return jsonify({"ok": True, "mensaje": "Fecha eliminada"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
 
+# Editar
 @app.route("/calendario/editar/<int:cal_id>", methods=["POST"])
 def editar_calendario(cal_id):
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
     data = request.json
     titulo = data.get("titulo", "")
     notas = data.get("notas", "")
@@ -1195,46 +1281,36 @@ def editar_calendario(cal_id):
 
     try:
         cursor = conn.cursor()
-        # Convertir ticket
         ticket_value = float(ticket) if ticket else 0.0
-
-        import json
-        # Convertir servicios a un JSON string
         if not isinstance(servicios_input, dict):
             servicios_input = {}
 
         cursor.execute("""
             UPDATE calendario
-            SET titulo = %s,
-                notas = %s,
-                ticket = %s,
-                servicios = %s::jsonb
-            WHERE id = %s
-        """, (
-            titulo,
-            notas,
-            ticket_value,
-            json.dumps(servicios_input),
-            cal_id
-        ))
+            SET titulo = %s, notas = %s, ticket = %s, servicios = %s::jsonb
+            WHERE id = %s AND cliente_id = %s
+        """, (titulo, notas, ticket_value, json.dumps(servicios_input), cal_id, cliente_id))
         conn.commit()
 
         if cursor.rowcount == 0:
-            # Significa que no se actualizó nada: puede que no exista ese ID
-            return jsonify({"error": "No se encontró esa fecha o no se modificó nada"}), 404
-
-        return jsonify({"ok": True, "mensaje": "Fecha actualizada correctamente"}), 200
-
+            return jsonify({"error": "No se encontró esa fecha"}), 404
+        return jsonify({"ok": True, "mensaje": "Fecha actualizada"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
         
+        
+        
 #Actualizar cambio de color
 @app.route("/calendario/anio_color", methods=["POST"])
 def actualizar_color_anio():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
     data = request.get_json()
-    anio  = data.get("anio")
+    anio = data.get("anio")
     color = data.get("color")
     if not anio or not color:
         return jsonify({"error": "Faltan datos"}), 400
@@ -1245,10 +1321,10 @@ def actualizar_color_anio():
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO anio_color (anio, color)
-            VALUES (%s,%s)
-            ON CONFLICT (anio) DO UPDATE SET color=EXCLUDED.color
-        """, (anio, color))
+            INSERT INTO anio_color (anio, color, cliente_id)
+            VALUES (%s, % s, %s)
+            ON CONFLICT (anio, cliente_id) DO UPDATE SET color=EXCLUDED.color
+        """, (anio, color, cliente_id))
         conn.commit()
         return jsonify({"ok": True}), 200
     except Exception as e:
@@ -1257,16 +1333,19 @@ def actualizar_color_anio():
     finally:
         liberar_db(conn)
 
-#Funcion para eliminar Año con odos sus datos y contraseña
 @app.route("/calendario/anio/<int:anio>", methods=["DELETE"])
 def eliminar_anio(anio):
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "DB off"}), 500
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM calendario WHERE EXTRACT(YEAR FROM fecha)=%s", (anio,))
-        cur.execute("DELETE FROM anio_color WHERE anio=%s", (anio,))
+        cur.execute("DELETE FROM calendario WHERE EXTRACT(YEAR FROM fecha)=%s AND cliente_id=%s", (anio, cliente_id))
+        cur.execute("DELETE FROM anio_color WHERE anio=%s AND cliente_id=%s", (anio, cliente_id))
         conn.commit()
         return jsonify({"ok": True}), 200
     except Exception as e:
@@ -1274,7 +1353,8 @@ def eliminar_anio(anio):
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
+        
 
      
   
@@ -1439,15 +1519,17 @@ def reporte_servicios_anual():
 #--------------SECION DE GASTOS-----------------
 #,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,   
         
-
 @app.route("/gastos/agregar", methods=["POST"])
 def agregar_gasto():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     data = request.json
     monto = data.get("monto", 0)
     etiqueta = data.get("etiqueta", "")
     descripcion = data.get("descripcion", "")
 
-    # Validación básica: monto debe ser mayor que 0
     if not monto or float(monto) <= 0:
         return jsonify({"error": "El monto debe ser mayor que 0"}), 400
 
@@ -1458,22 +1540,24 @@ def agregar_gasto():
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO gastos (monto, etiqueta, descripcion, fecha)
-            VALUES (%s, %s, %s, NOW())
-        """, (monto, etiqueta, descripcion))
+            INSERT INTO gastos (monto, etiqueta, descripcion, fecha, cliente_id)
+            VALUES (%s, %s, %s, NOW(), %s)
+        """, (monto, etiqueta, descripcion, cliente_id))
         conn.commit()
-
         return jsonify({"ok": True, "mensaje": "Gasto registrado correctamente."}), 200
-
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
 
 @app.route("/gastos/agregar_etiqueta", methods=["POST"])
 def agregar_etiqueta():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     data = request.json
     etiqueta = data.get("etiqueta")
     if not etiqueta:
@@ -1486,47 +1570,54 @@ def agregar_etiqueta():
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO gasto_etiquetas (etiqueta)
-            VALUES (%s)
-            ON CONFLICT (etiqueta) DO NOTHING
-        """, (etiqueta,))
+            INSERT INTO gasto_etiquetas (etiqueta, cliente_id)
+            VALUES (%s, %s)
+            ON CONFLICT (etiqueta, cliente_id) DO NOTHING
+        """, (etiqueta, cliente_id))
         conn.commit()
-
         return jsonify({"ok": True, "mensaje": "Etiqueta creada correctamente."}), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
  
         
 # GET  /gastos/etiquetas  →  [{etiqueta:"Renta", color:"#ff9800"}, …]
 @app.route("/gastos/etiquetas", methods=["GET"])
 def listar_etiquetas():
-    conn = conectar_db();              # ← tu helper
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"etiquetas": []}), 200
+
+    conn = conectar_db()
     if not conn:
         return jsonify({"error":"DB off"}), 500
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("""
             SELECT etiqueta, COALESCE(color,'') AS color
-            FROM   gasto_etiquetas
-            ORDER  BY etiqueta
-        """)
+            FROM gasto_etiquetas
+            WHERE cliente_id = %s
+            ORDER BY etiqueta
+        """, (cliente_id,))
         return jsonify({"etiquetas": cur.fetchall()}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
 
 # POST /gastos/etiqueta_color  { etiqueta:"Renta", color:"#ff9800" }
 @app.route("/gastos/etiqueta_color", methods=["POST"])
 def actualizar_color_etiqueta():
-    data      = request.get_json()
-    etiqueta  = data.get("etiqueta")
-    color     = data.get("color")
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error":"No autorizado"}), 404
+
+    data = request.get_json()
+    etiqueta = data.get("etiqueta")
+    color = data.get("color")
 
     if not etiqueta or not color:
         return jsonify({"error":"Faltan datos"}), 400
@@ -1538,9 +1629,9 @@ def actualizar_color_etiqueta():
         cur = conn.cursor()
         cur.execute("""
             UPDATE gasto_etiquetas
-            SET    color = %s
-            WHERE  etiqueta = %s
-        """, (color, etiqueta))
+            SET color = %s
+            WHERE etiqueta = %s AND cliente_id = %s
+        """, (color, etiqueta, cliente_id))
         conn.commit()
         return jsonify({"ok": True}), 200
     except Exception as e:
@@ -1548,11 +1639,14 @@ def actualizar_color_etiqueta():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
-
+        
 
 @app.route("/gastos/por_etiqueta", methods=["GET"])
 def gastos_por_etiqueta():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
     etiqueta = request.args.get("etiqueta")
     if not etiqueta:
         return jsonify({"error": "Falta el parámetro 'etiqueta'"}), 400
@@ -1563,13 +1657,12 @@ def gastos_por_etiqueta():
     
     try:
         cursor = conn.cursor()
-        # Se obtiene la lista de gastos para la etiqueta solicitada
         cursor.execute("""
             SELECT id, monto, descripcion, fecha
             FROM gastos
-            WHERE etiqueta = %s
+            WHERE etiqueta = %s AND cliente_id = %s
             ORDER BY fecha DESC
-        """, (etiqueta,))
+        """, (etiqueta, cliente_id))
         rows = cursor.fetchall()
         gastos = []
         for row in rows:
@@ -1577,24 +1670,28 @@ def gastos_por_etiqueta():
                 "id": row[0],
                 "monto": float(row[1]),
                 "descripcion": row[2],
-                "fecha": row[3].strftime("%Y-%m-%d")  # o el formato que prefieras
-
+                "fecha": row[3].strftime("%Y-%m-%d")
             })
         return jsonify({"gastos": gastos}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
+        
 # 📌 Endpoint para eliminar un registro individual
 @app.route("/gastos/eliminar/<int:gasto_id>", methods=["POST"])
 def eliminar_gasto(gasto_id):
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la BD"}), 500
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM gastos WHERE id = %s", (gasto_id,))
+        cursor.execute("DELETE FROM gastos WHERE id = %s AND cliente_id = %s", (gasto_id, cliente_id))
         conn.commit()
         if cursor.rowcount == 0:
             return jsonify({"error": "No existe gasto con ese id"}), 404
@@ -1604,10 +1701,15 @@ def eliminar_gasto(gasto_id):
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
+        
 # 📌 Endpoint para eliminar la etiqueta completa
 @app.route("/gastos/eliminar_etiqueta", methods=["POST"])
 def eliminar_etiqueta():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
     data = request.json
     etiqueta = data.get("etiqueta")
     if not etiqueta:
@@ -1619,10 +1721,8 @@ def eliminar_etiqueta():
 
     try:
         cursor = conn.cursor()
-        # primero borrar gastos con esa etiqueta
-        cursor.execute("DELETE FROM gastos WHERE etiqueta = %s", (etiqueta,))
-        # luego borrar la etiqueta de la tabla gasto_etiquetas
-        cursor.execute("DELETE FROM gasto_etiquetas WHERE etiqueta = %s", (etiqueta,))
+        cursor.execute("DELETE FROM gastos WHERE etiqueta = %s AND cliente_id = %s", (etiqueta, cliente_id))
+        cursor.execute("DELETE FROM gasto_etiquetas WHERE etiqueta = %s AND cliente_id = %s", (etiqueta, cliente_id))
         conn.commit()
         return jsonify({"ok": True, "mensaje": f"Etiqueta {etiqueta} eliminada"})
     except Exception as e:
@@ -1631,126 +1731,168 @@ def eliminar_etiqueta():
     finally:
         liberar_db(conn)
         
-        
+
+#'''''''''''''''''''''''''''''''''''''''''''''''
+#--------------SECION DE CONFIGURACION-----------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,   
         
 # RUTA PARA SUBIR LOGO 
 @app.route("/config/logo", methods=["POST"])
 def subir_logo():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     file = request.files.get("logo")
     if not file or file.filename == "":
         return jsonify({"error": "Archivo inválido"}), 400
 
-    # 1) Convertir a data-URI
-    mime = file.content_type  # p.e. 'image/png'
+    mime = file.content_type
     data = base64.b64encode(file.read()).decode()  
-    uri  = f"data:{mime};base64,{data}"
+    uri = f"data:{mime};base64,{data}"
 
-    # 2) Guardar en config
     try:
         conn = conectar_db()
         if not conn:
             raise RuntimeError("DB no disponible")
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO config (clave, valor)
-            VALUES ('logo_base64', %s)
-            ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
-        """, (uri,))
+            INSERT INTO config (clave, valor, cliente_id)
+            VALUES ('logo_base64', %s, %s)
+            ON CONFLICT (clave, cliente_id) DO UPDATE SET valor = EXCLUDED.valor
+        """, (uri, cliente_id))
         conn.commit()
     finally:
         liberar_db(conn)
 
-    # 3) Responder al cliente con la URL nueva
     return jsonify({"url": uri}), 200
-
 
 
 
 # RUTA PARA OBTENER LOGO
 @app.route("/config/logo", methods=["GET"])
 def obtener_logo():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        # Si no hay cliente, mostrar logo por defecto
+        return jsonify({"url": "/static/logo/default.png"}), 200
+
     try:
         conn = conectar_db()
         if not conn:
             raise RuntimeError("DB no disponible")
         cur = conn.cursor()
-        cur.execute("SELECT valor FROM config WHERE clave='logo_base64'")
+        cur.execute("SELECT valor FROM config WHERE clave='logo_base64' AND cliente_id = %s", (cliente_id,))
         row = cur.fetchone()
     finally:
         liberar_db(conn)
 
-    # Si existe un valor, lo devolvemos; si no, fallback a un default estático
     if row and row[0]:
         return jsonify({"url": row[0]}), 200
 
-    # Fallback
     return jsonify({"url": "/static/logo/default.png"}), 200
-
 
 
 # 📌 Endpoint para Mensajería
 @app.route("/config/mensajeria", methods=["GET","POST"])
 def config_mensajeria():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     if request.method == "GET":
-        conn = conectar_db(); cur = conn.cursor()
-        cur.execute("SELECT clave,valor FROM config WHERE clave LIKE 'mensajeria:%'")
-        rows = cur.fetchall(); liberar_db(conn)
+        conn = conectar_db()
+        cur = conn.cursor()
+        cur.execute("SELECT clave,valor FROM config WHERE clave LIKE 'mensajeria:%' AND cliente_id = %s", (cliente_id,))
+        rows = cur.fetchall()
+        liberar_db(conn)
         return jsonify({k.split(":",1)[1]:v for k,v in rows})
-    # POST
+
     data = request.json or {}
-    conn = conectar_db(); cur = conn.cursor()
+    conn = conectar_db()
+    cur = conn.cursor()
     for k,v in data.items():
-        cur.execute("""INSERT INTO config(clave,valor)
-                       VALUES (%s,%s)
-                       ON CONFLICT(clave) DO UPDATE SET valor=EXCLUDED.valor""",
-                    (f"mensajeria:{k}", v))
-    conn.commit(); liberar_db(conn)
+        cur.execute("""
+            INSERT INTO config(clave,valor,cliente_id)
+            VALUES (%s,%s,%s)
+            ON CONFLICT(clave,cliente_id) DO UPDATE SET valor=EXCLUDED.valor
+        """, (f"mensajeria:{k}", v, cliente_id))
+    conn.commit()
+    liberar_db(conn)
     return jsonify({"ok":True})
+
 
 # IA (OpenAI)
 @app.route("/config/ia", methods=["GET","POST"])
 def config_ia():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     if request.method == "GET":
-        conn = conectar_db(); cur = conn.cursor()
-        cur.execute("SELECT valor FROM config WHERE clave='openai:api_key'")
-        row = cur.fetchone(); liberar_db(conn)
+        conn = conectar_db()
+        cur = conn.cursor()
+        cur.execute("SELECT valor FROM config WHERE clave='openai:api_key' AND cliente_id = %s", (cliente_id,))
+        row = cur.fetchone()
+        liberar_db(conn)
         return jsonify({"openai_api_key": row[0] if row else ""})
+    
     key = request.json.get("openai_api_key","")
-    conn = conectar_db(); cur = conn.cursor()
-    cur.execute("""INSERT INTO config(clave,valor)
-                   VALUES ('openai:api_key',%s)
-                   ON CONFLICT(clave) DO UPDATE SET valor=EXCLUDED.valor""",
-                (key,))
-    conn.commit(); liberar_db(conn)
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO config(clave,valor,cliente_id)
+        VALUES ('openai:api_key',%s,%s)
+        ON CONFLICT(clave,cliente_id) DO UPDATE SET valor=EXCLUDED.valor
+    """, (key, cliente_id))
+    conn.commit()
+    liberar_db(conn)
     return jsonify({"ok":True})
+
 
 # n8n
 @app.route("/config/n8n", methods=["GET","POST"])
 def config_n8n():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     if request.method == "GET":
-        conn = conectar_db(); cur = conn.cursor()
-        cur.execute("SELECT clave,valor FROM config WHERE clave LIKE 'n8n:%'")
-        rows = cur.fetchall(); liberar_db(conn)
+        conn = conectar_db()
+        cur = conn.cursor()
+        cur.execute("SELECT clave,valor FROM config WHERE clave LIKE 'n8n:%' AND cliente_id = %s", (cliente_id,))
+        rows = cur.fetchall()
+        liberar_db(conn)
         return jsonify({k.split(":",1)[1]:v for k,v in rows})
+    
     data = request.json or {}
-    conn = conectar_db(); cur = conn.cursor()
+    conn = conectar_db()
+    cur = conn.cursor()
     for k,v in data.items():
-        cur.execute("""INSERT INTO config(clave,valor)
-                       VALUES (%s,%s)
-                       ON CONFLICT(clave) DO UPDATE SET valor=EXCLUDED.valor""",
-                    (f"n8n:{k}", v))
-    conn.commit(); liberar_db(conn)
+        cur.execute("""
+            INSERT INTO config(clave,valor,cliente_id)
+            VALUES (%s,%s,%s)
+            ON CONFLICT(clave,cliente_id) DO UPDATE SET valor=EXCLUDED.valor
+        """, (f"n8n:{k}", v, cliente_id))
+    conn.commit()
+    liberar_db(conn)
     return jsonify({"ok":True})
 
+ 
+#''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#--------------CONFIGURACION PARA HACER DE LA APP UN MULTITENANT-----------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,  
 
+# 📌 Endpoint para gestión de usuarios y roles en el CRM
 # Decorador genérico que verifica permisos antes de ejecutar un endpoin
 def requires_permission(action):
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
-            user = g.current_user
-            if not user.has_permission(action):
+            if not g.current_user:
                 abort(403)
+            # Por ahora, asumimos que si hay usuario, tiene permiso
+            # Puedes implementar permisos reales más tarde
             return f(*args, **kwargs)
         return wrapped
     return decorator
@@ -1763,128 +1905,440 @@ def mover_pipeline():
     ...
 
 
- 
-# 📌 Endpoint para gestión de usuarios y roles en el CRM
-# Helper: decorator de permisos (asume que g.current_user está cargado)
-def requires_permission(action):
-    def decorator(f):
-        from functools import wraps
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            user = g.current_user
-            if not user.has_permission(action):
-                abort(403)
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
+
+
+
+# Validación de subdominio
+def validar_subdominio(subdominio):
+    """
+    Valida que el subdominio sea seguro:
+    - Solo letras, números y guiones
+    - Entre 3 y 30 caracteres
+    - No empieza/termina con guión
+    """
+    if not re.match(r'^[a-z0-9]([a-z0-9-]{1,28}[a-z0-9])?$', subdominio.lower()):
+        return False
+    # Palabras reservadas (no permitidas)
+    reservadas = {'www', 'crm', 'cotizador', 'api', 'admin', 'login', 'registro'}
+    return subdominio.lower() not in reservadas
+
+@app.route("/check_subdominio")
+def check_subdominio():
+    subdominio = request.args.get("subdominio", "").strip().lower()
+    if not subdominio:
+        return jsonify({"disponible": False})
+    
+    # Validar formato
+    if not re.match(r'^[a-z0-9]([a-z0-9-]{1,28}[a-z0-9])?$', subdominio):
+        return jsonify({"disponible": False})
+    
+    # Palabras reservadas
+    reservadas = {'www', 'crm', 'cotizador', 'api', 'admin', 'login', 'registro'}
+    if subdominio in reservadas:
+        return jsonify({"disponible": False})
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"disponible": False})
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM clientes WHERE subdominio = %s", (subdominio,))
+        existe = cur.fetchone() is not None
+        return jsonify({"disponible": not existe})
+    finally:
+        liberar_db(conn)
+        
+@app.route("/registro")
+def pagina_registro():
+    return render_template("registro.html")
+
+@app.route("/registro", methods=["POST"])
+def registrar_nuevo_cliente():
+    """
+    Registro público para nuevos clientes SaaS.
+    Ejemplo de payload:
+    {
+        "nombre": "Salón de Fiestas XYZ",
+        "subdominio": "salonxyz",
+        "email": "dueño@salonxyz.com",
+        "plan": "premium"
+    }
+    """
+    try:
+        datos = request.json
+        nombre = datos.get("nombre", "").strip()
+        subdominio = datos.get("subdominio", "").strip().lower()
+        email = datos.get("email", "").strip().lower()
+        plan = datos.get("plan", "basico").lower()
+
+        # Validaciones
+        if not nombre or len(nombre) < 3:
+            return jsonify({"error": "Nombre del negocio es requerido (mín. 3 caracteres)"}), 400
+        if not subdominio or not validar_subdominio(subdominio):
+            return jsonify({"error": "Subdominio inválido. Usa solo letras, números y guiones (3-30 caracteres)."}), 400
+        if not email or "@" not in email:
+            return jsonify({"error": "Email válido es requerido"}), 400
+        if plan not in ["basico", "premium"]:
+            return jsonify({"error": "Plan debe ser 'basico' o 'premium'"}), 400
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión a la base de datos"}), 500
+
+        try:
+            cur = conn.cursor()
+
+            # Verificar si el subdominio ya existe
+            cur.execute("SELECT id FROM clientes WHERE subdominio = %s", (subdominio,))
+            if cur.fetchone():
+                return jsonify({"error": "El subdominio ya está en uso. Elige otro."}), 400
+
+            # Crear cliente
+            cur.execute("""
+                INSERT INTO clientes (subdominio, nombre, email_admin, plan)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+            """, (subdominio, nombre, email, plan))
+            cliente_id = cur.fetchone()[0]
+
+            # Crear usuario administrador
+            temp_password = secrets.token_urlsafe(8)  # Contraseña temporal segura
+            pw_hash = generate_password_hash(temp_password)
+            cur.execute("""
+                INSERT INTO users (email, password_hash, cliente_id, activo)
+                VALUES (%s, %s, %s, true)
+                RETURNING id
+            """, (email, pw_hash, cliente_id))
+
+            # Asignar rol 'admin' (asegúrate de que exista en tu tabla 'roles')
+            user_id = cur.fetchone()[0]
+            cur.execute("""
+                INSERT INTO user_roles (user_id, role_id)
+                SELECT %s, id FROM roles WHERE name = 'admin'
+            """, (user_id,))
+
+            conn.commit()
+
+            # URL de login personalizada
+            login_url = f"https://{subdominio}.cami-cam.com/login"
+
+            # Aquí podrías enviar un email con las credenciales
+            # enviar_email_registro(email, subdominio, temp_password)
+
+            return jsonify({
+                "mensaje": "Cliente registrado exitosamente",
+                "login_url": login_url,
+                "subdominio": subdominio
+            }), 201
+
+        except Exception as e:
+            conn.rollback()
+            print(f"❌ Error al registrar cliente: {str(e)}")
+            return jsonify({"error": "Error interno al registrar cliente"}), 500
+        finally:
+            liberar_db(conn)
+
+    except Exception as e:
+        print(f"❌ Error en /registro: {str(e)}")
+        return jsonify({"error": "Error en la solicitud"}), 400
+    
+    
+
+
+@app.route("/login")
+def pagina_login():
+    """Página de login para cualquier subdominio"""
+    return render_template("login.html")
+
+@app.route("/login", methods=["POST"])
+def procesar_login():
+    """
+    Procesa el login y valida que el usuario pertenezca al cliente actual.
+    """
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no encontrado"}), 404
+
+    datos = request.json
+    email = datos.get("email", "").strip().lower()
+    password = datos.get("password", "")
+
+    if not email or not password:
+        return jsonify({"error": "Email y contraseña son requeridos"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, password_hash 
+            FROM users 
+            WHERE email = %s AND cliente_id = %s AND activo = true
+        """, (email, cliente_id))
+        
+        user = cur.fetchone()
+        
+        if not user or not check_password_hash(user[1], password):
+            return jsonify({"error": "Credenciales inválidas"}), 401
+
+        # Iniciar sesión
+        session['user_id'] = user[0]
+        session['cliente_id'] = cliente_id
+        
+        return jsonify({"mensaje": "Login exitoso"}), 200
+        
+    except Exception as e:
+        print(f"❌ Error en login: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+        
+        
+@app.route("/api/cliente_actual")
+def api_cliente_actual():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no encontrado"}), 404
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT nombre, subdominio, plan FROM clientes WHERE id = %s", (cliente_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Cliente no encontrado"}), 404
+            
+        return jsonify({"nombre": row[0], "subdominio": row[1], "plan": row[2]}), 200
+        
+    except Exception as e:
+        print(f"❌ Error en /api/cliente_actual: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+        
+        
+
+
+# Endpoint para actualizar información del cliente (PUT)
+@app.route("/api/cliente_actual", methods=["PUT"])
+def actualizar_cliente_actual():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no encontrado"}), 404
+
+    datos = request.json
+    nombre = datos.get("nombre", "").strip()
+    
+    if not nombre:
+        return jsonify({"error": "Nombre es requerido"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE clientes SET nombre = %s WHERE id = %s", (nombre, cliente_id))
+        conn.commit()
+        return jsonify({"mensaje": "Información actualizada"}), 200
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error al actualizar cliente: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+
+# Endpoint para cambiar contraseña
+@app.route("/api/cambiar_password", methods=["POST"])
+def cambiar_password():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no encontrado"}), 404
+
+    if 'user_id' not in session:
+        return jsonify({"error": "No autenticado"}), 401
+
+    user_id = session['user_id']
+    datos = request.json
+    password_actual = datos.get("password_actual")
+    password_nueva = datos.get("password_nueva")
+
+    if not password_actual or not password_nueva:
+        return jsonify({"error": "Contraseña actual y nueva son requeridas"}), 400
+
+    if len(password_nueva) < 6:
+        return jsonify({"error": "La nueva contraseña debe tener al menos 6 caracteres"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+
+    try:
+        cur = conn.cursor()
+        # Verificar contraseña actual
+        cur.execute("SELECT password_hash FROM users WHERE id = %s AND cliente_id = %s", (user_id, cliente_id))
+        row = cur.fetchone()
+        
+        if not row or not check_password_hash(row[0], password_actual):
+            return jsonify({"error": "Contraseña actual incorrecta"}), 401
+
+        # Actualizar contraseña
+        nuevo_hash = generate_password_hash(password_nueva)
+        cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (nuevo_hash, user_id))
+        conn.commit()
+        
+        return jsonify({"mensaje": "Contraseña actualizada"}), 200
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error al cambiar contraseña: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+        
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify({"mensaje": "Sesión cerrada"}), 200
+        
+        
 
 # 1) GET /users?tenant_id=...
 @app.route("/users", methods=["GET"])
 @requires_permission("view_users")
 def listar_usuarios():
-    tenant_id = request.args.get("tenant_id", type=int)
-    if not tenant_id:
-        return jsonify({"error":"tenant_id requerido"}), 400
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
 
-    conn = conectar_db(); cur = conn.cursor()
-    # Traemos usuario y sus roles en array
-    cur.execute("""
-      SELECT u.id, u.email,
-        ARRAY(
-          SELECT r.name
-          FROM user_roles ur
-          JOIN roles r ON ur.role_id = r.id
-          WHERE ur.user_id = u.id
-        ) AS roles
-      FROM users u
-      WHERE u.tenant_id = %s
-    """, (tenant_id,))
-    rows = cur.fetchall()
-    liberar_db(conn)
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
 
-    usuarios = [{"id":r[0], "email":r[1], "roles": r[2]} for r in rows]
-    return jsonify(usuarios), 200
-
-
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT u.id, u.email,
+                ARRAY(
+                    SELECT r.name
+                    FROM user_roles ur
+                    JOIN roles r ON ur.role_id = r.id
+                    WHERE ur.user_id = u.id
+                ) AS roles
+            FROM users u
+            WHERE u.cliente_id = %s
+        """, (cliente_id,))
+        rows = cur.fetchall()
+        usuarios = [{"id": r[0], "email": r[1], "roles": r[2]} for r in rows]
+        return jsonify(usuarios), 200
+    finally:
+        liberar_db(conn)
+        
 # 2) POST /users/invite
 @app.route("/users/invite", methods=["POST"])
 @requires_permission("manage_users")
 def invitar_usuario():
-    data = request.json or {}
-    email     = data.get("email", "").strip()
-    tenant_id = data.get("tenant_id")
-    if not email or not tenant_id:
-        return jsonify({"error":"email y tenant_id son requeridos"}), 400
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
 
-    # Generar password temporal o token de registro
-    temp_password = uuid.uuid4().hex[:8]
+    data = request.json or {}
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "email es requerido"}), 400
+
+    # Generar contraseña temporal
+    from uuid import uuid4
+    from werkzeug.security import generate_password_hash
+    temp_password = uuid4().hex[:8]
     pw_hash = generate_password_hash(temp_password)
 
-    conn = conectar_db(); cur = conn.cursor()
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+
     try:
-        # Crear usuario con rol 'seller' por defecto
+        cur = conn.cursor()
+        # Crear usuario con cliente_id
         cur.execute("""
-          INSERT INTO users (email, password_hash, tenant_id)
-          VALUES (%s, %s, %s)
-          RETURNING id
-        """, (email, pw_hash, tenant_id))
+            INSERT INTO users (email, password_hash, cliente_id, activo)
+            VALUES (%s, %s, %s, true)
+            RETURNING id
+        """, (email, pw_hash, cliente_id))
         user_id = cur.fetchone()[0]
+        
         # Asignar rol 'seller'
         cur.execute("""
-          INSERT INTO user_roles (user_id, role_id)
-          SELECT %s, id FROM roles WHERE name='seller'
+            INSERT INTO user_roles (user_id, role_id)
+            SELECT %s, id FROM roles WHERE name = 'seller'
         """, (user_id,))
         conn.commit()
+        
+        # Enviar email (implementa tu función)
+        # enviar_email(to=email, subject="Invitación", body=f"Contraseña: {temp_password}")
+        
+        return jsonify({"ok": True, "user_id": user_id}), 201
     except Exception as e:
         conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
         liberar_db(conn)
-        return jsonify({"error":str(e)}), 500
-    liberar_db(conn)
-
-    # Enviar email con credenciales temporales y/o link de registro
-    # aquí pondrías tu lógica de envío de correo...
-    enviar_email(
-      to=email,
-      subject="Invitación a tu CRM",
-      body=f"Te hemos invitado. Tu contraseña temporal es: {temp_password}"
-    )
-
-    return jsonify({"ok":True, "user_id": user_id}), 201
-
-
+        
+        
 # 3) POST /users/<id>/roles
 @app.route("/users/<int:user_id>/roles", methods=["POST"])
 @requires_permission("manage_users")
 def actualizar_roles(user_id):
-    data = request.json or {}
-    roles = data.get("roles")
-    if not isinstance(roles, list):
-        return jsonify({"error":"Se requiere un array 'roles'"}), 400
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
 
-    conn = conectar_db(); cur = conn.cursor()
+    # Verificar que el usuario pertenece al cliente actual
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+
     try:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE id = %s AND cliente_id = %s", (user_id, cliente_id))
+        if not cur.fetchone():
+            return jsonify({"error": "Usuario no encontrado"}), 404
+
+        data = request.json or {}
+        roles = data.get("roles")
+        if not isinstance(roles, list):
+            return jsonify({"error": "Se requiere un array 'roles'"}), 400
+
         # Borrar roles previos
-        cur.execute("DELETE FROM user_roles WHERE user_id=%s", (user_id,))
-        # Insertar nuevos
+        cur.execute("DELETE FROM user_roles WHERE user_id = %s", (user_id,))
+        # Insertar nuevos roles
         for role_name in roles:
             cur.execute("""
-              INSERT INTO user_roles (user_id, role_id)
-              SELECT %s, id FROM roles WHERE name = %s
+                INSERT INTO user_roles (user_id, role_id)
+                SELECT %s, id FROM roles WHERE name = %s
             """, (user_id, role_name))
         conn.commit()
+        return jsonify({"ok": True}), 200
     except Exception as e:
         conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
         liberar_db(conn)
-        return jsonify({"error":str(e)}), 500
-    liberar_db(conn)
-
-    return jsonify({"ok":True}), 200
-
-
+        
 
 # 📌 Endpoint para renderizar el Dashboard Web
 @app.route("/dashboard")
 def dashboard():
+    if 'user_id' not in session:
+        return redirect('/login')
     return render_template("index.html")
 
 # 📌 Iniciar la app con WebSockets

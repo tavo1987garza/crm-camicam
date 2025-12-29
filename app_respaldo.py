@@ -1,13 +1,12 @@
 
-
+from dotenv import load_dotenv
 import os
 import json
 import re
 import time
 import base64
-import uuid
+import uuid 
 from datetime import datetime, timezone, date
-
 import requests
 import psycopg2
 from psycopg2 import pool
@@ -26,6 +25,7 @@ from functools import wraps
 
 from werkzeug.security import generate_password_hash
 
+load_dotenv()
 
 # 📌 Ruta raíz
 @app.route("/") 
@@ -74,13 +74,6 @@ def liberar_db(conn):
         app.logger.error(f"Error al liberar conexión al pool: {e}")
 
 
-
-
-
-
-        
-        
-        
 ##################################
 #----------SECCION PANEL----------
 ##################################   
@@ -89,57 +82,62 @@ def liberar_db(conn):
 @app.route("/calendario/checar_fecha")
 def checar_fecha():
     fecha = request.args.get("fecha")
+    if not fecha:
+        return jsonify({"error": "Falta parámetro 'fecha'"}), 400
     conn = conectar_db()
-    cur  = conn.cursor()
+    if not conn:
+        return jsonify({"count": 0}), 500  # fallback seguro
     try:
+        cur = conn.cursor()
         cur.execute("""
             SELECT COUNT(*)
             FROM calendario
             WHERE DATE(fecha AT TIME ZONE 'UTC') = %s
         """, (fecha,))
         cnt = cur.fetchone()[0]
+        return jsonify({"count": cnt}), 200
+    except Exception as e:
+        app.logger.exception("Error en /calendario/checar_fecha")
+        return jsonify({"count": 0}), 500
     finally:
         liberar_db(conn)
-    return jsonify({"count": cnt})
 
 
-
-# 📌 Endpoint para la visualzacion de Próximos eventos        
+# 📌 Endpoint para la visualzacion de Próximos eventos   
 @app.route("/calendario/proximos")
 def proximos_eventos():
     try:
         lim = int(request.args.get("limite", 5))
         conn = conectar_db()
         if not conn:
-            raise RuntimeError("DB pool no inicializado")
-        cur = conn.cursor()
-        cur.execute("""
-          SELECT id,
-                 TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD'),
-                 COALESCE(titulo,''),
-                 COALESCE(servicios::text,'{}')
-          FROM calendario
-          WHERE fecha AT TIME ZONE 'UTC' >= %s
-          ORDER BY fecha ASC
-          LIMIT %s
-        """, (date.today(), lim))
-        rows = cur.fetchall()
-        liberar_db(conn)
-
-        out = []
-        for id_, fecha, titulo, servicios_text in rows:
-            try:
-                servicios = json.loads(servicios_text)
-            except:
-                servicios = {}
-                current_app.logger.warning(f"Servicios JSON inválido: {servicios_text}")
-            out.append({"id": id_, "fecha": fecha, "titulo": titulo, "servicios": servicios})
-        return jsonify(out), 200
-
+            return jsonify([]), 500
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+              SELECT id,
+                     TO_CHAR(fecha AT TIME ZONE 'UTC','YYYY-MM-DD'),
+                     COALESCE(titulo,''),
+                     COALESCE(servicios::text,'{}')
+              FROM calendario
+              WHERE fecha AT TIME ZONE 'UTC' >= %s
+              ORDER BY fecha ASC
+              LIMIT %s
+            """, (date.today(), lim))
+            rows = cur.fetchall()
+            out = []
+            for id_, fecha, titulo, servicios_text in rows:
+                try:
+                    servicios = json.loads(servicios_text)
+                except:
+                    servicios = {}
+                    current_app.logger.warning(f"Servicios JSON inválido: {servicios_text}")
+                out.append({"id": id_, "fecha": fecha, "titulo": titulo, "servicios": servicios})
+            return jsonify(out), 200
+        finally:
+            liberar_db(conn)
     except Exception:
         current_app.logger.exception("Error en /calendario/proximos")
         return jsonify([]), 200
-
 
 
 # 📌 Endpoint para mostras los Ultimos Leads
@@ -149,17 +147,18 @@ def ultimos_leads():
         lim = int(request.args.get("limite", 3))
         conn = conectar_db()
         if not conn:
-            raise RuntimeError("DB pool no inicializado")
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, nombre, telefono FROM leads ORDER BY id DESC LIMIT %s", (lim,))
-        rows = cur.fetchall()
-        liberar_db(conn)
-        return jsonify(rows), 200
-
+            return jsonify([]), 500
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT id, nombre, telefono FROM leads ORDER BY id DESC LIMIT %s", (lim,))
+            rows = cur.fetchall()
+            return jsonify(rows), 200
+        finally:
+            liberar_db(conn)
     except Exception:
         current_app.logger.exception("Error en /leads/ultimos")
         return jsonify([]), 200
-
+    
 
 # 📌 Endpoint para mostrar el KPI ensual (La meta mensual)
 @app.route("/reportes/kpi_mes")
@@ -167,35 +166,153 @@ def kpi_mes():
     try:
         hoy = datetime.utcnow()
         mes, anio = hoy.month, hoy.year
-
         conn = conectar_db()
         if not conn:
-            raise RuntimeError("DB pool no inicializado")
-        cur = conn.cursor()
-        cur.execute("""
-          SELECT COUNT(*) FROM calendario
-           WHERE EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC')=%s
-             AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC')=%s
-        """, (anio, mes))
-        actual = cur.fetchone()[0]
-
-        cur.execute("SELECT valor FROM config WHERE clave='meta_mensual'")
-        row = cur.fetchone()
-        meta = int(row[0]) if row and row[0].isdigit() else 15
-
-        liberar_db(conn)
-        return jsonify({"actual": actual, "meta": meta}), 200
-
+            return jsonify({"actual": 0, "meta": 15}), 500
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+              SELECT COUNT(*) FROM calendario
+               WHERE EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC')=%s
+                 AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC')=%s
+            """, (anio, mes))
+            actual = cur.fetchone()[0]
+            cur.execute("SELECT valor FROM config WHERE clave='meta_mensual'")
+            row = cur.fetchone()
+            meta = int(row[0]) if row and row[0].isdigit() else 15
+            return jsonify({"actual": actual, "meta": meta}), 200
+        finally:
+            liberar_db(conn)
     except Exception:
         current_app.logger.exception("Error en /reportes/kpi_mes")
-        # Fallback: actual = 0, meta = 15
         return jsonify({"actual": 0, "meta": 15}), 200
-
-
+   
 
 ##################################
 #----------SECCION LEADS---------- 
 ##################################   
+
+# 📌 NUEVO: Guardar contexto del bot
+@app.route("/leads/context", methods=["POST"])
+def guardar_contexto_lead():
+    conn = None
+    try:
+        datos = request.json
+        telefono = datos.get("telefono")
+        contexto = datos.get("context")
+        
+        if not telefono or not contexto:
+            return jsonify({"error": "Faltan datos: telefono o context"}), 400
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión a BD"}), 500
+
+        cursor = conn.cursor()
+        
+        # Crear o actualizar contexto
+        cursor.execute("""
+            INSERT INTO leads (telefono, nombre, estado, contexto, last_activity) 
+            VALUES (%s, %s, 'Contacto Inicial', %s, NOW())
+            ON CONFLICT (telefono) 
+            DO UPDATE SET 
+                contexto = EXCLUDED.contexto, 
+                last_activity = NOW(),
+                estado = CASE 
+                    WHEN leads.estado = 'Finalizado' THEN 'Contacto Inicial' 
+                    ELSE leads.estado 
+                END
+            RETURNING id
+        """, (telefono, f"Lead {telefono[-4:]}", json.dumps(contexto)))
+        
+        conn.commit()
+        return jsonify({"mensaje": "Contexto guardado"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /leads/context: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        if conn:
+            liberar_db(conn)            
+          
+    
+@app.route("/leads/context", methods=["GET"])   
+def obtener_contexto_lead():
+    telefono = request.args.get("telefono")
+    if not telefono:
+        return jsonify({"error": "Falta teléfono"}), 400
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"context": None}), 200  # nunca 500
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT contexto FROM leads WHERE telefono = %s", (telefono,))
+        row = cursor.fetchone()
+        if not row or not row['contexto']:
+            return jsonify({"context": None}), 200
+        
+        contexto_raw = row['contexto']
+        
+        # Caso 1: ya es un dict (por columna JSONB en PostgreSQL)
+        if isinstance(contexto_raw, dict):
+            contexto = contexto_raw
+        # Caso 2: es una cadena JSON (por columna TEXT en PostgreSQL)
+        else:
+            try:
+                contexto = json.loads(contexto_raw)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                app.logger.warning(f"Contexto malformado para {telefono}: {contexto_raw}")
+                return jsonify({"context": None}), 200
+        
+        return jsonify({"context": contexto}), 200
+    except Exception as e:
+        app.logger.error(f"Error inesperado en /leads/context: {e}")
+        return jsonify({"context": None}), 200
+    finally:
+        liberar_db(conn)
+        
+        
+# 📌 NUEVO: Limpiar contextos antiguos (ejecutar diariamente)
+@app.route("/leads/cleanup_context", methods=["POST"])
+def limpiar_contextos():
+    try:
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión"}), 500
+
+        cursor = conn.cursor()
+        cursor.execute("UPDATE leads SET contexto = NULL WHERE last_activity < NOW() - INTERVAL '30 days'")
+        conn.commit()
+        
+        return jsonify({"mensaje": "Contextos antiguos limpiados"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+        
+# 📌 Obtener ID de lead por teléfono
+@app.route("/lead_id", methods=["GET"])
+def obtener_lead_id():
+    telefono = request.args.get("telefono")
+    if not telefono:
+        return jsonify({"error": "Falta el parámetro 'telefono'"}), 400
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión a BD"}), 500
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM leads WHERE telefono = %s", (telefono,))
+        row = cursor.fetchone()
+        if row:
+            return jsonify({"id": row[0]}), 200
+        else:
+            return jsonify({"error": "Lead no encontrado"}), 404
+    except Exception as e:
+        app.logger.exception("Error en /lead_id")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+        
 
 # 📌 Endpoint para recibir mensajes desde WhatsApp
 @app.route("/recibir_mensaje", methods=["POST"])
@@ -226,10 +343,12 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # crear lead si no existe (igual que lo tenías)
+        # Verificar si el lead ya existe
         cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s", (remitente,))
         lead = cursor.fetchone()
         lead_id = None
+        lead_creado = False
+
         if not lead:
             nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
             cursor.execute("""
@@ -241,15 +360,45 @@ def recibir_mensaje():
             row = cursor.fetchone()
             if row:
                 lead_id = row[0]
+                lead_creado = True
         else:
             lead_id = lead[0]
 
+        # Guardar el mensaje en la tabla `mensajes`
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo)
             VALUES (%s, %s, %s, 'Nuevo', %s)
         """, (plataforma, remitente, mensaje, tipo))
         conn.commit()
 
+        # 🔹 Procesar eventos especiales del bot para cambiar estado
+        if tipo == "enviado" and isinstance(mensaje, str) and mensaje.startswith("EVENT:lead_seguimiento"):
+            try:
+                partes = mensaje.split(" ", 2)
+                if len(partes) >= 2:
+                    tipo_seguimiento = partes[1]
+                    if tipo_seguimiento == "XV":
+                        nuevo_estado = "Seguimiento XV"
+                    elif tipo_seguimiento == "Boda":
+                        nuevo_estado = "Seguimiento Boda"
+                    else:
+                        nuevo_estado = "Seguimiento Otro"
+
+                    # Actualizar estado en la base de datos
+                    cursor.execute("UPDATE leads SET estado = %s WHERE telefono = %s", (nuevo_estado, remitente))
+                    conn.commit()
+
+                    # Emitir evento en tiempo real al frontend
+                    if lead_id:
+                        socketio.emit("lead_estado_actualizado", {
+                            "id": lead_id,
+                            "estado_nuevo": nuevo_estado,
+                            "telefono": remitente
+                        })
+            except Exception as e:
+                print(f"⚠️ Error procesando evento de seguimiento: {str(e)}")
+
+        # Notificar nuevo mensaje a todos los clientes conectados
         socketio.emit("nuevo_mensaje", {
             "plataforma": plataforma,
             "remitente": remitente,
@@ -257,10 +406,11 @@ def recibir_mensaje():
             "tipo": tipo
         })
 
-        if lead_id:
+        # Notificar SOLO si se creó un lead nuevo (evita duplicados)
+        if lead_creado:
             socketio.emit("nuevo_lead", {
                 "id": lead_id,
-                "nombre": (lead[1] if lead else nombre_por_defecto) or "",
+                "nombre": nombre_por_defecto,
                 "telefono": remitente,
                 "estado": "Contacto Inicial"
             })
@@ -272,10 +422,11 @@ def recibir_mensaje():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-
+             
 
 # 📌 Enviar respuesta a Camibot con reintento automático
-CAMIBOT_API_URL = "https://cami-bot-7d4110f9197c.herokuapp.com"
+
+CAMIBOT_API_URL = os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
 
 @app.route("/enviar_mensaje", methods=["POST"])
 def enviar_mensaje():
@@ -425,53 +576,86 @@ def cambiar_estado_lead():
         datos = request.json
         lead_id = datos.get("id")
         nuevo_estado = datos.get("estado")
-        if not lead_id or nuevo_estado not in ["Contacto Inicial", "En proceso", "Seguimiento", "Cliente", "No cliente"]:
-            return jsonify({"error": "Datos incorrectos"}), 400
-        conn = conectar_db()
-        if conn:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE leads SET estado = %s WHERE id = %s", (nuevo_estado, lead_id))
-            conn.commit()
-            conn.close()
-        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        
+        # ✅ Lista COMPLETA de estados válidos (incluyendo los nuevos)
+        estados_validos = [
+            "Contacto Inicial",
+            "En proceso",
+            "Seguimiento XV",
+            "Seguimiento Boda",
+            "Seguimiento Otro",
+            "Cliente",
+            "No cliente"
+        ]
+        
+        if not lead_id or nuevo_estado not in estados_validos:
+            return jsonify({"error": "Estado no válido"}), 400
 
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión"}), 500
+
+        cursor = conn.cursor()
+
+        # Obtener el teléfono del lead para el evento
+        cursor.execute("SELECT telefono FROM leads WHERE id = %s", (lead_id,))
+        row = cursor.fetchone()
+        telefono = row[0] if row else None
+
+        # Actualizar estado
+        cursor.execute("UPDATE leads SET estado = %s WHERE id = %s", (nuevo_estado, lead_id))
+        conn.commit()
+
+        # Emitir evento en tiempo real
+        if telefono:
+            socketio.emit("lead_estado_actualizado", {
+                "id": lead_id,
+                "estado_nuevo": nuevo_estado,
+                "telefono": telefono
+            })
+
+        conn.close()
+        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+
+    except Exception as e:
+        print(f"❌ Error en /cambiar_estado_lead: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    
+    
 # 📌 Ruta para eliminar un lead
 @app.route("/eliminar_lead", methods=["POST"])
 def eliminar_lead():
     try:
         datos = request.json
         lead_id = datos.get("id")
-        telefono = datos.get("telefono")  # Necesario para borrar sus mensajes
-
+        telefono = datos.get("telefono")
         if not lead_id or not telefono:
             return jsonify({"error": "Faltan datos"}), 400
 
         conn = conectar_db()
         if not conn:
             return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
         cursor = conn.cursor()
-
-        # 🔹 Eliminar todos los mensajes asociados al teléfono del lead
         cursor.execute("DELETE FROM mensajes WHERE remitente = %s", (telefono,))
-
-        # 🔹 Eliminar el lead de la tabla leads
         cursor.execute("DELETE FROM leads WHERE id = %s", (lead_id,))
-
         conn.commit()
         conn.close()
 
-        # 🔹 Notificar al frontend para actualizar la interfaz
+        # 🔹 Notificar al bot para limpiar su contexto
+        try:
+            requests.post(  # 👈 requests ya está disponible
+                f"{CAMIBOT_API_URL}/limpiar_contexto",
+                json={"telefono": telefono},
+                timeout=5
+            )
+        except Exception as e:
+            app.logger.warning(f"⚠️ No se pudo notificar al bot al eliminar lead {telefono}: {e}")
+
         socketio.emit("lead_eliminado", {"id": lead_id, "telefono": telefono})
-
         return jsonify({"mensaje": "Lead y sus mensajes eliminados correctamente"}), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
+    
 
 @app.route('/editar_lead', methods=['POST'])
 def editar_lead():
@@ -1579,7 +1763,7 @@ def mover_pipeline():
     ...
 
 
-
+ 
 # 📌 Endpoint para gestión de usuarios y roles en el CRM
 # Helper: decorator de permisos (asume que g.current_user está cargado)
 def requires_permission(action):

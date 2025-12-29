@@ -259,7 +259,18 @@
     border-left: 5px solid #ff9800;
 }
 
-[data-estado="Seguimiento"] {
+[data-estado="Seguimiento XV"] {
+    background: #f5e9f8ff; /* Morado claro */
+    border-left: 5px solid #9543a0ff;
+}
+
+
+[data-estado="Seguimiento Boda"] {
+    background: #f8e9e9ff; /* rojo claro */
+    border-left: 5px solid #a04343ff;
+}
+
+[data-estado="Seguimiento Otro"] {
     background: #f1f8e9; /* Verde claro */
     border-left: 5px solid #43a047;
 }
@@ -318,7 +329,15 @@
     background: #ffe0b2; /* Naranja claro */
 }
 
-[data-estado="Seguimiento"] .lead {
+[data-estado="Seguimiento XV"] .lead {
+    background: #e6c8edff; /* Morado claro */
+}
+
+[data-estado="Seguimiento Boda"] .lead {
+    background: #edc8c8ff; /* rojo claro */
+}
+
+[data-estado="Seguimiento Otro"] .lead {
     background: #dcedc8; /* Verde claro */
 }
 
@@ -1617,8 +1636,16 @@ th {
                     <h3>🔄 En proceso</h3>
                     <div class="leads-list"></div>
                 </div>
-                <div class="leads-column" data-estado="Seguimiento">
-                    <h3>📌 Seguimiento</h3>
+                <div class="leads-column" data-estado="Seguimiento XV">
+                    <h3>👑 Seguimiento XV</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="Seguimiento Boda">
+                    <h3>💍 Seguimiento Boda</h3>
+                    <div class="leads-list"></div>
+                </div>
+                <div class="leads-column" data-estado="Seguimiento Otro">
+                    <h3>✨ Seguimiento Otro</h3>
                     <div class="leads-list"></div>
                 </div>
                 <div class="leads-column" data-estado="Cliente">
@@ -1632,7 +1659,7 @@ th {
             </div>
         </div>
 
-    
+
 
         <div id="chat" class="seccion hidden">            
             <div class="chat-container">
@@ -2414,7 +2441,7 @@ mostrarSeccion("panel", initPanel);
 
 
 /***********************
-========================
+========================  
 SECCION DE LEADS Y CHAT
 ========================
 ************************/
@@ -2499,13 +2526,14 @@ function actualizarUltimoMensajeLead(telefono, mensaje) {
 socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
 
-    let estado = "Contacto Inicial"; // 🔹 El estado predeterminado
+    let estado = "Contacto Inicial";
     let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
 
     if (leadList) {
         let leadElement = document.createElement("div");
         leadElement.classList.add("lead", "lead-nuevo");
-        leadElement.setAttribute("data-telefono", data.telefono); // 🔹 Agregar teléfono al atributo
+        leadElement.setAttribute("data-id", data.id);        // ✅ AGREGA ESTA LÍNEA
+        leadElement.setAttribute("data-telefono", data.telefono);
 
         leadElement.innerHTML = `
             <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
@@ -2517,9 +2545,38 @@ socket.on("nuevo_lead", (data) => {
         `;
 
         leadList.appendChild(leadElement);
-
         setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
     }
+});
+
+
+socket.on("lead_estado_actualizado", (data) => {
+  console.log("🔄 lead_estado_actualizado recibido:", data);
+
+  const moveLead = () => {
+    const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
+    if (!leadElement) {
+      // Reintentar en 300ms (por si aún no se renderiza)
+      setTimeout(moveLead, 300);
+      return;
+    }
+
+    const columnaActual = leadElement.closest(".leads-column");
+    if (columnaActual) {
+      const listaActual = columnaActual.querySelector(".leads-list");
+      if (listaActual) listaActual.removeChild(leadElement);
+    }
+
+    const nuevaColumna = document.querySelector(`.leads-column[data-estado="${data.estado_nuevo}"] .leads-list`);
+    if (nuevaColumna) {
+      leadElement.classList.add("lead-mensaje-nuevo");
+      setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
+      nuevaColumna.appendChild(leadElement);
+      console.log("✅ Lead movido a:", data.estado_nuevo);
+    }
+  };
+
+  moveLead();
 });
 
 /*====================================
@@ -2907,9 +2964,6 @@ function irAChat(telefono) {
         function drag(event) {
             event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
         }
-        
-      
-        
         // 🔹 Manejar el evento de soltar
         function drop(event, nuevoEstado) {
             event.preventDefault();
