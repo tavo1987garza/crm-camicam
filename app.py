@@ -13,6 +13,9 @@ import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 import secrets
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
 from flask import (
     Flask, request, jsonify, render_template, send_from_directory,
     current_app, redirect, url_for, session, g, abort, flash
@@ -2203,7 +2206,38 @@ def cambiar_password():
     finally:
         liberar_db(conn)
         
-
+        
+        
+def enviar_email_recuperacion(email_destino, reset_url):
+    """
+    Envía un email de recuperación de contraseña usando SendGrid.
+    """
+    try:
+        message = Mail(
+            from_email=os.getenv('SENDGRID_FROM_EMAIL'),
+            to_emails=email_destino,
+            subject='Recupera tu contraseña - Cami-Cam CRM',
+            html_content=f'''
+            <h2>¿Olvidaste tu contraseña?</h2>
+            <p>Hemos recibido una solicitud para restablecer tu contraseña.</p>
+            <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
+            <p><a href="{reset_url}" style="background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Restablecer Contraseña</a></p>
+            <p>Este enlace expira en 1 hora.</p>
+            <p>Si no solicitaste este cambio, ignora este email.</p>
+            <hr>
+            <p><small>Equipo Cami-Cam CRM</small></p>
+            '''
+        )
+        
+        sg = SendGridAPIClient(os.getenv('SENDGRID_API_KEY'))
+        response = sg.send(message)
+        print(f"✅ Email enviado a {email_destino} (Status: {response.status_code})")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error al enviar email: {str(e)}")
+        return False
+    
 
 @app.route("/recuperar_password", methods=["POST"])
 def recuperar_password():
@@ -2239,7 +2273,7 @@ def recuperar_password():
         token = secrets.token_urlsafe(32)
         expiracion = datetime.utcnow() + timedelta(hours=1)  # Válido por 1 hora
         
-        # Guardar token en la tabla users (o crear tabla separada users_password_reset)
+        # Asegurar que las columnas existan
         cur.execute("""
             ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(100);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_expiracion TIMESTAMP;
@@ -2253,13 +2287,11 @@ def recuperar_password():
         
         conn.commit()
         
-        # Aquí deberías enviar un email con el enlace
-        # Por ahora, solo logueamos el token (en producción, envía email)
+        # Generar URL de recuperación
         reset_url = f"https://{request.host}/restablecer_password?token={token}"
-        print(f"🔗 Enlace de recuperación para {email}: {reset_url}")
         
-        # En producción, descomenta esta línea y configura el envío de email
-        # enviar_email_recuperacion(email, reset_url)
+        # Enviar email real
+        enviar_email_recuperacion(email, reset_url)
         
         return jsonify({"mensaje": "Si el email existe, recibirás instrucciones"}), 200
         
@@ -2269,6 +2301,7 @@ def recuperar_password():
         return jsonify({"error": "Error interno"}), 500
     finally:
         liberar_db(conn)
+        
 
 @app.route("/restablecer_password", methods=["GET", "POST"])
 def restablecer_password():
