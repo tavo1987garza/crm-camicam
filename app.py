@@ -136,8 +136,14 @@ def obtener_cliente_id_de_subdominio():
         return None
 
     subdominio = partes[0]
-    if subdominio in ("www", "cotizador"):  # Excluir subdominios especiales
+    
+    # Excepción para subdominios especiales
+    if subdominio in ("www", "cotizador"):
         return None
+        
+    # Si es el subdominio de registro, permitir acceso público
+    if subdominio == "registro":
+        return None  # Esto permitirá que la página de registro se muestre
 
     # Buscar cliente en la base de datos
     conn = conectar_db()
@@ -2223,7 +2229,7 @@ def enviar_email_recuperacion(email_destino, reset_url):
             print("❌ Variables de SendGrid no configuradas")
             return False
 
-        message = Mail(
+        message = Mail (
             from_email=sendgrid_from_email,
             to_emails=email_destino,
             subject='Recupera tu contraseña - Cami-Cam CRM',
@@ -2237,7 +2243,7 @@ def enviar_email_recuperacion(email_destino, reset_url):
             <hr>
             <p><small>Equipo Cami-Cam CRM</small></p>
             '''
-        )
+            )
         
         sg = SendGridAPIClient(sendgrid_api_key)
         response = sg.send(message)
