@@ -2213,8 +2213,16 @@ def enviar_email_recuperacion(email_destino, reset_url):
     Envía un email de recuperación de contraseña usando SendGrid.
     """
     try:
+        # Verificar que las variables de entorno existan
+        sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
+        sendgrid_from_email = os.getenv('SENDGRID_FROM_EMAIL')
+        
+        if not sendgrid_api_key or not sendgrid_from_email:
+            print("❌ Variables de SendGrid no configuradas")
+            return False
+
         message = Mail(
-            from_email=os.getenv('SENDGRID_FROM_EMAIL'),
+            from_email=sendgrid_from_email,
             to_emails=email_destino,
             subject='Recupera tu contraseña - Cami-Cam CRM',
             html_content=f'''
@@ -2229,7 +2237,7 @@ def enviar_email_recuperacion(email_destino, reset_url):
             '''
         )
         
-        sg = SendGridAPIClient(os.getenv('SENDGRID_API_KEY'))
+        sg = SendGridAPIClient(sendgrid_api_key)
         response = sg.send(message)
         print(f"✅ Email enviado a {email_destino} (Status: {response.status_code})")
         return True
@@ -2290,12 +2298,20 @@ def recuperar_password():
         # Generar URL de recuperación
         reset_url = f"https://{request.host}/restablecer_password?token={token}"
         
-        # 🔥 LOGS DE DEBUG AQUÍ (antes del envío)
+        # 🔥 LOGS DE DEBUG
         print(f"📧 Intentando enviar email a: {email}")
         print(f"🔗 URL de recuperación: {reset_url}")
         
-        # Enviar email real (solo una vez)
-        enviar_email_recuperacion(email, reset_url)
+        try:
+            # Enviar email con manejo de errores
+            resultado = enviar_email_recuperacion(email, reset_url)
+            if resultado:
+                print("✅ Email enviado exitosamente")
+            else:
+                print("⚠️ Email no se pudo enviar, pero continuamos")
+        except Exception as email_error:
+            print(f"❌ Error al enviar email: {str(email_error)}")
+            # No detenemos el flujo, solo registramos el error
         
         return jsonify({"mensaje": "Si el email existe, recibirás instrucciones"}), 200
         
