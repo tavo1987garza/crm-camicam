@@ -2302,6 +2302,10 @@ def recuperar_password():
     finally:
         liberar_db(conn)
         
+        print(f"📧 Intentando enviar email a: {email}")
+        print(f"🔗 URL de recuperación: {reset_url}")
+        enviar_email_recuperacion(email, reset_url)
+        
 
 @app.route("/restablecer_password", methods=["GET", "POST"])
 def restablecer_password():
