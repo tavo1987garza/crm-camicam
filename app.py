@@ -2290,7 +2290,11 @@ def recuperar_password():
         # Generar URL de recuperación
         reset_url = f"https://{request.host}/restablecer_password?token={token}"
         
-        # Enviar email real
+        # 🔥 LOGS DE DEBUG AQUÍ (antes del envío)
+        print(f"📧 Intentando enviar email a: {email}")
+        print(f"🔗 URL de recuperación: {reset_url}")
+        
+        # Enviar email real (solo una vez)
         enviar_email_recuperacion(email, reset_url)
         
         return jsonify({"mensaje": "Si el email existe, recibirás instrucciones"}), 200
@@ -2301,10 +2305,6 @@ def recuperar_password():
         return jsonify({"error": "Error interno"}), 500
     finally:
         liberar_db(conn)
-        
-        print(f"📧 Intentando enviar email a: {email}")
-        print(f"🔗 URL de recuperación: {reset_url}")
-        enviar_email_recuperacion(email, reset_url)
         
 
 @app.route("/restablecer_password", methods=["GET", "POST"])
