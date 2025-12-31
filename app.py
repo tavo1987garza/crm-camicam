@@ -36,7 +36,12 @@ load_dotenv()
 def cargar_usuario_actual():
     """
     Carga el usuario actual en g.current_user basado en la sesión y el cliente_id del subdominio.
+    También maneja redirecciones especiales para subdominios.
     """
+    # 🔁 Redirección especial para registro.eventa.com.mx
+    if request.host == "registro.eventa.com.mx" and request.path == "/":
+        return redirect("/registro")
+    
     g.current_user = None
     
     # Obtener cliente_id del subdominio
@@ -67,12 +72,6 @@ def cargar_usuario_actual():
                 liberar_db(conn)
                 
 
-    
-@app.before_request
-def redirigir_registro_subdominio():
-    """Redirige registro.eventa.com.mx a la página de registro"""
-    if request.host == "registro.eventa.com.mx" and request.path == "/":
-        return redirect("/registro")
     
 
 # 📌 Ruta raíz
