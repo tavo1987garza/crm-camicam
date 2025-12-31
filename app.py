@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import json
 import re
+import traceback
 from werkzeug.security import generate_password_hash, check_password_hash
 import time
 import base64
@@ -17,7 +18,7 @@ from psycopg2.extras import RealDictCursor
 import secrets
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
-
+from functools import wraps
 from flask import (
     Flask, request, jsonify, render_template, send_from_directory,
     current_app, redirect, url_for, session, g, abort, flash
@@ -27,7 +28,6 @@ from flask_socketio import SocketIO
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-from functools import wraps
 
 load_dotenv()
 
@@ -1989,22 +1989,26 @@ def pagina_registro():
 
 @app.route("/registro", methods=["POST"])
 def registrar_nuevo_cliente():
-    """
-    Registro público para nuevos clientes SaaS.
-    Solo accesible desde registro.eventa.com.mx
-    """
-    # Validación estricta: solo permitir desde el subdominio correcto
+    """Registro público para nuevos clientes SaaS."""
+    print("🔍 DEBUG: Iniciando función registrar_nuevo_cliente")
+    
     if request.host != "registro.eventa.com.mx":
+        print("❌ DEBUG: Acceso no autorizado desde", request.host)
         return jsonify({"error": "Acceso no autorizado"}), 403
 
     try:
+        print("🔍 DEBUG: Parseando datos JSON")
         datos = request.json
+        print(f"🔍 DEBUG: Datos recibidos: {datos}")
+        
         nombre = datos.get("nombre", "").strip()
         subdominio = datos.get("subdominio", "").strip().lower()
         email = datos.get("email", "").strip().lower()
         plan = datos.get("plan", "basico").lower()
         password = datos.get("password", "")
 
+        print(f"🔍 DEBUG: Validando datos - nombre:{nombre}, subdominio:{subdominio}, email:{email}, plan:{plan}")
+        
         # Validaciones
         if not nombre or len(nombre) < 3:
             return jsonify({"error": "Nombre del negocio es requerido (mín. 3 caracteres)"}), 400
@@ -2017,45 +2021,52 @@ def registrar_nuevo_cliente():
         if not password or len(password) < 6:
             return jsonify({"error": "Contraseña requerida (mín. 6 caracteres)"}), 400
 
+        print("🔍 DEBUG: Conectando a base de datos")
         conn = conectar_db()
         if not conn:
+            print("❌ DEBUG: Error de conexión a base de datos")
             return jsonify({"error": "Error de conexión a la base de datos"}), 500
 
         try:
+            print("🔍 DEBUG: Creando cursor y verificando subdominio")
             cur = conn.cursor()
-
-            # Verificar si el subdominio ya existe
+            
             cur.execute("SELECT id FROM clientes WHERE subdominio = %s", (subdominio,))
             if cur.fetchone():
+                print("❌ DEBUG: Subdominio ya existe")
                 return jsonify({"error": "El subdominio ya está en uso. Elige otro."}), 400
 
-            # Crear cliente
+            print("🔍 DEBUG: Creando cliente en base de datos")
             cur.execute("""
                 INSERT INTO clientes (subdominio, nombre, email_admin, plan)
                 VALUES (%s, %s, %s, %s)
                 RETURNING id
             """, (subdominio, nombre, email, plan))
             cliente_id = cur.fetchone()[0]
+            print(f"✅ DEBUG: Cliente creado con ID: {cliente_id}")
 
-            # Crear usuario administrador con la contraseña del usuario
+            print("🔍 DEBUG: Creando usuario administrador")
             pw_hash = generate_password_hash(password)
             cur.execute("""
                 INSERT INTO users (email, password_hash, cliente_id, activo)
                 VALUES (%s, %s, %s, true)
                 RETURNING id
             """, (email, pw_hash, cliente_id))
-
-            # Asignar rol 'admin'
             user_id = cur.fetchone()[0]
+            print(f"✅ DEBUG: Usuario creado con ID: {user_id}")
+
+            print("🔍 DEBUG: Asignando rol admin")
             cur.execute("""
                 INSERT INTO user_roles (user_id, role_id)
                 SELECT %s, id FROM roles WHERE name = 'admin'
             """, (user_id,))
+            print("✅ DEBUG: Rol admin asignado")
 
             conn.commit()
+            print("✅ DEBUG: Transacción confirmada")
 
-            # URL de login personalizada
             login_url = f"https://{subdominio}.eventa.com.mx/login"
+            print(f"✅ DEBUG: Registro completado exitosamente. URL: {login_url}")
 
             return jsonify({
                 "mensaje": "Cliente registrado exitosamente",
@@ -2065,15 +2076,21 @@ def registrar_nuevo_cliente():
 
         except Exception as e:
             conn.rollback()
-            print(f"❌ Error al registrar cliente: {str(e)}")
+            print(f"❌ ERROR EN BASE DE DATOS: {str(e)}")
+            import traceback
+            print("❌ TRACEBACK COMPLETO:")
+            print(traceback.format_exc())
             return jsonify({"error": "Error interno al registrar cliente"}), 500
         finally:
             liberar_db(conn)
+            print("🔍 DEBUG: Conexión a base de datos liberada")
 
     except Exception as e:
-        print(f"❌ Error en /registro: {str(e)}")
+        print(f"❌ ERROR GENERAL EN REGISTRO: {str(e)}")
+        import traceback
+        print("❌ TRACEBACK GENERAL:")
+        print(traceback.format_exc())
         return jsonify({"error": "Error en la solicitud"}), 400
-    
     
 
 
