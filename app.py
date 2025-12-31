@@ -122,28 +122,28 @@ def liberar_db(conn):
 def obtener_cliente_id_de_subdominio():
     """
     Extrae el subdominio de request.host y devuelve el cliente_id.
-    Ej: crm.cami-cam.com → subdominio = 'crm' → cliente_id = 1
+    Soporta: eventa.com.mx y cami-cam.com (temporal)
     """
     host = request.host.lower()
+    
+    # Desarrollo
     if host == "localhost:5000" or host.startswith("127.0.0.1"):
-        # En desarrollo, usa el cliente por defecto (id=1)
         return 1
 
-    # Extraer subdominio: "cliente1.cami-cam.com" → "cliente1"
-    partes = host.split('.')
-    if len(partes) < 3:
-        # Dominio sin subdominio (ej: cami-cam.com) → error
+    # Soporte para ambos dominios durante la transición
+    if host.endswith('.eventa.com.mx'):
+        base_domain = 'eventa.com.mx'
+        subdominio = host[:-len(base_domain)].rstrip('.')
+    elif host.endswith('.cami-cam.com'):
+        base_domain = 'cami-cam.com'
+        subdominio = host[:-len(base_domain)].rstrip('.')
+    else:
+        # Dominio principal (eventa.com.mx o cami-cam.com)
         return None
 
-    subdominio = partes[0]
-    
-    # Excepción para subdominios especiales
-    if subdominio in ("www", "cotizador"):
+    # Subdominios especiales
+    if subdominio in ("www", "cotizador", "registro", ""):
         return None
-        
-    # Si es el subdominio de registro, permitir acceso público
-    if subdominio == "registro":
-        return None  # Esto permitirá que la página de registro se muestre
 
     # Buscar cliente en la base de datos
     conn = conectar_db()
