@@ -66,6 +66,8 @@ def cargar_usuario_actual():
             finally:
                 liberar_db(conn)
                 
+
+    
 @app.before_request
 def redirigir_registro_subdominio():
     """Redirige registro.eventa.com.mx a la página de registro"""
@@ -1968,24 +1970,32 @@ def check_subdominio():
         liberar_db(conn)
         
 
+
+
 @app.route("/registro")
 def pagina_registro():
+    """
+    Página de registro para nuevos clientes.
+    Solo accesible desde registro.eventa.com.mx
+    """
+    # Validación estricta: solo permitir desde el subdominio correcto
     if request.host != "registro.eventa.com.mx":
+        # Redirigir a la URL correcta
         return redirect("https://registro.eventa.com.mx/registro")
+    
     return render_template("registro.html")
 
 @app.route("/registro", methods=["POST"])
 def registrar_nuevo_cliente():
     """
     Registro público para nuevos clientes SaaS.
-    Ejemplo de payload:
-    {
-        "nombre": "Salón de Fiestas XYZ",
-        "subdominio": "salonxyz",
-        "email": "dueño@salonxyz.com",
-        "plan": "premium"
-    }
+    Solo accesible desde registro.eventa.com.mx
     """
+    # Validación estricta en el endpoint POST también
+    if request.host != "registro.eventa.com.mx":
+        return jsonify({"error": "Acceso no autorizado"}), 403
+
+    # Resto de tu lógica de registro existente...
     try:
         datos = request.json
         nombre = datos.get("nombre", "").strip()
@@ -2032,7 +2042,7 @@ def registrar_nuevo_cliente():
                 RETURNING id
             """, (email, pw_hash, cliente_id))
 
-            # Asignar rol 'admin' (asegúrate de que exista en tu tabla 'roles')
+            # Asignar rol 'admin'
             user_id = cur.fetchone()[0]
             cur.execute("""
                 INSERT INTO user_roles (user_id, role_id)
@@ -2042,10 +2052,7 @@ def registrar_nuevo_cliente():
             conn.commit()
 
             # URL de login personalizada
-            login_url = f"https://{subdominio}.cami-cam.com/login"
-
-            # Aquí podrías enviar un email con las credenciales
-            # enviar_email_registro(email, subdominio, temp_password)
+            login_url = f"https://{subdominio}.eventa.com.mx/login"
 
             return jsonify({
                 "mensaje": "Cliente registrado exitosamente",
@@ -2063,7 +2070,6 @@ def registrar_nuevo_cliente():
     except Exception as e:
         print(f"❌ Error en /registro: {str(e)}")
         return jsonify({"error": "Error en la solicitud"}), 400
-    
     
 
 
