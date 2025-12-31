@@ -1985,33 +1985,37 @@ def pagina_registro():
     
     return render_template("registro.html")
 
+
+
 @app.route("/registro", methods=["POST"])
 def registrar_nuevo_cliente():
     """
     Registro público para nuevos clientes SaaS.
     Solo accesible desde registro.eventa.com.mx
     """
-    # Validación estricta en el endpoint POST también
+    # Validación estricta: solo permitir desde el subdominio correcto
     if request.host != "registro.eventa.com.mx":
         return jsonify({"error": "Acceso no autorizado"}), 403
 
-    # Resto de tu lógica de registro existente...
     try:
         datos = request.json
         nombre = datos.get("nombre", "").strip()
         subdominio = datos.get("subdominio", "").strip().lower()
         email = datos.get("email", "").strip().lower()
         plan = datos.get("plan", "basico").lower()
+        password = datos.get("password", "")
 
         # Validaciones
         if not nombre or len(nombre) < 3:
             return jsonify({"error": "Nombre del negocio es requerido (mín. 3 caracteres)"}), 400
-        if not subdominio or not validar_subdominio(subdominio):
+        if not subdominio or not re.match(r'^[a-z0-9-]{3,30}$', subdominio):
             return jsonify({"error": "Subdominio inválido. Usa solo letras, números y guiones (3-30 caracteres)."}), 400
         if not email or "@" not in email:
             return jsonify({"error": "Email válido es requerido"}), 400
         if plan not in ["basico", "premium"]:
             return jsonify({"error": "Plan debe ser 'basico' o 'premium'"}), 400
+        if not password or len(password) < 6:
+            return jsonify({"error": "Contraseña requerida (mín. 6 caracteres)"}), 400
 
         conn = conectar_db()
         if not conn:
@@ -2033,9 +2037,8 @@ def registrar_nuevo_cliente():
             """, (subdominio, nombre, email, plan))
             cliente_id = cur.fetchone()[0]
 
-            # Crear usuario administrador
-            temp_password = secrets.token_urlsafe(8)  # Contraseña temporal segura
-            pw_hash = generate_password_hash(temp_password)
+            # Crear usuario administrador con la contraseña del usuario
+            pw_hash = generate_password_hash(password)
             cur.execute("""
                 INSERT INTO users (email, password_hash, cliente_id, activo)
                 VALUES (%s, %s, %s, true)
@@ -2070,6 +2073,7 @@ def registrar_nuevo_cliente():
     except Exception as e:
         print(f"❌ Error en /registro: {str(e)}")
         return jsonify({"error": "Error en la solicitud"}), 400
+    
     
 
 
