@@ -65,6 +65,13 @@ def cargar_usuario_actual():
                     }
             finally:
                 liberar_db(conn)
+                
+@app.before_request
+def redirigir_registro_subdominio():
+    """Redirige registro.eventa.com.mx a la página de registro"""
+    if request.host == "registro.eventa.com.mx" and request.path == "/":
+        return redirect("/registro")
+    
 
 # 📌 Ruta raíz
 @app.route("/") 
@@ -1960,8 +1967,11 @@ def check_subdominio():
     finally:
         liberar_db(conn)
         
+
 @app.route("/registro")
 def pagina_registro():
+    if request.host != "registro.eventa.com.mx":
+        return redirect("https://registro.eventa.com.mx/registro")
     return render_template("registro.html")
 
 @app.route("/registro", methods=["POST"])
