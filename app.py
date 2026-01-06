@@ -2100,46 +2100,56 @@ def procesar_login():
     """
     Procesa el login y valida que el usuario pertenezca al cliente actual.
     """
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify({"error": "Cliente no encontrado"}), 404
-
-    datos = request.json
-    email = datos.get("email", "").strip().lower()
-    password = datos.get("password", "")
-
-    if not email or not password:
-        return jsonify({"error": "Email y contraseña son requeridos"}), 400
-
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "Error de conexión"}), 500
-
     try:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, password_hash 
-            FROM users 
-            WHERE email = %s AND cliente_id = %s AND activo = true
-        """, (email, cliente_id))
-        
-        user = cur.fetchone()
-        
-        if not user or not check_password_hash(user[1], password):
-            return jsonify({"error": "Credenciales inválidas"}), 401
+        cliente_id = obtener_cliente_id_de_subdominio()
+        if not cliente_id:
+            return jsonify({"error": "Cliente no encontrado"}), 404
 
-        # Iniciar sesión
-        session['user_id'] = user[0]
-        session['cliente_id'] = cliente_id
-        
-        return jsonify({"mensaje": "Login exitoso"}), 200
-        
+        datos = request.json
+        email = datos.get("email", "").strip().lower()
+        password = datos.get("password", "")
+
+        if not email or not password:
+            return jsonify({"error": "Email y contraseña son requeridos"}), 400
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión"}), 500
+
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, password_hash 
+                FROM users 
+                WHERE email = %s AND cliente_id = %s AND activo = true
+            """, (email, cliente_id))
+            
+            user = cur.fetchone()
+            
+            if not user or not check_password_hash(user[1], password):
+                return jsonify({"error": "Credenciales inválidas"}), 401
+
+            # Iniciar sesión
+            session['user_id'] = user[0]
+            session['cliente_id'] = cliente_id
+            
+            return jsonify({"mensaje": "Login exitoso"}), 200
+            
+        except Exception as e:
+            print(f"❌ Error en login (base de datos): {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": "Error interno"}), 500
+        finally:
+            liberar_db(conn)
+            
     except Exception as e:
-        print(f"❌ Error en login: {str(e)}")
+        print(f"💥 ERROR CRÍTICO EN LOGIN: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "Error interno"}), 500
-    finally:
-        liberar_db(conn)
-        
+    
+    
         
 @app.route("/api/cliente_actual")
 def api_cliente_actual():
