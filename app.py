@@ -1,10 +1,9 @@
+import re
 from gevent import monkey
 monkey.patch_all()
-
 from dotenv import load_dotenv
 import os
 import json
-import re
 import traceback
 from werkzeug.security import generate_password_hash, check_password_hash
 import time
@@ -1989,13 +1988,12 @@ def pagina_registro():
 @app.route("/registro", methods=["POST"])
 def registrar_nuevo_cliente():
     """Registro público para nuevos clientes SaaS."""
-    print("🔍 DEBUG: Iniciando función registrar_nuevo_cliente")
-    
-    if request.host != "registro.eventa.com.mx":
-        print("❌ DEBUG: Acceso no autorizado desde", request.host)
-        return jsonify({"error": "Acceso no autorizado"}), 403
-
     try:
+        # Validación estricta: solo permitir desde el subdominio correcto
+        if request.host != "registro.eventa.com.mx":
+            print("❌ DEBUG: Acceso no autorizado desde", request.host)
+            return jsonify({"error": "Acceso no autorizado"}), 403
+
         print("🔍 DEBUG: Parseando datos JSON")
         datos = request.json
         print(f"🔍 DEBUG: Datos recibidos: {datos}")
@@ -2078,19 +2076,18 @@ def registrar_nuevo_cliente():
             print(f"❌ ERROR EN BASE DE DATOS: {str(e)}")
             import traceback
             print("❌ TRACEBACK COMPLETO:")
-            print(traceback.format_exc())
+            traceback.print_exc()
             return jsonify({"error": "Error interno al registrar cliente"}), 500
         finally:
             liberar_db(conn)
             print("🔍 DEBUG: Conexión a base de datos liberada")
 
     except Exception as e:
-        print(f"❌ ERROR GENERAL EN REGISTRO: {str(e)}")
+        print(f"💥 ERROR CRÍTICO EN REGISTRO (nivel superior): {str(e)}")
         import traceback
-        print("❌ TRACEBACK GENERAL:")
-        print(traceback.format_exc())
-        return jsonify({"error": "Error en la solicitud"}), 400
-    
+        print("💥 TRACEBACK COMPLETO (nivel superior):")
+        traceback.print_exc()
+        return jsonify({"error": "Error interno al registrar cliente"}), 500
 
 
 @app.route("/login")

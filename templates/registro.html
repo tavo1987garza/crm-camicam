@@ -207,10 +207,11 @@
             
             // Validar subdominio
             const subdominio = document.getElementById('subdominio').value;
-            if (!/^[a-z0-9-]+$/.test(subdominio)) {
+            if (!/^[a-z0-9]+$/.test(subdominio)) {
                 showError('subdominio', 'Solo letras, números y guiones');
                 return;
             }
+            
             
             const formData = {
                 nombre: document.getElementById('nombre').value.trim(),
