@@ -26,7 +26,7 @@ from flask_socketio import SocketIO
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
-
+app.secret_key = os.getenv('SECRET_KEY')
 
 load_dotenv()
 
