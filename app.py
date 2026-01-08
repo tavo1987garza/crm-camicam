@@ -1753,6 +1753,33 @@ def eliminar_etiqueta():
 #'''''''''''''''''''''''''''''''''''''''''''''''
 #--------------SECION DE CONFIGURACION-----------------
 #,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,   
+
+ 
+#''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#--------------CONFIGURACION PARA HACER DE LA APP UN MULTITENANT-----------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,  
+
+# 📌 Endpoint para gestión de usuarios y roles en el CRM
+# Decorador genérico que verifica permisos antes de ejecutar un endpoin
+def requires_permission(action):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if not g.current_user:
+                abort(403)
+            # Por ahora, asumimos que si hay usuario, tiene permiso
+            # Puedes implementar permisos reales más tarde
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+# Proteccion de Rutas
+@app.route("/pipeline/mover", methods=["POST"])
+@requires_permission("move_pipeline")
+def mover_pipeline():
+    # lógica para mover lead
+    ...
+
         
 # RUTA PARA SUBIR LOGO 
 @app.route("/config/logo", methods=["POST"])
@@ -1950,33 +1977,6 @@ def config_n8n():
     conn.commit()
     liberar_db(conn)
     return jsonify({"ok":True})
-
- 
-#''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-#--------------CONFIGURACION PARA HACER DE LA APP UN MULTITENANT-----------------
-#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,  
-
-# 📌 Endpoint para gestión de usuarios y roles en el CRM
-# Decorador genérico que verifica permisos antes de ejecutar un endpoin
-def requires_permission(action):
-    def decorator(f):
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            if not g.current_user:
-                abort(403)
-            # Por ahora, asumimos que si hay usuario, tiene permiso
-            # Puedes implementar permisos reales más tarde
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
-
-# Proteccion de Rutas
-@app.route("/pipeline/mover", methods=["POST"])
-@requires_permission("move_pipeline")
-def mover_pipeline():
-    # lógica para mover lead
-    ...
-
 
 
 
