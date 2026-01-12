@@ -1712,10 +1712,8 @@ th {
         <div id="logo-preview" style="text-align: center; margin: 12px 0;">
             <img id="logo-cuenta-img" src="/static/logo/default.png" alt="Logo" style="max-height: 80px; max-width: 200px;">
         </div>
-        <input type="file" id="logo-upload" accept="image/*" style="width: 100%; margin: 8px 0;">
-        <button id="btn-guardar-logo" class="btn btn-primary" style="width: 100%;">
-            <i class="fas fa-upload"></i> Actualizar Logo
-        </button>
+        <input type="file" id="logo-upload">
+        <button id="btn-guardar-logo">Actualizar Logo</button>
     </div>
 
     <!-- Cambiar Contraseña -->
@@ -2563,15 +2561,29 @@ function mostrarFeedback(mensaje, tipo) {
     feedback.classList.remove('hidden');
 }
 
+
 // Inicializar la sección de cuenta
 function initCuenta() {
     cargarInfoCuenta();
     
-    // Event listeners
-    document.getElementById('btn-editar-negocio').addEventListener('click', abrirModalEditarNegocio);
-    document.getElementById('btn-guardar-logo').addEventListener('click', actualizarLogo);
-    document.getElementById('btn-cambiar-password').addEventListener('click', cambiarPassword);
-    document.getElementById('btn-logout').addEventListener('click', handleLogout);
+    // Event listeners con verificación de existencia
+    const btnEditarNegocio = document.getElementById('btn-editar-negocio');
+    const btnGuardarLogo = document.getElementById('btn-guardar-logo');
+    const btnCambiarPassword = document.getElementById('btn-cambiar-password');
+    const btnLogout = document.getElementById('btn-logout');
+    
+    if (btnEditarNegocio) {
+        btnEditarNegocio.addEventListener('click', abrirModalEditarNegocio);
+    }
+    if (btnGuardarLogo) {
+        btnGuardarLogo.addEventListener('click', actualizarLogo);
+    }
+    if (btnCambiarPassword) {
+        btnCambiarPassword.addEventListener('click', cambiarPassword);
+    }
+    if (btnLogout) {
+        btnLogout.addEventListener('click', handleLogout);
+    }
 }
 
       /* === 1. Carga logo en el Panel ================= */
@@ -2600,26 +2612,6 @@ function initCuenta() {
   }
 }
 
-
-/*document.addEventListener("DOMContentLoaded", function () {
-    console.log("📌 DOM completamente cargado. Configurando eventos.");
-
-    cargarLogo();
-
-    // Solo cargar leads si la sección está visible
-    let seccionLeads = document.getElementById("leads");
-    if (seccionLeads && !seccionLeads.classList.contains("hidden")) {
-        cargarLeads();
-    }
-
-    // Cargar el estado del sidebar al iniciar
-    let sidebar = document.querySelector(".sidebar");
-    if (localStorage.getItem("sidebarCollapsed") === "true") {
-        sidebar.classList.add("collapsed");
-    }
-   
-});*/
-
 // DOMContentLoaded sólo para inits globales
 document.addEventListener("DOMContentLoaded", () => {
   cargarLogo();
@@ -2628,45 +2620,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelector(".sidebar")?.classList.add("collapsed");
   }
 });
-
-
-// 🔹 Resaltar la sección activa
-/*function mostrarSeccion(seccion, callback = null) {
-    document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
-    let elemento = document.getElementById(seccion);
-
-    if (elemento) {
-        elemento.classList.remove('hidden');
-
-        // Resaltar el botón activo
-        document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`).classList.add('active');
-
-        // Cargar automáticamente el calendario si es la sección correspondiente
-        if (seccion === 'calendario') {
-            initCalendario();
-            cargarLeadsEnSelect(); // También cargamos los leads para el select
-        }
-
-          // Cargar etiquetas cuando se muestra la sección de gastos
-          if (seccion === 'gastos') {
-            cargarEtiquetasEnVista();
-        }
-
-          if (seccion === 'configuracion') {
-            cargarLogo();
-        }
-
-        if (callback) callback();
-
-        if (seccion === 'panel' && callback) {
-          callback();   // aquí llamas a initPanel
-        } else if (callback) {
-          callback();
-        }
-    }
-}*/
-
 
 
 function mostrarSeccion(seccion, callback = null) { 
@@ -2707,7 +2660,6 @@ function mostrarSeccion(seccion, callback = null) {
     return;
   }
 
-  // 5) Si te pasaron otro callback, lo ejecutas aquí
   if (callback) {
     callback();
   }
@@ -4630,23 +4582,26 @@ ctx.style.maxHeight = graphHeight + "px";                 // opcional: evita que
     }
   }
   
-      
+
 /***********************
 ========================
     SECCION DE GASTO
 ========================
 ************************/
-      document.getElementById("gasto-monto").addEventListener("blur", function() {
+const gastoMonto = document.getElementById("gasto-monto");
+if (gastoMonto) {
+    gastoMonto.addEventListener("blur", function() {
         let numericValue = parseFloat(this.value.replace(/[^0-9.]/g, ''));
         if (!isNaN(numericValue)) {
-          this.value = numericValue.toLocaleString('es-MX', {
-            style: 'currency',
-            currency: 'MXN',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-          });
+            this.value = numericValue.toLocaleString('es-MX', {
+                style: 'currency',
+                currency: 'MXN',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
         }
-      });
+    });
+}
 
 /*=====================================================
 FUNCION PARA MOSTRAS LAS ETIQUETAS EN LA SECCION GASTOS
@@ -4699,9 +4654,6 @@ function abrirModalNuevaEtiqueta() {
   
       
 // Listar etiquetas en la vista
-
-
-
 async function cargarEtiquetasEnVista() {
   const resp = await fetch("/gastos/etiquetas");
   const data = await resp.json();
@@ -4894,57 +4846,68 @@ SECCION DE CONFIGURACIÓN
 ========================
 ************************/
 async function initConfiguracion() {
-  // 1️⃣ Cargar el logo actual
-  await cargarLogo();
-
-  // 2️⃣ Elementos
-  const fileInp = document.getElementById("logo-file");
-  const preview = document.getElementById("logo-preview");
-  const upload  = document.getElementById("logo-upload-btn");
-  const msg     = document.getElementById("logo-msg");
-
-  // 3️⃣ Preview inmediato al elegir
-  if (fileInp) {
-    fileInp.onchange = e => {
-      const file = e.target.files[0];
-      if (file && preview) preview.src = URL.createObjectURL(file);
-    };
-  }
-
-  // 4️⃣ Handler de subida
-  if (upload) {
-    upload.onclick = async () => {
-      msg.className = "hidden";
-      if (!fileInp.files.length) {
-        msg.textContent = "Selecciona un archivo";
-        msg.className = "error";
-        msg.classList.remove("hidden");
-        return;
-      }
-      const form = new FormData();
-      form.append("logo", fileInp.files[0]);
-
-      try {
-        const res  = await fetch("/config/logo", { method: "POST", body: form });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-
-        const url = data.url + "?v=" + Date.now();
-        // Actualizar ambas vistas
-        if (preview)   preview.src   = url;
-        const panelImg = document.getElementById("logo-img");
-        if (panelImg) panelImg.src = url;
-
-        msg.textContent = "Logo actualizado ✔";
-        msg.className = "success";
-        msg.classList.remove("hidden");
-      } catch(e) {
-        msg.textContent = "Error: " + e.message;
-        msg.className = "error";
-        msg.classList.remove("hidden");
-      }
-    };
-  }
+    // 1️⃣ Cargar el logo actual
+    await cargarLogo();
+    
+    // 2️⃣ Elementos - ¡USAR LOS IDs CORRECTOS DE TU HTML!
+    const fileInp = document.getElementById("logo-upload"); // ← Input de archivo
+    const preview = document.getElementById("logo-preview");
+    const uploadBtn = document.getElementById("btn-guardar-logo"); // ← Botón de subir
+    
+    // 3️⃣ Manejar cambio de archivo (preview)
+    if (fileInp && preview) {
+        fileInp.onchange = () => {
+            const [file] = fileInp.files;
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = preview.querySelector('img') || document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.maxHeight = '80px';
+                    img.style.maxWidth = '200px';
+                    if (!preview.querySelector('img')) {
+                        preview.appendChild(img);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+    }
+    
+    // 4️⃣ Manejar clic en botón de subir
+    if (uploadBtn) {
+        uploadBtn.onclick = async () => {
+            if (!fileInp?.files?.length) {
+                mostrarMensaje('⚠️ Selecciona un archivo primero.', 'logo-msg');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('logo', fileInp.files[0]);
+            
+            try {
+                const resp = await fetch('/config/logo', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await resp.json();
+                
+                if (resp.ok) {
+                    mostrarMensaje('✅ Logo actualizado.', 'logo-msg');
+                    // Actualizar el logo en la sección de cuenta también
+                    const logoCuentaImg = document.getElementById('logo-cuenta-img');
+                    if (logoCuentaImg) {
+                        logoCuentaImg.src = data.logo_url + '?v=' + Date.now();
+                    }
+                } else {
+                    mostrarMensaje('❌ ' + (data.error || 'Error al subir.'), 'logo-msg');
+                }
+            } catch (err) {
+                console.error(err);
+                mostrarMensaje('❌ Error de red.', 'logo-msg');
+            }
+        };
+    }
 }
 
 //CARGAR LAS CREDENCIALES
@@ -5058,11 +5021,6 @@ async function cargarUsuarios() {
 
 // Desde el sidebar o tu código de navegación:
 mostrarSeccion("configuracion", initConfiguracion);
-
-
-
-
-
   
   // Al cargar la sección, listamos las etiquetas
   document.addEventListener("DOMContentLoaded", () => {
