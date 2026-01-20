@@ -2340,11 +2340,6 @@ def recuperar_password():
         token = secrets.token_urlsafe(32)
         expiracion = datetime.utcnow() + timedelta(hours=1)  # Válido por 1 hora
         
-        # Asegurar que las columnas existan
-        cur.execute("""
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(100);
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_expiracion TIMESTAMP;
-        """)
         
         cur.execute("""
             UPDATE users 
