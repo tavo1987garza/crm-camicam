@@ -2575,17 +2575,18 @@ function initCuenta() {
 }
 
       /* === 1. Carga logo en el Panel ================= */
-    
 
-  /* === FUNCIÓN ÚNICA PARA CARGAR LOGO EN TODAS LAS SECCIONES === */
+/* === FUNCIÓN GLOBAL UNIFICADA PARA CARGAR LOGO EN TODAS LAS SECCIONES === */
 async function cargarLogo() {
     try {
         const resp = await fetch("/config/logo");
         const obj  = await resp.json();
         let url    = obj.url;
 
-        // Cache-busting para imágenes externas (no data:URI)
-        if (!url.startsWith("data:")) {
+        // Cache-busting para imágenes externas (no URI)
+        if (!url || !url.startsWith("")) {
+            url = "/static/logo/default.png";
+        } else if (!url.startsWith("data:")) {
             url += "?v=" + Date.now();
         }
 
@@ -2597,10 +2598,21 @@ async function cargarLogo() {
         ];
 
         elementosLogo.forEach(img => {
-            if (img) img.src = url;
+            if (img) {
+                img.src = url;
+            }
         });
     } catch (e) {
         console.error("Error cargando logo:", e);
+        // ✅ En caso de error, mostrar logo por defecto en todas las secciones
+        const elementosLogo = [
+            document.getElementById("logo-img"),
+            document.getElementById("logo-cuenta-img"),
+            document.getElementById("logo-preview")
+        ];
+        elementosLogo.forEach(img => {
+            if (img) img.src = "/static/logo/default.png";
+        });
     }
 }
 
