@@ -4850,61 +4850,87 @@ async function initConfiguracion() {
     await cargarLogo();
     
     // 2️⃣ Elementos - ¡USAR LOS IDs CORRECTOS DE TU HTML!
-    const fileInp = document.getElementById("logo-upload"); // ← Input de archivo
+    const fileInp = document.getElementById("logo-file");
     const preview = document.getElementById("logo-preview");
-    const uploadBtn = document.getElementById("btn-guardar-logo"); // ← Botón de subir
+    const uploadBtn = document.getElementById("logo-upload-btn");
+    const msgSpan = document.getElementById("logo-msg");
     
-    // 3️⃣ Manejar cambio de archivo (preview)
+    // 3️⃣ Preview inmediato al elegir archivo
     if (fileInp && preview) {
-        fileInp.onchange = () => {
-            const [file] = fileInp.files;
+        fileInp.onchange = (e) => {
+            const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = preview.querySelector('img') || document.createElement('img');
-                    img.src = e.target.result;
-                    img.style.maxHeight = '80px';
-                    img.style.maxWidth = '200px';
-                    if (!preview.querySelector('img')) {
-                        preview.appendChild(img);
-                    }
-                };
-                reader.readAsDataURL(file);
+                preview.src = URL.createObjectURL(file);
             }
         };
     }
     
-    // 4️⃣ Manejar clic en botón de subir
+    // 4️⃣ Handler de subida con mensajes correctos
     if (uploadBtn) {
         uploadBtn.onclick = async () => {
-            if (!fileInp?.files?.length) {
-                mostrarMensaje('⚠️ Selecciona un archivo primero.', 'logo-msg');
+            // Ocultar mensaje anterior
+            if (msgSpan) {
+                msgSpan.classList.add("hidden");
+            }
+            
+            // Validar archivo
+            if (!fileInp || !fileInp.files.length) {
+                if (msgSpan) {
+                    msgSpan.textContent = "⚠️ Selecciona un archivo primero.";
+                    msgSpan.className = "error";
+                    msgSpan.classList.remove("hidden");
+                }
                 return;
             }
             
             const formData = new FormData();
-            formData.append('logo', fileInp.files[0]);
+            formData.append("logo", fileInp.files[0]);
             
             try {
-                const resp = await fetch('/config/logo', {
-                    method: 'POST',
+                const resp = await fetch("/config/logo", {
+                    method: "POST",
                     body: formData
                 });
+                
                 const data = await resp.json();
                 
                 if (resp.ok) {
-                    mostrarMensaje('✅ Logo actualizado.', 'logo-msg');
-                    // Actualizar el logo en la sección de cuenta también
-                    const logoCuentaImg = document.getElementById('logo-cuenta-img');
-                    if (logoCuentaImg) {
-                        logoCuentaImg.src = data.logo_url + '?v=' + Date.now();
+                    // Actualizar logo en preview
+                    if (preview) {
+                        preview.src = data.logo_url + "?v=" + Date.now();
                     }
+                    
+                    // Actualizar logo en el panel (header)
+                    const panelImg = document.getElementById("logo-img");
+                    if (panelImg) {
+                        panelImg.src = data.logo_url + "?v=" + Date.now();
+                    }
+                    
+                    // Mostrar mensaje de éxito
+                    if (msgSpan) {
+                        msgSpan.textContent = "✅ Logo actualizado correctamente.";
+                        msgSpan.className = "success";
+                        msgSpan.classList.remove("hidden");
+                    }
+                    
+                    // Limpiar input
+                    fileInp.value = "";
+                    
                 } else {
-                    mostrarMensaje('❌ ' + (data.error || 'Error al subir.'), 'logo-msg');
+                    // Mostrar error
+                    if (msgSpan) {
+                        msgSpan.textContent = "❌ " + (data.error || "Error al subir el logo.");
+                        msgSpan.className = "error";
+                        msgSpan.classList.remove("hidden");
+                    }
                 }
             } catch (err) {
-                console.error(err);
-                mostrarMensaje('❌ Error de red.', 'logo-msg');
+                console.error("Error al subir logo:", err);
+                if (msgSpan) {
+                    msgSpan.textContent = "❌ Error de conexión.";
+                    msgSpan.className = "error";
+                    msgSpan.classList.remove("hidden");
+                }
             }
         };
     }
