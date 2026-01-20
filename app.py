@@ -2085,9 +2085,14 @@ def registrar_nuevo_cliente():
         return jsonify({"error": "Error interno al registrar cliente"}), 500
 
 
+
 @app.route("/login")
 def pagina_login():
     """Página de login para cualquier subdominio"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        # Redirigir a registro en lugar de mostrar login inútil
+        return redirect("https://registro.eventa.com.mx/registro")
     return render_template("login.html")
 
 @app.route("/login", methods=["POST"])
@@ -2305,19 +2310,27 @@ def recuperar_password():
     if not email:
         return jsonify({"error": "Email es requerido"}), 400
 
+    # Obtener cliente_id del subdominio
     cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify({"error": "Cliente no encontrado"}), 404
-
+    
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "Error de conexión"}), 500
 
     try:
         cur = conn.cursor()
-        # Verificar si el usuario existe
-        cur.execute("SELECT id FROM users WHERE email = %s AND cliente_id = %s", (email, cliente_id))
-        user = cur.fetchone()
+        
+        if cliente_id:
+            # Caso normal: subdominio específico (camicam.eventa.com.mx)
+            cur.execute("SELECT id FROM users WHERE email = %s AND cliente_id = %s", (email, cliente_id))
+            user = cur.fetchone()
+        else:
+            # Caso especial: crm.eventa.com.mx - buscar en todos los clientes
+            cur.execute("SELECT id, cliente_id FROM users WHERE email = %s", (email,))
+            user = cur.fetchone()
+            if user:
+                # Si encontramos el usuario, usamos su cliente_id real
+                cliente_id = user[1]  # El segundo campo es cliente_id
         
         if not user:
             # No revelar si el email existe o no (seguridad)
@@ -2342,11 +2355,18 @@ def recuperar_password():
         conn.commit()
         
         # Generar URL de recuperación
-        reset_url = f"https://{request.host}/restablecer_password?token={token}"
+        if cliente_id:
+            # Construir la URL con el subdominio correcto
+            # Necesitas una forma de obtener el subdominio del cliente
+            # Por ahora, usamos el host actual
+            reset_url = f"https://{request.host}/restablecer_password?token={token}"
+        else:
+            reset_url = f"https://{request.host}/restablecer_password?token={token}"
         
         # 🔥 LOGS DE DEBUG
         print(f"📧 Intentando enviar email a: {email}")
         print(f"🔗 URL de recuperación: {reset_url}")
+        print(f"🏢 Cliente ID: {cliente_id}")
         
         try:
             # Enviar email con manejo de errores
@@ -2364,6 +2384,8 @@ def recuperar_password():
     except Exception as e:
         conn.rollback()
         print(f"❌ Error en recuperar_password: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "Error interno"}), 500
     finally:
         liberar_db(conn)

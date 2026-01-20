@@ -281,35 +281,42 @@
         });
 
         document.getElementById('btn-enviar-recuperar').addEventListener('click', async function() {
-            const email = document.getElementById('recuperar-email').value.trim();
-            const feedback = document.getElementById('recuperar-feedback');
-            
-            if (!email || !email.includes('@')) {
-                mostrarFeedbackRecuperar('Por favor ingresa un email válido', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/recuperar_password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-                
-                const data = await response.json();
-                if (response.ok) {
-                    mostrarFeedbackRecuperar('Se ha enviado un enlace de recuperación a tu email', 'success');
-                    // Opcional: cerrar modal después de 3 segundos
-                    setTimeout(() => {
-                        document.getElementById('recuperar-modal').classList.add('hidden');
-                    }, 3000);
-                } else {
-                    mostrarFeedbackRecuperar(data.error || 'Error al enviar el email', 'error');
-                }
-            } catch (error) {
-                mostrarFeedbackRecuperar('Error de conexión', 'error');
-            }
+    const email = document.getElementById('recuperar-email').value.trim();
+    const feedback = document.getElementById('recuperar-feedback');
+    
+    if (!email || !email.includes('@')) {
+        mostrarFeedbackRecuperar('Por favor ingresa un email válido', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/recuperar_password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
         });
+        
+        const data = await response.json();
+        
+        // Manejar diferentes status codes
+        if (response.status === 404) {
+            // Para crm.eventa.com.mx sin cliente_id
+            mostrarFeedbackRecuperar('Si el email existe, recibirás instrucciones', 'success');
+            setTimeout(() => {
+                document.getElementById('recuperar-modal').classList.add('hidden');
+            }, 3000);
+        } else if (response.ok) {
+            mostrarFeedbackRecuperar('Se ha enviado un enlace de recuperación a tu email', 'success');
+            setTimeout(() => {
+                document.getElementById('recuperar-modal').classList.add('hidden');
+            }, 3000);
+        } else {
+            mostrarFeedbackRecuperar(data.error || 'Error al enviar el email', 'error');
+        }
+    } catch (error) {
+        mostrarFeedbackRecuperar('Error de conexión', 'error');
+    }
+});
 
         function mostrarFeedbackRecuperar(mensaje, tipo) {
             const feedback = document.getElementById('recuperar-feedback');
