@@ -4846,8 +4846,14 @@ SECCION DE CONFIGURACIÓN
 ========================
 ************************/
 async function initConfiguracion() {
-    // 1️⃣ Cargar el logo actual
-    await cargarLogo();
+    console.log("🔍 DEBUG: Iniciando initConfiguracion()");
+    
+    try {
+        await cargarLogo();
+        console.log("✅ DEBUG: Logo cargado");
+    } catch (err) {
+        console.error("❌ ERROR en cargarLogo():", err);
+    }
     
     // 2️⃣ Elementos - ¡USAR LOS IDs CORRECTOS DE TU HTML!
     const fileInp = document.getElementById("logo-file");
