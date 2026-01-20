@@ -1778,109 +1778,51 @@ def mover_pipeline():
     # lógica para mover lead
     ...
 
-        
-# RUTA PARA SUBIR LOGO 
+ # RUTA PARA SUBIR LOGO 
 @app.route("/config/logo", methods=["POST"])
 @requires_permission("manage_config")
 def subir_logo():
-    """
-    Sube un logo para el cliente actual y lo guarda en la configuración.
-    """
-    try:
-        cliente_id = obtener_cliente_id_de_subdominio()
-        if not cliente_id:
-            return jsonify({"error": "Cliente no encontrado"}), 404
+    file = request.files.get("logo")
+    if not file or file.filename == "":
+        return jsonify({"error": "Archivo inválido"}), 400
 
-        # Verificar si se subió un archivo
-        if 'logo' not in request.files:
-            return jsonify({"error": "No se proporcionó archivo"}), 400
+    # Validar tipo de archivo
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+        return jsonify({"error": "Formato de imagen no soportado"}), 400
 
-        file = request.files['logo']
-        if file.filename == '':
-            return jsonify({"error": "Archivo vacío"}), 400
+    # Convertir a data-URI (base64)
+    mime = file.content_type or 'image/png'
+    data = base64.b64encode(file.read()).decode()  
+    uri  = f"data:{mime};base64,{data}"
 
-        # Validar tipo de archivo
-        if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
-            return jsonify({"error": "Formato de imagen no soportado"}), 400
-
-        # Generar nombre único para el archivo
-        timestamp = int(time.time())
-        extension = file.filename.split('.')[-1].lower()
-        filename = f"logo_{cliente_id}_{timestamp}.{extension}"
-        
-        # Directorio para logos
-        logo_dir = "/var/www/crm-camicam/static/logos"
-        os.makedirs(logo_dir, exist_ok=True)
-        filepath = os.path.join(logo_dir, filename)
-
-        # Guardar el archivo
-        file.save(filepath)
-
-        # URL pública del logo
-        logo_url = f"/static/logos/{filename}"
-
-        # Guardar en la base de datos (estructura clave-valor)
-        conn = conectar_db()
-        if not conn:
-            return jsonify({"error": "Error de conexión a la base de datos"}), 500
-
-        try:
-            cur = conn.cursor()
-            
-            # Verificar si ya existe una configuración de logo para este cliente
-            cur.execute("""
-                SELECT 1 FROM config 
-                WHERE clave = 'logo_url' AND cliente_id = %s
-            """, (cliente_id,))
-            
-            if cur.fetchone():
-                # Actualizar si existe
-                cur.execute("""
-                    UPDATE config 
-                    SET valor = %s 
-                    WHERE clave = 'logo_url' AND cliente_id = %s
-                """, (logo_url, cliente_id))
-            else:
-                # Insertar si no existe
-                cur.execute("""
-                    INSERT INTO config (clave, valor, cliente_id) 
-                    VALUES ('logo_url', %s, %s)
-                """, (logo_url, cliente_id))
-            
-            conn.commit()
-            return jsonify({"mensaje": "Logo actualizado exitosamente", "logo_url": logo_url}), 200
-            
-        except Exception as e:
-            conn.rollback()
-            print(f"❌ Error al guardar logo en base de datos: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": "Error al guardar el logo"}), 500
-        finally:
-            liberar_db(conn)
-
-    except Exception as e:
-        print(f"💥 ERROR CRÍTICO al subir logo: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": "Error interno al subir logo"}), 500
-
-
-
-# RUTA PARA OBTENER LOGO
-@app.route("/config/logo", methods=["GET"])
-def obtener_logo():
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        # Si no hay cliente, mostrar logo por defecto
-        return jsonify({"url": "/static/logo/default.png"}), 200
-
+    # Guardar en config (sin cliente_id, como antes)
     try:
         conn = conectar_db()
         if not conn:
             raise RuntimeError("DB no disponible")
         cur = conn.cursor()
-        cur.execute("SELECT valor FROM config WHERE clave='logo_base64' AND cliente_id = %s", (cliente_id,))
+        cur.execute("""
+            INSERT INTO config (clave, valor)
+            VALUES ('logo_base64', %s)
+            ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
+        """, (uri,))
+        conn.commit()
+    finally:
+        liberar_db(conn)
+
+    # Responder con "url" (no "logo_url")
+    return jsonify({"url": uri}), 200
+
+
+# RUTA PARA OBTENER LOGO
+@app.route("/config/logo", methods=["GET"])
+def obtener_logo():
+    try:
+        conn = conectar_db()
+        if not conn:
+            raise RuntimeError("DB no disponible")
+        cur = conn.cursor()
+        cur.execute("SELECT valor FROM config WHERE clave='logo_base64'")
         row = cur.fetchone()
     finally:
         liberar_db(conn)

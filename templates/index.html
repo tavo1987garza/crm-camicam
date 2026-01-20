@@ -4846,22 +4846,16 @@ SECCION DE CONFIGURACIÓN
 ========================
 ************************/
 async function initConfiguracion() {
-    console.log("🔍 DEBUG: Iniciando initConfiguracion()");
-    
-    try {
-        await cargarLogo();
-        console.log("✅ DEBUG: Logo cargado");
-    } catch (err) {
-        console.error("❌ ERROR en cargarLogo():", err);
-    }
-    
-    // 2️⃣ Elementos - ¡USAR LOS IDs CORRECTOS DE TU HTML!
+    // 1️⃣ Cargar el logo actual
+    await cargarLogo();
+
+    // 2️⃣ Elementos
     const fileInp = document.getElementById("logo-file");
     const preview = document.getElementById("logo-preview");
     const uploadBtn = document.getElementById("logo-upload-btn");
     const msgSpan = document.getElementById("logo-msg");
-    
-    // 3️⃣ Preview inmediato al elegir archivo
+
+    // 3️⃣ Preview inmediato al elegir
     if (fileInp && preview) {
         fileInp.onchange = (e) => {
             const file = e.target.files[0];
@@ -4870,16 +4864,14 @@ async function initConfiguracion() {
             }
         };
     }
-    
-    // 4️⃣ Handler de subida con mensajes correctos
+
+    // 4️⃣ Handler de subida
     if (uploadBtn) {
         uploadBtn.onclick = async () => {
-            // Ocultar mensaje anterior
             if (msgSpan) {
                 msgSpan.classList.add("hidden");
             }
             
-            // Validar archivo
             if (!fileInp || !fileInp.files.length) {
                 if (msgSpan) {
                     msgSpan.textContent = "⚠️ Selecciona un archivo primero.";
@@ -4891,7 +4883,7 @@ async function initConfiguracion() {
             
             const formData = new FormData();
             formData.append("logo", fileInp.files[0]);
-            
+
             try {
                 const resp = await fetch("/config/logo", {
                     method: "POST",
@@ -4900,19 +4892,18 @@ async function initConfiguracion() {
                 
                 const data = await resp.json();
                 
-                if (resp.ok) {
-                    // Actualizar logo en preview
-                    if (preview) {
-                        preview.src = data.logo_url + "?v=" + Date.now();
-                    }
+                if (resp.ok && data.url) {
+                    const url = data.url + "?v=" + Date.now();
                     
-                    // Actualizar logo en el panel (header)
+                    // Actualizar ambas vistas
+                    if (preview) {
+                        preview.src = url;
+                    }
                     const panelImg = document.getElementById("logo-img");
                     if (panelImg) {
-                        panelImg.src = data.logo_url + "?v=" + Date.now();
+                        panelImg.src = url;
                     }
                     
-                    // Mostrar mensaje de éxito
                     if (msgSpan) {
                         msgSpan.textContent = "✅ Logo actualizado correctamente.";
                         msgSpan.className = "success";
@@ -4921,9 +4912,7 @@ async function initConfiguracion() {
                     
                     // Limpiar input
                     fileInp.value = "";
-                    
                 } else {
-                    // Mostrar error
                     if (msgSpan) {
                         msgSpan.textContent = "❌ " + (data.error || "Error al subir el logo.");
                         msgSpan.className = "error";
