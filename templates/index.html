@@ -2405,18 +2405,6 @@ async function cargarInfoCuenta() {
     }
 }
 
-// Cargar logo del cliente actual
-async function cargarLogo() {
-    try {
-        const response = await fetch('/config/logo');
-        if (response.ok) {
-            const data = await response.json();
-            document.getElementById('logo-cuenta-img').src = data.url;
-        }
-    } catch (error) {
-        console.error('Error al cargar logo:', error);
-    }
-}
 
 // Función para cerrar sesión
 function handleLogout() {
@@ -2589,27 +2577,31 @@ function initCuenta() {
       /* === 1. Carga logo en el Panel ================= */
     
 
-  async function cargarLogo() {
-  try {
-    const resp = await fetch("/config/logo");
-    const obj  = await resp.json();
-    let url    = obj.url;
+  /* === FUNCIÓN ÚNICA PARA CARGAR LOGO EN TODAS LAS SECCIONES === */
+async function cargarLogo() {
+    try {
+        const resp = await fetch("/config/logo");
+        const obj  = await resp.json();
+        let url    = obj.url;
 
-    // Si no es data:URI, le pegamos un cache-busting
-    if (!url.startsWith("data:")) {
-      url += "?v=" + Date.now();
+        // Cache-busting para imágenes externas (no data:URI)
+        if (!url.startsWith("data:")) {
+            url += "?v=" + Date.now();
+        }
+
+        // ✅ Actualizar en TODAS las ubicaciones donde aparece el logo
+        const elementosLogo = [
+            document.getElementById("logo-img"),           // Panel (header)
+            document.getElementById("logo-cuenta-img"),   // Sección Cuenta
+            document.getElementById("logo-preview")       // Sección Configuración
+        ];
+
+        elementosLogo.forEach(img => {
+            if (img) img.src = url;
+        });
+    } catch (e) {
+        console.error("Error cargando logo:", e);
     }
-
-    // Panel (header)
-    const panelImg = document.getElementById("logo-img");
-    if (panelImg) panelImg.src = url;
-
-    // Configuración (preview)
-    const preview  = document.getElementById("logo-preview");
-    if (preview)  preview.src = url;
-  } catch (e) {
-    console.error("Error cargando logo:", e);
-  }
 }
 
 // DOMContentLoaded sólo para inits globales
