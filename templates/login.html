@@ -93,17 +93,70 @@
             display: none;
         }
         
-        .forgot-password {
+        .login-actions {
+            margin-top: 20px;
             text-align: center;
-            margin-top: 16px;
-        }
-        .forgot-password a {
-            color: #3498db;
-            text-decoration: none;
             font-size: 14px;
         }
-        .forgot-password a:hover {
+        .login-actions a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .login-actions a:hover {
             text-decoration: underline;
+        }
+        
+        /* Modal de recuperación */
+        .hidden {
+            display: none !important;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 90%;
+            position: relative;
+            text-align: left;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+        
+        .alert {
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
@@ -122,36 +175,37 @@
                 <input type="email" id="email" name="email" required placeholder="tu@email.com">
             </div>
 
-
             <div class="form-group" style="position: relative;">
-    <label for="password">Contraseña</label>
-    <input type="password" id="password" name="password" required placeholder="********" style="width: 100%; padding: 12px 40px 12px 16px;">
-    <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #7f8c8d;">
-        👁️
-    </button>
-</div>
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required placeholder="********" style="width: 100%; padding: 12px 40px 12px 16px;">
+                <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #7f8c8d;">
+                    👁️
+                </button>
+            </div>
             
             <button type="submit" class="btn" id="submitBtn">Entrar</button>
         </form>
         
-        <div class="forgot-password">
-    <a href="#" id="forgot-password-link">¿Olvidaste tu contraseña?</a>
-</div>
-
-<!-- Modal de recuperación de contraseña -->
-<div id="recuperar-modal" class="modal hidden">
-    <div class="modal-content" style="max-width: 400px;">
-        <span class="close-btn" id="close-recuperar">&times;</span>
-        <h3>Recuperar Contraseña</h3>
-        <p>Ingresa tu email y te enviaremos instrucciones para restablecer tu contraseña.</p>
-        <div class="form-group">
-            <input type="email" id="recuperar-email" placeholder="tu@email.com" style="width: 100%; padding: 10px; margin: 8px 0;">
+        <!-- Enlaces de acción -->
+        <div class="login-actions">
+            <a href="#" id="forgot-password-link">¿Olvidaste tu contraseña?</a>
+            <br>
+            ¿No tienes cuenta? <a href="https://registro.eventa.com.mx/registro" target="_blank">Crear cuenta</a>
         </div>
-        <button id="btn-enviar-recuperar" class="btn btn-primary" style="width: 100%;">Enviar Instrucciones</button>
-        <div id="recuperar-feedback" class="alert hidden" style="margin-top: 8px;"></div>
     </div>
-</div>
 
+    <!-- Modal de recuperación de contraseña (oculto por defecto) -->
+    <div id="recuperar-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn" id="close-recuperar">&times;</button>
+            <h3>📧 Recuperar Contraseña</h3>
+            <p>Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.</p>
+            <div class="form-group">
+                <input type="email" id="recuperar-email" placeholder="tu@email.com" style="width: 100%; padding: 10px; margin: 8px 0;">
+            </div>
+            <button id="btn-enviar-recuperar" class="btn" style="width: 100%;">Enviar enlace</button>
+            <div id="recuperar-feedback" class="alert hidden"></div>
+        </div>
     </div>
 
     <script>
@@ -209,60 +263,60 @@
         });
 
         // Mostrar/ocultar contraseña
-document.getElementById('toggle-password').addEventListener('click', function() {
-    const passwordInput = document.getElementById('password');
-    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-    passwordInput.setAttribute('type', type);
-    this.textContent = type === 'password' ? '👁️' : '🙈';
-});
-
-// Modal de recuperación de contraseña
-document.getElementById('forgot-password-link').addEventListener('click', function(e) {
-    e.preventDefault();
-    document.getElementById('recuperar-modal').classList.remove('hidden');
-});
-
-document.getElementById('close-recuperar').addEventListener('click', function() {
-    document.getElementById('recuperar-modal').classList.add('hidden');
-});
-
-document.getElementById('btn-enviar-recuperar').addEventListener('click', async function() {
-    const email = document.getElementById('recuperar-email').value.trim();
-    const feedback = document.getElementById('recuperar-feedback');
-    
-    if (!email || !email.includes('@')) {
-        mostrarFeedbackRecuperar('Por favor ingresa un email válido', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/recuperar_password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+        document.getElementById('toggle-password').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.textContent = type === 'password' ? '👁️' : '🙈';
         });
-        
-        const data = await response.json();
-        if (response.ok) {
-            mostrarFeedbackRecuperar('Se ha enviado un enlace de recuperación a tu email', 'success');
-            // Opcional: cerrar modal después de 3 segundos
-            setTimeout(() => {
-                document.getElementById('recuperar-modal').classList.add('hidden');
-            }, 3000);
-        } else {
-            mostrarFeedbackRecuperar(data.error || 'Error al enviar el email', 'error');
-        }
-    } catch (error) {
-        mostrarFeedbackRecuperar('Error de conexión', 'error');
-    }
-});
 
-function mostrarFeedbackRecuperar(mensaje, tipo) {
-    const feedback = document.getElementById('recuperar-feedback');
-    feedback.textContent = mensaje;
-    feedback.className = `alert alert-${tipo}`;
-    feedback.classList.remove('hidden');
-}
+        // Modal de recuperación de contraseña
+        document.getElementById('forgot-password-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('recuperar-modal').classList.remove('hidden');
+        });
+
+        document.getElementById('close-recuperar').addEventListener('click', function() {
+            document.getElementById('recuperar-modal').classList.add('hidden');
+        });
+
+        document.getElementById('btn-enviar-recuperar').addEventListener('click', async function() {
+            const email = document.getElementById('recuperar-email').value.trim();
+            const feedback = document.getElementById('recuperar-feedback');
+            
+            if (!email || !email.includes('@')) {
+                mostrarFeedbackRecuperar('Por favor ingresa un email válido', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/recuperar_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    mostrarFeedbackRecuperar('Se ha enviado un enlace de recuperación a tu email', 'success');
+                    // Opcional: cerrar modal después de 3 segundos
+                    setTimeout(() => {
+                        document.getElementById('recuperar-modal').classList.add('hidden');
+                    }, 3000);
+                } else {
+                    mostrarFeedbackRecuperar(data.error || 'Error al enviar el email', 'error');
+                }
+            } catch (error) {
+                mostrarFeedbackRecuperar('Error de conexión', 'error');
+            }
+        });
+
+        function mostrarFeedbackRecuperar(mensaje, tipo) {
+            const feedback = document.getElementById('recuperar-feedback');
+            feedback.textContent = mensaje;
+            feedback.className = `alert alert-${tipo}`;
+            feedback.classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
