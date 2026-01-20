@@ -2282,17 +2282,15 @@ th {
             <h1>⚙️ Configuración</h1>
 
             <h2>Logo de la empresa</h2>
-            <div class="config-logo">
-              <img id="logo-cuenta-img" src="/static/logo/default.png" alt="Logo actual" />
-              
+            
 
-
-
-              <input type="file" id="logo-file" accept="image/*" />
-              <button id="logo-upload-btn" type="button">Subir logo</button>
-
-              <span id="logo-msg" class="hidden"></span>
-            </div>
+            <div class="panel-card">
+        <div id="logo-preview" style="text-align: center; margin: 12px 0;">
+            <img id="logo-cuenta-img" src="/static/logo/default.png" alt="Logo" style="max-height: 80px; max-width: 200px;">
+        </div>
+        <input type="file" id="logo-upload">
+        <button id="btn-guardar-logo">Subir Logo</button>
+    </div>
         
             <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
             <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
