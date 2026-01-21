@@ -2018,33 +2018,31 @@ def procesar_registro():
             cur.execute("SELECT id FROM users WHERE email = %s", (email,))
             if cur.fetchone():
                 return jsonify({"error": "Este email ya está registrado"}), 400
-
+ 
             # Generar código de verificación
             codigo_verificacion = secrets.token_urlsafe(6)[:8]
             expiracion = datetime.utcnow() + timedelta(hours=1)
-            
-            # Crear cliente no verificado
+
+            # ✅ CORREGIDO: Todos los valores como placeholders
             cur.execute("""
                 INSERT INTO clientes (nombre, subdominio, plan, activo, email_verificado, codigo_verificacion, codigo_expiracion, email_admin)
-                VALUES (%s, %s, %s, true, false, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (nombre, subdominio, plan, codigo_verificacion, expiracion, email))
+            """, (nombre, subdominio, plan, True, False, codigo_verificacion, expiracion, email))
 
             cliente_id = cur.fetchone()[0]
             print(f"✅ DEBUG: Cliente creado con ID: {cliente_id}")
 
-
-            # Crear usuario sin contraseña
+            # Crear usuario
             cur.execute("""
                 INSERT INTO users (email, cliente_id, activo)
-                VALUES (%s, %s, true)
+                VALUES (%s, %s, %s)
                 RETURNING id
-            """, (email, cliente_id))
+            """, (email, cliente_id, True))
             user_id = cur.fetchone()[0]
             print(f"✅ DEBUG: Usuario creado con ID: {user_id}")
-            
-            
-            # ✅ Asignar rol admin
+
+            # Asignar rol admin
             cur.execute("""
                 INSERT INTO user_roles (user_id, role_id)
                 SELECT %s, id FROM roles WHERE name = 'admin'
