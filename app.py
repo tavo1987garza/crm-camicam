@@ -2029,14 +2029,15 @@ def procesar_registro():
                 VALUES (%s, %s, %s, true, false, %s, %s)
                 RETURNING id
             """, (nombre, subdominio, plan, codigo_verificacion, expiracion))
-            
+
             cliente_id = cur.fetchone()[0]
+            print(f"✅ DEBUG: Cliente creado con ID: {cliente_id}")
             
 
             # Crear usuario sin contraseña
             cur.execute("""
                 INSERT INTO users (email, cliente_id, activo)
-                VALUES (%s, %s, true, %s)
+                VALUES (%s, %s, true)
                 RETURNING id
             """, (email, cliente_id))
             user_id = cur.fetchone()[0]
