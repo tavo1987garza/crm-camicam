@@ -1964,17 +1964,16 @@ def check_subdominio():
         
 
 
-
 @app.route("/registro")
 def pagina_registro():
     """
     Página de registro para nuevos clientes.
-    Solo accesible desde registro.eventa.com.mx
+    Accesible desde crm.eventa.com.mx y registro.eventa.com.mx
     """
-    # Validación estricta: solo permitir desde el subdominio correcto
-    if request.host != "registro.eventa.com.mx":
-        # Redirigir a la URL correcta
-        return redirect("https://registro.eventa.com.mx/registro")
+    host = request.host
+    if host not in ["crm.eventa.com.mx", "registro.eventa.com.mx"]:
+        # Opcional: redirigir a crm.eventa.com.mx si viene de otro lugar
+        return redirect("https://crm.eventa.com.mx/registro")
     
     return render_template("registro.html")
 
@@ -2091,9 +2090,11 @@ def pagina_login():
     """Página de login para cualquier subdominio"""
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
-        # Redirigir a registro en lugar de mostrar login inútil
-        return redirect("https://registro.eventa.com.mx/registro")
+        # Mostrar selector de cliente para subdominios genéricos
+        return render_template("seleccionar_cliente.html")
     return render_template("login.html")
+
+
 
 @app.route("/login", methods=["POST"])
 def procesar_login():
@@ -2385,7 +2386,7 @@ def recuperar_password():
     finally:
         liberar_db(conn)
         
-
+        
 @app.route("/restablecer_password", methods=["GET", "POST"])
 def restablecer_password():
     """
@@ -2396,71 +2397,30 @@ def restablecer_password():
         if not token:
             return "Token inválido", 400
         
-        # Verificar token
-        cliente_id = obtener_cliente_id_de_subdominio()
-        if not cliente_id:
-            return "Cliente no encontrado", 404
-            
+        # Para la recuperación, necesitamos encontrar el cliente_id del token
         conn = conectar_db()
         if not conn:
             return "Error de conexión", 500
             
         try:
             cur = conn.cursor()
+            # Buscar el token en cualquier cliente (no solo en el subdominio actual)
             cur.execute("""
-                SELECT id FROM users 
-                WHERE reset_token = %s AND reset_expiracion > NOW() AND cliente_id = %s
-            """, (token, cliente_id))
+                SELECT id, cliente_id FROM users 
+                WHERE reset_token = %s AND reset_expiracion > NOW()
+            """, (token,))
             
-            if not cur.fetchone():
+            result = cur.fetchone()
+            if not result:
                 return "Token inválido o expirado", 400
                 
-            return render_template_string("""
-                <!DOCTYPE html>
-                <html>
-                <head><title>Restablecer Contraseña</title></head>
-                <body>
-                    <h2>Restablecer Contraseña</h2>
-                    <form id="reset-form">
-                        <input type="hidden" id="token" value="{{ token }}">
-                        <input type="password" id="password1" placeholder="Nueva contraseña" required>
-                        <input type="password" id="password2" placeholder="Confirmar contraseña" required>
-                        <button type="submit">Restablecer</button>
-                    </form>
-                    <script>
-                        document.getElementById('reset-form').addEventListener('submit', async (e) => {
-                            e.preventDefault();
-                            const token = document.getElementById('token').value;
-                            const pass1 = document.getElementById('password1').value;
-                            const pass2 = document.getElementById('password2').value;
-                            
-                            if (pass1 !== pass2) {
-                                alert('Las contraseñas no coinciden');
-                                return;
-                            }
-                            if (pass1.length < 6) {
-                                alert('La contraseña debe tener al menos 6 caracteres');
-                                return;
-                            }
-                            
-                            const response = await fetch('/restablecer_password', {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({token, password: pass1})
-                            });
-                            
-                            if (response.ok) {
-                                alert('Contraseña actualizada. Redirigiendo al login...');
-                                setTimeout(() => window.location.href = '/login', 2000);
-                            } else {
-                                const data = await response.json();
-                                alert(data.error || 'Error al restablecer');
-                            }
-                        });
-                    </script>
-                </body>
-                </html>
-            """, token=token)
+            user_id, cliente_id = result
+            
+            # Guardar el cliente_id en la sesión para el POST
+            session['reset_cliente_id'] = cliente_id
+            session['reset_token'] = token
+            
+            return render_template_string("""...""", token=token)
             
         finally:
             liberar_db(conn)
@@ -2473,9 +2433,10 @@ def restablecer_password():
     if not token or not password or len(password) < 6:
         return jsonify({"error": "Datos inválidos"}), 400
         
-    cliente_id = obtener_cliente_id_de_subdominio()
+    # Usar el cliente_id guardado en la sesión
+    cliente_id = session.get('reset_cliente_id')
     if not cliente_id:
-        return jsonify({"error": "Cliente no encontrado"}), 404
+        return jsonify({"error": "Sesión inválida"}), 400
         
     conn = conectar_db()
     if not conn:
@@ -2483,18 +2444,20 @@ def restablecer_password():
         
     try:
         cur = conn.cursor()
-        # Verificar token y actualizar contraseña
         nuevo_hash = generate_password_hash(password)
         cur.execute("""
             UPDATE users 
             SET password_hash = %s, reset_token = NULL, reset_expiracion = NULL
-            WHERE reset_token = %s AND reset_expiracion > NOW() AND cliente_id = %s
+            WHERE reset_token = %s AND cliente_id = %s
         """, (nuevo_hash, token, cliente_id))
         
         if cur.rowcount == 0:
             return jsonify({"error": "Token inválido o expirado"}), 400
             
         conn.commit()
+        # Limpiar sesión
+        session.pop('reset_cliente_id', None)
+        session.pop('reset_token', None)
         return jsonify({"mensaje": "Contraseña actualizada"}), 200
         
     except Exception as e:
@@ -2503,6 +2466,7 @@ def restablecer_password():
         return jsonify({"error": "Error interno"}), 500
     finally:
         liberar_db(conn)
+
         
 
 @app.route("/logout", methods=["POST"])
