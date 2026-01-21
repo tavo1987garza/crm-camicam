@@ -2023,7 +2023,7 @@ def procesar_registro():
             codigo_verificacion = secrets.token_urlsafe(6)[:8]
             expiracion = datetime.utcnow() + timedelta(hours=1)
             
-            # ✅ CORREGIDO: Eliminado el error de sintaxis % %s
+            # Crear cliente no verificado
             cur.execute("""
                 INSERT INTO clientes (nombre, subdominio, plan, activo, email_verificado, codigo_verificacion, codigo_expiracion)
                 VALUES (%s, %s, %s, true, false, %s, %s)
@@ -2032,11 +2032,22 @@ def procesar_registro():
             
             cliente_id = cur.fetchone()[0]
             
+
             # Crear usuario sin contraseña
             cur.execute("""
-                INSERT INTO users (email, cliente_id, activo, roles)
+                INSERT INTO users (email, cliente_id, activo)
                 VALUES (%s, %s, true, %s)
-            """, (email, cliente_id, ['admin']))
+                RETURNING id
+            """, (email, cliente_id))
+            user_id = cur.fetchone()[0]
+            print(f"✅ DEBUG: Usuario creado con ID: {user_id}")
+            
+            # ✅ Asignar rol admin
+            cur.execute("""
+                INSERT INTO user_roles (user_id, role_id)
+                SELECT %s, id FROM roles WHERE name = 'admin'
+            """, (user_id,))
+            print("✅ DEBUG: Rol admin asignado")
             
             conn.commit()
             
