@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crea tu CRM para Eventos - Eventa</title>
+    <title>Crear tu CRM - Eventa</title>
     <style>
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -21,61 +21,42 @@
         }
         .container {
             background: white;
-            border-radius: 12px;
+            border-radius: 16px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            padding: 40px;
             width: 100%;
-            max-width: 500px;
-        }
-        h1 {
+            max-width: 450px;
+            padding: 40px;
             text-align: center;
-            margin-bottom: 30px;
+        }
+        .logo {
+            margin-bottom: 24px;
+        }
+        .logo h1 {
             color: #2c3e50;
             font-size: 24px;
+            margin-top: 12px;
         }
         .form-group {
             margin-bottom: 20px;
-            position: relative;
+            text-align: left;
         }
         label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
+            margin-bottom: 6px;
             color: #2c3e50;
+            font-weight: 600;
         }
-        input, select {
+        input {
             width: 100%;
             padding: 12px 16px;
-            border: 2px solid #ddd;
+            border: 2px solid #e1e5e9;
             border-radius: 8px;
             font-size: 16px;
             transition: border-color 0.3s;
         }
-        input:focus, select:focus {
-            border-color: #3498db;
+        input:focus {
             outline: none;
-        }
-        .subdominio-group {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        .subdominio-group input {
-            flex: 1;
-        }
-        .subdominio-suffix {
-            color: #666;
-            font-size: 16px;
-        }
-        .toggle-password {
-            position: absolute;
-            right: 12px;
-            top: 42px;
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            color: #7f8c8d;
+            border-color: #3498db;
         }
         .btn {
             width: 100%;
@@ -84,7 +65,7 @@
             color: white;
             border: none;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             cursor: pointer;
             transition: background 0.3s;
@@ -92,165 +73,222 @@
         .btn:hover {
             background: #2980b9;
         }
-        .success-message {
-            text-align: center;
-            background: #d4edda;
-            color: #155724;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        .success-message a {
-            color: #2980b9;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .error {
+        .error-message {
             color: #e74c3c;
-            font-size: 14px;
-            margin-top: 5px;
+            background: #fadbd8;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             display: none;
+        }
+        .success-message {
+            color: #27ae60;
+            background: #d4edda;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .url-preview {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+        .plan-options {
+            display: flex;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .plan-option {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .plan-option.selected {
+            border-color: #3498db;
+            background: #f8f9fa;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Crea tu CRM para Eventos</h1>
+        <div class="logo">
+            <h1>🚀 Crea tu CRM para Eventos</h1>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+        
         <form id="registroForm">
             <div class="form-group">
                 <label for="nombre">Nombre de tu negocio</label>
-                <input type="text" id="nombre" name="nombre" required minlength="3">
-                <div class="error" id="error-nombre"></div>
+                <input type="text" id="nombre" name="nombre" required placeholder="Ej: Fotografía María">
             </div>
-
+            
             <div class="form-group">
-                <label for="subdominio">Tu subdominio personalizado</label>
-                <div class="subdominio-group">
-                    <input type="text" id="subdominio" name="subdominio" required minlength="3" maxlength="30" pattern="[a-z0-9-]+">
-                    <span class="subdominio-suffix">.eventa.com.mx</span>
+                <label>Tu URL personalizada</label>
+                <div class="url-preview" id="url-preview">
+                    https://tu-negocio.eventa.com.mx
                 </div>
-                <div class="error" id="error-subdominio"></div>
+                <input type="hidden" id="subdominio" name="subdominio">
             </div>
-
+            
             <div class="form-group">
                 <label for="email">Tu email</label>
-                <input type="email" id="email" name="email" required>
-                <div class="error" id="error-email"></div>
+                <input type="email" id="email" name="email" required placeholder="tu@email.com">
             </div>
-
+            
             <div class="form-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required minlength="6">
-                <button type="button" class="toggle-password" onclick="togglePassword('password')">👁️</button>
-                <div class="error" id="error-password"></div>
+                <label>Plan</label>
+                <div class="plan-options">
+                    <div class="plan-option selected" data-plan="basico">
+                        <strong>Básico</strong><br>
+                        $15/mes
+                    </div>
+                    <div class="plan-option" data-plan="premium">
+                        <strong>Premium</strong><br>
+                        $30/mes
+                    </div>
+                </div>
+                <input type="hidden" id="plan" name="plan" value="basico">
             </div>
-
-            <div class="form-group">
-                <label for="password_confirm">Confirmar Contraseña</label>
-                <input type="password" id="password_confirm" name="password_confirm" required minlength="6">
-                <button type="button" class="toggle-password" onclick="togglePassword('password_confirm')">👁️</button>
-                <div class="error" id="error-password_confirm"></div>
-            </div>
-
-            <div class="form-group">
-                <label for="plan">Plan</label>
-                <select id="plan" name="plan">
-                    <option value="basico">Básico - $15/mes</option>
-                    <option value="premium">Premium - $30/mes</option>
-                </select>
-            </div>
-
-            <button type="submit" class="btn">Crear mi CRM</button>
+            
+            <button type="submit" class="btn" id="submitBtn">Crear mi CRM</button>
         </form>
-
-        <div id="successMessage" class="success-message" style="display: none;">
-            <p>¡Listo!</p>
-            <p>Tu CRM está listo. Accede aquí:</p>
-            <p><a id="loginUrl" href="#" target="_blank"></a></p>
-        </div>
+        
+        <p style="margin-top: 20px; font-size: 14px;">
+            ¿Ya tienes cuenta? <a href="/login" style="color: #3498db; text-decoration: none;">Iniciar sesión</a>
+        </p>
     </div>
 
     <script>
-        function togglePassword(fieldId) {
-            const field = document.getElementById(fieldId);
-            const type = field.getAttribute('type') === 'password' ? 'text' : 'password';
-            field.setAttribute('type', type);
-            event.target.textContent = type === 'password' ? '👁️' : '🙈';
+        // Función para generar subdominio válido
+        function generarSubdominio(nombre) {
+            if (!nombre) return '';
+            
+            return nombre
+                .toLowerCase()                    // Convertir a minúsculas
+                .replace(/\s+/g, '-')             // Reemplazar espacios por guiones
+                .replace(/[^a-z0-9-]/g, '')       // Eliminar caracteres inválidos
+                .replace(/^-+|-+$/g, '')          // Eliminar guiones al inicio/final
+                .replace(/-+/g, '-');             // Reemplazar múltiples guiones por uno solo
         }
 
-        function showError(field, message) {
-            document.getElementById(`error-${field}`).textContent = message;
-            document.getElementById(`error-${field}`).style.display = 'block';
-        }
+        // Actualizar preview en tiempo real
+        document.getElementById('nombre').addEventListener('input', function() {
+            const nombre = this.value.trim();
+            const subdominio = generarSubdominio(nombre) || 'tu-negocio';
+            document.getElementById('subdominio').value = subdominio;
+            document.getElementById('url-preview').textContent = `https://${subdominio}.eventa.com.mx`;
+        });
 
-        function clearError(field) {
-            document.getElementById(`error-${field}`).style.display = 'none';
-        }
+        // Seleccionar plan
+        document.querySelectorAll('.plan-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.plan-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                this.classList.add('selected');
+                document.getElementById('plan').value = this.dataset.plan;
+            });
+        });
 
-        document.getElementById('registroForm').addEventListener('submit', async function(e) {
+        // Validar y enviar formulario
+        document.getElementById('registroForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Limpiar errores
-            ['nombre', 'subdominio', 'email', 'password', 'password_confirm'].forEach(field => clearError(field));
+            const nombre = document.getElementById('nombre').value.trim();
+            const subdominio = document.getElementById('subdominio').value.trim();
+            const email = document.getElementById('email').value.trim().toLowerCase();
+            const plan = document.getElementById('plan').value;
             
-            // Validar contraseñas
-            const password = document.getElementById('password').value;
-            const passwordConfirm = document.getElementById('password_confirm').value;
-            if (password !== passwordConfirm) {
-                showError('password_confirm', 'Las contraseñas no coinciden');
-                return;
-            }
-            if (password.length < 6) {
-                showError('password', 'La contraseña debe tener al menos 6 caracteres');
-                return;
-            }
+            const submitBtn = document.getElementById('submitBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
             
-            // Validar subdominio
-            const subdominio = document.getElementById('subdominio').value;
-            if (!/^[a-z0-9\-]+$/.test(subdominio)) {
-                showError('subdominio', 'Solo letras, números y guiones');
+            // Reset mensajes
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            
+            // Validaciones
+            if (!nombre) {
+                showError('El nombre de tu negocio es requerido');
                 return;
             }
             
-        
-            const formData = {
-                nombre: document.getElementById('nombre').value.trim(),
-                subdominio: subdominio.trim().toLowerCase(),
-                email: document.getElementById('email').value.trim().toLowerCase(),
-                password: password,
-                plan: document.getElementById('plan').value
-            };
+            if (!subdominio) {
+                showError('El nombre de tu negocio no es válido para una URL');
+                return;
+            }
+            
+            if (subdominio.length < 3 || subdominio.length > 30) {
+                showError('El nombre debe tener entre 3 y 30 caracteres');
+                return;
+            }
+            
+            if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subdominio)) {
+                showError('El nombre solo puede contener letras, números y guiones. No puede empezar o terminar con guión.');
+                return;
+            }
+            
+            if (!email || !email.includes('@')) {
+                showError('Email inválido');
+                return;
+            }
+            
+            if (plan !== 'basico' && plan !== 'premium') {
+                showError('Plan inválido');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creando...';
             
             try {
                 const response = await fetch('/registro', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ nombre, subdominio, email, plan })
                 });
                 
-                const data = await response.json();
+                const result = await response.json();
                 
                 if (response.ok) {
-                    document.getElementById('registroForm').style.display = 'none';
-                    document.getElementById('loginUrl').href = data.login_url;
-                    document.getElementById('loginUrl').textContent = data.login_url;
-                    document.getElementById('successMessage').style.display = 'block';
+                    showSuccess(`¡Listo! Tu CRM está listo. Accede aquí: https://${subdominio}.eventa.com.mx/login`);
+                    // Redirigir automáticamente después de 5 segundos
+                    setTimeout(() => {
+                        window.location.href = `https://${subdominio}.eventa.com.mx/login`;
+                    }, 5000);
                 } else {
-                    // Mostrar errores específicos
-                    if (data.error.includes('subdominio')) {
-                        showError('subdominio', data.error);
-                    } else if (data.error.includes('email')) {
-                        showError('email', data.error);
-                    } else if (data.error.includes('contraseña')) {
-                        showError('password', data.error);
-                    } else {
-                        alert(data.error);
-                    }
+                    showError(result.error || 'Error al crear tu CRM');
                 }
             } catch (error) {
-                alert('Error de conexión. Inténtalo de nuevo.');
+                showError('Error de conexión');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Crear mi CRM';
             }
         });
+        
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+        
+        function showSuccess(message) {
+            const successMessage = document.getElementById('successMessage');
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+        }
     </script>
 </body>
 </html>
