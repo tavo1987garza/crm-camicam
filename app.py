@@ -22,6 +22,7 @@ from flask import (
 )
 from flask_socketio import SocketIO
 
+
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = os.getenv('SECRET_KEY')
@@ -1978,111 +1979,186 @@ def pagina_registro():
     return render_template("registro.html")
 
 
-
+# A. Registrar usuario (sin contraseña aún)
 @app.route("/registro", methods=["POST"])
-def registrar_nuevo_cliente():
-    """Registro público para nuevos clientes SaaS."""
+def procesar_registro():
     try:
-        # Validación estricta: solo permitir desde el subdominio correcto
-        if request.host != "registro.eventa.com.mx":
-            print("❌ DEBUG: Acceso no autorizado desde", request.host)
-            return jsonify({"error": "Acceso no autorizado"}), 403
-
-        print("🔍 DEBUG: Parseando datos JSON")
         datos = request.json
-        print(f"🔍 DEBUG: Datos recibidos: {datos}")
-        
         nombre = datos.get("nombre", "").strip()
         subdominio = datos.get("subdominio", "").strip().lower()
         email = datos.get("email", "").strip().lower()
-        plan = datos.get("plan", "basico").lower()
-        password = datos.get("password", "")
-
-        print(f"🔍 DEBUG: Validando datos - nombre:{nombre}, subdominio:{subdominio}, email:{email}, plan:{plan}")
+        plan = datos.get("plan", "basico")
         
         # Validaciones
-        if not nombre or len(nombre) < 3:
-            return jsonify({"error": "Nombre del negocio es requerido (mín. 3 caracteres)"}), 400
-        if not subdominio or not re.match(r'^[a-z0-9-]{3,30}$', subdominio):
-            return jsonify({"error": "Subdominio inválido. Usa solo letras, números y guiones (3-30 caracteres)."}), 400
-        if not email or "@" not in email:
-            return jsonify({"error": "Email válido es requerido"}), 400
-        if plan not in ["basico", "premium"]:
-            return jsonify({"error": "Plan debe ser 'basico' o 'premium'"}), 400
-        if not password or len(password) < 6:
-            return jsonify({"error": "Contraseña requerida (mín. 6 caracteres)"}), 400
+        if not nombre or not subdominio or not email:
+            return jsonify({"error": "Todos los campos son requeridos"}), 400
+        if not re.match(r'^[a-z0-9][a-z0-9-]*[a-z0-9]$', subdominio):
+            return jsonify({"error": "Subdominio inválido"}), 400
+        if len(subdominio) < 3 or len(subdominio) > 30:
+            return jsonify({"error": "El subdominio debe tener entre 3 y 30 caracteres"}), 400
+        if not email or '@' not in email:
+            return jsonify({"error": "Email inválido"}), 400
+        if plan not in ['basico', 'premium']:
+            return jsonify({"error": "Plan inválido"}), 400
 
-        print("🔍 DEBUG: Conectando a base de datos")
         conn = conectar_db()
         if not conn:
-            print("❌ DEBUG: Error de conexión a base de datos")
-            return jsonify({"error": "Error de conexión a la base de datos"}), 500
+            return jsonify({"error": "Error de conexión"}), 500
 
         try:
-            print("🔍 DEBUG: Creando cursor y verificando subdominio")
             cur = conn.cursor()
             
+            # Verificar si el subdominio ya existe
             cur.execute("SELECT id FROM clientes WHERE subdominio = %s", (subdominio,))
             if cur.fetchone():
-                print("❌ DEBUG: Subdominio ya existe")
-                return jsonify({"error": "El subdominio ya está en uso. Elige otro."}), 400
+                return jsonify({"error": "Este subdominio ya está en uso"}), 400
+                
+            # Verificar si el email ya está registrado
+            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if cur.fetchone():
+                return jsonify({"error": "Este email ya está registrado"}), 400
 
-            print("🔍 DEBUG: Creando cliente en base de datos")
+            # Generar código de verificación
+            codigo_verificacion = secrets.token_urlsafe(6)[:8]
+            expiracion = datetime.utcnow() + timedelta(hours=1)
+            
+            # Crear cliente no verificado
             cur.execute("""
-                INSERT INTO clientes (subdominio, nombre, email_admin, plan)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO clientes (nombre, subdominio, plan, activo, email_verificado, codigo_verificacion, codigo_expiracion)
+                VALUES (%s, %s, % %s, true, false, %s, %s)
                 RETURNING id
-            """, (subdominio, nombre, email, plan))
+            """, (nombre, subdominio, plan, codigo_verificacion, expiracion))
+            
             cliente_id = cur.fetchone()[0]
-            print(f"✅ DEBUG: Cliente creado con ID: {cliente_id}")
-
-            print("🔍 DEBUG: Creando usuario administrador")
-            pw_hash = generate_password_hash(password)
+            
+            # Crear usuario sin contraseña
             cur.execute("""
-                INSERT INTO users (email, password_hash, cliente_id, activo)
-                VALUES (%s, %s, %s, true)
-                RETURNING id
-            """, (email, pw_hash, cliente_id))
-            user_id = cur.fetchone()[0]
-            print(f"✅ DEBUG: Usuario creado con ID: {user_id}")
-
-            print("🔍 DEBUG: Asignando rol admin")
-            cur.execute("""
-                INSERT INTO user_roles (user_id, role_id)
-                SELECT %s, id FROM roles WHERE name = 'admin'
-            """, (user_id,))
-            print("✅ DEBUG: Rol admin asignado")
-
+                INSERT INTO users (email, cliente_id, activo, roles)
+                VALUES (%s, %s, true, %s)
+            """, (email, cliente_id, ['admin']))
+            
             conn.commit()
-            print("✅ DEBUG: Transacción confirmada")
-
-            login_url = f"https://{subdominio}.eventa.com.mx/login"
-            print(f"✅ DEBUG: Registro completado exitosamente. URL: {login_url}")
-
+            
+            # Enviar email con código
+            enviar_email_verificacion(email, subdominio, codigo_verificacion)
+            
             return jsonify({
-                "mensaje": "Cliente registrado exitosamente",
-                "login_url": login_url,
+                "mensaje": "Verifica tu email para completar el registro",
                 "subdominio": subdominio
-            }), 201
-
+            }), 200
+            
         except Exception as e:
             conn.rollback()
-            print(f"❌ ERROR EN BASE DE DATOS: {str(e)}")
-            import traceback
-            print("❌ TRACEBACK COMPLETO:")
-            traceback.print_exc()
-            return jsonify({"error": "Error interno al registrar cliente"}), 500
+            print(f"❌ Error en procesar_registro: {str(e)}")
+            return jsonify({"error": "Error al crear el cliente"}), 500
         finally:
             liberar_db(conn)
-            print("🔍 DEBUG: Conexión a base de datos liberada")
-
+            
     except Exception as e:
-        print(f"💥 ERROR CRÍTICO EN REGISTRO (nivel superior): {str(e)}")
-        import traceback
-        print("💥 TRACEBACK COMPLETO (nivel superior):")
-        traceback.print_exc()
-        return jsonify({"error": "Error interno al registrar cliente"}), 500
+        print(f"💥 ERROR CRÍTICO EN REGISTRO: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    
+    
+# B. Verificar código y establecer contraseña
+@app.route("/verificar-registro", methods=["POST"])
+def verificar_registro():
+    try:
+        datos = request.json
+        subdominio = datos.get("subdominio")
+        codigo = datos.get("codigo")
+        password = datos.get("password")
+        
+        if not subdominio or not codigo or not password:
+            return jsonify({"error": "Datos incompletos"}), 400
+        if len(password) < 6:
+            return jsonify({"error": "La contraseña debe tener al menos 6 caracteres"}), 400
 
+        conn = conectar_db()
+        cur = conn.cursor()
+        
+        # Buscar cliente por subdominio
+        cur.execute("""
+            SELECT id, codigo_verificacion, codigo_expiracion, email_verificado
+            FROM clientes 
+            WHERE subdominio = %s
+        """, (subdominio,))
+        
+        cliente = cur.fetchone()
+        if not cliente:
+            return jsonify({"error": "Cliente no encontrado"}), 404
+            
+        cliente_id, codigo_guardado, expiracion, verificado = cliente
+        
+        if verificado:
+            return jsonify({"error": "Email ya verificado"}), 400
+            
+        if datetime.utcnow() > expiracion:
+            return jsonify({"error": "Código expirado"}), 400
+            
+        if codigo != codigo_guardado:
+            return jsonify({"error": "Código inválido"}), 400
+
+        # Actualizar cliente como verificado
+        password_hash = generate_password_hash(password)
+        cur.execute("""
+            UPDATE clientes 
+            SET email_verificado = true, codigo_verificacion = NULL, codigo_expiracion = NULL
+            WHERE id = %s
+        """, (cliente_id,))
+        
+        # Actualizar contraseña del usuario
+        cur.execute("""
+            UPDATE users 
+            SET password_hash = %s 
+            WHERE cliente_id = %s
+        """, (password_hash, cliente_id))
+        
+        conn.commit()
+        liberar_db(conn)
+        
+        return jsonify({
+            "mensaje": "Registro completado exitosamente",
+            "url": f"https://{subdominio}.eventa.com.mx/login"
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error en verificar_registro: {str(e)}")
+        return jsonify({"error": "Error al verificar registro"}), 500
+    
+    
+# C. Función de envío de email
+def enviar_email_verificacion(email_destino, subdominio, codigo):
+    try:
+        message = Mail(
+            from_email=os.getenv('SENDGRID_FROM_EMAIL'),
+            to_emails=email_destino,
+            subject='Verifica tu cuenta - Eventa CRM',
+            html_content=f'''
+            <h2>🔐 Código de verificación</h2>
+            <p>Hola,</p>
+            <p>Gracias por registrarte en Eventa CRM.</p>
+            <p><strong>Tu código de verificación es:</strong></p>
+            <h1 style="font-size: 32px; color: #3498db;">{codigo}</h1>
+            <p>Ingresa este código en el formulario de verificación para completar tu registro.</p>
+            <p>Este código expira en 1 hora.</p>
+            <hr>
+            <p><small>Equipo Eventa CRM</small></p>
+            '''
+        )
+        
+        sg = SendGridAPIClient(os.getenv('SENDGRID_API_KEY'))
+        response = sg.send(message)
+        print(f"✅ Email de verificación enviado a {email_destino}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error al enviar email de verificación: {str(e)}")
+        return False
+    
+# Actualizar tu ruta de registro
+@app.route("/verificar-registro")
+def pagina_verificar_registro():
+    return render_template("verificar_registro.html")
 
 
 @app.route("/login")
