@@ -24,7 +24,7 @@
             border-radius: 16px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
             padding: 40px;
             text-align: center;
         }
@@ -43,13 +43,13 @@
         }
         .form-group {
             margin-bottom: 20px;
+            text-align: left;
         }
         label {
             display: block;
             margin-bottom: 6px;
             color: #2c3e50;
             font-weight: 600;
-            text-align: left;
         }
         input {
             width: 100%;
@@ -161,37 +161,8 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">
-            <h1>🔐 Iniciar Sesión</h1>
-            <div class="client-name" id="clientName">Cargando...</div>
-        </div>
-        
-        <div class="error-message" id="errorMessage"></div>
-        
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required placeholder="tu@email.com">
-            </div>
-
-            <div class="form-group" style="position: relative;">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required placeholder="********" style="width: 100%; padding: 12px 40px 12px 16px;">
-                <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #7f8c8d;">
-                    👁️
-                </button>
-            </div>
-            
-            <button type="submit" class="btn" id="submitBtn">Entrar</button>
-        </form>
-        
-        <!-- Enlaces de acción -->
-        <div class="login-actions">
-            <a href="#" id="forgot-password-link">¿Olvidaste tu contraseña?</a>
-            <br>
-            ¿No tienes cuenta? <a href="https://registro.eventa.com.mx/registro" target="_blank">Crear cuenta</a>
-        </div>
+    <div class="container" id="login-container">
+        <!-- Contenido dinámico -->
     </div>
 
     <!-- Modal de recuperación de contraseña (oculto por defecto) -->
@@ -214,110 +185,220 @@
         const partes = host.split('.');
         const subdominio = partes[0];
         
-        // Mostrar nombre del cliente si no es el dominio principal
-        if (subdominio && subdominio !== 'cami-cam' && subdominio !== 'www') {
-            document.getElementById('clientName').textContent = subdominio + '.eventa.com.mx';
+        // Determinar si es un subdominio genérico o específico
+        const isGenericSubdomain = (subdominio === 'crm' || subdominio === 'www' || subdominio === 'registro');
+        
+        // Renderizar contenido según el subdominio
+        if (isGenericSubdomain) {
+            renderizarSelectorCliente();
         } else {
-            document.getElementById('clientName').style.display = 'none';
+            renderizarLoginFormulario();
         }
         
-        // Manejar envío del formulario
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            const submitBtn = document.getElementById('submitBtn');
-            const errorMessage = document.getElementById('errorMessage');
-            
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Iniciando...';
-            errorMessage.style.display = 'none';
-            
-            try {
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ email, password })
-                });
+        function renderizarSelectorCliente() {
+            document.getElementById('login-container').innerHTML = `
+                <div class="logo">
+                    <h1>🔐 Acceder a tu CRM</h1>
+                    <p>Ingresa el nombre de tu empresa para acceder a tu panel</p>
+                </div>
                 
-                const result = await response.json();
+                <div class="error-message" id="errorMessage"></div>
                 
-                if (response.ok) {
-                    // Redirigir al dashboard
-                    window.location.href = '/dashboard';
+                <form id="subdomain-form">
+                    <div class="form-group">
+                        <label for="subdomain">Nombre de tu empresa</label>
+                        <input type="text" id="subdomain" name="subdomain" required placeholder="ejemplo: fotografia-maria">
+                        <small style="color: #7f8c8d; display: block; margin-top: 4px;">
+                            Tu URL será: https://<strong id="preview">nombre-empresa</strong>.eventa.com.mx
+                        </small>
+                    </div>
+                    <button type="submit" class="btn" id="submitBtn">Acceder a mi CRM</button>
+                </form>
+                
+                <div class="login-actions">
+                    ¿No tienes cuenta? <a href="https://crm.eventa.com.mx/registro">Crear cuenta</a>
+                </div>
+            `;
+            
+            // Actualizar preview en tiempo real
+            document.getElementById('subdomain').addEventListener('input', function() {
+                const value = this.value.trim().toLowerCase();
+                const preview = document.getElementById('preview');
+                if (value) {
+                    preview.textContent = value;
                 } else {
-                    errorMessage.textContent = result.error || 'Credenciales inválidas';
-                    errorMessage.style.display = 'block';
+                    preview.textContent = 'nombre-empresa';
                 }
-            } catch (error) {
-                errorMessage.textContent = 'Error de conexión';
-                errorMessage.style.display = 'block';
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Entrar';
+            });
+            
+            // Manejar envío del formulario
+            document.getElementById('subdomain-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const subdomain = document.getElementById('subdomain').value.trim().toLowerCase();
+                const errorMessage = document.getElementById('errorMessage');
+                
+                // Validar subdominio
+                if (!subdomain) {
+                    showError('Por favor ingresa el nombre de tu empresa');
+                    return;
+                }
+                
+                if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subdomain)) {
+                    showError('El nombre solo puede contener letras, números y guiones. No puede empezar o terminar con guión.');
+                    return;
+                }
+                
+                if (subdomain.length < 3 || subdomain.length > 30) {
+                    showError('El nombre debe tener entre 3 y 30 caracteres');
+                    return;
+                }
+                
+                // Redirigir al subdominio
+                window.location.href = `https://${subdomain}.eventa.com.mx/login`;
+            });
+        }
+        
+        function renderizarLoginFormulario() {
+            // Mostrar nombre del cliente
+            let clientNameHtml = '';
+            if (subdominio && subdominio !== 'cami-cam' && subdominio !== 'www') {
+                clientNameHtml = `<div class="client-name">${subdominio}.eventa.com.mx</div>`;
             }
-        });
+            
+            document.getElementById('login-container').innerHTML = `
+                <div class="logo">
+                    <h1>🔐 Iniciar Sesión</h1>
+                    ${clientNameHtml}
+                </div>
+                
+                <div class="error-message" id="errorMessage"></div>
+                
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required placeholder="tu@email.com">
+                    </div>
 
-        // Mostrar/ocultar contraseña
-        document.getElementById('toggle-password').addEventListener('click', function() {
-            const passwordInput = document.getElementById('password');
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            this.textContent = type === 'password' ? '👁️' : '🙈';
-        });
-
-        // Modal de recuperación de contraseña
-        document.getElementById('forgot-password-link').addEventListener('click', function(e) {
-            e.preventDefault();
-            document.getElementById('recuperar-modal').classList.remove('hidden');
-        });
-
+                    <div class="form-group" style="position: relative;">
+                        <label for="password">Contraseña</label>
+                        <input type="password" id="password" name="password" required placeholder="********" style="width: 100%; padding: 12px 40px 12px 16px;">
+                        <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #7f8c8d;">
+                            👁️
+                        </button>
+                    </div>
+                    
+                    <button type="submit" class="btn" id="submitBtn">Entrar</button>
+                </form>
+                
+                <div class="login-actions">
+                    <a href="#" id="forgot-password-link">¿Olvidaste tu contraseña?</a>
+                    <br>
+                    ¿No tienes cuenta? <a href="https://crm.eventa.com.mx/registro">Crear cuenta</a>
+                </div>
+            `;
+            
+            // Agregar event listeners para login
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const submitBtn = document.getElementById('submitBtn');
+                const errorMessage = document.getElementById('errorMessage');
+                
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Iniciando...';
+                errorMessage.style.display = 'none';
+                
+                try {
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ email, password })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        window.location.href = '/dashboard';
+                    } else {
+                        errorMessage.textContent = result.error || 'Credenciales inválidas';
+                        errorMessage.style.display = 'block';
+                    }
+                } catch (error) {
+                    errorMessage.textContent = 'Error de conexión';
+                    errorMessage.style.display = 'block';
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Entrar';
+                }
+            });
+            
+            // Toggle contraseña
+            document.getElementById('toggle-password').addEventListener('click', function() {
+                const passwordInput = document.getElementById('password');
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                this.textContent = type === 'password' ? '👁️' : '🙈';
+            });
+            
+            // Modal recuperación
+            document.getElementById('forgot-password-link').addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('recuperar-modal').classList.remove('hidden');
+            });
+        }
+        
+        // Funciones comunes
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Event listeners para modal de recuperación (común a ambos casos)
         document.getElementById('close-recuperar').addEventListener('click', function() {
             document.getElementById('recuperar-modal').classList.add('hidden');
         });
-
+        
         document.getElementById('btn-enviar-recuperar').addEventListener('click', async function() {
-    const email = document.getElementById('recuperar-email').value.trim();
-    const feedback = document.getElementById('recuperar-feedback');
-    
-    if (!email || !email.includes('@')) {
-        mostrarFeedbackRecuperar('Por favor ingresa un email válido', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/recuperar_password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            const email = document.getElementById('recuperar-email').value.trim();
+            const feedback = document.getElementById('recuperar-feedback');
+            
+            if (!email || !email.includes('@')) {
+                mostrarFeedbackRecuperar('Por favor ingresa un email válido', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/recuperar_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.status === 404) {
+                    mostrarFeedbackRecuperar('Si el email existe, recibirás instrucciones', 'success');
+                    setTimeout(() => {
+                        document.getElementById('recuperar-modal').classList.add('hidden');
+                    }, 3000);
+                } else if (response.ok) {
+                    mostrarFeedbackRecuperar('Se ha enviado un enlace de recuperación a tu email', 'success');
+                    setTimeout(() => {
+                        document.getElementById('recuperar-modal').classList.add('hidden');
+                    }, 3000);
+                } else {
+                    mostrarFeedbackRecuperar(data.error || 'Error al enviar el email', 'error');
+                }
+            } catch (error) {
+                mostrarFeedbackRecuperar('Error de conexión', 'error');
+            }
         });
         
-        const data = await response.json();
-        
-        // Manejar diferentes status codes
-        if (response.status === 404) {
-            // Para crm.eventa.com.mx sin cliente_id
-            mostrarFeedbackRecuperar('Si el email existe, recibirás instrucciones', 'success');
-            setTimeout(() => {
-                document.getElementById('recuperar-modal').classList.add('hidden');
-            }, 3000);
-        } else if (response.ok) {
-            mostrarFeedbackRecuperar('Se ha enviado un enlace de recuperación a tu email', 'success');
-            setTimeout(() => {
-                document.getElementById('recuperar-modal').classList.add('hidden');
-            }, 3000);
-        } else {
-            mostrarFeedbackRecuperar(data.error || 'Error al enviar el email', 'error');
-        }
-    } catch (error) {
-        mostrarFeedbackRecuperar('Error de conexión', 'error');
-    }
-});
-
         function mostrarFeedbackRecuperar(mensaje, tipo) {
             const feedback = document.getElementById('recuperar-feedback');
             feedback.textContent = mensaje;
