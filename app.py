@@ -2025,14 +2025,14 @@ def procesar_registro():
             
             # Crear cliente no verificado
             cur.execute("""
-                INSERT INTO clientes (nombre, subdominio, plan, activo, email_verificado, codigo_verificacion, codigo_expiracion)
+                INSERT INTO clientes (nombre, subdominio, plan, activo, email_verificado, codigo_verificacion, codigo_expiracion, email_admin)
                 VALUES (%s, %s, %s, true, false, %s, %s)
                 RETURNING id
-            """, (nombre, subdominio, plan, codigo_verificacion, expiracion))
+            """, (nombre, subdominio, plan, codigo_verificacion, expiracion, email))
 
             cliente_id = cur.fetchone()[0]
             print(f"✅ DEBUG: Cliente creado con ID: {cliente_id}")
-            
+
 
             # Crear usuario sin contraseña
             cur.execute("""
@@ -2042,6 +2042,7 @@ def procesar_registro():
             """, (email, cliente_id))
             user_id = cur.fetchone()[0]
             print(f"✅ DEBUG: Usuario creado con ID: {user_id}")
+            
             
             # ✅ Asignar rol admin
             cur.execute("""
