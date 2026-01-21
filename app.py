@@ -1972,7 +1972,7 @@ def pagina_registro():
     Accesible desde crm.eventa.com.mx y registro.eventa.com.mx
     """
     host = request.host
-    if host not in ["crm.eventa.com.mx", "registro.eventa.com.mx"]:
+    if host not in ["crm.eventa.com.mx"]:
         # Opcional: redirigir a crm.eventa.com.mx si viene de otro lugar
         return redirect("https://crm.eventa.com.mx/registro")
     
