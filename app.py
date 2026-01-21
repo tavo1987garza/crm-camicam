@@ -2023,30 +2023,56 @@ def procesar_registro():
             codigo_verificacion = secrets.token_urlsafe(6)[:8]
             expiracion = datetime.utcnow() + timedelta(hours=1)
 
-            # ✅ CORREGIDO: Todos los valores como placeholders
-            cur.execute("""
-                INSERT INTO clientes (nombre, subdominio, plan, activo, email_verificado, codigo_verificacion, codigo_expiracion, email_admin)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            # ✅ CORREGIDO: Usar diccionario de parámetros
+            query_cliente = """
+                INSERT INTO clientes (
+                    nombre, subdominio, plan, activo, 
+                    email_verificado, codigo_verificacion, 
+                    codigo_expiracion, email_admin
+                )
+                VALUES (%(nombre)s, %(subdominio)s, %(plan)s, %(activo)s, 
+                        %(email_verificado)s, %(codigo_verificacion)s, 
+                        %(codigo_expiracion)s, %(email_admin)s)
                 RETURNING id
-            """, (nombre, subdominio, plan, True, False, codigo_verificacion, expiracion, email))
+            """
 
+            params_cliente = {
+                'nombre': nombre,
+                'subdominio': subdominio,
+                'plan': plan,
+                'activo': True,
+                'email_verificado': False,
+                'codigo_verificacion': codigo_verificacion,
+                'codigo_expiracion': expiracion,
+                'email_admin': email
+            }
+
+            cur.execute(query_cliente, params_cliente)
             cliente_id = cur.fetchone()[0]
             print(f"✅ DEBUG: Cliente creado con ID: {cliente_id}")
 
             # Crear usuario
-            cur.execute("""
+            query_usuario = """
                 INSERT INTO users (email, cliente_id, activo)
-                VALUES (%s, %s, %s)
+                VALUES (%(email)s, %(cliente_id)s, %(activo)s)
                 RETURNING id
-            """, (email, cliente_id, True))
+            """
+
+            params_usuario = {
+                'email': email,
+                'cliente_id': cliente_id,
+                'activo': True
+            }
+
+            cur.execute(query_usuario, params_usuario)
             user_id = cur.fetchone()[0]
             print(f"✅ DEBUG: Usuario creado con ID: {user_id}")
 
             # Asignar rol admin
             cur.execute("""
                 INSERT INTO user_roles (user_id, role_id)
-                SELECT %s, id FROM roles WHERE name = 'admin'
-            """, (user_id,))
+                SELECT %(user_id)s, id FROM roles WHERE name = 'admin'
+            """, {'user_id': user_id})
             print("✅ DEBUG: Rol admin asignado")
             
             conn.commit()
