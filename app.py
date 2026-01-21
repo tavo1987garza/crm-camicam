@@ -1979,6 +1979,7 @@ def pagina_registro():
     return render_template("registro.html")
 
 
+
 # A. Registrar usuario (sin contraseña aún)
 @app.route("/registro", methods=["POST"])
 def procesar_registro():
@@ -2022,10 +2023,10 @@ def procesar_registro():
             codigo_verificacion = secrets.token_urlsafe(6)[:8]
             expiracion = datetime.utcnow() + timedelta(hours=1)
             
-            # Crear cliente no verificado
+            # ✅ CORREGIDO: Eliminado el error de sintaxis % %s
             cur.execute("""
                 INSERT INTO clientes (nombre, subdominio, plan, activo, email_verificado, codigo_verificacion, codigo_expiracion)
-                VALUES (%s, %s, % %s, true, false, %s, %s)
+                VALUES (%s, %s, %s, true, false, %s, %s)
                 RETURNING id
             """, (nombre, subdominio, plan, codigo_verificacion, expiracion))
             
@@ -2050,12 +2051,16 @@ def procesar_registro():
         except Exception as e:
             conn.rollback()
             print(f"❌ Error en procesar_registro: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return jsonify({"error": "Error al crear el cliente"}), 500
         finally:
             liberar_db(conn)
             
     except Exception as e:
         print(f"💥 ERROR CRÍTICO EN REGISTRO: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "Error interno"}), 500
     
     
