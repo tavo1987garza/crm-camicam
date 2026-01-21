@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceder a tu CRM - Eventa</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            text-align: center;
+        }
+        .logo {
+            margin-bottom: 24px;
+        }
+        .logo h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-top: 12px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #2c3e50;
+            font-weight: 600;
+            text-align: left;
+        }
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            background: #fadbd8;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .login-actions {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .login-actions a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .login-actions a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>🔐 Acceder a tu CRM</h1>
+            <p>Ingresa el nombre de tu empresa para acceder a tu panel</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <form id="subdomain-form">
+            <div class="form-group">
+                <label for="subdomain">Nombre de tu empresa</label>
+                <input type="text" id="subdomain" name="subdomain" required placeholder="ejemplo: fotografia-maria">
+                <small style="color: #7f8c8d; display: block; margin-top: 4px;">
+                    Tu URL será: https://<strong id="preview">nombre-empresa</strong>.eventa.com.mx
+                </small>
+            </div>
+            <button type="submit" class="btn" id="submitBtn">Acceder a mi CRM</button>
+        </form>
+        
+        <div class="login-actions">
+            ¿No tienes cuenta? <a href="https://registro.eventa.com.mx/registro" target="_blank">Crear cuenta</a>
+        </div>
+    </div>
+
+    <script>
+        // Actualizar preview en tiempo real
+        document.getElementById('subdomain').addEventListener('input', function() {
+            const value = this.value.trim().toLowerCase();
+            const preview = document.getElementById('preview');
+            if (value) {
+                preview.textContent = value;
+            } else {
+                preview.textContent = 'nombre-empresa';
+            }
+        });
+
+        // Manejar envío del formulario
+        document.getElementById('subdomain-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const subdomain = document.getElementById('subdomain').value.trim().toLowerCase();
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // Validar subdominio
+            if (!subdomain) {
+                showError('Por favor ingresa el nombre de tu empresa');
+                return;
+            }
+            
+            // Validar caracteres permitidos (solo letras, números, guiones)
+            if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subdomain)) {
+                showError('El nombre solo puede contener letras, números y guiones. No puede empezar o terminar con guión.');
+                return;
+            }
+            
+            if (subdomain.length < 3 || subdomain.length > 30) {
+                showError('El nombre debe tener entre 3 y 30 caracteres');
+                return;
+            }
+            
+            // Redirigir al subdominio
+            window.location.href = `https://${subdomain}.eventa.com.mx/login`;
+        });
+        
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
