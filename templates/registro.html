@@ -162,6 +162,17 @@
             <button type="submit" class="btn" id="submitBtn">Crear mi CRM</button>
         </form>
         
+        <!-- Sección de reenvío de código -->
+        <div class="reenviar-section" style="margin-top: 20px; text-align: center;">
+            <p style="font-size: 14px; color: #7f8c8d;">
+                ¿No recibiste el código de verificación?
+            </p>
+            <button id="reenviarBtn" class="btn" style="background: #95a5a6; width: auto; padding: 8px 16px; font-size: 14px;" onclick="reenviarCodigo()">
+                Reenviar código
+            </button>
+            <span id="countdown" style="display: none; margin-left: 8px; font-size: 14px;"></span>
+        </div>
+        
         <p style="margin-top: 20px; font-size: 14px;">
             ¿Ya tienes cuenta? <a href="/login" style="color: #3498db; text-decoration: none;">Iniciar sesión</a>
         </p>
@@ -173,11 +184,11 @@
             if (!nombre) return '';
             
             return nombre
-                .toLowerCase()                    // Convertir a minúsculas
-                .replace(/\s+/g, '-')             // Reemplazar espacios por guiones
-                .replace(/[^a-z0-9-]/g, '')       // Eliminar caracteres inválidos
-                .replace(/^-+|-+$/g, '')          // Eliminar guiones al inicio/final
-                .replace(/-+/g, '-');             // Reemplazar múltiples guiones por uno solo
+                .toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9-]/g, '')
+                .replace(/^-+|-+$/g, '')
+                .replace(/-+/g, '-');
         }
 
         // Actualizar preview en tiempo real
@@ -199,7 +210,7 @@
             });
         });
 
-        // Validar y enviar formulario
+        // Validar y enviar formulario (SIN CONTRASEÑA)
         document.getElementById('registroForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -251,6 +262,7 @@
             submitBtn.textContent = 'Creando...';
             
             try {
+                // ✅ SIN CAMPO DE CONTRASEÑA - solo nombre, subdominio, email, plan
                 const response = await fetch('/registro', {
                     method: 'POST',
                     headers: {
@@ -262,10 +274,11 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-                    showSuccess(`¡Listo! Tu CRM está listo. Accede aquí: https://${subdominio}.eventa.com.mx/login`);
-                    // Redirigir automáticamente después de 5 segundos
+                    showSuccess(`¡Listo! Revisa tu email ${email} para verificar tu cuenta y establecer tu contraseña.`);
+                    
+                    // ✅ REDIRIGIR A PÁGINA DE VERIFICACIÓN, NO AL LOGIN
                     setTimeout(() => {
-                        window.location.href = `https://${subdominio}.eventa.com.mx/login`;
+                        window.location.href = '/verificar-registro';
                     }, 5000);
                 } else {
                     showError(result.error || 'Error al crear tu CRM');
@@ -288,6 +301,76 @@
             const successMessage = document.getElementById('successMessage');
             successMessage.textContent = message;
             successMessage.style.display = 'block';
+        }
+        
+        // Funciones de reenvío
+        let countdownTimer = null;
+        let tiempoEspera = 30; // segundos
+
+        function actualizarCountdown() {
+            const countdownEl = document.getElementById('countdown');
+            if (tiempoEspera > 0) {
+                countdownEl.textContent = `(${tiempoEspera}s)`;
+                tiempoEspera--;
+            } else {
+                clearInterval(countdownTimer);
+                countdownEl.style.display = 'none';
+                document.getElementById('reenviarBtn').disabled = false;
+                document.getElementById('reenviarBtn').style.background = '#95a5a6';
+                document.getElementById('reenviarBtn').textContent = 'Reenviar código';
+            }
+        }
+
+        async function reenviarCodigo() {
+            const reenviarBtn = document.getElementById('reenviarBtn');
+            const countdownEl = document.getElementById('countdown');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+            
+            // Reset mensajes
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            
+            const subdominio = document.getElementById('subdominio').value.trim().toLowerCase();
+            if (!subdominio) {
+                showError('Ingresa el nombre de tu negocio primero');
+                return;
+            }
+            
+            reenviarBtn.disabled = true;
+            reenviarBtn.textContent = 'Enviando...';
+            reenviarBtn.style.background = '#bdc3c7';
+            
+            try {
+                const response = await fetch('/reenviar-codigo', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ subdominio })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSuccess('Código reenviado exitosamente. Revisa tu email.');
+                    
+                    // Iniciar countdown
+                    tiempoEspera = result.tiempo_espera || 30;
+                    countdownEl.style.display = 'inline';
+                    countdownTimer = setInterval(actualizarCountdown, 1000);
+                    actualizarCountdown();
+                    
+                } else {
+                    showError(result.error || 'Error al reenviar código');
+                    reenviarBtn.disabled = false;
+                    reenviarBtn.style.background = '#95a5a6';
+                    reenviarBtn.textContent = 'Reenviar código';
+                }
+            } catch (error) {
+                showError('Error de conexión');
+                reenviarBtn.disabled = false;
+                reenviarBtn.style.background = '#95a5a6';
+                reenviarBtn.textContent = 'Reenviar código';
+            }
         }
     </script>
 </body>
