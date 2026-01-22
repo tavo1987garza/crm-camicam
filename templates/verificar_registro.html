@@ -36,6 +36,16 @@
             font-size: 24px;
             margin-top: 12px;
         }
+        .client-url {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin-bottom: 24px;
+            word-break: break-all;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
         .form-group {
             margin-bottom: 20px;
             text-align: left;
@@ -57,6 +67,20 @@
         input:focus {
             outline: none;
             border-color: #3498db;
+        }
+        .password-container {
+            position: relative;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #7f8c8d;
+            font-size: 18px;
         }
         .btn {
             width: 100%;
@@ -89,13 +113,38 @@
             margin-bottom: 20px;
             display: none;
         }
+        .reenviar-section {
+            margin-top: 16px;
+            text-align: center;
+        }
+        .reenviar-btn {
+            background: none;
+            border: none;
+            color: #3498db;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            margin: 0;
+        }
+        .reenviar-btn:hover {
+            text-decoration: underline;
+        }
+        .reenviar-btn:disabled {
+            color: #bdc3c7;
+            cursor: not-allowed;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">
             <h1>🔐 Verificar Registro</h1>
-            <p>Completa tu registro ingresando el código que enviamos a tu email</p>
+            <p>Completa tu registro con el código que enviamos a tu email</p>
+        </div>
+        
+        <div class="client-url" id="clientUrl">
+            <!-- URL se llenará automáticamente -->
         </div>
         
         <div class="error-message" id="errorMessage"></div>
@@ -103,38 +152,83 @@
         
         <form id="verificarForm">
             <div class="form-group">
-                <label for="subdominio">Tu subdominio</label>
-                <input type="text" id="subdominio" name="subdominio" required placeholder="ejemplo: fotografia-maria">
-            </div>
-            
-            <div class="form-group">
                 <label for="codigo">Código de verificación</label>
                 <input type="text" id="codigo" name="codigo" required placeholder="Código de 8 dígitos">
             </div>
             
             <div class="form-group">
                 <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required placeholder="Mínimo 6 caracteres">
+                <div class="password-container">
+                    <input type="password" id="password" name="password" required placeholder="Mínimo 6 caracteres">
+                    <button type="button" class="toggle-password" id="toggle-password">👁️</button>
+                </div>
             </div>
             
             <div class="form-group">
                 <label for="password-confirm">Confirmar contraseña</label>
-                <input type="password" id="password-confirm" name="password-confirm" required placeholder="Repite tu contraseña">
+                <div class="password-container">
+                    <input type="password" id="password-confirm" name="password-confirm" required placeholder="Repite tu contraseña">
+                    <button type="button" class="toggle-password" id="toggle-password-confirm">👁️</button>
+                </div>
             </div>
             
             <button type="submit" class="btn" id="submitBtn">Completar Registro</button>
         </form>
         
+        <div class="reenviar-section">
+            <button id="reenviarBtn" class="reenviar-btn" onclick="reenviarCodigo()">
+                ¿No recibiste el código? Reenviar
+            </button>
+            <span id="countdown" style="display: none; margin-left: 8px;"></span>
+        </div>
+        
         <p style="margin-top: 20px; font-size: 14px;">
-            ¿No recibiste el código? <a href="/registro" style="color: #3498db; text-decoration: none;">Volver a registrarse</a>
+            <a href="/registro" style="color: #3498db; text-decoration: none;">← Volver al registro</a>
         </p>
     </div>
 
     <script>
+        // Obtener subdominio de la URL o del localStorage
+        function getSubdomain() {
+            // Intentar obtener de parámetros URL
+            const urlParams = new URLSearchParams(window.location.search);
+            let subdomain = urlParams.get('subdominio');
+            
+            // Si no está en URL, intentar de localStorage
+            if (!subdomain) {
+                subdomain = localStorage.getItem('registro_subdominio');
+            }
+            
+            return subdomain || '';
+        }
+
+        // Mostrar URL del cliente
+        const subdominio = getSubdomain();
+        if (subdominio) {
+            document.getElementById('clientUrl').textContent = `https://${subdominio}.eventa.com.mx`;
+        } else {
+            document.getElementById('clientUrl').style.display = 'none';
+        }
+
+        // Toggle contraseña
+        document.getElementById('toggle-password').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.textContent = type === 'password' ? '👁️' : '🙈';
+        });
+
+        document.getElementById('toggle-password-confirm').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password-confirm');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.textContent = type === 'password' ? '👁️' : '🙈';
+        });
+
+        // Enviar formulario
         document.getElementById('verificarForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const subdominio = document.getElementById('subdominio').value.trim().toLowerCase();
             const codigo = document.getElementById('codigo').value.trim();
             const password = document.getElementById('password').value;
             const passwordConfirm = document.getElementById('password-confirm').value;
@@ -148,18 +242,23 @@
             successMessage.style.display = 'none';
             
             // Validaciones
-            if (!subdominio || !codigo || !password || !passwordConfirm) {
-                showError('Todos los campos son requeridos');
+            if (!codigo) {
+                showError('El código de verificación es requerido');
                 return;
             }
             
-            if (password.length < 6) {
+            if (!password || password.length < 6) {
                 showError('La contraseña debe tener al menos 6 caracteres');
                 return;
             }
             
             if (password !== passwordConfirm) {
                 showError('Las contraseñas no coinciden');
+                return;
+            }
+            
+            if (!subdominio) {
+                showError('Subdominio no encontrado. Vuelve al registro.');
                 return;
             }
             
@@ -190,7 +289,68 @@
                 submitBtn.textContent = 'Completar Registro';
             }
         });
-        
+
+        // Función reenviar código (manteniendo la lógica existente)
+        let countdownTimer = null;
+        let tiempoEspera = 30;
+
+        function actualizarCountdown() {
+            const countdownEl = document.getElementById('countdown');
+            if (tiempoEspera > 0) {
+                countdownEl.textContent = `(${tiempoEspera}s)`;
+                tiempoEspera--;
+            } else {
+                clearInterval(countdownTimer);
+                countdownEl.style.display = 'none';
+                document.getElementById('reenviarBtn').disabled = false;
+                document.getElementById('reenviarBtn').textContent = '¿No recibiste el código? Reenviar';
+            }
+        }
+
+        async function reenviarCodigo() {
+            if (!subdominio) {
+                showError('Subdominio no disponible para reenviar');
+                return;
+            }
+            
+            const reenviarBtn = document.getElementById('reenviarBtn');
+            const countdownEl = document.getElementById('countdown');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            errorMessage.style.display = 'none';
+            
+            reenviarBtn.disabled = true;
+            reenviarBtn.textContent = 'Enviando...';
+            
+            try {
+                const response = await fetch('/reenviar-codigo', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ subdominio })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSuccess('Código reenviado exitosamente');
+                    
+                    tiempoEspera = result.tiempo_espera || 30;
+                    countdownEl.style.display = 'inline';
+                    countdownTimer = setInterval(actualizarCountdown, 1000);
+                    actualizarCountdown();
+                    
+                } else {
+                    showError(result.error || 'Error al reenviar código');
+                    reenviarBtn.disabled = false;
+                    reenviarBtn.textContent = '¿No recibiste el código? Reenviar';
+                }
+            } catch (error) {
+                showError('Error de conexión');
+                reenviarBtn.disabled = false;
+                reenviarBtn.textContent = '¿No recibiste el código? Reenviar';
+            }
+        }
+
         function showError(message) {
             const errorMessage = document.getElementById('errorMessage');
             errorMessage.textContent = message;
@@ -202,6 +362,15 @@
             successMessage.textContent = message;
             successMessage.style.display = 'block';
         }
+
+        // Al cargar, guardar subdominio en localStorage si viene de registro
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const subdomainFromUrl = urlParams.get('subdominio');
+            if (subdomainFromUrl) {
+                localStorage.setItem('registro_subdominio', subdomainFromUrl);
+            }
+        });
     </script>
 </body>
 </html>
