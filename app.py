@@ -1753,13 +1753,14 @@ def eliminar_etiqueta():
 #--------------SECION DE CONFIGURACION SUPER-USUARIO PANEL DE ADMINISTRACION-----------------
 #,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
+
 # Middleware de autenticación
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Verificar si el usuario está autenticado y es superadmin
         if 'user_id' not in session:
-            return redirect(url_for('pagina_login'))
+            return redirect(url_for('admin_login'))  # ✅ Cambiado a admin_login
         
         user_id = session['user_id']
         conn = conectar_db()
@@ -1775,10 +1776,86 @@ def admin_required(f):
         liberar_db(conn)
         
         if not is_admin:
-            return redirect(url_for('pagina_login'))
+            return redirect(url_for('admin_login'))  # ✅ Cambiado a admin_login
             
         return f(*args, **kwargs)
     return decorated_function
+
+
+# Iniciar sesion
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    """Login exclusivo para administradores del sistema"""
+    if request.method == "GET":
+        return render_template("admin/login.html")
+    
+    try:
+        datos = request.json
+        email = datos.get("email", "").strip().lower()
+        password = datos.get("password", "")
+        
+        if not email or not password:
+            return jsonify({"error": "Email y contraseña son requeridos"}), 400
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión"}), 500
+
+        try:
+            cur = conn.cursor()
+            # ✅ Buscar usuario SIN verificar cliente_id (es admin global)
+            cur.execute("""
+                SELECT id, password_hash 
+                FROM users 
+                WHERE email = %s AND activo = true
+            """, (email,))
+            
+            user = cur.fetchone()
+            
+            if not user or not check_password_hash(user[1], password):
+                return jsonify({"error": "Credenciales inválidas"}), 401
+
+            # Verificar que sea superadmin
+            cur.execute("""
+                SELECT r.name 
+                FROM user_roles ur
+                JOIN roles r ON ur.role_id = r.id
+                WHERE ur.user_id = %s AND r.name = 'superadmin'
+            """, (user[0],))
+            
+            if not cur.fetchone():
+                return jsonify({"error": "Acceso denegado. Se requiere rol de superadministrador."}), 403
+
+            # Iniciar sesión
+            session['user_id'] = user[0]
+            session['is_admin'] = True  # Marcar como admin global
+            
+            return jsonify({"mensaje": "Login exitoso"}), 200
+            
+        except Exception as e:
+            print(f"❌ Error en admin login: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": "Error interno"}), 500
+        finally:
+            liberar_db(conn)
+            
+    except Exception as e:
+        print(f"💥 ERROR CRÍTICO EN ADMIN LOGIN: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error interno"}), 500
+    
+    
+# Cerrar sesion
+@app.route("/admin/logout")
+def admin_logout():
+    """Cerrar sesión de administrador"""
+    session.pop('user_id', None)
+    session.pop('is_admin', None)
+    session.pop('cliente_id', None)
+    return redirect(url_for('admin_login'))
+
 
 #Rutas de administración
 @app.route("/admin")

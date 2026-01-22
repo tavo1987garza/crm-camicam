@@ -35,7 +35,7 @@
         <h1>🎯 Admin Eventa CRM</h1>
         <a href="{{ url_for('admin_dashboard') }}" {% if request.endpoint == 'admin_dashboard' %}class="active"{% endif %}>Dashboard</a>
         <a href="{{ url_for('admin_tenants') }}" {% if request.endpoint == 'admin_tenants' %}class="active"{% endif %}>Tenants</a>
-        <a href="/logout">Cerrar Sesión</a>
+        <a href="{{ url_for('admin_logout') }}">Cerrar Sesión</a>
     </div>
     <div class="main-content">
         {% block content %}{% endblock %}
