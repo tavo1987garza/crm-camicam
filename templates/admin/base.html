@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Eventa CRM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f5f7fa; min-height: 100vh; display: flex; }
+        .sidebar { width: 250px; background: #2c3e50; color: white; padding: 20px; height: 100vh; position: fixed; }
+        .sidebar h1 { margin-bottom: 30px; font-size: 20px; }
+        .sidebar a { display: block; color: #ecf0f1; text-decoration: none; padding: 12px; margin: 8px 0; border-radius: 4px; }
+        .sidebar a:hover, .sidebar a.active { background: #34495e; }
+        .main-content { margin-left: 250px; padding: 20px; width: calc(100% - 250px); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-number { font-size: 2em; font-weight: bold; color: #3498db; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .status-active { color: #27ae60; }
+        .status-inactive { color: #e74c3c; }
+        .btn { padding: 6px 12px; margin: 2px; text-decoration: none; border-radius: 4px; font-size: 12px; }
+        .btn-disable { background: #e74c3c; color: white; }
+        .btn-enable { background: #27ae60; color: white; }
+        .btn-delete { background: #c0392b; color: white; }
+        .btn-upgrade { background: #9b59b6; color: white; }
+        .btn-downgrade { background: #f39c12; color: white; }
+        .actions { display: flex; gap: 4px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1>🎯 Admin Eventa CRM</h1>
+        <a href="{{ url_for('admin_dashboard') }}" {% if request.endpoint == 'admin_dashboard' %}class="active"{% endif %}>Dashboard</a>
+        <a href="{{ url_for('admin_tenants') }}" {% if request.endpoint == 'admin_tenants' %}class="active"{% endif %}>Tenants</a>
+        <a href="/logout">Cerrar Sesión</a>
+    </div>
+    <div class="main-content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

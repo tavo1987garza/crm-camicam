@@ -1749,9 +1749,149 @@ def eliminar_etiqueta():
         liberar_db(conn)
         
 
-#'''''''''''''''''''''''''''''''''''''''''''''''
-#--------------SECION DE CONFIGURACION-----------------
-#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,   
+#''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#--------------SECION DE CONFIGURACION SUPER-USUARIO PANEL DE ADMINISTRACION-----------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+# Middleware de autenticación
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verificar si el usuario está autenticado y es superadmin
+        if 'user_id' not in session:
+            return redirect(url_for('pagina_login'))
+        
+        user_id = session['user_id']
+        conn = conectar_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT r.name 
+            FROM user_roles ur
+            JOIN roles r ON ur.role_id = r.id
+            WHERE ur.user_id = %s AND r.name = 'superadmin'
+        """, (user_id,))
+        
+        is_admin = cur.fetchone() is not None
+        liberar_db(conn)
+        
+        if not is_admin:
+            return redirect(url_for('pagina_login'))
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+#Rutas de administración
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    """Dashboard principal de administración"""
+    conn = conectar_db()
+    cur = conn.cursor()
+    
+    # Estadísticas generales
+    cur.execute("SELECT COUNT(*) FROM clientes")
+    total_tenants = cur.fetchone()[0]
+    
+    cur.execute("SELECT COUNT(*) FROM clientes WHERE activo = true")
+    active_tenants = cur.fetchone()[0]
+    
+    cur.execute("SELECT COUNT(*) FROM clientes WHERE email_verificado = true")
+    verified_tenants = cur.fetchone()[0]
+    
+    # Últimos 10 tenants
+    cur.execute("""
+        SELECT 
+            id, nombre, subdominio, email_admin, plan, 
+            activo, email_verificado, creado_en
+        FROM clientes 
+        ORDER BY creado_en DESC
+        LIMIT 10
+    """)
+    recent_tenants = cur.fetchall()
+    
+    liberar_db(conn)
+    
+    return render_template("admin/dashboard.html", 
+                         total_tenants=total_tenants,
+                         active_tenants=active_tenants,
+                         verified_tenants=verified_tenants,
+                         recent_tenants=recent_tenants)
+
+@app.route("/admin/tenants")
+@admin_required
+def admin_tenants():
+    """Lista completa de tenants"""
+    conn = conectar_db()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT 
+            id, nombre, subdominio, email_admin, plan, 
+            activo, email_verificado, creado_en
+        FROM clientes 
+        ORDER BY creado_en DESC
+    """)
+    
+    tenants = cur.fetchall()
+    liberar_db(conn)
+    
+    return render_template("admin/tenants.html", tenants=tenants)
+
+@app.route("/admin/tenant/<int:tenant_id>/disable")
+@admin_required
+def admin_disable_tenant(tenant_id):
+    """Desactivar tenant"""
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE clientes SET activo = false WHERE id = %s", (tenant_id,))
+    conn.commit()
+    liberar_db(conn)
+    return redirect(url_for('admin_tenants'))
+
+@app.route("/admin/tenant/<int:tenant_id>/enable")
+@admin_required
+def admin_enable_tenant(tenant_id):
+    """Activar tenant"""
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE clientes SET activo = true WHERE id = %s", (tenant_id,))
+    conn.commit()
+    liberar_db(conn)
+    return redirect(url_for('admin_tenants'))
+
+@app.route("/admin/tenant/<int:tenant_id>/delete")
+@admin_required
+def admin_delete_tenant(tenant_id):
+    """Eliminar tenant (con confirmación en frontend)"""
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM clientes WHERE id = %s", (tenant_id,))
+    conn.commit()
+    liberar_db(conn)
+    return redirect(url_for('admin_tenants'))
+
+@app.route("/admin/tenant/<int:tenant_id>/upgrade")
+@admin_required
+def admin_upgrade_tenant(tenant_id):
+    """Actualizar a plan premium"""
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE clientes SET plan = 'premium' WHERE id = %s", (tenant_id,))
+    conn.commit()
+    liberar_db(conn)
+    return redirect(url_for('admin_tenants'))
+
+@app.route("/admin/tenant/<int:tenant_id>/downgrade")
+@admin_required
+def admin_downgrade_tenant(tenant_id):
+    """Actualizar a plan básico"""
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE clientes SET plan = 'basico' WHERE id = %s", (tenant_id,))
+    conn.commit()
+    liberar_db(conn)
+    return redirect(url_for('admin_tenants'))
+
 
  
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

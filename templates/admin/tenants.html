@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="header">
+    <h1>🏢 Gestión de Tenants</h1>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Subdominio</th>
+            <th>Email Admin</th>
+            <th>Plan</th>
+            <th>Verificado</th>
+            <th>Activo</th>
+            <th>Creado</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tenant in tenants %}
+        <tr>
+            <td>{{ tenant[0] }}</td>
+            <td>{{ tenant[1] }}</td>
+            <td><a href="https://{{ tenant[2] }}.eventa.com.mx" target="_blank">{{ tenant[2] }}</a></td>
+            <td>{{ tenant[3] }}</td>
+            <td>{{ tenant[4] }}</td>
+            <td>{% if tenant[6] %}✅{% else %}❌{% endif %}</td>
+            <td class="{% if tenant[5] %}status-active{% else %}status-inactive{% endif %}">
+                {% if tenant[5] %}Activo{% else %}Inactivo{% endif %}
+            </td>
+            <td>{{ tenant[7].strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="actions">
+                {% if tenant[5] %}
+                <a href="{{ url_for('admin_disable_tenant', tenant_id=tenant[0]) }}" class="btn btn-disable" onclick="return confirm('¿Desactivar tenant?')">Desactivar</a>
+                {% else %}
+                <a href="{{ url_for('admin_enable_tenant', tenant_id=tenant[0]) }}" class="btn btn-enable" onclick="return confirm('¿Activar tenant?')">Activar</a>
+                {% endif %}
+                
+                {% if tenant[4] == 'basico' %}
+                <a href="{{ url_for('admin_upgrade_tenant', tenant_id=tenant[0]) }}" class="btn btn-upgrade" onclick="return confirm('¿Actualizar a Premium?')">Premium</a>
+                {% else %}
+                <a href="{{ url_for('admin_downgrade_tenant', tenant_id=tenant[0]) }}" class="btn btn-downgrade" onclick="return confirm('¿Cambiar a Básico?')">Básico</a>
+                {% endif %}
+                
+                <a href="{{ url_for('admin_delete_tenant', tenant_id=tenant[0]) }}" class="btn btn-delete" onclick="return confirm('¿Eliminar permanentemente?\n¡Esta acción no se puede deshacer!')">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

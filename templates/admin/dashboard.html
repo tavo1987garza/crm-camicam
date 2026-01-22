@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="header">
+    <h1>📊 Dashboard de Administración</h1>
+</div>
+
+<div class="stats">
+    <div class="stat-card">
+        <div>Total Tenants</div>
+        <div class="stat-number">{{ total_tenants }}</div>
+    </div>
+    <div class="stat-card">
+        <div>Tenants Activos</div>
+        <div class="stat-number">{{ active_tenants }}</div>
+    </div>
+    <div class="stat-card">
+        <div>Tenants Verificados</div>
+        <div class="stat-number">{{ verified_tenants }}</div>
+    </div>
+</div>
+
+<h2>Últimos Tenants Registrados</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Subdominio</th>
+            <th>Email Admin</th>
+            <th>Plan</th>
+            <th>Estado</th>
+            <th>Creado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tenant in recent_tenants %}
+        <tr>
+            <td>{{ tenant[1] }}</td>
+            <td><a href="https://{{ tenant[2] }}.eventa.com.mx" target="_blank">{{ tenant[2] }}</a></td>
+            <td>{{ tenant[3] }}</td>
+            <td>{{ tenant[4] }}</td>
+            <td>
+                {% if tenant[5] %}
+                    <span class="status-active">Activo</span>
+                {% else %}
+                    <span class="status-inactive">Inactivo</span>
+                {% endif %}
+            </td>
+            <td>{{ tenant[7].strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
