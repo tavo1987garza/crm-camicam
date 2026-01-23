@@ -232,10 +232,11 @@
             });
             
             // Manejar envío del formulario
-            document.getElementById('subdomain-form').addEventListener('submit', function(e) {
+            document.getElementById('subdomain-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const subdomain = document.getElementById('subdomain').value.trim().toLowerCase();
                 const errorMessage = document.getElementById('errorMessage');
+                const submitBtn = document.getElementById('submitBtn');
                 
                 // Validar subdominio
                 if (!subdomain) {
@@ -253,8 +254,32 @@
                     return;
                 }
                 
-                // Redirigir al subdominio
-                window.location.href = `https://${subdomain}.eventa.com.mx/login`;
+                // ✅ VALIDAR SI EL TENANT EXISTE ANTES DE REDIRIGIR
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Verificando...';
+                
+                try {
+                    const response = await fetch('/verificar-tenant', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ subdominio: subdomain })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.existe) {
+                        // ✅ Tenant existe, redirigir
+                        window.location.href = `https://${subdomain}.eventa.com.mx/login`;
+                    } else {
+                        // ❌ Tenant no existe
+                        showError('El nombre de empresa no existe. ¿Quieres crear una cuenta?');
+                    }
+                } catch (error) {
+                    showError('Error de conexión. Inténtalo de nuevo.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Acceder a mi CRM';
+                }
             });
         }
         
