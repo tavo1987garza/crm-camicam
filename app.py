@@ -2180,7 +2180,30 @@ def check_subdominio():
     finally:
         liberar_db(conn)
         
-
+# Verificar que el tenant exisata antes de redirigir a la URL correspondiente
+@app.route("/verificar-tenant", methods=["POST"])
+def verificar_tenant():
+    """Verifica si un tenant existe"""
+    try:
+        datos = request.json
+        subdominio = datos.get("subdominio", "").strip().lower()
+        
+        if not subdominio:
+            return jsonify({"error": "Subdominio requerido"}), 400
+        
+        conn = conectar_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM clientes WHERE subdominio = %s AND activo = true", (subdominio,))
+        existe = cur.fetchone() is not None
+        liberar_db(conn)
+        
+        return jsonify({"existe": existe})
+        
+    except Exception as e:
+        print(f"Error al verificar tenant: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    
+    
 
 @app.route("/registro")
 def pagina_registro():
@@ -2484,6 +2507,8 @@ def procesar_login():
         import traceback
         traceback.print_exc()
         return jsonify({"error": "Error interno"}), 500
+    
+    
     
     
         
