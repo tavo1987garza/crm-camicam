@@ -276,13 +276,14 @@
                 if (response.ok) {
                     showSuccess(`¡Listo! Revisa tu email ${email} para verificar tu cuenta y establecer tu contraseña.`);
                     
-                    // ✅ REDIRIGIR A PÁGINA DE VERIFICACIÓN, NO AL LOGIN
+                    // ✅ REDIRIGIR A PÁGINA DE VERIFICACIÓN CON SUBDOMINIO
                     setTimeout(() => {
-                        window.location.href = '/verificar-registro';
+                        window.location.href = `/verificar-registro?subdominio=${subdominio}`;
                     }, 5000);
                 } else {
                     showError(result.error || 'Error al crear tu CRM');
                 }
+
             } catch (error) {
                 showError('Error de conexión');
             } finally {
