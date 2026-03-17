@@ -161,6 +161,63 @@
             margin-left: 8px;
             font-size: 14px;
         }
+
+        /* Estilos para el código de verificación mejorado */
+        .debug-code-box {
+            background: linear-gradient(135deg, #f39c12 0%, #d35400 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: none;
+            position: relative;
+            text-align: center;
+        }
+        .debug-code-box h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        .debug-code-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 10px 0;
+        }
+        .debug-code {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            background: rgba(255,255,255,0.2);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            min-width: 180px;
+        }
+        .copy-btn {
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.5);
+        }
+        .countdown-timer {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 8px;
+        }
+        .debug-warning {
+            font-size: 12px;
+            margin-top: 12px;
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -172,11 +229,16 @@
         <div class="error-message" id="errorMessage"></div>
         <div class="success-message" id="successMessage"></div>
         
-        <!-- 🔍 CAJA DE CÓDIGO DEBUG (Solo desarrollo) -->
+
+        <!-- 🔍 CAJA DE CÓDIGO DEBUG MEJORADA -->
         <div class="debug-code-box" id="debugCodeBox">
-            <h3>🔐 CÓDIGO DE VERIFICACIÓN (Modo Desarrollo)</h3>
-            <div class="debug-code" id="debugCode"></div>
-            <p class="debug-warning">⚠️ Este código solo se muestra en modo desarrollo. En producción, revisa tu email.</p>
+            <h3>🔐 CÓDIGO DE VERIFICACIÓN (Temporal)</h3>
+            <div class="debug-code-container">
+                <div class="debug-code" id="debugCode"></div>
+                <button class="copy-btn" id="copyCodeBtn" title="Copiar código">📋</button>
+            </div>
+            <div class="countdown-timer" id="codeCountdown">Este código desaparecerá en: <span id="countdownSeconds">30</span>s</div>
+            <p class="debug-warning">⚠️ Guarda este código. En producción, lo recibirás por email.</p>
         </div>
         
         <form id="registroForm">
@@ -336,8 +398,7 @@
                     
                     // 🔍 MOSTRAR CÓDIGO DEBUG SI EL BACKEND LO ENVÍA
                     if (result.codigo_debug) {
-                        debugCode.textContent = result.codigo_debug;
-                        debugCodeBox.style.display = 'block';
+                        mostrarCodigoConCountdown(result.codigo_debug);
                         console.log('🔐 Código de verificación (DEBUG):', result.codigo_debug);
                     }
                     
@@ -367,6 +428,45 @@
             const successMessage = document.getElementById('successMessage');
             successMessage.textContent = message;
             successMessage.style.display = 'block';
+        }
+
+        // Función para manejar el código de verificación con cuenta regresiva
+        function mostrarCodigoConCountdown(codigo) {
+            const debugCodeBox = document.getElementById('debugCodeBox');
+            const debugCode = document.getElementById('debugCode');
+            const countdownEl = document.getElementById('countdownSeconds');
+            const copyBtn = document.getElementById('copyCodeBtn');
+            
+            // Mostrar código
+            debugCode.textContent = codigo;
+            debugCodeBox.style.display = 'block';
+            
+            // Botón de copiar
+            copyBtn.onclick = function() {
+                navigator.clipboard.writeText(codigo).then(() => {
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = '✅';
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar:', err);
+                });
+            };
+            
+            // Cuenta regresiva de 30 segundos
+            let segundos = 30;
+            countdownEl.textContent = segundos;
+            
+            const countdownInterval = setInterval(() => {
+                segundos--;
+                countdownEl.textContent = segundos;
+                
+                if (segundos <= 0) {
+                    clearInterval(countdownInterval);
+                    debugCodeBox.style.display = 'none';
+                }
+            }, 1000);
         }
         
         // Funciones de reenvío
@@ -420,11 +520,10 @@
                 
                 if (response.ok) {
                     showSuccess('Código reenviado exitosamente. Revisa tu email.');
-                    
+
                     // 🔍 MOSTRAR CÓDIGO DEBUG EN REENVÍO TAMBIÉN
                     if (result.codigo_debug) {
-                        debugCode.textContent = result.codigo_debug;
-                        debugCodeBox.style.display = 'block';
+                        mostrarCodigoConCountdown(result.codigo_debug);
                     }
                     
                     tiempoEspera = result.tiempo_espera || 30;
