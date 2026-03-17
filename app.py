@@ -2000,7 +2000,11 @@ def mover_pipeline():
 @app.route("/config/logo", methods=["POST"])
 @requires_permission("manage_config")
 def subir_logo():
+    print(f"🔍 DEBUG - Sesión actual: {session}")
+    print(f"🔍 DEBUG - cliente_id en sesión: {session.get('cliente_id')}")
+    
     if 'cliente_id' not in session:
+        print("❌ ERROR: No hay cliente_id en la sesión")
         return jsonify({"error": "No autorizado"}), 401
     
     cliente_id = session['cliente_id']
