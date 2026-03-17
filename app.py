@@ -2000,6 +2000,11 @@ def mover_pipeline():
 @app.route("/config/logo", methods=["POST"])
 @requires_permission("manage_config")
 def subir_logo():
+    if 'cliente_id' not in session:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    cliente_id = session['cliente_id']
+    
     file = request.files.get("logo")
     if not file or file.filename == "":
         return jsonify({"error": "Archivo inválido"}), 400
@@ -2011,36 +2016,44 @@ def subir_logo():
     # Convertir a data-URI (base64)
     mime = file.content_type or 'image/png'
     data = base64.b64encode(file.read()).decode()  
-    uri  = f"data:{mime};base64,{data}"
+    uri = f"data:{mime};base64,{data}"
 
-    # Guardar en config (sin cliente_id, como antes)
+    # ✅ CORREGIDO: Guardar con cliente_id
     try:
         conn = conectar_db()
         if not conn:
             raise RuntimeError("DB no disponible")
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO config (clave, valor)
-            VALUES ('logo_base64', %s)
-            ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
-        """, (uri,))
+            INSERT INTO config (cliente_id, clave, valor)
+            VALUES (%s, 'logo_base64', %s)
+            ON CONFLICT (cliente_id, clave) 
+            DO UPDATE SET valor = EXCLUDED.valor
+        """, (cliente_id, uri))
         conn.commit()
     finally:
         liberar_db(conn)
 
-    # Responder con "url" (no "logo_url")
     return jsonify({"url": uri}), 200
 
 
 # RUTA PARA OBTENER LOGO
 @app.route("/config/logo", methods=["GET"])
 def obtener_logo():
+    if 'cliente_id' not in session:
+        return jsonify({"url": "/static/logo/default.png"}), 200
+    
+    cliente_id = session['cliente_id']
+    
     try:
         conn = conectar_db()
         if not conn:
             raise RuntimeError("DB no disponible")
         cur = conn.cursor()
-        cur.execute("SELECT valor FROM config WHERE clave='logo_base64'")
+        cur.execute("""
+            SELECT valor FROM config 
+            WHERE cliente_id = %s AND clave = 'logo_base64'
+        """, (cliente_id,))
         row = cur.fetchone()
     finally:
         liberar_db(conn)
