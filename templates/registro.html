@@ -344,7 +344,7 @@
                     // Redirigir a página de verificación
                     setTimeout(() => {
                         window.location.href = `/verificar-registro?subdominio=${subdominio}`;
-                    }, 8000); // ⏱️ Extendido a 8 segundos para dar tiempo de ver el código
+                    }, 50000); // ⏱️ Extendido a 50 segundos para dar tiempo de ver el código
                 } else {
                     showError(result.error || 'Error al crear tu CRM');
                 }
