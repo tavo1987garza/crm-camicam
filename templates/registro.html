@@ -114,6 +114,53 @@
             border-color: #3498db;
             background: #f8f9fa;
         }
+        /* 🔍 ESTILOS PARA EL CÓDIGO DE VERIFICACIÓN DEBUG */
+        .debug-code-box {
+            background: linear-gradient(135deg, #f39c12 0%, #d35400 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: none;
+        }
+        .debug-code-box h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        .debug-code {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        .debug-warning {
+            font-size: 12px;
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+        .reenviar-section {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .reenviar-section p {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .reenviar-btn {
+            background: #95a5a6;
+            width: auto;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        .countdown {
+            display: none;
+            margin-left: 8px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -125,6 +172,13 @@
         <div class="error-message" id="errorMessage"></div>
         <div class="success-message" id="successMessage"></div>
         
+        <!-- 🔍 CAJA DE CÓDIGO DEBUG (Solo desarrollo) -->
+        <div class="debug-code-box" id="debugCodeBox">
+            <h3>🔐 CÓDIGO DE VERIFICACIÓN (Modo Desarrollo)</h3>
+            <div class="debug-code" id="debugCode"></div>
+            <p class="debug-warning">⚠️ Este código solo se muestra en modo desarrollo. En producción, revisa tu email.</p>
+        </div>
+        
         <form id="registroForm">
             <div class="form-group">
                 <label for="nombre">Nombre de tu negocio</label>
@@ -134,7 +188,7 @@
             <div class="form-group">
                 <label>Tu URL personalizada</label>
                 <div class="url-preview" id="url-preview">
-                    https://tu-negocio.eventa.com.mx
+                    https://tu-negocio.eventa.com.mx  
                 </div>
                 <input type="hidden" id="subdominio" name="subdominio">
             </div>
@@ -163,14 +217,14 @@
         </form>
         
         <!-- Sección de reenvío de código -->
-        <div class="reenviar-section" style="margin-top: 20px; text-align: center;">
-            <p style="font-size: 14px; color: #7f8c8d;">
+        <div class="reenviar-section">
+            <p>
                 ¿No recibiste el código de verificación?
             </p>
-            <button id="reenviarBtn" class="btn" style="background: #95a5a6; width: auto; padding: 8px 16px; font-size: 14px;" onclick="reenviarCodigo()">
+            <button id="reenviarBtn" class="btn reenviar-btn" onclick="reenviarCodigo()">
                 Reenviar código
             </button>
-            <span id="countdown" style="display: none; margin-left: 8px; font-size: 14px;"></span>
+            <span class="countdown" id="countdown"></span>
         </div>
         
         <p style="margin-top: 20px; font-size: 14px;">
@@ -210,7 +264,7 @@
             });
         });
 
-        // Validar y enviar formulario (SIN CONTRASEÑA)
+        // Validar y enviar formulario
         document.getElementById('registroForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -222,10 +276,13 @@
             const submitBtn = document.getElementById('submitBtn');
             const errorMessage = document.getElementById('errorMessage');
             const successMessage = document.getElementById('successMessage');
+            const debugCodeBox = document.getElementById('debugCodeBox');
+            const debugCode = document.getElementById('debugCode');
             
             // Reset mensajes
             errorMessage.style.display = 'none';
             successMessage.style.display = 'none';
+            debugCodeBox.style.display = 'none';
             
             // Validaciones
             if (!nombre) {
@@ -262,7 +319,6 @@
             submitBtn.textContent = 'Creando...';
             
             try {
-                // ✅ SIN CAMPO DE CONTRASEÑA - solo nombre, subdominio, email, plan
                 const response = await fetch('/registro', {
                     method: 'POST',
                     headers: {
@@ -274,12 +330,19 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-                    showSuccess(`¡Listo! Revisa tu email ${email} para verificar tu cuenta y establecer tu contraseña.`);
+                    showSuccess(`¡Listo! Revisa tu email ${email} para verificar tu cuenta.`);
                     
-                    // ✅ REDIRIGIR A PÁGINA DE VERIFICACIÓN CON SUBDOMINIO
+                    // 🔍 MOSTRAR CÓDIGO DEBUG SI EL BACKEND LO ENVÍA
+                    if (result.codigo_debug) {
+                        debugCode.textContent = result.codigo_debug;
+                        debugCodeBox.style.display = 'block';
+                        console.log('🔐 Código de verificación (DEBUG):', result.codigo_debug);
+                    }
+                    
+                    // Redirigir a página de verificación
                     setTimeout(() => {
                         window.location.href = `/verificar-registro?subdominio=${subdominio}`;
-                    }, 5000);
+                    }, 8000); // ⏱️ Extendido a 8 segundos para dar tiempo de ver el código
                 } else {
                     showError(result.error || 'Error al crear tu CRM');
                 }
@@ -306,7 +369,7 @@
         
         // Funciones de reenvío
         let countdownTimer = null;
-        let tiempoEspera = 30; // segundos
+        let tiempoEspera = 30;
 
         function actualizarCountdown() {
             const countdownEl = document.getElementById('countdown');
@@ -327,10 +390,12 @@
             const countdownEl = document.getElementById('countdown');
             const errorMessage = document.getElementById('errorMessage');
             const successMessage = document.getElementById('successMessage');
+            const debugCodeBox = document.getElementById('debugCodeBox');
+            const debugCode = document.getElementById('debugCode');
             
-            // Reset mensajes
             errorMessage.style.display = 'none';
             successMessage.style.display = 'none';
+            debugCodeBox.style.display = 'none';
             
             const subdominio = document.getElementById('subdominio').value.trim().toLowerCase();
             if (!subdominio) {
@@ -354,7 +419,12 @@
                 if (response.ok) {
                     showSuccess('Código reenviado exitosamente. Revisa tu email.');
                     
-                    // Iniciar countdown
+                    // 🔍 MOSTRAR CÓDIGO DEBUG EN REENVÍO TAMBIÉN
+                    if (result.codigo_debug) {
+                        debugCode.textContent = result.codigo_debug;
+                        debugCodeBox.style.display = 'block';
+                    }
+                    
                     tiempoEspera = result.tiempo_espera || 30;
                     countdownEl.style.display = 'inline';
                     countdownTimer = setInterval(actualizarCountdown, 1000);
@@ -376,3 +446,4 @@
     </script>
 </body>
 </html>
+
