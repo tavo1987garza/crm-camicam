@@ -1339,7 +1339,7 @@ def actualizar_color_anio():
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO anio_color (anio, color, cliente_id)
-            VALUES (%s, % s, %s)
+            VALUES (%s, %s, %s)
             ON CONFLICT (anio, cliente_id) DO UPDATE SET color=EXCLUDED.color
         """, (anio, color, cliente_id))
         conn.commit()
@@ -2217,8 +2217,7 @@ def pagina_registro():
         return redirect("https://crm.eventa.com.mx/registro")
     
     return render_template("registro.html")
-
-
+ 
 
 # A. Registrar usuario (sin contraseña aún)
 @app.route("/registro", methods=["POST"])
@@ -2317,13 +2316,27 @@ def procesar_registro():
             
             conn.commit()
             
-            # Enviar email con código
-            enviar_email_verificacion(email, subdominio, codigo_verificacion)
+                # Enviar email (intento)
+            email_enviado = enviar_email_verificacion(email, subdominio, codigo_verificacion)
+            
+            # 🔍 TEMPORAL: Mostrar código en respuesta (solo desarrollo)
+            if not email_enviado:
+                print(f"⚠️ EMAIL NO ENVIADO - CÓDIGO MANUAL: {codigo_verificacion}")
             
             return jsonify({
                 "mensaje": "Verifica tu email para completar el registro",
-                "subdominio": subdominio
+                "subdominio": subdominio,
+                # 🔍 TEMPORAL: Remover en producción
+                "codigo_debug": codigo_verificacion if os.getenv('FLASK_ENV') == 'development' else None
             }), 200
+            
+            # Enviar email con código
+            #enviar_email_verificacion(email, subdominio, codigo_verificacion)
+            
+            #return jsonify({
+            #    "mensaje": "Verifica tu email para completar el registro",
+            #    "subdominio": subdominio
+            #}), 200
             
         except Exception as e:
             conn.rollback()
