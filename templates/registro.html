@@ -330,7 +330,9 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-                    showSuccess(`¡Listo! Revisa tu email ${email} para verificar tu cuenta.`);
+                    //ACTIVAR ESTA LINEA cuando tengamos SendGrid
+                    //showSuccess(`¡Listo! Revisa tu email ${email} para verificar tu cuenta.`);
+                    showSuccess(`¡Listo! Usa el código de verificación que aparece abajo para completar tu registro.`);
                     
                     // 🔍 MOSTRAR CÓDIGO DEBUG SI EL BACKEND LO ENVÍA
                     if (result.codigo_debug) {

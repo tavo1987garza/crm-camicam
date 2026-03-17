@@ -2315,22 +2315,21 @@ def procesar_registro():
             print("✅ DEBUG: Rol admin asignado")
             
             conn.commit()
-            
-                # Enviar email (intento)
+            # Enviar email (intento)
             email_enviado = enviar_email_verificacion(email, subdominio, codigo_verificacion)
-            
-            # 🔍 TEMPORAL: Mostrar código en respuesta (solo desarrollo)
+
+            # 🔍 TEMPORAL: Mostrar código SIEMPRE (hasta resolver SendGrid)
             if not email_enviado:
                 print(f"⚠️ EMAIL NO ENVIADO - CÓDIGO MANUAL: {codigo_verificacion}")
-            
+
             return jsonify({
                 "mensaje": "Verifica tu email para completar el registro",
                 "subdominio": subdominio,
-                # 🔍 TEMPORAL: Remover en producción
-                "codigo_debug": codigo_verificacion if os.getenv('FLASK_ENV') == 'development' else None
+                "codigo_debug": codigo_verificacion  # ✅ SIEMPRE visible
             }), 200
+             
             
-            # Enviar email con código
+            # Enviar email con código de send grid
             #enviar_email_verificacion(email, subdominio, codigo_verificacion)
             
             #return jsonify({
