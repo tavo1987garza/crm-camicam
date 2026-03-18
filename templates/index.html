@@ -2278,24 +2278,35 @@ th {
     </div>
   </div>
           
+
+
         <div id="configuracion" class="seccion hidden">
             <h1>⚙️ Configuración</h1>
-        
+
+            <!-- Botón para activar sonido  -->
             <button id="toggle-sonido" onclick="toggleSonido()">🔊 Sonido: ON</button>
+            <!-- Botón para activar las notificaciones  -->
             <button id="toggle-notif" onclick="toggleNotificaciones()">🔔 Notificaciones: ON</button>
-             <!-- Botón para ingresar las crednciales  -->
+             
+            <!-- Botón para ingresar las crednciales  -->
             <button class="add-button" onclick="mostrarModalConfig()">
-  ⚙️ Configurar Integraciones 
-</button>
- <!-- Botón para Invitar a un vendedor  -->
-<div id="modal-usuarios" class="modal hidden">
-  <div class="modal-content">
-    <button class="close-btn" onclick="cerrarModal('modal-usuarios')">✖</button>
-    <h2>👥 Gestor de Usuarios</h2>
-    <ul id="lista-usuarios"></ul>
-    <button class="add-button" onclick="mostrarModalInvitar()">➕ Invitar Usuario</button>
-  </div>
-</div>
+              ⚙️ Configurar Integraciones 
+            </button>
+
+            <!-- Botón para Código de Seguridad -->
+            <button class="add-button" onclick="mostrarModalCodigoSeguridad()">
+              🔐 Código de Seguridad
+            </button>
+
+            <!-- Botón para Invitar a un vendedor  -->
+            <div id="modal-usuarios" class="modal hidden">
+              <div class="modal-content">
+                <button class="close-btn" onclick="cerrarModal('modal-usuarios')">✖</button>
+                <h2>👥 Gestor de Usuarios</h2>
+                <ul id="lista-usuarios"></ul>
+                <button class="add-button" onclick="mostrarModalInvitar()">➕ Invitar Usuario</button>
+              </div>
+            </div>
 
         </div>
     </div>
@@ -2360,10 +2371,7 @@ th {
   </div>
 </div>
 
-<!-- Botón para Código de Seguridad -->
-<button class="add-button" onclick="mostrarModalCodigoSeguridad()">
-  🔐 Código de Seguridad
-</button>
+
 
 <!-- Modal para Código de Seguridad -->
 <div id="modal-codigo-seguridad" class="modal hidden">
