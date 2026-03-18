@@ -2360,20 +2360,33 @@ th {
   </div>
 </div>
 
-<!-- Código de Seguridad -->
-<div class="panel-card">
+<!-- Botón para Código de Seguridad -->
+<button class="add-button" onclick="mostrarModalCodigoSeguridad()">
+  🔐 Código de Seguridad
+</button>
+
+<!-- Modal para Código de Seguridad -->
+<div id="modal-codigo-seguridad" class="modal hidden">
+  <div class="modal-content">
+    <button class="close-btn" onclick="cerrarModalCodigoSeguridad()">✖</button>
     <h2>🔐 Código de Seguridad</h2>
     <p>Este código se requiere para operaciones destructivas como eliminar años completos.</p>
+    
     <div class="form-group">
-        <label for="codigo-seguridad">Código actual (4 dígitos):</label>
-        <input type="password" id="codigo-seguridad" maxlength="4" placeholder="••••">
+      <label for="codigo-seguridad">Nuevo código (4 dígitos):</label>
+      <input type="password" id="codigo-seguridad" maxlength="4" placeholder="••••">
     </div>
     <div class="form-group">
-        <label for="codigo-seguridad-confirmar">Confirmar nuevo código:</label>
-        <input type="password" id="codigo-seguridad-confirmar" maxlength="4" placeholder="••••">
+      <label for="codigo-seguridad-confirmar">Confirmar código:</label>
+      <input type="password" id="codigo-seguridad-confirmar" maxlength="4" placeholder="••••">
     </div>
-    <button id="btn-guardar-codigo" class="btn btn-primary">Actualizar Código</button>
+    
+    <div class="modal-buttons">
+      <button type="button" class="save-btn" onclick="guardarCodigoSeguridad()">Guardar</button>
+      <button type="button" class="cancel-btn" onclick="cerrarModalCodigoSeguridad()">Cancelar</button>
+    </div>
     <div id="codigo-feedback" class="alert hidden"></div>
+  </div>
 </div>
 
 
@@ -5113,48 +5126,63 @@ async function guardarCredenciales() {
 }
 
 
-//Configuración para actualizar el CODIGO DE SEGURIDAD
-document.getElementById('btn-guardar-codigo').addEventListener('click', async () => {
-    const codigo1 = document.getElementById('codigo-seguridad').value;
-    const codigo2 = document.getElementById('codigo-seguridad-confirmar').value;
-    const feedback = document.getElementById('codigo-feedback');
-    
-    if (!/^\d{4}$/.test(codigo1)) {
-        mostrarFeedback('El código debe ser de 4 dígitos numéricos', 'error', feedback);
-        return;
-    }
-    
-    if (codigo1 !== codigo2) {
-        mostrarFeedback('Los códigos no coinciden', 'error', feedback);
-        return;
-    }
-    
-    try {
-        const response = await fetch('/actualizar_codigo_seguridad', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codigo: codigo1 })
-        });
-        
-        const data = await response.json();
-        if (data.ok) {
-            mostrarFeedback('Código de seguridad actualizado correctamente', 'success', feedback);
-            // Limpiar campos
-            document.getElementById('codigo-seguridad').value = '';
-            document.getElementById('codigo-seguridad-confirmar').value = '';
-        } else {
-            mostrarFeedback('Error al actualizar: ' + (data.error || 'desconocido'), 'error', feedback);
-        }
-    } catch (error) {
-        mostrarFeedback('Error de conexión', 'error', feedback);
-    }
-});
-
-function mostrarFeedback(mensaje, tipo, elemento) {
-    elemento.textContent = mensaje;
-    elemento.className = `alert alert-${tipo}`;
-    elemento.classList.remove('hidden');
+  //BOTON DE CODIGO DE SEGURIDAD
+function mostrarModalCodigoSeguridad() {
+  document.getElementById('modal-codigo-seguridad').classList.remove('hidden');
 }
+
+function cerrarModalCodigoSeguridad() {
+  document.getElementById('modal-codigo-seguridad').classList.add('hidden');
+  // Limpiar campos
+  document.getElementById('codigo-seguridad').value = '';
+  document.getElementById('codigo-seguridad-confirmar').value = '';
+  document.getElementById('codigo-feedback').classList.add('hidden');
+}
+
+function guardarCodigoSeguridad() {
+  const codigo1 = document.getElementById('codigo-seguridad').value;
+  const codigo2 = document.getElementById('codigo-seguridad-confirmar').value;
+  const feedback = document.getElementById('codigo-feedback');
+  
+  if (!/^\d{4}$/.test(codigo1)) {
+    mostrarFeedback('El código debe ser de 4 dígitos numéricos', 'error', feedback);
+    return;
+  }
+  
+  if (codigo1 !== codigo2) {
+    mostrarFeedback('Los códigos no coinciden', 'error', feedback);
+    return;
+  }
+  
+  // Aquí llamas a tu endpoint /actualizar_codigo_seguridad
+  fetch('/actualizar_codigo_seguridad', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigo: codigo1 })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      mostrarFeedback('Código de seguridad actualizado correctamente', 'success', feedback);
+      setTimeout(cerrarModalCodigoSeguridad, 1500);
+    } else {
+      mostrarFeedback('Error: ' + (data.error || 'desconocido'), 'error', feedback);
+    }
+  })
+  .catch(err => {
+    mostrarFeedback('Error de conexión', 'error', feedback);
+  });
+}
+function mostrarFeedback(mensaje, tipo, elemento) {
+  elemento.textContent = mensaje;
+  elemento.className = `alert alert-${tipo}`;
+  elemento.classList.remove('hidden');
+}
+
+
+
+
+
 
 //Cargar Lista de Usuarios 
 async function cargarUsuarios() {
