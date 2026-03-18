@@ -2360,6 +2360,23 @@ th {
   </div>
 </div>
 
+<!-- Código de Seguridad -->
+<div class="panel-card">
+    <h2>🔐 Código de Seguridad</h2>
+    <p>Este código se requiere para operaciones destructivas como eliminar años completos.</p>
+    <div class="form-group">
+        <label for="codigo-seguridad">Código actual (4 dígitos):</label>
+        <input type="password" id="codigo-seguridad" maxlength="4" placeholder="••••">
+    </div>
+    <div class="form-group">
+        <label for="codigo-seguridad-confirmar">Confirmar nuevo código:</label>
+        <input type="password" id="codigo-seguridad-confirmar" maxlength="4" placeholder="••••">
+    </div>
+    <button id="btn-guardar-codigo" class="btn btn-primary">Actualizar Código</button>
+    <div id="codigo-feedback" class="alert hidden"></div>
+</div>
+
+
 </div>
 
 
@@ -4371,34 +4388,48 @@ async function eliminarAnio(anio) {
   const pass = prompt(
     `⚠️ Vas a eliminar TODAS las fechas del año ${anio}.\n` +
     "Esta operación no se puede deshacer.\n\n" +
-    "Ingresa la contraseña para continuar:"
+    "Ingresa tu código de seguridad (4 dígitos) para continuar:"
   );
-  if (pass !== "camicam2013") {
-    alert("Contraseña incorrecta. Operación cancelada.");
+  
+  // Validar formato: solo 4 dígitos
+  if (!pass || !/^\d{4}$/.test(pass)) {
+    alert("Código inválido. Debe ser un número de 4 dígitos.");
     return;
   }
 
-  if (!confirm(`¿Seguro que quieres borrar el año ${anio} completo?`))
-    return;
-
   try {
-    const resp = await fetch(`/calendario/anio/${anio}`, { method: "DELETE" });
+    // Verificar código con el backend
+    const resp = await fetch("/verificar_codigo_seguridad", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigo: pass })
+    });
+    
     const data = await resp.json();
-    if (data.error) throw new Error(data.error);
+    if (!data.valido) {
+      alert("Código de seguridad incorrecto.");
+      return;
+    }
+
+    if (!confirm(`¿Seguro que quieres borrar el año ${anio} completo?`))
+      return;
+
+    const respDelete = await fetch(`/calendario/anio/${anio}`, { method: "DELETE" });
+    const dataDelete = await respDelete.json();
+    if (dataDelete.error) throw new Error(dataDelete.error);
 
     alert(`Año ${anio} eliminado.`);
-    // Recargar tablero completo
     anioSeleccionado = null;
     cargarAnios(true);
     document.getElementById("vista-meses").classList.add("hidden");
     document.getElementById("vista-anios").classList.remove("hidden");
     document.getElementById("year-actions").classList.add("hidden");
+    
   } catch (err) {
     console.error(err);
     alert("Error al eliminar el año: " + err.message);
   }
 }
-
 
 
 /***********************
@@ -5081,6 +5112,49 @@ async function guardarCredenciales() {
   msgEl.classList.remove("hidden");
 }
 
+
+//Configuración para actualizar el CODIGO DE SEGURIDAD
+document.getElementById('btn-guardar-codigo').addEventListener('click', async () => {
+    const codigo1 = document.getElementById('codigo-seguridad').value;
+    const codigo2 = document.getElementById('codigo-seguridad-confirmar').value;
+    const feedback = document.getElementById('codigo-feedback');
+    
+    if (!/^\d{4}$/.test(codigo1)) {
+        mostrarFeedback('El código debe ser de 4 dígitos numéricos', 'error', feedback);
+        return;
+    }
+    
+    if (codigo1 !== codigo2) {
+        mostrarFeedback('Los códigos no coinciden', 'error', feedback);
+        return;
+    }
+    
+    try {
+        const response = await fetch('/actualizar_codigo_seguridad', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo: codigo1 })
+        });
+        
+        const data = await response.json();
+        if (data.ok) {
+            mostrarFeedback('Código de seguridad actualizado correctamente', 'success', feedback);
+            // Limpiar campos
+            document.getElementById('codigo-seguridad').value = '';
+            document.getElementById('codigo-seguridad-confirmar').value = '';
+        } else {
+            mostrarFeedback('Error al actualizar: ' + (data.error || 'desconocido'), 'error', feedback);
+        }
+    } catch (error) {
+        mostrarFeedback('Error de conexión', 'error', feedback);
+    }
+});
+
+function mostrarFeedback(mensaje, tipo, elemento) {
+    elemento.textContent = mensaje;
+    elemento.className = `alert alert-${tipo}`;
+    elemento.classList.remove('hidden');
+}
 
 //Cargar Lista de Usuarios 
 async function cargarUsuarios() {

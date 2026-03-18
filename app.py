@@ -2191,7 +2191,47 @@ def config_n8n():
     liberar_db(conn)
     return jsonify({"ok":True})
 
+#Verificar CODIGO DE SEGURIDAD
+@app.route("/verificar_codigo_seguridad", methods=["POST"])
+def verificar_codigo_seguridad():
+    cliente_id = session.get('cliente_id')
+    if not cliente_id:
+        return jsonify({"valido": False}), 401
 
+    datos = request.json
+    codigo = datos.get("codigo", "")
+    
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("SELECT codigo_seguridad FROM clientes WHERE id = %s", (cliente_id,))
+    resultado = cur.fetchone()
+    liberar_db(conn)
+    
+    if resultado and resultado[0] == codigo:
+        return jsonify({"valido": True})
+    else:
+        return jsonify({"valido": False})
+    
+# Actualizar codigo de seguridad    
+@app.route("/actualizar_codigo_seguridad", methods=["POST"])
+def actualizar_codigo_seguridad():
+    cliente_id = session.get('cliente_id')
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+
+    datos = request.json
+    codigo = datos.get("codigo", "")
+    
+    if not re.match(r'^\d{4}$', codigo):
+        return jsonify({"error": "Código inválido"}), 400
+    
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE clientes SET codigo_seguridad = %s WHERE id = %s", (codigo, cliente_id))
+    conn.commit()
+    liberar_db(conn)
+    
+    return jsonify({"ok": True})
 
 
 # Validación de subdominio
