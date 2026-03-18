@@ -1020,6 +1020,8 @@ def calendario_agrupado():
         liberar_db(conn)
         
         
+
+
 # 📌 Endpoint para agregar fechas al Calendario 
 @app.route("/calendario/agregar_manual", methods=["POST"])
 def agregar_fecha_manual():
