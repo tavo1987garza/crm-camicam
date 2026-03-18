@@ -4891,30 +4891,67 @@ function toggleFormularioAgregarGastoEtiqueta() {
     }
   }
   
-  // Eliminar la etiqueta completa (y sus gastos)
-  async function eliminarEtiquetaCompleta() {
-    const etiqueta = document.getElementById("etiqueta-nombre").textContent;
-    if (!confirm(`¿Seguro que deseas eliminar la etiqueta "${etiqueta}" con todos sus gastos?`)) return;
+
+  //ELIMINAR Etoqueta Completa con Codigo de Seguridad
+async function eliminarEtiquetaCompleta() {
+  const etiqueta = document.getElementById("etiqueta-nombre").textContent;
   
-    try {
-      const response = await fetch("/gastos/eliminar_etiqueta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ etiqueta })
-      });
-      const data = await response.json();
-      if (data.error) {
-        alert("Error: " + data.error);
-        return;
-      }
-      alert(`Etiqueta "${etiqueta}" eliminada`);
-      cerrarModalEtiqueta();
-      // recargar la lista principal
-      cargarEtiquetasEnVista();
-    } catch (err) {
-      console.error("Error al eliminar etiqueta:", err);
-    }
+  // 🔐 Pedir código de seguridad
+  const pass = prompt(
+    `⚠️ Vas a eliminar la etiqueta "${etiqueta}" y todos sus gastos.\n` +
+    "Esta operación no se puede deshacer.\n\n" +
+    "Ingresa tu código de seguridad (4 dígitos) para continuar:"
+  );
+  
+  // Validar formato
+  if (!pass || !/^\d{4}$/.test(pass)) {
+    alert("Código inválido. Debe ser un número de 4 dígitos.");
+    return;
   }
+
+  // Verificar código con backend
+  try {
+    const resp = await fetch("/verificar_codigo_seguridad", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigo: pass })
+    });
+    
+    const data = await resp.json();
+    if (!data.valido) {
+      alert("Código de seguridad incorrecto.");
+      return;
+    }
+  } catch (err) {
+    console.error("Error al verificar código:", err);
+    alert("Error de conexión al verificar el código.");
+    return;
+  }
+
+  // Confirmación final
+  if (!confirm(`¿Seguro que deseas eliminar la etiqueta "${etiqueta}" con todos sus gastos?`)) 
+    return;
+
+  // Ejecutar eliminación
+  try {
+    const response = await fetch("/gastos/eliminar_etiqueta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ etiqueta })
+    });
+    const data = await response.json();
+    if (data.error) {
+      alert("Error: " + data.error);
+      return;
+    }
+    alert(`Etiqueta "${etiqueta}" eliminada`);
+    cerrarModalEtiqueta();
+    cargarEtiquetasEnVista();
+  } catch (err) {
+    console.error("Error al eliminar etiqueta:", err);
+    alert("Error al eliminar la etiqueta.");
+  }
+}
 
 
 //Funcion para cambiar el color a la etiqueta de gastos
