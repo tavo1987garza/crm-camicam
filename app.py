@@ -596,17 +596,22 @@ def obtener_leads():
         return jsonify([])
     finally:
         liberar_db(conn)
-        
-        
-
-# 📌 Crear un nuevo lead manualmente
+ 
+# 📌 Crear un nuevo lead manualmente        
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
+    print(f"🔍 DEBUG crear_lead - Iniciando solicitud")
+    print(f"🔍 DEBUG crear_lead - Headers: {dict(request.headers)}")
+    
     cliente_id = obtener_cliente_id_de_subdominio()
+    print(f"🔍 DEBUG crear_lead - cliente_id obtenido: {cliente_id}")
+    
     if not cliente_id:
+        print("❌ ERROR crear_lead - No se obtuvo cliente_id")
         return jsonify({"error": "Cliente no autorizado"}), 404
 
     datos = request.json
+    print(f"🔍 DEBUG crear_lead - Datos recibidos: {datos}")
     nombre = datos.get("nombre")
     telefono = datos.get("telefono")
     notas = datos.get("notas", "")
@@ -614,11 +619,16 @@ def crear_lead():
     if not nombre or not telefono or not validar_telefono(telefono):
         return jsonify({"error": "El teléfono debe tener 13 dígitos"}), 400
 
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
-
     try:
+        print(f"🔍 DEBUG crear_lead - Intentando conectar a BD")
+        conn = conectar_db()
+        if not conn:
+            print("❌ ERROR crear_lead - Falló conexión a BD")
+            return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
+            
+        print(f"🔍 DEBUG crear_lead - Conexión exitosa. Ejecutando INSERT...")
+        
+        
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO leads (nombre, telefono, estado, notas, cliente_id)
@@ -645,7 +655,9 @@ def crear_lead():
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
 
     except Exception as e:
-        print(f"❌ Error en /crear_lead: {str(e)}")
+        print(f"💥 ERROR CRÍTICO crear_lead: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
@@ -921,6 +933,10 @@ def obtener_anios_calendario():
 # 📌 Crear / actualizar color para un año
 @app.route("/calendario/agregar_anio", methods=["POST"])
 def agregar_anio_color():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     data = request.get_json()
     anio  = data.get("anio")
     color = data.get("color")
@@ -935,19 +951,22 @@ def agregar_anio_color():
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO anio_color (anio, color)
-            VALUES (%s, %s)
-            ON CONFLICT (anio)
+            INSERT INTO anio_color (anio, color, cliente_id)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (anio, cliente_id)
             DO UPDATE SET color = EXCLUDED.color
-        """, (anio, color))
+        """, (anio, color, cliente_id))
         conn.commit()
         return jsonify({"ok": True}), 200
     except Exception as e:
         conn.rollback()
+        print(f"❌ Error en agregar_anio_color: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
         
 # 📌 Endpoint para Obtener Eventos por Año
 @app.route("/calendario/agrupado_por_anios", methods=["GET"])
@@ -1534,8 +1553,7 @@ def reporte_servicios_anual():
 
 #'''''''''''''''''''''''''''''''''''''''''''''''
 #--------------SECION DE GASTOS-----------------
-#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,   
-        
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,         
 @app.route("/gastos/agregar", methods=["POST"])
 def agregar_gasto():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -1569,31 +1587,49 @@ def agregar_gasto():
         liberar_db(conn)
         
 
+
 @app.route("/gastos/agregar_etiqueta", methods=["POST"])
 def agregar_etiqueta():
+    print(f"🔍 DEBUG agregar_etiqueta - Iniciando solicitud")
+    
     cliente_id = obtener_cliente_id_de_subdominio()
+    print(f"🔍 DEBUG agregar_etiqueta - cliente_id: {cliente_id}")
+    
     if not cliente_id:
+        print("❌ ERROR agregar_etiqueta - Sin cliente_id")
         return jsonify({"error": "Cliente no autorizado"}), 404
 
     data = request.json
+    print(f"🔍 DEBUG agregar_etiqueta - Datos: {data}")
+    
     etiqueta = data.get("etiqueta")
     if not etiqueta:
+        print("❌ ERROR agregar_etiqueta - Sin etiqueta")
         return jsonify({"error": "Falta el nombre de la etiqueta"}), 400
 
     conn = conectar_db()
     if not conn:
+        print("❌ ERROR agregar_etiqueta - Sin conexión BD")
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
 
     try:
         cursor = conn.cursor()
+        print(f"🔍 DEBUG agregar_etiqueta - Ejecutando INSERT con cliente_id={cliente_id}, etiqueta={etiqueta}")
+        
         cursor.execute("""
             INSERT INTO gasto_etiquetas (etiqueta, cliente_id)
             VALUES (%s, %s)
             ON CONFLICT (etiqueta, cliente_id) DO NOTHING
         """, (etiqueta, cliente_id))
+        
         conn.commit()
+        print("✅ DEBUG agregar_etiqueta - Éxito")
         return jsonify({"ok": True, "mensaje": "Etiqueta creada correctamente."}), 200
+        
     except Exception as e:
+        print(f"💥 ERROR CRÍTICO agregar_etiqueta: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
