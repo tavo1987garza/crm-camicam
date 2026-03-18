@@ -1975,7 +1975,7 @@ th {
                 <input type="color" 
                        id="color-input" 
                        value="#1e88e5"
-                       class="modal-imput" />
+                       class="modal-input" />
 
                 <!--Botones-->
                 <div class="modal-buttons">
@@ -2394,7 +2394,7 @@ async function cargarInfoCuenta() {
     } catch (error) {
         console.error('Error al cargar info de la cuenta:', error);
     }
-}
+
 
 
 // Función para cerrar sesión
@@ -3881,27 +3881,54 @@ function cerrarAddAnioModal() {
     document.getElementById('add-anio-modal').style.display = 'none';
 }
 
+
 async function agregarAnio() {
   const anio  = parseInt(document.getElementById("anio-input").value);
   const color = document.getElementById("color-input").value;
 
   if (!anio || anio < 2000 || anio > 2100) {
-    alert("Año inválido"); return;
+    alert("Año inválido"); 
+    return;
   }
 
-  // 1️⃣  Backend: guarda año+color
-  const resp = await fetch("/calendario/agregar_anio", {
-    method: "POST",
-    headers: { "Content-Type":"application/json" },
-    body: JSON.stringify({ anio, color })
-  });
-  const data = await resp.json();
-  if (data.error) { alert(data.error); return; }
+  try {
+    // 1️⃣ Backend: guarda año+color
+    const resp = await fetch("/calendario/agregar_anio", {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({ anio, color })
+    });
+    
+    // Verificar si la respuesta es exitosa
+    if (!resp.ok) {
+      // Intentar obtener el error del servidor
+      try {
+        const errorData = await resp.json();
+        alert("Error del servidor: " + (errorData.error || "Error desconocido"));
+      } catch (jsonError) {
+        // Si no es JSON, mostrar error genérico
+        alert("Error del servidor: " + resp.status + " " + resp.statusText);
+      }
+      return;
+    }
+    
+    const data = await resp.json();
+    if (data.error) { 
+      alert(data.error); 
+      return; 
+    }
 
-  // 2️⃣ Recargar tarjetas
-  cerrarAddAnioModal();
-  cargarAnios(true);            //  true = refresco forzado
+    // 2️⃣ Recargar tarjetas
+    cerrarAddAnioModal();
+    cargarAnios(true); // true = refresco forzado
+    
+  } catch (error) {
+    console.error("Error en agregarAnio:", error);
+    alert("Error de conexión con el servidor. Revisa la consola para más detalles.");
+  }
 }
+
+
 
     
     /**
