@@ -2384,7 +2384,7 @@ async function cargarInfoCuenta() {
                 data.plan === 'premium' ? 'Premium' : 'Básico';
             document.getElementById('cuenta-subdominio').textContent = data.subdominio;
             
-            const url = `https://${data.subdominio}.eventa.com.mx/dashboard`;
+            const url = `https://${data.subdominio}.eventa.com.mx`;
             document.getElementById('cuenta-url').textContent = url;
             document.getElementById('cuenta-url').href = url;
             
@@ -2394,17 +2394,16 @@ async function cargarInfoCuenta() {
     } catch (error) {
         console.error('Error al cargar info de la cuenta:', error);
     }
+} 
 
 
-
-// Función para cerrar sesión
 function handleLogout() {
     if (confirm('¿Seguro que quieres cerrar sesión?')) {
         fetch('/logout', { method: 'POST' })
             .then(() => window.location.href = '/login')
             .catch(error => console.error('Error al cerrar sesión:', error));
     }
-}
+} 
 
 // Abrir modal de edición
 function abrirModalEditarNegocio() {
@@ -2570,42 +2569,39 @@ function initCuenta() {
 /* === FUNCIÓN GLOBAL UNIFICADA PARA CARGAR LOGO EN TODAS LAS SECCIONES === */
 async function cargarLogo() {
     try {
-        const resp = await fetch("/config/logo");
-        const obj  = await resp.json();
-        let url    = obj.url;
-
-        // Cache-busting para imágenes externas (no URI)
-        if (!url || !url.startsWith("")) {
-            url = "/static/logo/default.png";
-        } else if (!url.startsWith("data:")) {
-            url += "?v=" + Date.now();
+        const response = await fetch('/config/logo');
+        if (response.ok) {
+            const data = await response.json();
+            const logoUrl = data.url || '/static/logo/default.png';
+            
+            // Actualizar logo en todas las secciones
+            const logoElements = [
+                document.getElementById('logo-img'),
+                document.getElementById('logo-cuenta-img')
+            ];
+            
+            logoElements.forEach(img => {
+                if (img) {
+                    img.src = logoUrl;
+                }
+            });
         }
-
-        // ✅ Actualizar en TODAS las ubicaciones donde aparece el logo
-        const elementosLogo = [
-            document.getElementById("logo-img"),           // Panel (header)
-            document.getElementById("logo-cuenta-img"),   // Sección Cuenta
-            document.getElementById("logo-preview")       // Sección Configuración
+    } catch (error) {
+        console.error('Error al cargar logo:', error);
+        // Establecer logo por defecto
+        const logoElements = [
+            document.getElementById('logo-img'),
+            document.getElementById('logo-cuenta-img')
         ];
-
-        elementosLogo.forEach(img => {
+        logoElements.forEach(img => {
             if (img) {
-                img.src = url;
+                img.src = '/static/logo/default.png';
             }
-        });
-    } catch (e) {
-        console.error("Error cargando logo:", e);
-        // ✅ En caso de error, mostrar logo por defecto en todas las secciones
-        const elementosLogo = [
-            document.getElementById("logo-img"),
-            document.getElementById("logo-cuenta-img"),
-            document.getElementById("logo-preview")
-        ];
-        elementosLogo.forEach(img => {
-            if (img) img.src = "/static/logo/default.png";
         });
     }
 }
+
+
 
 // DOMContentLoaded sólo para inits globales
 document.addEventListener("DOMContentLoaded", () => {
@@ -2616,12 +2612,49 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+function mostrarSeccion(seccionId, callback = null) {
+    // Ocultar todas las secciones
+    document.querySelectorAll('.seccion').forEach(el => {
+        el.classList.add('hidden');
+    });
+    
+    // Mostrar la sección solicitada
+    const seccion = document.getElementById(seccionId);
+    if (seccion) {
+        seccion.classList.remove('hidden');
+    }
+    
+    // Resaltar el botón del sidebar
+    document.querySelectorAll('.sidebar-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.sidebar-btn[onclick*="${seccionId}"]`)?.classList.add('active');
+    
+    // Ejecutar callback si existe
+    if (callback) {
+        callback();
+    }
+    
+    // Inicializaciones específicas por sección
+    if (seccionId === 'cuenta') {
+        initCuenta();
+    } else if (seccionId === 'panel') {
+        initPanel();
+    } else if (seccionId === 'leads') {
+        cargarLeads();
+    } else if (seccionId === 'calendario') {
+        initCalendario();
+    } else if (seccionId === 'gastos') {
+        initGastos();
+    }
+}
 
-function mostrarSeccion(seccion, callback = null) { 
+
+/*function mostrarSeccion(seccion, callback = null) { 
   // 1) Ocultar todas…
-  document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
-  const elemento = document.getElementById(seccion);
-  if (!elemento) return;
+  //document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
+  //const elemento = document.getElementById(seccion);
+  //if (!elemento) return;
 
   // 2) Mostrar la que toca
   elemento.classList.remove('hidden');
@@ -2659,7 +2692,7 @@ function mostrarSeccion(seccion, callback = null) {
     callback();
   }
 }
-
+*/
                 
 /*==============================================================
 // 🔹CON ESTO CONECTAMOS CON WEBSOCKET Actualizacion en Tiempo Real
