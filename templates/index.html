@@ -2590,39 +2590,50 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function mostrarSeccion(seccionId, callback = null) {
-    // Ocultar todas las secciones
+    // 1. Ocultar todas las secciones
     document.querySelectorAll('.seccion').forEach(el => {
         el.classList.add('hidden');
     });
     
-    // Mostrar la sección solicitada
+    // 2. Mostrar la sección solicitada
     const seccion = document.getElementById(seccionId);
-    if (seccion) {
-        seccion.classList.remove('hidden');
-    }
+    if (!seccion) return;
+    seccion.classList.remove('hidden');
     
-    // Resaltar el botón del sidebar
+    // 3. Resaltar el botón del sidebar
     document.querySelectorAll('.sidebar-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     document.querySelector(`.sidebar-btn[onclick*="${seccionId}"]`)?.classList.add('active');
     
-    // Ejecutar callback si existe
-    if (callback) {
-        callback();
+    // 4. Inicializaciones específicas por sección
+    switch(seccionId) {
+        case 'cuenta':
+            initCuenta();
+            break;
+        case 'panel':
+            initPanel();
+            break;
+        case 'leads':
+            cargarLeads();
+            break;
+        case 'calendario':
+            initCalendario();
+            break;
+        case 'gastos':
+            initGastos();
+            break;
+        case 'configuracion':
+            initConfiguracion();
+            break;
+        case 'reportes':
+            // No requiere inicialización adicional
+            break;
     }
     
-    // Inicializaciones específicas por sección
-    if (seccionId === 'cuenta') {
-        initCuenta();
-    } else if (seccionId === 'panel') {
-        initPanel();
-    } else if (seccionId === 'leads') {
-        cargarLeads();
-    } else if (seccionId === 'calendario') {
-        initCalendario();
-    } else if (seccionId === 'gastos') {
-        initGastos();
+    // 5. Ejecutar callback si existe
+    if (callback) {
+        callback();
     }
 }
 
@@ -5403,8 +5414,6 @@ async function cargarUsuarios() {
   ).join("");
 }
 
-// Desde el sidebar o tu código de navegación:
-mostrarSeccion("configuracion", initConfiguracion);
   
   // Al cargar la sección, listamos las etiquetas
   document.addEventListener("DOMContentLoaded", () => {
