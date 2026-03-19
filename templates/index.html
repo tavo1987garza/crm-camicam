@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
-    <title>CRM Camicam</title>
+    <title>CRM Eventa</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -2298,6 +2298,11 @@ th {
               🔐 Código de Seguridad
             </button>
 
+            <!-- Botón para Configuracion del formulario de contrato -->
+            <button class="add-button" onclick="mostrarModalCamposEvento()">
+              📝 Configurar formulario de contrato
+            </button>
+
             <!-- Botón para Invitar a un vendedor  -->
             <div id="modal-usuarios" class="modal hidden">
               <div class="modal-content">
@@ -2394,6 +2399,21 @@ th {
       <button type="button" class="cancel-btn" onclick="cerrarModalCodigoSeguridad()">Cancelar</button>
     </div>
     <div id="codigo-feedback" class="alert hidden"></div>
+  </div>
+</div>
+
+<!-- Modal: Configurar campos de evento -->
+<div id="modal-campos-evento" class="modal hidden">
+  <div class="modal-content">
+    <button class="close-btn" onclick="cerrarModalCamposEvento()">✖</button>
+    <h2>📝 Configurar Formulario de Evento</h2>
+    <p>Cada campo que agregues aparecerá al crear una nueva fecha.</p>
+    <div id="lista-campos-evento"></div>
+    <button onclick="agregarCampoEvento()" class="add-button">➕ Agregar campo</button>
+    <div class="modal-buttons">
+      <button class="save-btn" onclick="guardarCamposEvento()">Guardar</button>
+      <button class="cancel-btn" onclick="cerrarModalCamposEvento()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -4066,18 +4086,48 @@ async function agregarAnio() {
     =========================================*/
 
 // ============== 2) ABRIR AGREGAR NUEVA FECHA  ==============
-      function mostrarFormularioFecha() {
-        // Cargar leads en el select cada vez que se abre
-        cargarLeadsEnSelect();
-        document.getElementById('add-fecha-modal').style.display = 'flex';
-        
-        // Resetear formulario
-        document.getElementById('fecha-input').value = '';
-        document.getElementById('titulo-input').value = '';
-        document.getElementById('notas-textarea').value = '';
-        document.getElementById('ticket-input').value = '';
-        // Resetear checkboxes...
+    // En lugar de inputs hardcodeados, cargarás dinámicamente:
+async function mostrarFormularioFecha() {
+  const campos = await fetch('/campos_evento').then(r => r.json());
+  const servicios = await fetch('/servicios').then(r => r.json()); // fase 2
+  
+  // Limpiar el contenedor de campos personalizados
+  const cont = document.getElementById('contenedor-campos-personalizados');
+  cont.innerHTML = '';
+  
+  // Generar inputs dinámicos
+  campos.forEach(campo => {
+    let inputHTML = '';
+    if (campo.tipo === 'select') {
+      const options = campo.opciones.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+      inputHTML = `<select name="${campo.clave}">${options}</select>`;
+    } else if (campo.tipo === 'time') {
+      inputHTML = `<input type="time" name="${campo.clave}">`;
+    } else if (campo.tipo === 'date') {
+      inputHTML = `<input type="date" name="${campo.clave}">`;
+    } else if (campo.tipo === 'number') {
+      inputHTML = `<input type="number" name="${campo.clave}">`;
+    } else {
+      inputHTML = `<input type="text" name="${campo.clave}">`;
     }
+    
+    cont.innerHTML += `
+      <div class="form-group">
+        <label>${campo.nombre}${campo.obligatorio ? ' *' : ''}</label>
+        ${inputHTML}
+      </div>
+    `;
+  });
+  
+  // Solo cargar leads si el formulario incluye el campo "lead"
+  const tieneCampoLead = campos.some(campo => campo.clave === 'lead_id');
+  if (tieneCampoLead) {
+    cargarLeadsEnSelect();
+  }
+
+  // Mostrar modal
+  document.getElementById('add-fecha-modal').style.display = 'flex';
+}
     
     function cerrarAddFechaModal() {
         document.getElementById('add-fecha-modal').style.display = 'none';
@@ -5224,6 +5274,80 @@ function mostrarFeedback(mensaje, tipo, elemento) {
   elemento.classList.remove('hidden');
 }
 
+
+// BOTÓN DE CONFIGURACION DE FORMULARIO DE CONTRATO
+let camposEvento = [];
+
+function mostrarModalCamposEvento() {
+  fetch('/campos_evento')
+    .then(r => r.json())
+    .then(campos => {
+      camposEvento = campos;
+      renderizarListaCampos();
+      document.getElementById('modal-campos-evento').classList.remove('hidden');
+    });
+}
+
+function cerrarModalCamposEvento() {
+  document.getElementById('modal-campos-evento').classList.add('hidden');
+}
+
+function agregarCampoEvento() {
+  camposEvento.push({
+    nombre: '',
+    clave: '',
+    tipo: 'text',
+    opciones: [],
+    obligatorio: false
+  });
+  renderizarListaCampos();
+}
+
+function renderizarListaCampos() {
+  const cont = document.getElementById('lista-campos-evento');
+  cont.innerHTML = camposEvento.map((campo, idx) => `
+    <div class="panel-card" style="margin-bottom:10px;">
+      <div style="display:flex;gap:10px;margin-bottom:8px;">
+        <input type="text" placeholder="Nombre del campo" value="${campo.nombre}" 
+               oninput="camposEvento[${idx}].nombre=this.value">
+        <select onchange="camposEvento[${idx}].tipo=this.value">
+          <option value="text" ${campo.tipo==='text'?'selected':''}>Texto</option>
+          <option value="number" ${campo.tipo==='number'?'selected':''}>Número</option>
+          <option value="select" ${campo.tipo==='select'?'selected':''}>Selección</option>
+          <option value="time" ${campo.tipo==='time'?'selected':''}>Hora</option>
+          <option value="date" ${campo.tipo==='date'?'selected':''}>Fecha</option>
+        </select>
+        <label><input type="checkbox" ${campo.obligatorio?'checked':''}
+               onchange="camposEvento[${idx}].obligatorio=this.checked"> Obligatorio</label>
+        <button onclick="camposEvento.splice(${idx},1);renderizarListaCampos()">🗑️</button>
+      </div>
+      ${campo.tipo === 'select' ? `
+        <input type="text" placeholder="Opciones separadas por comas" 
+               value="${campo.opciones.join(',')}"
+               oninput="camposEvento[${idx}].opciones=this.value.split(',').map(o=>o.trim())">
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+function guardarCamposEvento() {
+  // Validar claves únicas y no vacías
+  const validos = camposEvento.filter(c => c.nombre.trim());
+  fetch('/campos_evento', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ campos: validos })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      alert('Formulario de evento actualizado');
+      cerrarModalCamposEvento();
+    } else {
+      alert('Error al guardar');
+    }
+  });
+}
 
 
 

@@ -2234,6 +2234,72 @@ def actualizar_codigo_seguridad():
     return jsonify({"ok": True})
 
 
+# 📌 Endpoint para obtener campos del tenant
+@app.route("/campos_evento", methods=["GET"])
+def obtener_campos_evento():
+    cliente_id = session.get('cliente_id')
+    if not cliente_id:
+        return jsonify([]), 401
+    
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT nombre, clave, tipo, opciones, obligatorio
+        FROM campos_evento_tenant
+        WHERE cliente_id = %s AND activo = true
+        ORDER BY orden
+    """, (cliente_id,))
+    campos = [
+        {
+            "nombre": row[0],
+            "clave": row[1],
+            "tipo": row[2],
+            "opciones": row[3].split(",") if row[3] else [],
+            "obligatorio": row[4]
+        }
+        for row in cur.fetchall()
+    ]
+    liberar_db(conn)
+    return jsonify(campos)
+
+# 📌 Endpoint para guardar campos del tenant
+@app.route("/campos_evento", methods=["POST"])
+def guardar_campos_evento():
+    cliente_id = session.get('cliente_id')
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    campos = request.json.get("campos", [])
+    if not isinstance(campos, list):
+        return jsonify({"error": "Formato inválido"}), 400
+
+    conn = conectar_db()
+    cur = conn.cursor()
+    
+    # Eliminar campos anteriores
+    cur.execute("DELETE FROM campos_evento_tenant WHERE cliente_id = %s", (cliente_id,))
+    
+    # Insertar nuevos
+    for i, campo in enumerate(campos):
+        nombre = campo.get("nombre", "").strip()
+        clave = campo.get("clave", "").strip().lower().replace(" ", "_")
+        tipo = campo.get("tipo", "text")
+        opciones = ",".join(campo.get("opciones", [])) if campo.get("opciones") else None
+        obligatorio = bool(campo.get("obligatorio", False))
+        
+        if nombre and clave:
+            cur.execute("""
+                INSERT INTO campos_evento_tenant 
+                (cliente_id, nombre, clave, tipo, opciones, obligatorio, orden)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (cliente_id, nombre, clave, tipo, opciones, obligatorio, i))
+    
+    conn.commit()
+    liberar_db(conn)
+    return jsonify({"ok": True})
+
+
+
 # Validación de subdominio
 def validar_subdominio(subdominio):
     """
