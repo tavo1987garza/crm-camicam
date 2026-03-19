@@ -1297,48 +1297,23 @@ def detalle_calendario(cal_id):
     finally:
         liberar_db(conn)
 
-# Eliminar
-@app.route("/calendario/eliminar/<int:cal_id>", methods=["POST"])
-def eliminar_calendario(cal_id):
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify({"error": "No autorizado"}), 404
 
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "No DB"}), 500
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM calendario WHERE id = %s AND cliente_id = %s", (cal_id, cliente_id))
-        conn.commit()
-        if cursor.rowcount == 0:
-            return jsonify({"error": "No se encontró ese ID"}), 404
-        return jsonify({"ok": True, "mensaje": "Fecha eliminada"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        liberar_db(conn)
-
-
-# Editar
+# Editar_calendario
 @app.route("/calendario/editar/<int:cal_id>", methods=["POST"])
 def editar_calendario(cal_id):
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 404
-
     data = request.json
     titulo = data.get("titulo", "")
     notas = data.get("notas", "")
     ticket = data.get("ticket", 0)
     servicios_input = data.get("servicios", {})
     metadatos_input = data.get("metadatos", {})
-
+    
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
     try:
         cursor = conn.cursor()
         ticket_value = float(ticket) if ticket else 0.0
@@ -1346,15 +1321,19 @@ def editar_calendario(cal_id):
         # Validar servicios
         if not isinstance(servicios_input, dict):
             servicios_input = {}
-
         # Validar metadatos
         if not isinstance(metadatos_input, dict):
             metadatos_input = {}
-
+        
+        # ✅ OBTENER LA FECHA ANTES DE ACTUALIZAR (para el evento socket)
+        cursor.execute("SELECT fecha FROM calendario WHERE id = %s AND cliente_id = %s", (cal_id, cliente_id))
+        row_fecha = cursor.fetchone()
+        fecha_evento = row_fecha[0] if row_fecha else None
+        
         cursor.execute("""
-            UPDATE calendario
-            SET titulo = %s, notas = %s, ticket = %s, servicios = %s::jsonb, metadatos = %s::jsonb
-            WHERE id = %s AND cliente_id = %s
+        UPDATE calendario
+        SET titulo = %s, notas = %s, ticket = %s, servicios = %s::jsonb, metadatos = %s::jsonb
+        WHERE id = %s AND cliente_id = %s
         """, (
             titulo,
             notas,
@@ -1365,14 +1344,71 @@ def editar_calendario(cal_id):
             cliente_id
         ))
         conn.commit()
-
+        
         if cursor.rowcount == 0:
             return jsonify({"error": "No se encontró esa fecha"}), 404
+        
+        # ✅ EMITIR EVENTO SOCKET PARA ACTUALIZACIÓN EN TIEMPO REAL
+        if fecha_evento:
+            socketio.emit(
+                "calendario_actualizado",
+                {
+                    "accion": "editar_fecha",
+                    "anio": fecha_evento.year if fecha_evento else datetime.now().year,
+                    "fecha": fecha_evento.strftime("%Y-%m-%d") if fecha_evento else None,
+                    "titulo": titulo,
+                    "cal_id": cal_id
+                },
+                broadcast=True
+            )
+        
         return jsonify({"ok": True, "mensaje": "Fecha actualizada"}), 200
     except Exception as e:
         print(f"❌ Error en /calendario/editar: {str(e)}")
         import traceback
         traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+        
+# Eliminar_calendario
+@app.route("/calendario/eliminar/<int:cal_id>", methods=["POST"])
+def eliminar_calendario(cal_id):
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No DB"}), 500
+    try:
+        cursor = conn.cursor()
+        
+        # ✅ OBTENER LA FECHA ANTES DE ELIMINAR (para el evento socket)
+        cursor.execute("SELECT fecha FROM calendario WHERE id = %s AND cliente_id = %s", (cal_id, cliente_id))
+        row_fecha = cursor.fetchone()
+        fecha_evento = row_fecha[0] if row_fecha else None
+        
+        cursor.execute("DELETE FROM calendario WHERE id = %s AND cliente_id = %s", (cal_id, cliente_id))
+        conn.commit()
+        
+        if cursor.rowcount == 0:
+            return jsonify({"error": "No se encontró ese ID"}), 404
+        
+        # ✅ EMITIR EVENTO SOCKET PARA ACTUALIZACIÓN EN TIEMPO REAL
+        if fecha_evento:
+            socketio.emit(
+                "calendario_actualizado",
+                {
+                    "accion": "eliminar_fecha",
+                    "anio": fecha_evento.year if fecha_evento else datetime.now().year,
+                    "fecha": fecha_evento.strftime("%Y-%m-%d") if fecha_evento else None,
+                    "cal_id": cal_id
+                },
+                broadcast=True
+            )
+        
+        return jsonify({"ok": True, "mensaje": "Fecha eliminada"}), 200
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
@@ -2303,6 +2339,7 @@ def obtener_campos_evento():
 
 
 # 📌 Endpoint para guardar campos del tenant
+# 📌 Endpoint para guardar campos del tenant
 @app.route("/campos_evento", methods=["POST"])
 def guardar_campos_evento():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -2348,6 +2385,19 @@ def guardar_campos_evento():
     
     conn.commit()
     liberar_db(conn)
+    
+    # ✅ EMITIR EVENTO SOCKET PARA ACTUALIZACIÓN EN TIEMPO REAL
+    socketio.emit(
+        "configuracion_actualizada",
+        {
+            "tipo": "campos_evento",
+            "cliente_id": cliente_id,
+            "timestamp": datetime.now().isoformat(),
+            "cantidad_campos": len(campos)
+        },
+        broadcast=True  # Envía a TODOS los clientes conectados
+    )
+    
     return jsonify({"ok": True})
 
 
@@ -2370,37 +2420,45 @@ def obtener_servicios_tenant():
     liberar_db(conn)
     return jsonify(servicios)
 
+# Actualiza la función guardar_servicios_tenant en Pasted_Text_1773946908608.txt
 @app.route("/servicios", methods=["POST"])
 def guardar_servicios_tenant():
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 401
-    
     servicios = request.json.get("servicios", [])
     if not isinstance(servicios, list):
         return jsonify({"error": "Formato inválido"}), 400
-
     conn = conectar_db()
     cur = conn.cursor()
-    
     # Eliminar servicios anteriores
     cur.execute("DELETE FROM servicios_tenant WHERE cliente_id = %s", (cliente_id,))
-    
     # Insertar nuevos
     for serv in servicios:
         nombre = serv.get("nombre", "").strip()
         clave = serv.get("clave", "").strip().lower().replace(" ", "_")
         tipo = serv.get("tipo", "boolean")
-        
         if nombre and clave:
             cur.execute("""
-                INSERT INTO servicios_tenant (cliente_id, nombre, clave, tipo)
-                VALUES (%s, %s, %s, %s)
+            INSERT INTO servicios_tenant (cliente_id, nombre, clave, tipo)
+            VALUES (%s, %s, %s, %s)
             """, (cliente_id, nombre, clave, tipo))
-    
     conn.commit()
     liberar_db(conn)
+    
+    # ✅ EMITIR EVENTO SOCKET PARA ACTUALIZACIÓN EN TIEMPO REAL
+    socketio.emit(
+        "configuracion_actualizada",
+        {
+            "tipo": "servicios",
+            "cliente_id": cliente_id,
+            "timestamp": datetime.now().isoformat()
+        },
+        broadcast=True
+    )
+    
     return jsonify({"ok": True})
+
 
 
 # Validación de subdominio

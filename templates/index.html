@@ -3575,17 +3575,49 @@ function initCalendario() {
 
 /** 📡 Evento que el backend emite tras insertar una fecha */
 socket.on("calendario_actualizado", data => {
-  console.log("📡 Calendario actualizado:", data);
-
-  // 1) Vuelve a pintar la lista de años (tarjetas)
-  cargarAnios(true); 
-
-  // 2) Si el usuario ya está dentro de ese año, actualiza la lista de eventos
-  if (anioSeleccionado === data.anio) {
-    cargarCalendario();   // usa la variable global anioSeleccionado
-  }
+    console.log("📡 Calendario actualizado:", data);
+    
+    // 1) Vuelve a pintar la lista de años (tarjetas)
+    cargarAnios(true);
+    
+    // 2) Si el usuario ya está dentro de ese año, actualiza la lista de eventos
+    if (anioSeleccionado === data.anio) {
+        cargarCalendario();   // usa la variable global anioSeleccionado
+    }
+    
+    // 3) Si estamos en el Panel, actualizar próximos eventos
+    if (!document.getElementById('panel').classList.contains('hidden')) {
+        cargarProximosEventos();
+    }
+    
+    // 4) Mostrar notificación suave (opcional)
+    mostrarNotificacionSuave(`📅 Calendario actualizado: ${data.accion}`);
 });
 
+// Función auxiliar para notificaciones suaves
+function mostrarNotificacionSuave(mensaje) {
+    let notif = document.getElementById("notificacion-suave");
+    if (!notif) {
+        notif = document.createElement("div");
+        notif.id = "notificacion-suave";
+        notif.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #1e88e5;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s;
+        `;
+        document.body.appendChild(notif);
+    }
+    notif.textContent = mensaje;
+    notif.style.opacity = "1";
+    setTimeout(() => { notif.style.opacity = "0"; }, 2000);
+}
 
 
 
@@ -4520,6 +4552,8 @@ function cerrarModalFecha() {
 }
 
 
+
+
 // ============================================================================
 // FUNCIÓN PARA GUARDAR EDICIÓN DE FECHA (CON CAMPOS PERSONALIZADOS)
 // ============================================================================
@@ -4587,12 +4621,12 @@ function guardarEdicionFecha() {
         metadatos: metadatos
     };
     
-    // 7. Enviar al backend con debounce (evitar múltiples llamadas rápidas)
-    if (this.debounceTimer) {
-        clearTimeout(this.debounceTimer);
+    // 7. Enviar al backend con debounce (usar variable GLOBAL)
+    if (debounceTimerEdicion) {
+        clearTimeout(debounceTimerEdicion);
     }
     
-    this.debounceTimer = setTimeout(async () => {
+    debounceTimerEdicion = setTimeout(async () => {
         try {
             const resp = await fetch(`/calendario/editar/${calId}`, {
                 method: "POST",
@@ -4606,21 +4640,18 @@ function guardarEdicionFecha() {
             
             if (data.error) {
                 console.error("❌ Error al guardar:", data.error);
-                mostrarNotificacion("Error al guardar cambios: " + data.error, "error");
+                mostrarNotificacionSuave("Error al guardar: " + data.error, "error");
             } else if (data.ok) {
-                console.log("✅ Cambios guardados automáticamente");
-                mostrarNotificacion("Cambios guardados correctamente", "success");
-                
-                // Recargar la vista del calendario si está visible
-                if (anioSeleccionado) {
-                    cargarCalendario();
-                }
+                console.log("✅ Cambios guardados - Socket se encargará de actualizar");
+                // ✅ NO llamar cargarCalendario() aquí, el socket.on lo hará
+                // ✅ Solo mostrar notificación suave
+                mostrarNotificacionSuave("Cambios guardados", "success");
             } else {
                 console.warn("⚠️ Respuesta inesperada:", data);
             }
         } catch (err) {
             console.error("❌ Error de conexión al guardar:", err);
-            mostrarNotificacion("Error de conexión al guardar cambios", "error");
+            mostrarNotificacionSuave("Error de conexión", "error");
         }
     }, 500); // 500ms de debounce
 }
@@ -5391,6 +5422,28 @@ async function initConfiguracion() {
         };
     }
 }
+
+// Socket ON para actualizacion en tiempo real de configuracion
+socket.on("configuracion_actualizada", data => {
+    console.log("⚙️ Configuración actualizada:", data);
+    
+    // 1) Si el modal de campos de evento está abierto, recargar
+    if (!document.getElementById('modal-campos-evento').classList.contains('hidden')) {
+        mostrarModalCamposEvento();
+    }
+    
+    // 2) Si el modal de servicios está abierto, recargar
+    if (!document.getElementById('modal-servicios').classList.contains('hidden')) {
+        mostrarModalServicios();
+    }
+    
+    // 3) Si estamos en el formulario de agregar fecha, recargar campos
+    // (los campos se cargan cada vez que se abre el modal, así que no es necesario)
+    
+    // 4) Mostrar notificación
+    mostrarNotificacionSuave(`⚙️ Configuración actualizada: ${data.tipo}`);
+});
+
 
 //CARGAR LAS CREDENCIALES
 // 1️⃣ Abrir y cargar
