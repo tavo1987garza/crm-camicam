@@ -2233,7 +2233,7 @@ def config_n8n():
 #Verificar CODIGO DE SEGURIDAD
 @app.route("/verificar_codigo_seguridad", methods=["POST"])
 def verificar_codigo_seguridad():
-    cliente_id = session.get('cliente_id')
+    cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"valido": False}), 401
 
@@ -2254,7 +2254,7 @@ def verificar_codigo_seguridad():
 # Actualizar codigo de seguridad    
 @app.route("/actualizar_codigo_seguridad", methods=["POST"])
 def actualizar_codigo_seguridad():
-    cliente_id = session.get('cliente_id')
+    cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 401
 
@@ -2276,7 +2276,7 @@ def actualizar_codigo_seguridad():
 # 📌 Endpoint para obtener campos del tenant
 @app.route("/campos_evento", methods=["GET"])
 def obtener_campos_evento():
-    cliente_id = session.get('cliente_id')
+    cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify([]), 401
     
@@ -2305,7 +2305,7 @@ def obtener_campos_evento():
 # 📌 Endpoint para guardar campos del tenant
 @app.route("/campos_evento", methods=["POST"])
 def guardar_campos_evento():
-    cliente_id = session.get('cliente_id')
+    cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 401
     
@@ -2342,7 +2342,7 @@ def guardar_campos_evento():
 
 @app.route("/servicios", methods=["GET"])
 def obtener_servicios_tenant():
-    cliente_id = session.get('cliente_id')
+    cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify([]), 401
     
