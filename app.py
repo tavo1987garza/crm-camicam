@@ -1023,6 +1023,7 @@ def calendario_agrupado():
 
 
 # 📌 Endpoint para agregar fechas al Calendario 
+# 📌 Endpoint para agregar fechas al Calendario 
 @app.route("/calendario/agregar_manual", methods=["POST"])
 def agregar_fecha_manual():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -1043,7 +1044,8 @@ def agregar_fecha_manual():
     titulo = data.get("titulo", "")
     notas = data.get("notas", "")
     ticket = data.get("ticket", 0)
-    servicios_input = data.get("servicios")
+    servicios_input = data.get("servicios", {})
+    metadatos_input = data.get("metadatos", {})
 
     if not fecha_str:
         return jsonify({"error": "Falta la fecha en formato YYYY-MM-DD"}), 400
@@ -1057,6 +1059,7 @@ def agregar_fecha_manual():
 
         ticket_value = float(ticket) if ticket else 0.0
 
+        # Validar y preparar servicios
         if isinstance(servicios_input, str):
             try:
                 servicios_json = json.loads(servicios_input)
@@ -1066,6 +1069,17 @@ def agregar_fecha_manual():
             servicios_json = servicios_input
         else:
             servicios_json = {}
+
+        # Validar y preparar metadatos
+        if isinstance(metadatos_input, str):
+            try:
+                metadatos_json = json.loads(metadatos_input)
+            except:
+                metadatos_json = {}
+        elif isinstance(metadatos_input, dict):
+            metadatos_json = metadatos_input
+        else:
+            metadatos_json = {}
 
         # 🔹 Contar eventos del MISMO cliente en esa fecha
         cursor.execute(
@@ -1088,8 +1102,8 @@ def agregar_fecha_manual():
 
         # 🔹 Insertar con cliente_id
         cursor.execute("""
-            INSERT INTO calendario (fecha, lead_id, titulo, notas, ticket, servicios, cliente_id)
-            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)
+            INSERT INTO calendario (fecha, lead_id, titulo, notas, ticket, servicios, metadatos, cliente_id)
+            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s)
         """, (
             fecha_local.date(),
             lead_id,
@@ -1097,6 +1111,7 @@ def agregar_fecha_manual():
             notas,
             ticket_value,
             json.dumps(servicios_json),
+            json.dumps(metadatos_json),
             cliente_id
         ))
         conn.commit()
@@ -1113,6 +1128,8 @@ def agregar_fecha_manual():
 
     except Exception as e:
         print(f"❌ Error en /calendario/agregar_manual: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
@@ -1242,7 +1259,6 @@ def reservar_fecha():
         liberar_db(conn)
         
         
-        
 # Detalle
 @app.route("/calendario/detalle/<int:cal_id>", methods=["GET"])
 def detalle_calendario(cal_id):
@@ -1257,7 +1273,7 @@ def detalle_calendario(cal_id):
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, fecha, lead_id, titulo, notas, ticket, servicios
+            SELECT id, fecha, lead_id, titulo, notas, ticket, servicios, metadatos
             FROM calendario
             WHERE id = %s AND cliente_id = %s
         """, (cal_id, cliente_id))
@@ -1266,13 +1282,20 @@ def detalle_calendario(cal_id):
             return jsonify({"error": "Registro no encontrado"}), 404
 
         respuesta = {
-            "id": row[0], "fecha": str(row[1]), "lead_id": row[2],
-            "titulo": row[3] or "", "notas": row[4] or "",
+            "id": row[0],
+            "fecha": str(row[1]),
+            "lead_id": row[2],
+            "titulo": row[3] or "",
+            "notas": row[4] or "",
             "ticket": float(row[5]) if row[5] else 0.0,
-            "servicios": row[6] if row[6] else {}
+            "servicios": row[6] if row[6] else {},
+            "metadatos": row[7] if row[7] else {}
         }
         return jsonify(respuesta), 200
     except Exception as e:
+        print(f"❌ Error en /calendario/detalle: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
@@ -1300,6 +1323,7 @@ def eliminar_calendario(cal_id):
     finally:
         liberar_db(conn)
 
+
 # Editar
 @app.route("/calendario/editar/<int:cal_id>", methods=["POST"])
 def editar_calendario(cal_id):
@@ -1312,6 +1336,7 @@ def editar_calendario(cal_id):
     notas = data.get("notas", "")
     ticket = data.get("ticket", 0)
     servicios_input = data.get("servicios", {})
+    metadatos_input = data.get("metadatos", {})
 
     conn = conectar_db()
     if not conn:
@@ -1320,20 +1345,37 @@ def editar_calendario(cal_id):
     try:
         cursor = conn.cursor()
         ticket_value = float(ticket) if ticket else 0.0
+        
+        # Validar servicios
         if not isinstance(servicios_input, dict):
             servicios_input = {}
 
+        # Validar metadatos
+        if not isinstance(metadatos_input, dict):
+            metadatos_input = {}
+
         cursor.execute("""
             UPDATE calendario
-            SET titulo = %s, notas = %s, ticket = %s, servicios = %s::jsonb
+            SET titulo = %s, notas = %s, ticket = %s, servicios = %s::jsonb, metadatos = %s::jsonb
             WHERE id = %s AND cliente_id = %s
-        """, (titulo, notas, ticket_value, json.dumps(servicios_input), cal_id, cliente_id))
+        """, (
+            titulo,
+            notas,
+            ticket_value,
+            json.dumps(servicios_input),
+            json.dumps(metadatos_input),
+            cal_id,
+            cliente_id
+        ))
         conn.commit()
 
         if cursor.rowcount == 0:
             return jsonify({"error": "No se encontró esa fecha"}), 404
         return jsonify({"ok": True, "mensaje": "Fecha actualizada"}), 200
     except Exception as e:
+        print(f"❌ Error en /calendario/editar: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
@@ -2302,10 +2344,54 @@ def guardar_campos_evento():
 
 
 @app.route("/servicios", methods=["GET"])
-def obtener_servicios_temporal():
-    # Devolver servicios vacíos por ahora
-    return jsonify([])
+def obtener_servicios_tenant():
+    cliente_id = session.get('cliente_id')
+    if not cliente_id:
+        return jsonify([]), 401
+    
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT nombre, clave, tipo 
+        FROM servicios_tenant 
+        WHERE cliente_id = %s AND activo = true
+        ORDER BY nombre
+    """, (cliente_id,))
+    servicios = [{"nombre": r[0], "clave": r[1], "tipo": r[2]} for r in cur.fetchall()]
+    liberar_db(conn)
+    return jsonify(servicios)
 
+@app.route("/servicios", methods=["POST"])
+def guardar_servicios_tenant():
+    cliente_id = session.get('cliente_id')
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    servicios = request.json.get("servicios", [])
+    if not isinstance(servicios, list):
+        return jsonify({"error": "Formato inválido"}), 400
+
+    conn = conectar_db()
+    cur = conn.cursor()
+    
+    # Eliminar servicios anteriores
+    cur.execute("DELETE FROM servicios_tenant WHERE cliente_id = %s", (cliente_id,))
+    
+    # Insertar nuevos
+    for serv in servicios:
+        nombre = serv.get("nombre", "").strip()
+        clave = serv.get("clave", "").strip().lower().replace(" ", "_")
+        tipo = serv.get("tipo", "boolean")
+        
+        if nombre and clave:
+            cur.execute("""
+                INSERT INTO servicios_tenant (cliente_id, nombre, clave, tipo)
+                VALUES (%s, %s, %s, %s)
+            """, (cliente_id, nombre, clave, tipo))
+    
+    conn.commit()
+    liberar_db(conn)
+    return jsonify({"ok": True})
 
 
 # Validación de subdominio
