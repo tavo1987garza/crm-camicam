@@ -2299,6 +2299,12 @@ def guardar_campos_evento():
     return jsonify({"ok": True})
 
 
+@app.route("/servicios", methods=["GET"])
+def obtener_servicios_temporal():
+    # Devolver servicios vacíos por ahora
+    return jsonify([])
+
+
 
 # Validación de subdominio
 def validar_subdominio(subdominio):

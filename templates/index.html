@@ -5280,11 +5280,18 @@ let camposEvento = [];
 
 function mostrarModalCamposEvento() {
   fetch('/campos_evento')
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) throw new Error('Error al cargar campos');
+      return r.json();
+    })
     .then(campos => {
       camposEvento = campos;
       renderizarListaCampos();
       document.getElementById('modal-campos-evento').classList.remove('hidden');
+    })
+    .catch(err => {
+      console.error('Error:', err);
+      alert('Error al cargar campos: ' + err.message);
     });
 }
 
