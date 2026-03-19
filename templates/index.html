@@ -2619,6 +2619,7 @@ function mostrarSeccion(seccionId, callback = null) {
             break;
         case 'calendario':
             initCalendario();
+            cargarLeadsEnSelect();
             break;
         case 'gastos':
             initGastos();
@@ -2627,11 +2628,11 @@ function mostrarSeccion(seccionId, callback = null) {
             initConfiguracion();
             break;
         case 'reportes':
-            // No requiere inicialización adicional
+            // Reportes no necesita inicialización adicional
             break;
     }
     
-    // 5. Ejecutar callback si existe
+    // 5. Ejecutar callback si existe (para compatibilidad)
     if (callback) {
         callback();
     }
