@@ -4019,68 +4019,107 @@ async function agregarAnio() {
     =========================================*/
 
 // ============== 2) ABRIR AGREGAR NUEVA FECHA  ==============
+// ✅ ESTO YA ESTÁ CORRECTO en tu código, pero verifica que exista:
 async function mostrarFormularioFecha() {
-  // Cargar leads en el select cada vez que se abre
-  cargarLeadsEnSelect();
-  
-  // Cargar servicios personalizados
-  const servicios = await fetch('/servicios').then(r => r.json());
-  const serviciosContainer = document.getElementById('servicios-fijos');
-  serviciosContainer.innerHTML = '';
-  
-  // Generar checkboxes de servicios
-  servicios.forEach(serv => {
-    let inputHTML = '';
-    if (serv.tipo === 'number') {
-      inputHTML = `
-        <div class="service-item">
-          <label for="serv-${serv.clave}">${serv.nombre}:</label>
-          <input type="number" id="serv-${serv.clave}" min="0" value="0" name="${serv.clave}" />
-        </div>
-      `;
-    } else {
-      // tipo boolean
-      inputHTML = `
-        <div class="service-item">
-          <input type="checkbox" id="serv-${serv.clave}" name="${serv.clave}" />
-          <label for="serv-${serv.clave}">${serv.nombre}</label>
-        </div>
-      `;
+    try {
+        // 1. Cargar leads en el select
+        await cargarLeadsEnSelect();
+        
+        // 2. Cargar servicios personalizados desde BD
+        const serviciosResp = await fetch('/servicios');
+        if (!serviciosResp.ok) throw new Error('Error al cargar servicios');
+        const servicios = await serviciosResp.json();
+        
+        const serviciosContainer = document.getElementById('servicios-fijos');
+        if (serviciosContainer) {
+            serviciosContainer.innerHTML = '';
+            servicios.forEach(serv => {
+                let inputHTML = '';
+                if (serv.tipo === 'number') {
+                    inputHTML = `
+                        <div class="service-item">
+                            <label for="serv-${serv.clave}">${serv.nombre}:</label>
+                            <input type="number" id="serv-${serv.clave}" min="0" value="0" name="${serv.clave}" />
+                        </div>
+                    `;
+                } else {
+                    inputHTML = `
+                        <div class="service-item">
+                            <input type="checkbox" id="serv-${serv.clave}" name="${serv.clave}" />
+                            <label for="serv-${serv.clave}">${serv.nombre}</label>
+                        </div>
+                    `;
+                }
+                serviciosContainer.innerHTML += inputHTML;
+            });
+        }
+        
+        // 3. Cargar CAMPOS PERSONALIZADOS desde BD
+        const camposResp = await fetch('/campos_evento');
+        if (!camposResp.ok) throw new Error('Error al cargar campos personalizados');
+        const campos = await camposResp.json();
+        
+        const cont = document.getElementById('contenedor-campos-personalizados');
+        if (cont) {
+            cont.innerHTML = '';
+            
+            if (campos.length === 0) {
+                cont.innerHTML = '<p style="color:#7f8c8d;font-style:italic;">No hay campos personalizados configurados</p>';
+            } else {
+                campos.forEach(campo => {
+                    let inputHTML = '';
+                    const requiredAttr = campo.obligatorio ? 'required' : '';
+                    const asterisk = campo.obligatorio ? ' *' : '';
+                    
+                    switch(campo.tipo) {
+                        case 'select':
+                            const options = (campo.opciones || []).map(opt => 
+                                `<option value="${opt}">${opt}</option>`
+                            ).join('');
+                            inputHTML = `<select name="${campo.clave}" ${requiredAttr}>
+                                <option value="">-- Seleccionar --</option>
+                                ${options}
+                            </select>`;
+                            break;
+                        case 'time':
+                            inputHTML = `<input type="time" name="${campo.clave}" ${requiredAttr}>`;
+                            break;
+                        case 'date':
+                            inputHTML = `<input type="date" name="${campo.clave}" ${requiredAttr}>`;
+                            break;
+                        case 'number':
+                            inputHTML = `<input type="number" name="${campo.clave}" ${requiredAttr}>`;
+                            break;
+                        case 'text':
+                        default:
+                            inputHTML = `<input type="text" name="${campo.clave}" ${requiredAttr}>`;
+                            break;
+                    }
+                    
+                    cont.innerHTML += `
+                        <div class="form-group">
+                            <label>${campo.nombre}${asterisk}</label>
+                            ${inputHTML}
+                        </div>
+                    `;
+                });
+            }
+        }
+        
+        // 4. Limpiar campos del formulario
+        document.getElementById('fecha-input').value = '';
+        document.getElementById('titulo-input').value = '';
+        document.getElementById('notas-textarea').value = '';
+        document.getElementById('ticket-input').value = '';
+        document.getElementById('lead-select').value = '';
+        
+        // 5. Mostrar modal
+        document.getElementById('add-fecha-modal').classList.remove('hidden');
+        
+    } catch (err) {
+        console.error('Error en mostrarFormularioFecha:', err);
+        alert('❌ Error al cargar el formulario: ' + err.message);
     }
-    serviciosContainer.innerHTML += inputHTML;
-  });
-  
-  // Cargar campos personalizados
-  const campos = await fetch('/campos_evento').then(r => r.json());
-  const cont = document.getElementById('contenedor-campos-personalizados');
-  cont.innerHTML = '';
-  
-  // Generar inputs dinámicos
-  campos.forEach(campo => {
-    let inputHTML = '';
-    if (campo.tipo === 'select') {
-      const options = campo.opciones.map(opt => `<option value="${opt}">${opt}</option>`).join('');
-      inputHTML = `<select name="${campo.clave}">${options}</select>`;
-    } else if (campo.tipo === 'time') {
-      inputHTML = `<input type="time" name="${campo.clave}">`;
-    } else if (campo.tipo === 'date') {
-      inputHTML = `<input type="date" name="${campo.clave}">`;
-    } else if (campo.tipo === 'number') {
-      inputHTML = `<input type="number" name="${campo.clave}">`;
-    } else {
-      inputHTML = `<input type="text" name="${campo.clave}">`;
-    }
-    
-    cont.innerHTML += `
-      <div class="form-group">
-        <label>${campo.nombre}${campo.obligatorio ? ' *' : ''}</label>
-        ${inputHTML}
-      </div>
-    `;
-  });
-  
-  // Mostrar modal
-  document.getElementById('add-fecha-modal').classList.remove('hidden');
 }
      // Cerrar modal
     function cerrarAddFechaModal() {
@@ -4191,99 +4230,140 @@ function agregarFechaManual(force = false) {
   
 // ============== 3) ABRIR MODAL DE EDICIÓN ==============
 async function abrirModalFecha(calId) {
-    // 1. Cargar datos del evento
-    const respEvento = await fetch(`/calendario/detalle/${calId}`);
-    const data = await respEvento.json();
-    
-    if (data.error) {
-        alert("Error: " + data.error);
-        return;
-    }
-
-    // 2. Llenar campos FIJOS
-    document.getElementById("edit-fecha-id").value = data.id;
-    document.getElementById("edit-fecha-input").value = new Date(data.fecha + 'T00:00:00').toISOString().split('T')[0];
-    document.getElementById("edit-fecha-titulo").value = data.titulo || "";
-    document.getElementById("edit-fecha-notas").value = data.notas || "";
-    
-    const editTicket = document.getElementById("edit-fecha-ticket");
-    editTicket.value = data.ticket ? parseFloat(data.ticket).toLocaleString('es-MX', {
-        style: 'currency',
-        currency: 'MXN',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }) : '';
-
-    // 3. Cargar SERVICIOS DINÁMICOS
-    const servicios = await fetch('/servicios').then(r => r.json());
-    const serviciosContainer = document.getElementById('edit-servicios-fijos');
-    if (serviciosContainer) {
-        serviciosContainer.innerHTML = '';
-        const serviciosActuales = data.servicios || {};
+    try {
+        // 1. Cargar datos del evento desde BD
+        const respEvento = await fetch(`/calendario/detalle/${calId}`);
+        if (!respEvento.ok) throw new Error('Error al cargar datos del evento');
+        const data = await respEvento.json();
         
-        servicios.forEach(serv => {
-            let inputHTML = '';
-            const valorActual = serviciosActuales[serv.clave] || (serv.tipo === 'number' ? 0 : false);
-            
-            if (serv.tipo === 'number') {
-                inputHTML = `
-                    <div class="service-item">
-                        <label for="edit-serv-${serv.clave}">${serv.nombre}:</label>
-                        <input type="number" id="edit-serv-${serv.clave}" min="0" value="${valorActual}" 
-                               class="auto-save-input" name="${serv.clave}" />
-                    </div>
-                `;
-            } else {
-                inputHTML = `
-                    <div class="service-item">
-                        <input type="checkbox" id="edit-serv-${serv.clave}" name="${serv.clave}"
-                               class="auto-save-input" ${valorActual ? 'checked' : ''} />
-                        <label for="edit-serv-${serv.clave}">${serv.nombre}</label>
-                    </div>
-                `;
-            }
-            serviciosContainer.innerHTML += inputHTML;
-        });
-    }
-
-    // 4. Cargar CAMPOS PERSONALIZADOS (metadatos)
-    const campos = await fetch('/campos_evento').then(r => r.json());
-    const cont = document.getElementById('edit-contenedor-campos-personalizados');
-    if (cont) {
-        cont.innerHTML = '';
-        const metadatosActuales = data.metadatos || {};
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
         
-        campos.forEach(campo => {
-            let inputHTML = '';
-            const valorActual = metadatosActuales[campo.clave] || '';
+        // 2. Llenar campos FIJOS
+        document.getElementById("edit-fecha-id").value = data.id;
+        document.getElementById("edit-fecha-input").value = new Date(data.fecha + 'T00:00:00').toISOString().split('T')[0];
+        document.getElementById("edit-fecha-titulo").value = data.titulo || "";
+        document.getElementById("edit-fecha-notas").value = data.notas || "";
+        
+        const editTicket = document.getElementById("edit-fecha-ticket");
+        if (data.ticket) {
+            editTicket.value = parseFloat(data.ticket).toLocaleString('es-MX', {
+                style: 'currency',
+                currency: 'MXN',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+        } else {
+            editTicket.value = '';
+        }
+        
+        // 3. Cargar SERVICIOS DINÁMICOS
+        const serviciosResp = await fetch('/servicios');
+        if (serviciosResp.ok) {
+            const servicios = await serviciosResp.json();
+            const serviciosContainer = document.getElementById('edit-servicios-fijos');
             
-            if (campo.tipo === 'select') {
-                const options = campo.opciones.map(opt => 
-                    `<option value="${opt}" ${valorActual === opt ? 'selected' : ''}>${opt}</option>`
-                ).join('');
-                inputHTML = `<select name="${campo.clave}" class="auto-save-input">${options}</select>`;
-            } else if (campo.tipo === 'time') {
-                inputHTML = `<input type="time" name="${campo.clave}" value="${valorActual}" class="auto-save-input">`;
-            } else if (campo.tipo === 'date') {
-                inputHTML = `<input type="date" name="${campo.clave}" value="${valorActual}" class="auto-save-input">`;
-            } else if (campo.tipo === 'number') {
-                inputHTML = `<input type="number" name="${campo.clave}" value="${valorActual}" class="auto-save-input">`;
-            } else {
-                inputHTML = `<input type="text" name="${campo.clave}" value="${valorActual}" class="auto-save-input">`;
+            if (serviciosContainer) {
+                serviciosContainer.innerHTML = '';
+                const serviciosActuales = data.servicios || {};
+                
+                servicios.forEach(serv => {
+                    let inputHTML = '';
+                    const valorActual = serviciosActuales[serv.clave] || (serv.tipo === 'number' ? 0 : false);
+                    
+                    if (serv.tipo === 'number') {
+                        inputHTML = `
+                            <div class="service-item">
+                                <label for="edit-serv-${serv.clave}">${serv.nombre}:</label>
+                                <input type="number" id="edit-serv-${serv.clave}" min="0" 
+                                    value="${valorActual}" class="auto-save-input" name="${serv.clave}" />
+                            </div>
+                        `;
+                    } else {
+                        inputHTML = `
+                            <div class="service-item">
+                                <input type="checkbox" id="edit-serv-${serv.clave}" name="${serv.clave}"
+                                    class="auto-save-input" ${valorActual ? 'checked' : ''} />
+                                <label for="edit-serv-${serv.clave}">${serv.nombre}</label>
+                            </div>
+                        `;
+                    }
+                    serviciosContainer.innerHTML += inputHTML;
+                });
             }
+        }
+        
+        // 4. Cargar CAMPOS PERSONALIZADOS (metadatos)
+        const camposResp = await fetch('/campos_evento');
+        if (camposResp.ok) {
+            const campos = await camposResp.json();
+            const cont = document.getElementById('edit-contenedor-campos-personalizados');
             
-            cont.innerHTML += `
-                <div class="form-group">
-                    <label>${campo.nombre}${campo.obligatorio ? ' *' : ''}</label>
-                    ${inputHTML}
-                </div>
-            `;
-        });
+            if (cont) {
+                cont.innerHTML = '';
+                const metadatosActuales = data.metadatos || {};
+                
+                if (campos.length === 0) {
+                    cont.innerHTML = '<p style="color:#7f8c8d;font-style:italic;">No hay campos personalizados configurados</p>';
+                } else {
+                    campos.forEach(campo => {
+                        let inputHTML = '';
+                        const valorActual = metadatosActuales[campo.clave] || '';
+                        const requiredAttr = campo.obligatorio ? 'required' : '';
+                        const asterisk = campo.obligatorio ? ' *' : '';
+                        
+                        switch(campo.tipo) {
+                            case 'select':
+                                const options = (campo.opciones || []).map(opt => 
+                                    `<option value="${opt}" ${valorActual === opt ? 'selected' : ''}>${opt}</option>`
+                                ).join('');
+                                inputHTML = `<select name="${campo.clave}" class="auto-save-input" ${requiredAttr}>
+                                    <option value="">-- Seleccionar --</option>
+                                    ${options}
+                                </select>`;
+                                break;
+                            case 'time':
+                                inputHTML = `<input type="time" name="${campo.clave}" value="${valorActual}" 
+                                    class="auto-save-input" ${requiredAttr}>`;
+                                break;
+                            case 'date':
+                                inputHTML = `<input type="date" name="${campo.clave}" value="${valorActual}" 
+                                    class="auto-save-input" ${requiredAttr}>`;
+                                break;
+                            case 'number':
+                                inputHTML = `<input type="number" name="${campo.clave}" value="${valorActual}" 
+                                    class="auto-save-input" ${requiredAttr}>`;
+                                break;
+                            case 'text':
+                            default:
+                                inputHTML = `<input type="text" name="${campo.clave}" value="${valorActual}" 
+                                    class="auto-save-input" ${requiredAttr}>`;
+                                break;
+                        }
+                        
+                        cont.innerHTML += `
+                            <div class="form-group">
+                                <label>${campo.nombre}${asterisk}</label>
+                                ${inputHTML}
+                            </div>
+                        `;
+                    });
+                }
+            }
+        }
+        
+        // 5. Configurar auto-guardado
+        configurarAutoGuardado();
+        
+        // 6. Mostrar modal
+        document.getElementById("edit-fecha-modal").classList.remove("hidden");
+        
+    } catch (err) {
+        console.error('Error en abrirModalFecha:', err);
+        alert('❌ Error al cargar el evento: ' + err.message);
     }
-
-    // 5. Configurar auto-guardado y mostrar modal
-    configurarAutoGuardado();
-    document.getElementById("edit-fecha-modal").classList.remove("hidden");
 }
 
 function configurarAutoGuardado() {
@@ -4297,9 +4377,12 @@ function configurarAutoGuardado() {
     });
 }
 
-// Función para cerrar el modal
+
+// ============================================================================
+// FUNCIÓN PARA CERRAR MODAL CON VALIDACIÓN DE CAMBIOS NO GUARDADOS
+// ============================================================================
 function cerrarModalFecha() {
-    // Primero removemos los event listeners para evitar memory leaks
+    // Remover event listeners para evitar memory leaks
     document.querySelectorAll('.auto-save-input').forEach(input => {
         input.removeEventListener('change', guardarEdicionFecha);
         if (input.type === 'text' || input.tagName === 'TEXTAREA') {
@@ -4307,69 +4390,118 @@ function cerrarModalFecha() {
         }
     });
     
+    // Limpiar debounce timer
+    if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+    }
+    
+    // Cerrar modal
     document.getElementById("edit-fecha-modal").style.display = "none";
 }
 
-
-// Función modificada para guardar cambios
+// ============================================================================
+// FUNCIÓN PARA GUARDAR EDICIÓN DE FECHA (CON CAMPOS PERSONALIZADOS)
+// ============================================================================
 function guardarEdicionFecha() {
-    let calId = document.getElementById("edit-fecha-id").value;
-    let titulo = document.getElementById("edit-fecha-titulo").value.trim();
-    let notas = document.getElementById("edit-fecha-notas").value.trim();
-
-    // Extraer y transformar el valor del ticket
-    let ticketInput = document.getElementById("edit-fecha-ticket").value.trim();
-    let ticketStr = ticketInput.replace(/[^0-9.]/g, '');
-    let ticketNum = parseFloat(ticketStr) || 0;
-
-    // Recopilar servicios
-    let servicios = {};
-    document.querySelectorAll('#edit-servicios-fijos [name]').forEach(input => {
-        if (input.type === 'checkbox') {
-            servicios[input.name] = input.checked ? 1 : 0;
-        } else {
-            servicios[input.name] = parseInt(input.value) || 0;
-        }
-    });
-
-    // Recopilar campos personalizados
-    let metadatos = {};
-    document.querySelectorAll('#edit-contenedor-campos-personalizados [name]').forEach(input => {
-        if (input.type === 'checkbox') {
-            metadatos[input.name] = input.checked;
-        } else {
-            metadatos[input.name] = input.value;
-        }
-    });
-
-    let payload = {
-        titulo,
-        notas,
-        ticket: ticketNum,
-        servicios,
-        metadatos
-    };
-
-    // Usamos un pequeño timeout para evitar múltiples llamadas rápidas
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    // 1. Obtener ID del evento
+    const calId = document.getElementById("edit-fecha-id").value;
+    if (!calId) {
+        console.error("❌ No se encontró el ID del evento");
+        return;
+    }
     
-    this.debounceTimer = setTimeout(() => {
-        fetch(`/calendario/editar/${calId}`, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(payload)
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) {
-                console.error("Error al guardar:", data.error);
-            } else if (data.ok) {
-                console.log("Cambios guardados automáticamente");
-                cargarCalendario();
+    // 2. Obtener campos FIJOS
+    const titulo = document.getElementById("edit-fecha-titulo").value.trim();
+    const notas = document.getElementById("edit-fecha-notas").value.trim();
+    
+    // 3. Procesar el ticket (formato moneda a número)
+    const ticketInput = document.getElementById("edit-fecha-ticket").value.trim();
+    const ticketStr = ticketInput.replace(/[^0-9.]/g, '');
+    const ticketNum = parseFloat(ticketStr) || 0;
+    
+    // 4. Recopilar SERVICIOS dinámicos
+    const servicios = {};
+    const serviciosContainer = document.getElementById('edit-servicios-fijos');
+    if (serviciosContainer) {
+        serviciosContainer.querySelectorAll('[name]').forEach(input => {
+            if (input.type === 'checkbox') {
+                servicios[input.name] = input.checked ? 1 : 0;
+            } else if (input.type === 'number') {
+                servicios[input.name] = parseInt(input.value) || 0;
             }
-        })
-        .catch(err => console.error("Error al guardar:", err));
-    }, 500); // 500ms de delay
+        });
+    }
+    
+    // 5. Recopilar CAMPOS PERSONALIZADOS (metadatos)
+    const metadatos = {};
+    const customFieldsContainer = document.getElementById('edit-contenedor-campos-personalizados');
+    if (customFieldsContainer) {
+        customFieldsContainer.querySelectorAll('[name]').forEach(input => {
+            const fieldName = input.name;
+            let fieldValue;
+            
+            if (input.type === 'checkbox') {
+                fieldValue = input.checked;
+            } else if (input.type === 'number') {
+                fieldValue = input.value !== '' ? parseFloat(input.value) : null;
+            } else if (input.type === 'date' || input.type === 'time') {
+                fieldValue = input.value || null;
+            } else {
+                fieldValue = input.value.trim() || null;
+            }
+            
+            // Solo guardar si tiene valor (evitar nulls innecesarios)
+            if (fieldValue !== null && fieldValue !== '') {
+                metadatos[fieldName] = fieldValue;
+            }
+        });
+    }
+    
+    // 6. Construir payload
+    const payload = {
+        titulo: titulo,
+        notas: notas,
+        ticket: ticketNum,
+        servicios: servicios,
+        metadatos: metadatos
+    };
+    
+    // 7. Enviar al backend con debounce (evitar múltiples llamadas rápidas)
+    if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+    }
+    
+    this.debounceTimer = setTimeout(async () => {
+        try {
+            const resp = await fetch(`/calendario/editar/${calId}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await resp.json();
+            
+            if (data.error) {
+                console.error("❌ Error al guardar:", data.error);
+                mostrarNotificacion("Error al guardar cambios: " + data.error, "error");
+            } else if (data.ok) {
+                console.log("✅ Cambios guardados automáticamente");
+                mostrarNotificacion("Cambios guardados correctamente", "success");
+                
+                // Recargar la vista del calendario si está visible
+                if (anioSeleccionado) {
+                    cargarCalendario();
+                }
+            } else {
+                console.warn("⚠️ Respuesta inesperada:", data);
+            }
+        } catch (err) {
+            console.error("❌ Error de conexión al guardar:", err);
+            mostrarNotificacion("Error de conexión al guardar cambios", "error");
+        }
+    }, 500); // 500ms de debounce
 }
 
 // Función para eliminar (se mantiene igual)
@@ -5278,50 +5410,101 @@ function agregarCampoEvento() {
   renderizarListaCampos();
 }
 
+// 🔧 REEMPLAZA esta función en tu HTML
 function renderizarListaCampos() {
-  const cont = document.getElementById('lista-campos-evento');
-  cont.innerHTML = camposEvento.map((campo, idx) => `
-    <div class="panel-card" style="margin-bottom:10px;">
-      <div style="display:flex;gap:10px;margin-bottom:8px;">
-        <input type="text" placeholder="Nombre del campo" value="${campo.nombre}" 
-               oninput="camposEvento[${idx}].nombre=this.value">
-        <select onchange="camposEvento[${idx}].tipo=this.value">
-          <option value="text" ${campo.tipo==='text'?'selected':''}>Texto</option>
-          <option value="number" ${campo.tipo==='number'?'selected':''}>Número</option>
-          <option value="select" ${campo.tipo==='select'?'selected':''}>Selección</option>
-          <option value="time" ${campo.tipo==='time'?'selected':''}>Hora</option>
-          <option value="date" ${campo.tipo==='date'?'selected':''}>Fecha</option>
-        </select>
-        <label><input type="checkbox" ${campo.obligatorio?'checked':''}
-               onchange="camposEvento[${idx}].obligatorio=this.checked"> Obligatorio</label>
-        <button onclick="camposEvento.splice(${idx},1);renderizarListaCampos()">🗑️</button>
-      </div>
-      ${campo.tipo === 'select' ? `
-        <input type="text" placeholder="Opciones separadas por comas" 
-               value="${campo.opciones.join(',')}"
-               oninput="camposEvento[${idx}].opciones=this.value.split(',').map(o=>o.trim())">
-      ` : ''}
-    </div>
-  `).join('');
+    const cont = document.getElementById('lista-campos-evento');
+    cont.innerHTML = camposEvento.map((campo, idx) => `
+        <div class="panel-card" style="margin-bottom:10px;">
+            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+                <input type="text" placeholder="Nombre del campo" 
+                    value="${campo.nombre}" 
+                    style="flex:2;min-width:150px;"
+                    oninput="camposEvento[${idx}].nombre=this.value; 
+                            if(!camposEvento[${idx}].clave) {
+                                camposEvento[${idx}].clave=this.value.toLowerCase()
+                                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
+                                    .replace(/[^a-z0-9]/g,'_');
+                                renderizarListaCampos();
+                            }">
+                
+                <input type="text" placeholder="Clave (ID único)" 
+                    value="${campo.clave}" 
+                    style="flex:1;min-width:120px;"
+                    oninput="camposEvento[${idx}].clave=this.value.toLowerCase()
+                        .replace(/[^a-z0-9_]/g,'')">
+                
+                <select onchange="camposEvento[${idx}].tipo=this.value; 
+                                  renderizarListaCampos()"
+                    style="min-width:100px;">
+                    <option value="text" ${campo.tipo==='text'?'selected':''}>Texto</option>
+                    <option value="number" ${campo.tipo==='number'?'selected':''}>Número</option>
+                    <option value="select" ${campo.tipo==='select'?'selected':''}>Selección</option>
+                    <option value="time" ${campo.tipo==='time'?'selected':''}>Hora</option>
+                    <option value="date" ${campo.tipo==='date'?'selected':''}>Fecha</option>
+                </select>
+                
+                <label style="display:flex;align-items:center;gap:5px;">
+                    <input type="checkbox" ${campo.obligatorio?'checked':''}
+                        onchange="camposEvento[${idx}].obligatorio=this.checked">
+                    Obligatorio
+                </label>
+                
+                <button onclick="camposEvento.splice(${idx},1);renderizarListaCampos()"
+                    style="background:#e74c3c;color:white;border:none;padding:5px 10px;
+                           border-radius:4px;cursor:pointer;">🗑️</button>
+            </div>
+            ${campo.tipo === 'select' ? `
+                <input type="text" placeholder="Opciones separadas por comas (ej: Opción1,Opción2,Opción3)"
+                    value="${campo.opciones?.join(',') || ''}"
+                    style="width:100%;padding:8px;margin-top:5px;"
+                    oninput="camposEvento[${idx}].opciones=this.value.split(',')
+                        .map(o=>o.trim()).filter(o=>o)">
+            ` : ''}
+        </div>
+    `).join('');
 }
 
-function guardarCamposEvento() {
-  // Validar claves únicas y no vacías
-  const validos = camposEvento.filter(c => c.nombre.trim());
-  fetch('/campos_evento', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ campos: validos })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      alert('Formulario de evento actualizado');
-      cerrarModalCamposEvento();
-    } else {
-      alert('Error al guardar');
+// GUARDAR CAMPOS PERSONALIZADOS
+async function guardarCamposEvento() {
+    // 1. Validar claves únicas
+    const claves = camposEvento.map(c => c.clave?.toLowerCase().trim());
+    const duplicados = claves.filter((c, i) => claves.indexOf(c) !== i);
+    
+    if (duplicados.length > 0) {
+        alert(`⚠️ Claves duplicadas: ${[...new Set(duplicados)].join(', ')}`);
+        return;
     }
-  });
+    
+    // 2. Validar que todos tengan nombre y clave
+    const validos = camposEvento.filter(c => c.nombre.trim() && c.clave.trim());
+    
+    if (validos.length === 0) {
+        alert('⚠️ Debes agregar al menos un campo con nombre y clave');
+        return;
+    }
+    
+    try {
+        const resp = await fetch('/campos_evento', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ campos: validos })
+        });
+        
+        const data = await resp.json();
+        
+        if (data.ok) {
+            alert('✅ Formulario de evento actualizado');
+            // 3. Recargar campos desde BD antes de cerrar
+            await mostrarModalCamposEvento();
+            // 4. Cerrar después de recargar
+            setTimeout(() => cerrarModalCamposEvento(), 500);
+        } else {
+            alert('❌ Error al guardar: ' + (data.error || 'desconocido'));
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        alert('❌ Error de conexión');
+    }
 }
 
 

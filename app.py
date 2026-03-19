@@ -2312,7 +2312,19 @@ def guardar_campos_evento():
     campos = request.json.get("campos", [])
     if not isinstance(campos, list):
         return jsonify({"error": "Formato inválido"}), 400
-
+    
+    # ✅ VALIDAR CLAVES ÚNICAS
+    claves = [c.get("clave", "").strip().lower() for c in campos if c.get("clave")]
+    if len(claves) != len(set(claves)):
+        return jsonify({"error": "Hay claves duplicadas"}), 400
+    
+    # ✅ VALIDAR QUE TODOS TENGAN NOMBRE Y CLAVE
+    for i, campo in enumerate(campos):
+        if not campo.get("nombre", "").strip():
+            return jsonify({"error": f"El campo {i+1} no tiene nombre"}), 400
+        if not campo.get("clave", "").strip():
+            return jsonify({"error": f"El campo {i+1} no tiene clave"}), 400
+    
     conn = conectar_db()
     cur = conn.cursor()
     
@@ -2329,9 +2341,9 @@ def guardar_campos_evento():
         
         if nombre and clave:
             cur.execute("""
-                INSERT INTO campos_evento_tenant 
-                (cliente_id, nombre, clave, tipo, opciones, obligatorio, orden)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO campos_evento_tenant
+                (cliente_id, nombre, clave, tipo, opciones, obligatorio, orden, activo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, true)
             """, (cliente_id, nombre, clave, tipo, opciones, obligatorio, i))
     
     conn.commit()
@@ -2360,7 +2372,7 @@ def obtener_servicios_tenant():
 
 @app.route("/servicios", methods=["POST"])
 def guardar_servicios_tenant():
-    cliente_id = session.get('cliente_id')
+    cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 401
     
