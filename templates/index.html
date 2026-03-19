@@ -4366,38 +4366,159 @@ async function abrirModalFecha(calId) {
     }
 }
 
+// ============================================================================
+// VARIABLE GLOBAL PARA DEBOUNCE
+// ============================================================================
+let debounceTimerEdicion = null;
+
+// ============================================================================
+// FUNCIÓN PRINCIPAL: CONFIGURAR AUTO-GUARDADO
+// ============================================================================
 function configurarAutoGuardado() {
-    // Agregar event listeners a todos los inputs con clase auto-save-input
-    document.querySelectorAll('.auto-save-input').forEach(input => {
-        input.addEventListener('change', guardarEdicionFecha);
-        // Para inputs de texto que no disparan 'change' hasta perder foco
+    console.log('🔧 Configurando auto-guardado para edición de fecha...');
+    
+    // 1. Limpiar listeners anteriores (evitar duplicados)
+    limpiarListenersAutoGuardado();
+    
+    // 2. Seleccionar todos los elementos con clase auto-save-input
+    const autoSaveInputs = document.querySelectorAll('.auto-save-input');
+    
+    // 3. Agregar event listeners a cada input
+    autoSaveInputs.forEach(input => {
+        // Para cambios de valor (select, checkbox, number, date, time)
+        input.addEventListener('change', manejarCambioAutoGuardado);
+        
+        // Para inputs de texto que necesitan perder foco para guardar
         if (input.type === 'text' || input.tagName === 'TEXTAREA') {
-            input.addEventListener('blur', guardarEdicionFecha);
+            input.addEventListener('blur', manejarCambioAutoGuardado);
         }
-    });
-}
-
-
-// ============================================================================
-// FUNCIÓN PARA CERRAR MODAL CON VALIDACIÓN DE CAMBIOS NO GUARDADOS
-// ============================================================================
-function cerrarModalFecha() {
-    // Remover event listeners para evitar memory leaks
-    document.querySelectorAll('.auto-save-input').forEach(input => {
-        input.removeEventListener('change', guardarEdicionFecha);
+        
+        // Para inputs de texto que queremos guardar mientras escriben (con debounce)
         if (input.type === 'text' || input.tagName === 'TEXTAREA') {
-            input.removeEventListener('blur', guardarEdicionFecha);
+            input.addEventListener('input', manejarInputAutoGuardado);
         }
     });
     
-    // Limpiar debounce timer
-    if (this.debounceTimer) {
-        clearTimeout(this.debounceTimer);
+    // 4. También configurar listeners para campos dinámicos (servicios y personalizados)
+    configurarListenersCamposDinamicos();
+    
+    console.log('✅ Auto-guardado configurado correctamente');
+}
+
+// ============================================================================
+// FUNCIÓN AUXILIAR: LIMPIAR LISTENERS ANTERIORES
+// ============================================================================
+function limpiarListenersAutoGuardado() {
+    const autoSaveInputs = document.querySelectorAll('.auto-save-input');
+    autoSaveInputs.forEach(input => {
+        input.removeEventListener('change', manejarCambioAutoGuardado);
+        input.removeEventListener('blur', manejarCambioAutoGuardado);
+        input.removeEventListener('input', manejarInputAutoGuardado);
+    });
+    
+    // Limpiar campos dinámicos
+    const serviciosContainer = document.getElementById('edit-servicios-fijos');
+    if (serviciosContainer) {
+        serviciosContainer.querySelectorAll('input').forEach(input => {
+            input.removeEventListener('change', manejarCambioAutoGuardado);
+            input.removeEventListener('input', manejarInputAutoGuardado);
+        });
     }
     
-    // Cerrar modal
-    document.getElementById("edit-fecha-modal").style.display = "none";
+    const customFieldsContainer = document.getElementById('edit-contenedor-campos-personalizados');
+    if (customFieldsContainer) {
+        customFieldsContainer.querySelectorAll('input, select, textarea').forEach(input => {
+            input.removeEventListener('change', manejarCambioAutoGuardado);
+            input.removeEventListener('blur', manejarCambioAutoGuardado);
+            input.removeEventListener('input', manejarInputAutoGuardado);
+        });
+    }
+    
+    // Limpiar timer de debounce
+    if (debounceTimerEdicion) {
+        clearTimeout(debounceTimerEdicion);
+        debounceTimerEdicion = null;
+    }
 }
+
+// ============================================================================
+// FUNCIÓN AUXILIAR: CONFIGURAR LISTENERS PARA CAMPOS DINÁMICOS
+// ============================================================================
+function configurarListenersCamposDinamicos() {
+    // 1. Servicios dinámicos
+    const serviciosContainer = document.getElementById('edit-servicios-fijos');
+    if (serviciosContainer) {
+        serviciosContainer.querySelectorAll('input').forEach(input => {
+            input.addEventListener('change', manejarCambioAutoGuardado);
+            if (input.type === 'number') {
+                input.addEventListener('input', manejarInputAutoGuardado);
+            }
+        });
+    }
+    
+    // 2. Campos personalizados dinámicos
+    const customFieldsContainer = document.getElementById('edit-contenedor-campos-personalizados');
+    if (customFieldsContainer) {
+        customFieldsContainer.querySelectorAll('input, select, textarea').forEach(input => {
+            input.addEventListener('change', manejarCambioAutoGuardado);
+            
+            if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+                input.addEventListener('blur', manejarCambioAutoGuardado);
+                input.addEventListener('input', manejarInputAutoGuardado);
+            }
+        });
+    }
+}
+
+// ============================================================================
+// HANDLER PARA EVENTO 'change' y 'blur' (guardado inmediato con debounce)
+// ============================================================================
+function manejarCambioAutoGuardado(event) {
+    console.log('📝 Cambio detectado en:', event.target.name || event.target.id);
+    guardarEdicionFecha();
+}
+
+// ============================================================================
+// HANDLER PARA EVENTO 'input' (guardado con debounce mientras escribe)
+// ============================================================================
+function manejarInputAutoGuardado(event) {
+    // Limpiar timer anterior
+    if (debounceTimerEdicion) {
+        clearTimeout(debounceTimerEdicion);
+    }
+    
+    // Configurar nuevo timer (1 segundo de espera)
+    debounceTimerEdicion = setTimeout(() => {
+        console.log('✏️ Input detectado, guardando...');
+        guardarEdicionFecha();
+    }, 1000);
+}
+
+// ============================================================================
+// FUNCIÓN PARA CERRAR MODAL CON LIMPIEZA DE LISTENERS
+// ============================================================================
+function cerrarModalFecha() {
+    console.log('🚪 Cerrando modal de edición...');
+    
+    // 1. Limpiar todos los listeners
+    limpiarListenersAutoGuardado();
+    
+    // 2. Guardar cambios pendientes antes de cerrar (opcional)
+    if (debounceTimerEdicion) {
+        clearTimeout(debounceTimerEdicion);
+        guardarEdicionFecha();
+    }
+    
+    // 3. Ocultar modal
+    const modal = document.getElementById('edit-fecha-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+    
+    console.log('✅ Modal cerrado y listeners limpiados');
+}
+
 
 // ============================================================================
 // FUNCIÓN PARA GUARDAR EDICIÓN DE FECHA (CON CAMPOS PERSONALIZADOS)
@@ -4503,6 +4624,52 @@ function guardarEdicionFecha() {
         }
     }, 500); // 500ms de debounce
 }
+
+
+
+// ============================================================================
+// FUNCIÓN AUXILIAR PARA MOSTRAR NOTIFICACIONES
+// ============================================================================
+function mostrarNotificacion(mensaje, tipo = "success") {
+    // Crear elemento de notificación si no existe
+    let notificacion = document.getElementById("notificacion-guardado");
+    if (!notificacion) {
+        notificacion = document.createElement("div");
+        notificacion.id = "notificacion-guardado";
+        notificacion.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 600;
+            z-index: 9999;
+            transition: opacity 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        document.body.appendChild(notificacion);
+    }
+    
+    // Configurar colores según tipo
+    if (tipo === "success") {
+        notificacion.style.background = "#43a047";
+    } else if (tipo === "error") {
+        notificacion.style.background = "#e53935";
+    } else {
+        notificacion.style.background = "#1e88e5";
+    }
+    
+    // Mostrar mensaje
+    notificacion.textContent = mensaje;
+    notificacion.style.opacity = "1";
+    
+    // Ocultar después de 3 segundos
+    setTimeout(() => {
+        notificacion.style.opacity = "0";
+    }, 3000);
+}
+
 
 // Función para eliminar (se mantiene igual)
 function eliminarFechaDesdeModal() {
