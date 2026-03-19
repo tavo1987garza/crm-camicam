@@ -2262,6 +2262,7 @@ def obtener_campos_evento():
     liberar_db(conn)
     return jsonify(campos)
 
+
 # 📌 Endpoint para guardar campos del tenant
 @app.route("/campos_evento", methods=["POST"])
 def guardar_campos_evento():
@@ -2297,6 +2298,7 @@ def guardar_campos_evento():
     conn.commit()
     liberar_db(conn)
     return jsonify({"ok": True})
+
 
 
 @app.route("/servicios", methods=["GET"])

@@ -5277,7 +5277,6 @@ function mostrarFeedback(mensaje, tipo, elemento) {
 
 // BOTÓN DE CONFIGURACION DE FORMULARIO DE CONTRATO
 let camposEvento = [];
-
 function mostrarModalCamposEvento() {
   fetch('/campos_evento')
     .then(r => {
@@ -5294,6 +5293,7 @@ function mostrarModalCamposEvento() {
       alert('Error al cargar campos: ' + err.message);
     });
 }
+
 
 function cerrarModalCamposEvento() {
   document.getElementById('modal-campos-evento').classList.add('hidden');
