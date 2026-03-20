@@ -335,10 +335,13 @@ def obtener_estados_lead():
         
         return jsonify(estados), 200
     except Exception as e:
-        print(f"❌ Error en /leads/estados: {str(e)}")
+        print(f"❌ Error en /leads/estados GET: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify([]), 500
     finally:
         liberar_db(conn)
+
 
 @app.route("/leads/estados", methods=["POST"])
 def guardar_estados_lead():
@@ -404,9 +407,12 @@ def guardar_estados_lead():
     except Exception as e:
         conn.rollback()
         print(f"❌ Error en guardar_estados_lead: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+
 
 @app.route("/leads/estado/eliminar", methods=["POST"])
 def eliminar_estado_lead():
@@ -471,9 +477,12 @@ def eliminar_estado_lead():
     except Exception as e:
         conn.rollback()
         print(f"❌ Error en eliminar_estado_lead: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+
 
 @app.route("/cambiar_estado_lead", methods=["POST"])
 def cambiar_estado_lead():

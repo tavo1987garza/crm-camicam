@@ -362,6 +362,47 @@
         #kpi-actual.red   { color:#d32f2f; }
         
 
+        /* ============================================================================
+ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
+============================================================================ */
+.leads-column {
+    min-width: 200px;
+    max-width: 250px;
+    flex-grow: 1;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+    border: 1px solid #e0e0e0;
+}
+
+.leads-column:hover {
+    transform: scale(1.02);
+    box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.leads-column h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.leads-list {
+    min-height: 100px;
+    padding: 10px;
+    background: white;
+    border-radius: 5px;
+    margin-top: 10px;
+    box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Colores dinámicos por estado (se aplican via inline style) */
+[data-estado] {
+    transition: background 0.3s, border-left 0.3s;
+}
+
+
 /* ───── Estilos para el Contenedor principal de Leads──── */
        
 .leads-container {
@@ -2055,71 +2096,38 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
       
         <div id="leads" class="seccion hidden">
             <h1>📩 Leads</h1>
-
-            <div class="leads-container" id="leads-container">
-
-                <div class="leads-column" data-estado="Contacto Inicial">
-                    <h3>📞 Contacto inicial</h3>
-                    <div class="leads-list"></div>
-                    <div class="form-container">
-                        <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
-                        <div id="lead-form" class="hidden">
-                            <input type="text" id="lead-nombre" placeholder="Nombre" required>
-                            <input type="text" id="lead-telefono" placeholder="Teléfono" required>
-                            <textarea id="lead-notas" placeholder="Notas"></textarea>
-                            <button onclick="crearLead()">Agregar</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal para edición de Leads -->
-<div id="edit-lead-modal" class="modal hidden">
-    <div class="modal-content">
-        <button class="close-btn" onclick="cerrarModal()">✖</button>
-        <h2>✏️ Editar Lead</h2>
-        <input type="hidden" id="edit-lead-id">
-        <input type="text" id="edit-lead-nombre" placeholder="Nombre">
-        <input type="text" id="edit-lead-telefono" placeholder="Teléfono" disabled>
-        <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
-        
-        <!-- Contenedor de botones alineados -->
-        <div class="modal-buttons">
-            <button class="delete-btn" onclick="eliminarLeadDesdeModal()">
-                🗑️
-            </button>
             
-        </div>
-    </div>
-</div>
-
-
-                <div class="leads-column" data-estado="En proceso">
-                    <h3>🔄 En proceso</h3>
-                    <div class="leads-list"></div>
-                </div>
-                <div class="leads-column" data-estado="Seguimiento XV">
-                    <h3>👑 Seguimiento XV</h3>
-                    <div class="leads-list"></div>
-                </div>
-                <div class="leads-column" data-estado="Seguimiento Boda">
-                    <h3>💍 Seguimiento Boda</h3>
-                    <div class="leads-list"></div>
-                </div>
-                <div class="leads-column" data-estado="Seguimiento Otro">
-                    <h3>✨ Seguimiento Otro</h3>
-                    <div class="leads-list"></div>
-                </div>
-                <div class="leads-column" data-estado="Cliente">
-                    <h3>✅ Cliente</h3>
-                    <div class="leads-list"></div>
-                </div>
-                <div class="leads-column" data-estado="No cliente">
-                    <h3>🚫 No cliente</h3>
-                    <div class="leads-list"></div>
+            <!-- 🔍 BUSCADOR GLOBAL DE LEADS -->
+            <div style="margin-bottom:15px;">
+                <input type="text" 
+                    id="buscador-leads" 
+                    placeholder="🔍 Buscar lead por nombre, teléfono o notas..." 
+                    style="width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:14px;"
+                    oninput="filtrarLeads(this.value)">
+                <div id="leads-search-results" style="margin-top:8px;font-size:13px;color:#7f8c8d;"></div>
+            </div>
+            
+            <!-- ✅ CONTENEDOR VACÍO - Las columnas se generan dinámicamente -->
+            <div class="leads-container" id="leads-container">
+                <!-- Las columnas se generarán con JavaScript desde /leads/estados -->
+            </div>
+            
+            <!-- Modal para edición de Leads (este SÍ se mantiene) -->
+            <div id="edit-lead-modal" class="modal hidden">
+                <div class="modal-content">
+                    <button class="close-btn" onclick="cerrarModal()">✖</button>
+                    <h2>✏️ Editar Lead</h2>
+                    <input type="hidden" id="edit-lead-id">
+                    <input type="text" id="edit-lead-nombre" placeholder="Nombre">
+                    <input type="text" id="edit-lead-telefono" placeholder="Teléfono" disabled>
+                    <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
+                    
+                    <div class="modal-buttons">
+                        <button class="delete-btn" onclick="eliminarLeadDesdeModal()">🗑️</button>
+                    </div>
                 </div>
             </div>
         </div>
-
 
 
         <div id="chat" class="seccion hidden">            
@@ -3077,160 +3085,6 @@ let estadosLeadConfig = [];  // Estados configurados por el tenant
 let leadEstadosActualizados = false;  // Bandera para actualización en tiempo real
 
 // ============================================================================
-// CARGAR ESTADOS DE LEADS DESDE EL BACKEND
-// ============================================================================
-async function cargarEstadosLead() {
-    try {
-        const resp = await fetch('/leads/estados');
-        if (!resp.ok) throw new Error('Error al cargar estados');
-        
-        estadosLeadConfig = await resp.json();
-        
-        // Si no hay estados, usar defaults
-        if (estadosLeadConfig.length === 0) {
-            estadosLeadConfig = [
-                { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
-                { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
-            ];
-        }
-        
-        console.log(`✅ ${estadosLeadConfig.length} estados de lead cargados`);
-        return estadosLeadConfig;
-    } catch (err) {
-        console.error('❌ Error al cargar estados de lead:', err);
-        return [];
-    }
-}
-
-// ============================================================================
-// RENDERIZAR COLUMNAS DE LEADS DINÁMICAS
-// ============================================================================
-function renderizarColumnasLeads() {
-    const container = document.getElementById('leads-container');
-    if (!container) return;
-    
-    // Guardar leads actuales antes de re-renderizar
-    const leadsActuales = {};
-    document.querySelectorAll('.lead').forEach(lead => {
-        const id = lead.getAttribute('data-id');
-        if (id) {
-            leadsActuales[id] = lead.cloneNode(true);
-        }
-    });
-    
-    // Limpiar contenedor
-    container.innerHTML = '';
-    
-    // Crear columnas dinámicamente
-    estadosLeadConfig.forEach((estado, idx) => {
-        const columna = document.createElement('div');
-        columna.className = 'leads-column';
-        columna.setAttribute('data-estado', estado.nombre);
-        columna.style.borderLeft = `5px solid ${estado.color}`;
-        columna.style.background = `${estado.color}40`; // 40 = 25% opacity
-        
-        columna.innerHTML = `
-            <h3 style="color: ${estado.color};">${estado.nombre}</h3>
-            <div class="leads-list"></div>
-            ${!estado.fijo ? `
-                <button onclick="eliminarEstadoLead('${estado.nombre}')" 
-                    style="margin-top:10px;background:#e74c3c;color:white;border:none;
-                           padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;">
-                    🗑️ Eliminar estado
-                </button>
-            ` : ''}
-        `;
-        
-        // Configurar drag & drop
-        columna.ondragover = (event) => event.preventDefault();
-        columna.ondrop = (event) => drop(event, estado.nombre);
-        
-        container.appendChild(columna);
-    });
-    
-    // Agregar columna para formulario de nuevo lead (siempre en "Contacto Inicial")
-    const columnaFormulario = document.querySelector('[data-estado="Contacto Inicial"]');
-    if (columnaFormulario && !columnaFormulario.querySelector('#toggle-form')) {
-        const formContainer = document.createElement('div');
-        formContainer.className = 'form-container';
-        formContainer.innerHTML = `
-            <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
-            <div id="lead-form" class="hidden">
-                <input type="text" id="lead-nombre" placeholder="Nombre" required>
-                <input type="text" id="lead-telefono" placeholder="Teléfono" required>
-                <textarea id="lead-notas" placeholder="Notas"></textarea>
-                <button onclick="crearLead()">Agregar</button>
-            </div>
-        `;
-        columnaFormulario.appendChild(formContainer);
-    }
-    
-    // Restaurar leads en sus columnas
-    Object.values(leadsActuales).forEach(leadClone => {
-        const estado = leadClone.closest('[data-estado]')?.getAttribute('data-estado');
-        if (estado) {
-            const columna = document.querySelector(`[data-estado="${estado}"] .leads-list`);
-            if (columna) {
-                columna.appendChild(leadClone);
-            }
-        }
-    });
-    
-    console.log('✅ Columnas de leads renderizadas');
-}
-
-// ============================================================================
-// CARGAR LEADS CON ESTADOS DINÁMICOS
-// ============================================================================
-async function cargarLeads() {
-    // Primero cargar estados
-    await cargarEstadosLead();
-    
-    // Renderizar columnas
-    renderizarColumnasLeads();
-    
-    // Cargar leads
-    try {
-        const resp = await fetch('/leads');
-        const leads = await resp.json();
-        
-        // Limpiar todas las listas
-        document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = '');
-        
-        // Distribuir leads en columnas
-        leads.forEach(lead => {
-            const estadoLimpio = lead.estado.trim();
-            const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
-            
-            if (leadList) {
-                const leadElement = document.createElement('div');
-                leadElement.classList.add('lead');
-                leadElement.setAttribute('data-id', lead.id);
-                leadElement.setAttribute('data-telefono', lead.telefono);
-                leadElement.setAttribute('draggable', 'true');
-                leadElement.ondragstart = (event) => drag(event);
-                leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
-                
-                leadElement.innerHTML = `
-                    <div class="lead-content">
-                        <strong class="lead-nombre">${lead.nombre}</strong>
-                        <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">
-                            ${lead.ultimo_mensaje || "No hay mensajes recientes"}
-                        </p>
-                    </div>
-                `;
-                
-                leadList.appendChild(leadElement);
-            }
-        });
-        
-        console.log(`✅ ${leads.length} leads cargados`);
-    } catch (err) {
-        console.error('❌ Error al cargar leads:', err);
-    }
-}
-
-// ============================================================================
 // MOSTRAR MODAL PARA CONFIGURAR ESTADOS
 // ============================================================================
 let estadosLeadTemp = [];
@@ -3320,6 +3174,224 @@ async function guardarEstadosLeadConfig() {
     }
 }
 
+
+// ============================================================================
+// CARGAR ESTADOS DE LEADS DESDE EL BACKEND
+// ============================================================================
+async function cargarEstadosLead() {
+    try {
+        const resp = await fetch('/leads/estados');
+        if (!resp.ok) throw new Error('Error HTTP ' + resp.status);
+        
+        estadosLeadConfig = await resp.json();
+        
+        // Si no hay estados, usar defaults
+        if (estadosLeadConfig.length === 0) {
+            estadosLeadConfig = [
+                { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
+                { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
+            ];
+        }
+        
+        console.log(`✅ ${estadosLeadConfig.length} estados de lead cargados`);
+        return estadosLeadConfig;
+    } catch (err) {
+        console.error('❌ Error al cargar estados:', err);
+        return [];
+    }
+}
+
+// ============================================================================
+// RENDERIZAR COLUMNAS DE LEADS DINÁMICAS
+// ============================================================================
+function renderizarColumnasLeads() {
+    const container = document.getElementById('leads-container');
+    if (!container) return;
+    
+    // Guardar leads actuales antes de re-renderizar (para no perderlos)
+    const leadsActuales = {};
+    document.querySelectorAll('.lead').forEach(lead => {
+        const id = lead.getAttribute('data-id');
+        if (id) {
+            leadsActuales[id] = lead.cloneNode(true);
+        }
+    });
+    
+    // Limpiar contenedor
+    container.innerHTML = '';
+    
+    // Crear columnas dinámicamente desde estadosLeadConfig
+    estadosLeadConfig.forEach((estado, idx) => {
+        const columna = document.createElement('div');
+        columna.className = 'leads-column';
+        columna.setAttribute('data-estado', estado.nombre);
+        columna.style.borderLeft = `5px solid ${estado.color}`;
+        columna.style.background = `${estado.color}40`; // 40 = 25% opacity
+        
+        columna.innerHTML = `
+            <h3 style="color: ${estado.color}; margin:0 0 10px 0;">${estado.nombre}</h3>
+            <div class="leads-list"></div>
+            ${!estado.fijo ? `
+                <button onclick="eliminarEstadoLead('${estado.nombre}')" 
+                    style="margin-top:10px;background:#e74c3c;color:white;border:none;
+                           padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;">
+                    🗑️ Eliminar estado
+                </button>
+            ` : ''}
+        `;
+        
+        // Configurar drag & drop
+        columna.ondragover = (event) => event.preventDefault();
+        columna.ondrop = (event) => drop(event, estado.nombre);
+        
+        container.appendChild(columna);
+    });
+    
+    // Agregar formulario en la columna "Contacto Inicial"
+    const columnaInicial = document.querySelector('[data-estado="Contacto Inicial"]');
+    if (columnaInicial && !columnaInicial.querySelector('#toggle-form')) {
+        const formContainer = document.createElement('div');
+        formContainer.className = 'form-container';
+        formContainer.innerHTML = `
+            <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
+            <div id="lead-form" class="hidden">
+                <input type="text" id="lead-nombre" placeholder="Nombre" required>
+                <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                <textarea id="lead-notas" placeholder="Notas"></textarea>
+                <button onclick="crearLead()">Agregar</button>
+            </div>
+        `;
+        columnaInicial.appendChild(formContainer);
+    }
+    
+    // Restaurar leads en sus columnas correspondientes
+    Object.values(leadsActuales).forEach(leadClone => {
+        const estado = leadClone.getAttribute('data-estado-original') || 'Contacto Inicial';
+        const columna = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+        if (columna) {
+            // Restaurar event listeners
+            leadClone.ondragstart = (event) => drag(event);
+            leadClone.onclick = () => {
+                const id = leadClone.getAttribute('data-id');
+                const nombre = leadClone.querySelector('.lead-nombre')?.textContent;
+                const telefono = leadClone.getAttribute('data-telefono');
+                const notas = leadClone.getAttribute('data-notas') || '';
+                abrirModalEditar(id, nombre, telefono, notas);
+            };
+            columna.appendChild(leadClone);
+        }
+    });
+    
+    console.log('✅ Columnas de leads renderizadas');
+}
+
+// ============================================================================
+// CARGAR LEADS CON ESTADOS DINÁMICOS
+// ============================================================================
+async function cargarLeads() {
+    console.log('📋 [DEBUG] cargarLeads() iniciando...');
+    
+    // 1. Primero cargar estados desde BD
+    await cargarEstadosLead();
+    
+    // 2. Renderizar columnas dinámicas
+    renderizarColumnasLeads();
+    
+    // 3. Cargar leads desde backend
+    try {
+        const resp = await fetch('/leads');
+        if (!resp.ok) throw new Error('Error al cargar leads');
+        
+        const leads = await resp.json();
+        console.log(`📦 ${leads.length} leads recibidos`);
+        
+        // Limpiar todas las listas
+        document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = '');
+        
+        // Distribuir leads en columnas según su estado
+        leads.forEach(lead => {
+            const estadoLimpio = lead.estado.trim();
+            const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
+            
+            if (leadList) {
+                const leadElement = document.createElement('div');
+                leadElement.classList.add('lead', 'lead-nuevo');
+                leadElement.setAttribute('data-id', lead.id);
+                leadElement.setAttribute('data-telefono', lead.telefono);
+                leadElement.setAttribute('data-estado-original', estadoLimpio);
+                leadElement.setAttribute('data-notas', lead.notas || '');
+                leadElement.setAttribute('draggable', 'true');
+                leadElement.ondragstart = (event) => drag(event);
+                leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
+                
+                leadElement.innerHTML = `
+                    <div class="lead-content">
+                        <strong class="lead-nombre">${lead.nombre}</strong>
+                        <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">
+                            ${lead.ultimo_mensaje || "No hay mensajes recientes"}
+                        </p>
+                    </div>
+                `;
+                
+                leadList.appendChild(leadElement);
+                
+                // Animación de nuevo lead
+                setTimeout(() => leadElement.classList.remove('lead-nuevo'), 3000);
+            }
+        });
+        
+        // Actualizar contador en el buscador
+        const resultadosDiv = document.getElementById('leads-search-results');
+        if (resultadosDiv) {
+            resultadosDiv.textContent = `📊 ${leads.length} lead(s) en total`;
+        }
+        
+        console.log(`✅ ${leads.length} leads cargados y distribuidos`);
+    } catch (err) {
+        console.error('❌ Error al cargar leads:', err);
+    }
+}
+
+// ============================================================================
+// FILTRAR LEADS POR BÚSQUEDA GLOBAL
+// ============================================================================
+function filtrarLeads(termino) {
+    const leads = document.querySelectorAll('.lead');
+    const resultadosDiv = document.getElementById('leads-search-results');
+    
+    let visibles = 0;
+    
+    leads.forEach(lead => {
+        const nombre = lead.querySelector('.lead-nombre')?.textContent.toLowerCase() || '';
+        const telefono = lead.getAttribute('data-telefono') || '';
+        const notas = lead.getAttribute('data-notas') || '';
+        
+        const coincide = 
+            nombre.includes(termino.toLowerCase()) || 
+            telefono.includes(termino) ||
+            notas.includes(termino.toLowerCase());
+        
+        lead.style.display = coincide ? 'flex' : 'none';
+        
+        if (coincide) visibles++;
+    });
+    
+    // Mostrar contador de resultados
+    if (resultadosDiv) {
+        if (termino.trim()) {
+            resultadosDiv.textContent = `📊 ${visibles} lead(s) encontrado(s) de ${leads.length}`;
+            resultadosDiv.style.color = visibles > 0 ? '#43a047' : '#d32f2f';
+        } else {
+            resultadosDiv.textContent = `📊 ${leads.length} lead(s) en total`;
+        }
+    }
+    
+    console.log(`🔍 Búsqueda: "${termino}" → ${visibles} resultados`);
+}
+
+// ============================================================================
+// ELIMINAR ESTADO DE LEAD (SOLO NO FIJOS)
+// ============================================================================
 async function eliminarEstadoLead(nombreEstado) {
     // Obtener estado destino para mover los leads
     const estadoDestino = prompt(
@@ -3350,21 +3422,14 @@ async function eliminarEstadoLead(nombreEstado) {
     }
 }
 
+
 // ============================================================================
-// LISTENER SOCKET PARA ACTUALIZACIÓN DE ESTADOS
+// LISTENER SOCKET PARA ACTUALIZACIÓN DE ESTADOS DE LEADS
 // ============================================================================
 socket.on("configuracion_lead_actualizada", data => {
     console.log("📋 Configuración de leads actualizada:", data);
     
     if (data.tipo === "estados") {
-        leadEstadosActualizados = true;
-        
-        // Si el modal está abierto, recargar
-        const modal = document.getElementById('modal-estados-lead');
-        if (modal && !modal.classList.contains('hidden')) {
-            mostrarModalEstadosLead();
-        }
-        
         // Si la sección de leads está visible, recargar
         const seccionLeads = document.getElementById('leads');
         if (seccionLeads && !seccionLeads.classList.contains('hidden')) {
@@ -3374,10 +3439,6 @@ socket.on("configuracion_lead_actualizada", data => {
         mostrarNotificacionSuave('📋 Estados de lead actualizados', 'success');
     }
 });
-
-
-
-
 
 
 
