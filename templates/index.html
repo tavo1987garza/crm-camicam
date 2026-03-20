@@ -1650,6 +1650,74 @@ th {
   border: 1px solid #e9ecef;
   padding: 12px;
 }
+
+
+
+
+/* ============================================================================
+ESTILOS PARA CAMPOS PERSONALIZADOS (AUTO-GENERACIÓN)
+============================================================================ */
+.campo-input-clave.auto-generated {
+    background: #f8f9fa !important;
+    border-color: #1e88e5 !important;
+    font-style: italic;
+}
+
+.campo-input-clave.auto-generated::placeholder {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Hover effect para inputs */
+.campo-input-nombre:hover,
+.campo-input-clave:hover,
+.campo-input-tipo:hover,
+.campo-input-opciones:hover {
+    border-color: #1e88e5;
+    transition: border-color 0.2s ease;
+}
+
+/* Focus effect */
+.campo-input-nombre:focus,
+.campo-input-clave:focus,
+.campo-input-tipo:focus,
+.campo-input-opciones:focus {
+    outline: none;
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+}
+
+
+
+
+/* Indicador visual para campos auto-generados */
+.servicio-input-clave.auto-generated {
+    background: #f8f9fa !important;
+    border-color: #1e88e5 !important;
+    font-style: italic;
+}
+
+.servicio-input-clave.auto-generated::placeholder {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Hover effect para inputs */
+.servicio-input-nombre:hover,
+.servicio-input-clave:hover,
+.servicio-input-tipo:hover {
+    border-color: #1e88e5;
+    transition: border-color 0.2s ease;
+}
+
+/* Focus effect */
+.servicio-input-nombre:focus,
+.servicio-input-clave:focus,
+.servicio-input-tipo:focus {
+    outline: none;
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+}
   
 
     </style>
@@ -3135,7 +3203,7 @@ document.body.addEventListener("click", function () {
         }
 
           //Actualiza la lista de chats a un lado del telefono
-          function actualizarListaChats(remitente, mensaje) {
+function actualizarListaChats(remitente, mensaje) {
   let chatLista = document.getElementById("lista-chats");
   let chatExistente = document.querySelector(`.chat-item[data-remitente='${remitente}']`);
 
@@ -3484,7 +3552,7 @@ function irAChat(telefono) {
         
        
 
-        function abrirModalEditar(id, nombre, telefono, notas) {
+function abrirModalEditar(id, nombre, telefono, notas) {
   document.getElementById("edit-lead-id").value = id;
   document.getElementById("edit-lead-nombre").value = nombre;
   document.getElementById("edit-lead-telefono").value = telefono;
@@ -3502,7 +3570,7 @@ function irAChat(telefono) {
         
        
 
-        function cerrarModal() {
+function cerrarModal() {
   let modal = document.getElementById("edit-lead-modal");
   
   let originalNombre = modal.dataset.originalNombre;
@@ -3519,7 +3587,7 @@ function irAChat(telefono) {
   modal.style.display = "none";
 }
 
-        function guardarEdicionLead() {
+function guardarEdicionLead() {
   let id = document.getElementById("edit-lead-id").value;
   let nombre = document.getElementById("edit-lead-nombre").value.trim();
   let telefono = document.getElementById("edit-lead-telefono").value.trim(); // No se modifica
@@ -5798,43 +5866,83 @@ function cerrarModalCamposEvento() {
   document.getElementById('modal-campos-evento').classList.add('hidden');
 }
 
+
+// ============================================================================
+// AGREGAR NUEVO CAMPO PERSONALIZADO (inicializa con valores limpios)
+// ============================================================================
 function agregarCampoEvento() {
-  camposEvento.push({
-    nombre: '',
-    clave: '',
-    tipo: 'text',
-    opciones: [],
-    obligatorio: false
-  });
-  renderizarListaCampos();
+    camposEvento.push({
+        nombre: '',
+        clave: '',  // ✅ Vacío para permitir auto-generación
+        tipo: 'text',
+        opciones: [],
+        obligatorio: false
+    });
+    renderizarListaCampos();
+    
+    // ✅ Enfocar automáticamente el campo de nombre del nuevo campo
+    setTimeout(() => {
+        const nuevosInputs = document.querySelectorAll('.campo-input-nombre');
+        if (nuevosInputs.length > 0) {
+            nuevosInputs[nuevosInputs.length - 1].focus();
+        }
+    }, 100);
 }
 
-// 🔧 REEMPLAZA esta función en tu HTML
+// ============================================================================
+// ELIMINAR CAMPO PERSONALIZADO DE LA LISTA
+// ============================================================================
+function eliminarCampoEvento(idx) {
+    camposEvento.splice(idx, 1);
+    renderizarListaCampos();
+}
+
+// ============================================================================
+// FUNCIÓN PARA RENDERIZAR LISTA DE CAMPOS PERSONALIZADOS (CON AUTO-GENERACIÓN INTELIGENTE)
+// ============================================================================
 function renderizarListaCampos() {
     const cont = document.getElementById('lista-campos-evento');
-    cont.innerHTML = camposEvento.map((campo, idx) => `
-        <div class="panel-card" style="margin-bottom:10px;">
-            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
-                <input type="text" placeholder="Nombre del campo" 
+    if (!cont) return;
+    
+    cont.innerHTML = camposEvento.map((campo, idx) => {
+        // Generar clave por defecto SOLO si está vacía
+        const claveDisplay = campo.clave || campo.nombre.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // Remove accents
+            .replace(/[^a-z0-9]+/g, '_')                        // Replace non-alphanumeric with _
+            .replace(/^_+|_+$/g, '')                            // Trim underscores
+            .substring(0, 30);                                  // Limit length
+        
+        return `
+        <div class="panel-card" style="margin-bottom:10px;" data-idx="${idx}">
+            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+                
+                <!-- Campo NOMBRE -->
+                <input type="text" 
+                    placeholder="Nombre del campo" 
                     value="${campo.nombre}" 
-                    style="flex:2;min-width:150px;"
-                    oninput="camposEvento[${idx}].nombre=this.value; 
-                            if(!camposEvento[${idx}].clave) {
-                                camposEvento[${idx}].clave=this.value.toLowerCase()
-                                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
-                                    .replace(/[^a-z0-9]/g,'_');
-                                renderizarListaCampos();
-                            }">
+                    data-field="nombre"
+                    data-idx="${idx}"
+                    class="campo-input-nombre"
+                    style="flex:2;min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px;"
+                >
                 
-                <input type="text" placeholder="Clave (ID único)" 
-                    value="${campo.clave}" 
-                    style="flex:1;min-width:120px;"
-                    oninput="camposEvento[${idx}].clave=this.value.toLowerCase()
-                        .replace(/[^a-z0-9_]/g,'')">
+                <!-- Campo CLAVE (con indicador de auto-generación) -->
+                <div style="position:relative;flex:1;min-width:120px;">
+                    <input type="text" 
+                        placeholder="Clave (ID único)" 
+                        value="${campo.clave}" 
+                        data-field="clave"
+                        data-idx="${idx}"
+                        class="campo-input-clave ${!campo.clave ? 'auto-generated' : ''}"
+                        style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;${!campo.clave ? 'background:#f8f9fa;' : ''}"
+                    >
+                    ${!campo.clave ? '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#6c757d;">✨</span>' : ''}
+                </div>
                 
-                <select onchange="camposEvento[${idx}].tipo=this.value; 
-                                  renderizarListaCampos()"
-                    style="min-width:100px;">
+                <!-- Tipo de campo -->
+                <select data-field="tipo" data-idx="${idx}" 
+                    class="campo-input-tipo"
+                    style="min-width:120px;padding:8px;border:1px solid #ddd;border-radius:4px;">
                     <option value="text" ${campo.tipo==='text'?'selected':''}>Texto</option>
                     <option value="number" ${campo.tipo==='number'?'selected':''}>Número</option>
                     <option value="select" ${campo.tipo==='select'?'selected':''}>Selección</option>
@@ -5842,35 +5950,140 @@ function renderizarListaCampos() {
                     <option value="date" ${campo.tipo==='date'?'selected':''}>Fecha</option>
                 </select>
                 
-                <label style="display:flex;align-items:center;gap:5px;">
-                    <input type="checkbox" ${campo.obligatorio?'checked':''}
-                        onchange="camposEvento[${idx}].obligatorio=this.checked">
+                <!-- Checkbox Obligatorio -->
+                <label style="display:flex;align-items:center;gap:5px;font-size:14px;">
+                    <input type="checkbox" 
+                        data-field="obligatorio"
+                        data-idx="${idx}"
+                        class="campo-input-obligatorio"
+                        ${campo.obligatorio ? 'checked' : ''}
+                    >
                     Obligatorio
                 </label>
                 
-                <button onclick="camposEvento.splice(${idx},1);renderizarListaCampos()"
-                    style="background:#e74c3c;color:white;border:none;padding:5px 10px;
-                           border-radius:4px;cursor:pointer;">🗑️</button>
+                <!-- Botón eliminar -->
+                <button onclick="eliminarCampoEvento(${idx})" 
+                    style="background:#e74c3c;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;"
+                    title="Eliminar campo">🗑️</button>
             </div>
+            
+            <!-- Campo OPCIONES (solo para tipo select) -->
             ${campo.tipo === 'select' ? `
-                <input type="text" placeholder="Opciones separadas por comas (ej: Opción1,Opción2,Opción3)"
-                    value="${campo.opciones?.join(',') || ''}"
-                    style="width:100%;padding:8px;margin-top:5px;"
-                    oninput="camposEvento[${idx}].opciones=this.value.split(',')
-                        .map(o=>o.trim()).filter(o=>o)">
+                <div style="margin-top:8px;">
+                    <input type="text" 
+                        placeholder="Opciones separadas por comas (ej: Opción1,Opción2,Opción3)" 
+                        value="${campo.opciones?.join(',') || ''}" 
+                        data-field="opciones"
+                        data-idx="${idx}"
+                        class="campo-input-opciones"
+                        style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;"
+                    >
+                </div>
             ` : ''}
         </div>
-    `).join('');
+        `;
+    }).join('');
+    
+    // ✅ Configurar event listeners DESPUÉS de renderizar (evita conflictos de foco)
+    configurarListenersCamposEvento();
+}
+
+// ============================================================================
+// CONFIGURA EVENT LISTENERS PARA INPUTS DE CAMPOS PERSONALIZADOS
+// ============================================================================
+function configurarListenersCamposEvento() {
+    // --- Listener para campo NOMBRE ---
+    document.querySelectorAll('.campo-input-nombre').forEach(input => {
+        const idx = input.dataset.idx;
+        
+        // Actualizar nombre en tiempo real
+        input.addEventListener('input', (e) => {
+            camposEvento[idx].nombre = e.target.value;
+            
+            // ✅ Auto-generar clave SOLO si está vacía o tiene el valor por defecto
+            const claveInput = document.querySelector(`.campo-input-clave[data-idx="${idx}"]`);
+            if (claveInput && (!camposEvento[idx].clave || claveInput.classList.contains('auto-generated'))) {
+                const claveGenerada = e.target.value.toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9]+/g, '_')
+                    .replace(/^_+|_+$/g, '')
+                    .substring(0, 30);
+                
+                camposEvento[idx].clave = claveGenerada;
+                claveInput.value = claveGenerada;
+                claveInput.classList.add('auto-generated');
+                claveInput.style.background = '#f8f9fa';
+            }
+        });
+        
+        // ✅ Al perder foco, si la clave sigue vacía, generarla definitivamente
+        input.addEventListener('blur', (e) => {
+            if (!camposEvento[idx].clave && camposEvento[idx].nombre.trim()) {
+                const claveGenerada = camposEvento[idx].nombre.toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9]+/g, '_')
+                    .replace(/^_+|_+$/g, '')
+                    .substring(0, 30);
+                
+                camposEvento[idx].clave = claveGenerada;
+                const claveInput = document.querySelector(`.campo-input-clave[data-idx="${idx}"]`);
+                if (claveInput) {
+                    claveInput.value = claveGenerada;
+                    claveInput.classList.remove('auto-generated');
+                    claveInput.style.background = 'white';
+                }
+            }
+        });
+    });
+    
+    // --- Listener para campo CLAVE (permite edición manual) ---
+    document.querySelectorAll('.campo-input-clave').forEach(input => {
+        const idx = input.dataset.idx;
+        
+        input.addEventListener('input', (e) => {
+            // ✅ Permitir edición manual: limpiar flag de auto-generación
+            camposEvento[idx].clave = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+            input.classList.remove('auto-generated');
+            input.style.background = 'white';
+        });
+    });
+    
+    // --- Listener para campo TIPO ---
+    document.querySelectorAll('.campo-input-tipo').forEach(input => {
+        const idx = input.dataset.idx;
+        input.addEventListener('change', (e) => {
+            camposEvento[idx].tipo = e.target.value;
+            renderizarListaCampos(); // Re-render para mostrar/ocultar campo opciones
+        });
+    });
+    
+    // --- Listener para checkbox OBLIGATORIO ---
+    document.querySelectorAll('.campo-input-obligatorio').forEach(input => {
+        const idx = input.dataset.idx;
+        input.addEventListener('change', (e) => {
+            camposEvento[idx].obligatorio = e.target.checked;
+        });
+    });
+    
+    // --- Listener para campo OPCIONES (solo select) ---
+    document.querySelectorAll('.campo-input-opciones').forEach(input => {
+        const idx = input.dataset.idx;
+        input.addEventListener('input', (e) => {
+            camposEvento[idx].opciones = e.target.value.split(',')
+                .map(o => o.trim())
+                .filter(o => o);
+        });
+    });
 }
 
 
 // ============================================================================
-// FUNCIÓN PARA GUARDAR CAMPOS PERSONALIZADOS (CON SOCKET.IO)
+// GUARDAR CAMPOS PERSONALIZADOS (CON VALIDACIÓN DE DUPLICADOS)
 // ============================================================================
 async function guardarCamposEvento() {
     // 1. Validar claves únicas
     const claves = camposEvento.map(c => c.clave?.toLowerCase().trim());
-    const duplicados = claves.filter((c, i) => claves.indexOf(c) !== i);
+    const duplicados = claves.filter((c, i) => claves.indexOf(c) !== i && c !== '');
     
     if (duplicados.length > 0) {
         mostrarNotificacionSuave(`⚠️ Claves duplicadas: ${[...new Set(duplicados)].join(', ')}`, "error");
@@ -5878,7 +6091,7 @@ async function guardarCamposEvento() {
     }
     
     // 2. Validar que todos tengan nombre y clave
-    const validos = camposEvento.filter(c => c.nombre.trim() && c.clave.trim());
+    const validos = camposEvento.filter(c => c.nombre.trim() && c.clave?.trim());
     
     if (validos.length === 0) {
         mostrarNotificacionSuave('⚠️ Agrega al menos un campo con nombre y clave', "error");
@@ -5895,13 +6108,9 @@ async function guardarCamposEvento() {
         const data = await resp.json();
         
         if (data.ok) {
-            // ✅ NOTIFICACIÓN SUAVE (no bloqueante)
             mostrarNotificacionSuave('✅ Campos actualizados', "success");
             
             // ✅ EL SOCKET SE ENCARGA DE ACTUALIZAR OTRAS PESTAÑAS
-            // No recargamos manualmente, dejamos que socket.on lo haga
-            
-            // ✅ CERRAR MODAL DESPUÉS DE UN BREVE DELAY
             setTimeout(() => {
                 cerrarModalCamposEvento();
             }, 800);
@@ -5937,50 +6146,167 @@ function cerrarModalServicios() {
   document.getElementById('modal-servicios').classList.add('hidden');
 }
 
-// Agregar nuevo servicio vacío
+
+// ============================================================================
+// AGREGAR NUEVO SERVICIO (inicializa con valores limpios)
+// ============================================================================
 function agregarServicio() {
-  serviciosConfig.push({
-    nombre: '',
-    clave: '',
-    tipo: 'boolean'
-  });
-  renderizarListaServicios();
+    serviciosConfig.push({
+        nombre: '',
+        clave: '',  // ✅ Vacío para permitir auto-generación
+        tipo: 'boolean'
+    });
+    renderizarListaServicios();
+    
+    // ✅ Enfocar automáticamente el campo de nombre del nuevo servicio
+    setTimeout(() => {
+        const nuevosInputs = document.querySelectorAll('.servicio-input-nombre');
+        if (nuevosInputs.length > 0) {
+            nuevosInputs[nuevosInputs.length - 1].focus();
+        }
+    }, 100);
 }
 
-// Renderizar lista de servicios en el modal
+// ============================================================================
+// ELIMINAR SERVICIO DE LA LISTA
+// ============================================================================
+function eliminarServicio(idx) {
+    serviciosConfig.splice(idx, 1);
+    renderizarListaServicios();
+}
+
+// ============================================================================
+// FUNCIÓN PARA RENDERIZAR LISTA DE SERVICIOS (CON AUTO-GENERACIÓN INTELIGENTE)
+// ============================================================================
 function renderizarListaServicios() {
     const cont = document.getElementById('lista-servicios');
-    cont.innerHTML = serviciosConfig.map((serv, idx) => `
-        <div class="panel-card" style="margin-bottom:10px;">
-            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
-                <input type="text" placeholder="Nombre del servicio" value="${serv.nombre}"
-                    style="flex:2;min-width:150px;"
-                    oninput="serviciosConfig[${idx}].nombre=this.value; 
-                            if(!serviciosConfig[${idx}].clave) {
-                                serviciosConfig[${idx}].clave=this.value.toLowerCase()
-                                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
-                                    .replace(/[^a-z0-9]/g,'_');
-                                renderizarListaServicios();
-                            }">
+    if (!cont) return;
+    
+    cont.innerHTML = serviciosConfig.map((serv, idx) => {
+        // Generar clave por defecto SOLO si está vacía
+        const claveDisplay = serv.clave || serv.nombre.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // Remove accents
+            .replace(/[^a-z0-9]+/g, '_')                        // Replace non-alphanumeric with _
+            .replace(/^_+|_+$/g, '')                            // Trim underscores
+            .substring(0, 30);                                  // Limit length
+        
+        return `
+        <div class="panel-card" style="margin-bottom:10px;" data-idx="${idx}">
+            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
                 
-                <input type="text" placeholder="Clave (ID único)" value="${serv.clave}"
-                    style="flex:1;min-width:120px;"
-                    oninput="serviciosConfig[${idx}].clave=this.value.toLowerCase()
-                        .replace(/[^a-z0-9_]/g,'')">
+                <!-- Campo NOMBRE -->
+                <input type="text" 
+                    placeholder="Nombre del servicio" 
+                    value="${serv.nombre}" 
+                    data-field="nombre"
+                    data-idx="${idx}"
+                    class="servicio-input-nombre"
+                    style="flex:2;min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px;"
+                >
                 
-                <select onchange="serviciosConfig[${idx}].tipo=this.value"
-                    style="min-width:150px;">
+                <!-- Campo CLAVE (con indicador de auto-generación) -->
+                <div style="position:relative;flex:1;min-width:120px;">
+                    <input type="text" 
+                        placeholder="Clave (ID único)" 
+                        value="${serv.clave}" 
+                        data-field="clave"
+                        data-idx="${idx}"
+                        class="servicio-input-clave ${!serv.clave ? 'auto-generated' : ''}"
+                        style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;${!serv.clave ? 'background:#f8f9fa;' : ''}"
+                    >
+                    ${!serv.clave ? '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#6c757d;">✨</span>' : ''}
+                </div>
+                
+                <!-- Tipo de servicio -->
+                <select data-field="tipo" data-idx="${idx}" 
+                    class="servicio-input-tipo"
+                    style="min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px;">
                     <option value="boolean" ${serv.tipo==='boolean'?'selected':''}>Checkbox (Sí/No)</option>
                     <option value="number" ${serv.tipo==='number'?'selected':''}>Número (Cantidad)</option>
                 </select>
                 
-                <button onclick="serviciosConfig.splice(${idx},1);renderizarListaServicios()"
-                    style="background:#e74c3c;color:white;border:none;padding:5px 10px;
-                           border-radius:4px;cursor:pointer;">🗑️</button>
+                <!-- Botón eliminar -->
+                <button onclick="eliminarServicio(${idx})" 
+                    style="background:#e74c3c;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;"
+                    title="Eliminar servicio">🗑️</button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
+    
+    // ✅ Configurar event listeners DESPUÉS de renderizar (evita conflictos)
+    configurarListenersServicios();
 }
+
+// ============================================================================
+// CONFIGURA EVENT LISTENERS PARA INPUTS DE SERVICIOS (SEPARA NOMBRE/CLAVE)
+// ============================================================================
+function configurarListenersServicios() {
+    // --- Listener para campo NOMBRE ---
+    document.querySelectorAll('.servicio-input-nombre').forEach(input => {
+        const idx = input.dataset.idx;
+        
+        // Actualizar nombre en tiempo real
+        input.addEventListener('input', (e) => {
+            serviciosConfig[idx].nombre = e.target.value;
+            
+            // ✅ Auto-generar clave SOLO si está vacía o tiene el valor por defecto
+            const claveInput = document.querySelector(`.servicio-input-clave[data-idx="${idx}"]`);
+            if (claveInput && (!serviciosConfig[idx].clave || claveInput.classList.contains('auto-generated'))) {
+                const claveGenerada = e.target.value.toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9]+/g, '_')
+                    .replace(/^_+|_+$/g, '')
+                    .substring(0, 30);
+                
+                serviciosConfig[idx].clave = claveGenerada;
+                claveInput.value = claveGenerada;
+                claveInput.classList.add('auto-generated');
+                claveInput.style.background = '#f8f9fa';
+            }
+        });
+        
+        // ✅ Al perder foco, si la clave sigue vacía, generarla definitivamente
+        input.addEventListener('blur', (e) => {
+            if (!serviciosConfig[idx].clave && serviciosConfig[idx].nombre.trim()) {
+                const claveGenerada = serviciosConfig[idx].nombre.toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9]+/g, '_')
+                    .replace(/^_+|_+$/g, '')
+                    .substring(0, 30);
+                
+                serviciosConfig[idx].clave = claveGenerada;
+                const claveInput = document.querySelector(`.servicio-input-clave[data-idx="${idx}"]`);
+                if (claveInput) {
+                    claveInput.value = claveGenerada;
+                    claveInput.classList.remove('auto-generated');
+                    claveInput.style.background = 'white';
+                }
+            }
+        });
+    });
+    
+    // --- Listener para campo CLAVE (permite edición manual) ---
+    document.querySelectorAll('.servicio-input-clave').forEach(input => {
+        const idx = input.dataset.idx;
+        
+        input.addEventListener('input', (e) => {
+            // ✅ Permitir edición manual: limpiar flag de auto-generación
+            serviciosConfig[idx].clave = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+            input.classList.remove('auto-generated');
+            input.style.background = 'white';
+        });
+    });
+    
+    // --- Listener para campo TIPO ---
+    document.querySelectorAll('.servicio-input-tipo').forEach(input => {
+        const idx = input.dataset.idx;
+        input.addEventListener('change', (e) => {
+            serviciosConfig[idx].tipo = e.target.value;
+        });
+    });
+}
+
 
 // ============================================================================
 // FUNCIÓN PARA GUARDAR SERVICIOS PERSONALIZADOS (CON SOCKET.IO)
