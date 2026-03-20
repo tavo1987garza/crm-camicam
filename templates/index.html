@@ -3999,43 +3999,74 @@ async function agregarAnio() {
     /*=========================================
        2) CARGAR LEADS PARA EL <select> LEAD
     =========================================*/
-    function cargarLeadsEnSelect() {
-      fetch("/leads")
-        .then(resp => resp.json())
-        .then(leads => {
-          // leads es un array de objetos, 
-          // por ejemplo: [ {id: 1, nombre: "Carlos", telefono: "...", ...}, ... ]
-          const select = document.getElementById("lead-select");
-          select.innerHTML = '<option value="">-- Sin Lead --</option>';
+// ============================================================================
+// CARGAR LEADS EN EL SELECT (CON MANEJO DE ERRORES)
+// ============================================================================
+async function cargarLeadsEnSelect() {
+    console.log('📋 [DEBUG] cargarLeadsEnSelect() iniciando...');
     
-          leads.forEach(ld => {
+    const select = document.getElementById("lead-select");
+    if (!select) {
+        console.warn('⚠️ Select lead-select no encontrado');
+        return;
+    }
+    
+    try {
+        const resp = await fetch("/leads");
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        
+        const leads = await resp.json();
+        console.log(`✅ ${leads.length} leads cargados`);
+        
+        select.innerHTML = '<option value="">-- Sin Lead --</option>';
+        leads.forEach(ld => {
             const option = document.createElement("option");
             option.value = ld.id;
             option.textContent = ld.nombre;
             select.appendChild(option);
-          });
-        })
-        .catch(err => {
-          console.error("Error fetch /leads:", err);
         });
+    } catch (err) {
+        console.error('❌ Error al cargar leads:', err);
+        // No romper el flujo, solo dejar el select vacío con la opción por defecto
+        select.innerHTML = '<option value="">-- Sin Lead --</option>';
     }
+}
     
 
     /*=========================================
        3) AGREGAR FECHA MANUALMENTE
     =========================================*/
-
-// ============== 2) ABRIR AGREGAR NUEVA FECHA  ==============
-// ✅ ESTO YA ESTÁ CORRECTO en tu código, pero verifica que exista:
+// ============================================================================
+// FUNCIÓN PARA MOSTRAR FORMULARIO DE AGREGAR FECHA (CON MANEJO DE ERRORES)
+// ============================================================================
 async function mostrarFormularioFecha() {
+    console.log('🔍 [DEBUG] mostrarFormularioFecha() iniciando...');
+    
     try {
-        // 1. Cargar leads en el select
+        // 1. Verificar que el modal existe
+        const modal = document.getElementById('add-fecha-modal');
+        if (!modal) {
+            console.error('❌ Modal add-fecha-modal no encontrado en el DOM');
+            alert('Error: El formulario no está disponible. Recarga la página.');
+            return;
+        }
+        
+        // 2. Cargar leads en el select
+        console.log('📋 Cargando leads...');
         await cargarLeadsEnSelect();
         
-        // 2. Cargar servicios personalizados desde BD
-        const serviciosResp = await fetch('/servicios');
-        if (!serviciosResp.ok) throw new Error('Error al cargar servicios');
-        const servicios = await serviciosResp.json();
+        // 3. Cargar servicios personalizados
+        console.log('🔧 Cargando servicios...');
+        let servicios = [];
+        try {
+            const resp = await fetch('/servicios');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            servicios = await resp.json();
+            console.log(`✅ ${servicios.length} servicios cargados`);
+        } catch (err) {
+            console.warn('⚠️ No se pudieron cargar servicios:', err);
+            servicios = [];
+        }
         
         const serviciosContainer = document.getElementById('servicios-fijos');
         if (serviciosContainer) {
@@ -4059,17 +4090,26 @@ async function mostrarFormularioFecha() {
                 }
                 serviciosContainer.innerHTML += inputHTML;
             });
+        } else {
+            console.warn('⚠️ Contenedor servicios-fijos no encontrado');
         }
         
-        // 3. Cargar CAMPOS PERSONALIZADOS desde BD
-        const camposResp = await fetch('/campos_evento');
-        if (!camposResp.ok) throw new Error('Error al cargar campos personalizados');
-        const campos = await camposResp.json();
+        // 4. Cargar campos personalizados
+        console.log('📝 Cargando campos personalizados...');
+        let campos = [];
+        try {
+            const resp = await fetch('/campos_evento');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            campos = await resp.json();
+            console.log(`✅ ${campos.length} campos personalizados cargados`);
+        } catch (err) {
+            console.warn('⚠️ No se pudieron cargar campos personalizados:', err);
+            campos = [];
+        }
         
         const cont = document.getElementById('contenedor-campos-personalizados');
         if (cont) {
             cont.innerHTML = '';
-            
             if (campos.length === 0) {
                 cont.innerHTML = '<p style="color:#7f8c8d;font-style:italic;">No hay campos personalizados configurados</p>';
             } else {
@@ -4111,21 +4151,43 @@ async function mostrarFormularioFecha() {
                     `;
                 });
             }
+        } else {
+            console.warn('⚠️ Contenedor contenedor-campos-personalizados no encontrado');
         }
         
-        // 4. Limpiar campos del formulario
-        document.getElementById('fecha-input').value = '';
-        document.getElementById('titulo-input').value = '';
-        document.getElementById('notas-textarea').value = '';
-        document.getElementById('ticket-input').value = '';
-        document.getElementById('lead-select').value = '';
+        // 5. Limpiar campos del formulario
+        console.log('🧹 Limpiando campos del formulario...');
+        const fechaInput = document.getElementById('fecha-input');
+        if (fechaInput) fechaInput.value = '';
         
-        // 5. Mostrar modal
-        document.getElementById('add-fecha-modal').classList.remove('hidden');
+        const tituloInput = document.getElementById('titulo-input');
+        if (tituloInput) tituloInput.value = '';
+        
+        const notasTextarea = document.getElementById('notas-textarea');
+        if (notasTextarea) notasTextarea.value = '';
+        
+        const ticketInput = document.getElementById('ticket-input');
+        if (ticketInput) ticketInput.value = '';
+        
+        const leadSelect = document.getElementById('lead-select');
+        if (leadSelect) leadSelect.value = '';
+        
+        // 6. MOSTRAR MODAL: usar ambas formas para asegurar compatibilidad
+        console.log('🪟 Mostrando modal...');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';  // Forzar display para evitar conflictos CSS
+        
+        console.log('✅ mostrarFormularioFecha() completado');
         
     } catch (err) {
-        console.error('Error en mostrarFormularioFecha:', err);
-        alert('❌ Error al cargar el formulario: ' + err.message);
+        console.error('💥 ERROR CRÍTICO en mostrarFormularioFecha():', err);
+        alert('❌ Error al abrir el formulario: ' + err.message);
+        // Intentar mostrar el modal de todos modos
+        const modal = document.getElementById('add-fecha-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
     }
 }
      // Cerrar modal
