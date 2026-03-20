@@ -299,6 +299,241 @@ def kpi_mes():
 #----------SECCION LEADS---------- 
 ##################################   
 
+# ============================================================================
+# ESTADOS DE LEADS PERSONALIZABLES POR TENANT
+# ============================================================================
+
+@app.route("/leads/estados", methods=["GET"])
+def obtener_estados_lead():
+    """Obtener estados configurados por el tenant"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify([]), 401
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify([]), 500
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT nombre, color, orden, fijo
+            FROM lead_estados_tenant
+            WHERE cliente_id = %s AND activo = true
+            ORDER BY orden ASC
+        """, (cliente_id,))
+        
+        estados = [
+            {
+                "nombre": row[0],
+                "color": row[1],
+                "orden": row[2],
+                "fijo": row[3]
+            }
+            for row in cur.fetchall()
+        ]
+        
+        return jsonify(estados), 200
+    except Exception as e:
+        print(f"❌ Error en /leads/estados: {str(e)}")
+        return jsonify([]), 500
+    finally:
+        liberar_db(conn)
+
+@app.route("/leads/estados", methods=["POST"])
+def guardar_estados_lead():
+    """Guardar configuración de estados del tenant"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    estados = request.json.get("estados", [])
+    if not isinstance(estados, list):
+        return jsonify({"error": "Formato inválido"}), 400
+    
+    # Validar que al menos los estados fijos existan
+    estados_fijos_requeridos = ["Contacto Inicial", "En proceso"]
+    nombres_estados = [e.get("nombre", "").strip() for e in estados]
+    
+    for fijo in estados_fijos_requeridos:
+        if fijo not in nombres_estados:
+            return jsonify({"error": f"El estado '{fijo}' es requerido"}), 400
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar"}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Eliminar estados anteriores (excepto fijos)
+        cur.execute("""
+            DELETE FROM lead_estados_tenant 
+            WHERE cliente_id = %s AND fijo = FALSE
+        """, (cliente_id,))
+        
+        # Insertar/actualizar estados
+        for i, estado in enumerate(estados):
+            nombre = estado.get("nombre", "").strip()
+            color = estado.get("color", "#1e88e5")
+            fijo = estado.get("fijo", False)
+            
+            if nombre:
+                cur.execute("""
+                    INSERT INTO lead_estados_tenant 
+                    (cliente_id, nombre, color, orden, fijo, activo)
+                    VALUES (%s, %s, %s, %s, %s, true)
+                    ON CONFLICT (cliente_id, nombre) 
+                    DO UPDATE SET color = EXCLUDED.color, orden = EXCLUDED.orden
+                """, (cliente_id, nombre, color, i, fijo))
+        
+        conn.commit()
+        
+        # Emitir evento Socket para actualización en tiempo real
+        socketio.emit(
+            "configuracion_lead_actualizada",
+            {
+                "tipo": "estados",
+                "cliente_id": cliente_id,
+                "timestamp": datetime.now().isoformat()
+            },
+            broadcast=True
+        )
+        
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error en guardar_estados_lead: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+@app.route("/leads/estado/eliminar", methods=["POST"])
+def eliminar_estado_lead():
+    """Eliminar un estado personalizado (no fijo)"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    datos = request.json
+    nombre_estado = datos.get("nombre")
+    estado_destino = datos.get("estado_destino", "Contacto Inicial")
+    
+    if not nombre_estado:
+        return jsonify({"error": "Falta nombre del estado"}), 400
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar"}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Verificar que el estado no sea fijo
+        cur.execute("""
+            SELECT fijo FROM lead_estados_tenant 
+            WHERE cliente_id = %s AND nombre = %s
+        """, (cliente_id, nombre_estado))
+        row = cur.fetchone()
+        
+        if not row:
+            return jsonify({"error": "Estado no encontrado"}), 404
+        
+        if row[0]:  # Es fijo
+            return jsonify({"error": "No se pueden eliminar estados fijos"}), 403
+        
+        # Mover leads a otro estado antes de eliminar
+        cur.execute("""
+            UPDATE leads SET estado = %s 
+            WHERE cliente_id = %s AND estado = %s
+        """, (estado_destino, cliente_id, nombre_estado))
+        
+        # Eliminar el estado
+        cur.execute("""
+            DELETE FROM lead_estados_tenant 
+            WHERE cliente_id = %s AND nombre = %s
+        """, (cliente_id, nombre_estado))
+        
+        conn.commit()
+        
+        # Emitir evento Socket
+        socketio.emit(
+            "configuracion_lead_actualizada",
+            {
+                "tipo": "estados",
+                "cliente_id": cliente_id,
+                "timestamp": datetime.now().isoformat()
+            },
+            broadcast=True
+        )
+        
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error en eliminar_estado_lead: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+@app.route("/cambiar_estado_lead", methods=["POST"])
+def cambiar_estado_lead():
+    try:
+        datos = request.json
+        lead_id = datos.get("id")
+        nuevo_estado = datos.get("estado")
+        
+        if not lead_id or not nuevo_estado:
+            return jsonify({"error": "Faltan datos"}), 400
+        
+        cliente_id = obtener_cliente_id_de_subdominio()
+        if not cliente_id:
+            return jsonify({"error": "Cliente no autorizado"}), 404
+        
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión"}), 500
+        
+        cursor = conn.cursor()
+        
+        # ✅ VALIDAR que el estado existe para este tenant
+        cursor.execute("""
+            SELECT nombre FROM lead_estados_tenant 
+            WHERE cliente_id = %s AND nombre = %s AND activo = true
+        """, (cliente_id, nuevo_estado))
+        
+        if not cursor.fetchone():
+            return jsonify({"error": "Estado no válido para este tenant"}), 400
+        
+        # Obtener el teléfono del lead para el evento
+        cursor.execute("SELECT telefono FROM leads WHERE id = %s AND cliente_id = %s", (lead_id, cliente_id))
+        row = cursor.fetchone()
+        telefono = row[0] if row else None
+        
+        # Actualizar estado
+        cursor.execute("UPDATE leads SET estado = %s WHERE id = %s AND cliente_id = %s", (nuevo_estado, lead_id, cliente_id))
+        conn.commit()
+        
+        # Emitir evento en tiempo real
+        if telefono:
+            socketio.emit("lead_estado_actualizado", {
+                "id": lead_id,
+                "estado_nuevo": nuevo_estado,
+                "telefono": telefono
+            })
+        
+        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+    except Exception as e:
+        print(f"❌ Error en /cambiar_estado_lead: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
+
+
+
+
+        
 # 📌 NUEVO: Guardar contexto del bot
 @app.route("/leads/context", methods=["POST"])
 def guardar_contexto_lead():
@@ -340,10 +575,7 @@ def guardar_contexto_lead():
         return jsonify({"error": "Error interno"}), 500
     finally:
         liberar_db(conn)
-        
-
-        
-        
+              
 @app.route("/leads/context", methods=["GET"])   
 def obtener_contexto_lead():
     telefono = request.args.get("telefono")
@@ -497,9 +729,7 @@ def recibir_mensaje():
     finally:
         liberar_db(conn)
              
-
 # 📌 Enviar respuesta a Camibot con reintento automático
-
 CAMIBOT_API_URL = os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
 
 @app.route("/enviar_mensaje", methods=["POST"])
@@ -563,11 +793,9 @@ def enviar_mensaje():
             time.sleep(2)
     return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
-
 # 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
     return len(telefono) == 13 and telefono.startswith("521")
-
 
 # 📌 Ruta para obtener Leads 
 @app.route("/leads", methods=["GET"])
@@ -662,61 +890,6 @@ def crear_lead():
     finally:
         liberar_db(conn)
         
-        
-
-# 📌 Endpoint para actualizar estado de Lead
-@app.route("/cambiar_estado_lead", methods=["POST"])
-def cambiar_estado_lead():
-    try:
-        datos = request.json
-        lead_id = datos.get("id")
-        nuevo_estado = datos.get("estado")
-        
-        # ✅ Lista COMPLETA de estados válidos (incluyendo los nuevos)
-        estados_validos = [
-            "Contacto Inicial",
-            "En proceso",
-            "Seguimiento XV",
-            "Seguimiento Boda",
-            "Seguimiento Otro",
-            "Cliente",
-            "No cliente"
-        ]
-        
-        if not lead_id or nuevo_estado not in estados_validos:
-            return jsonify({"error": "Estado no válido"}), 400
-
-        conn = conectar_db()
-        if not conn:
-            return jsonify({"error": "Error de conexión"}), 500
-
-        cursor = conn.cursor()
-
-        # Obtener el teléfono del lead para el evento
-        cursor.execute("SELECT telefono FROM leads WHERE id = %s", (lead_id,))
-        row = cursor.fetchone()
-        telefono = row[0] if row else None
-
-        # Actualizar estado
-        cursor.execute("UPDATE leads SET estado = %s WHERE id = %s", (nuevo_estado, lead_id))
-        conn.commit()
-
-        # Emitir evento en tiempo real
-        if telefono:
-            socketio.emit("lead_estado_actualizado", {
-                "id": lead_id,
-                "estado_nuevo": nuevo_estado,
-                "telefono": telefono
-            })
-
-        conn.close()
-        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
-
-    except Exception as e:
-        print(f"❌ Error en /cambiar_estado_lead: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-    
-    
 # 📌 Ruta para eliminar un lead
 @app.route("/eliminar_lead", methods=["POST"])
 def eliminar_lead():
@@ -756,7 +929,6 @@ def eliminar_lead():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-
 @app.route('/editar_lead', methods=['POST'])
 def editar_lead():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -796,8 +968,7 @@ def editar_lead():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-        
-        
+            
 # 📌 Obtener mensajes
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
@@ -819,7 +990,6 @@ def obtener_mensajes():
         return jsonify([])
     finally:
         liberar_db(conn)
-        
         
 # 📌 Actualizar estado de mensaje 
 @app.route("/actualizar_estado", methods=["POST"])

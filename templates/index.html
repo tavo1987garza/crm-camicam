@@ -2449,6 +2449,11 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
               🔐 Código de Seguridad
             </button>
 
+            <!-- Botón para Configurar estados de Leads -->
+            <button class="add-button" onclick="mostrarModalEstadosLead()">
+                📊 Configurar estados de Leads
+            </button>
+    
             <!-- Botón para Configuracion del formulario de contrato -->
             <button class="add-button" onclick="mostrarModalCamposEvento()">
               📝 Configurar formulario de contrato
@@ -2585,6 +2590,20 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
       <button class="cancel-btn" onclick="cerrarModalServicios()">Cancelar</button>
     </div>
   </div>
+</div>
+
+<!-- Agrega esto en tu HTML, después del modal de servicios -->
+<div id="modal-estados-lead" class="modal hidden">
+    <div class="modal-content" style="max-width:600px;">
+        <button class="close-btn" onclick="cerrarModalEstadosLead()">✖</button>
+        <h2>📋 Configurar Estados de Leads</h2>
+        <p>Personaliza las columnas de tu tablero Kanban. Los estados fijos no se pueden eliminar.</p>
+        <div id="lista-estados-lead"></div>
+        <div class="modal-buttons" style="margin-top:15px;">
+            <button class="save-btn" onclick="guardarEstadosLeadConfig()">Guardar</button>
+            <button class="cancel-btn" onclick="cerrarModalEstadosLead()">Cancelar</button>
+        </div>
+    </div>
 </div>
 
 
@@ -2875,6 +2894,11 @@ function mostrarSeccion(seccionId, callback = null) {
             initPanel();
             break;
         case 'leads':
+            // Verificar si hubo actualización de estados
+            if (leadEstadosActualizados) {
+                leadEstadosActualizados = false;
+                cargarEstadosLead();
+            }
             cargarLeads();
             break;
         case 'calendario':
@@ -3046,6 +3070,320 @@ mostrarSeccion("panel", initPanel);
 SECCION DE LEADS Y CHAT
 ========================
 ************************/
+// ============================================================================
+// VARIABLES GLOBALES PARA ESTADOS DE LEADS
+// ============================================================================
+let estadosLeadConfig = [];  // Estados configurados por el tenant
+let leadEstadosActualizados = false;  // Bandera para actualización en tiempo real
+
+// ============================================================================
+// CARGAR ESTADOS DE LEADS DESDE EL BACKEND
+// ============================================================================
+async function cargarEstadosLead() {
+    try {
+        const resp = await fetch('/leads/estados');
+        if (!resp.ok) throw new Error('Error al cargar estados');
+        
+        estadosLeadConfig = await resp.json();
+        
+        // Si no hay estados, usar defaults
+        if (estadosLeadConfig.length === 0) {
+            estadosLeadConfig = [
+                { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
+                { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
+            ];
+        }
+        
+        console.log(`✅ ${estadosLeadConfig.length} estados de lead cargados`);
+        return estadosLeadConfig;
+    } catch (err) {
+        console.error('❌ Error al cargar estados de lead:', err);
+        return [];
+    }
+}
+
+// ============================================================================
+// RENDERIZAR COLUMNAS DE LEADS DINÁMICAS
+// ============================================================================
+function renderizarColumnasLeads() {
+    const container = document.getElementById('leads-container');
+    if (!container) return;
+    
+    // Guardar leads actuales antes de re-renderizar
+    const leadsActuales = {};
+    document.querySelectorAll('.lead').forEach(lead => {
+        const id = lead.getAttribute('data-id');
+        if (id) {
+            leadsActuales[id] = lead.cloneNode(true);
+        }
+    });
+    
+    // Limpiar contenedor
+    container.innerHTML = '';
+    
+    // Crear columnas dinámicamente
+    estadosLeadConfig.forEach((estado, idx) => {
+        const columna = document.createElement('div');
+        columna.className = 'leads-column';
+        columna.setAttribute('data-estado', estado.nombre);
+        columna.style.borderLeft = `5px solid ${estado.color}`;
+        columna.style.background = `${estado.color}40`; // 40 = 25% opacity
+        
+        columna.innerHTML = `
+            <h3 style="color: ${estado.color};">${estado.nombre}</h3>
+            <div class="leads-list"></div>
+            ${!estado.fijo ? `
+                <button onclick="eliminarEstadoLead('${estado.nombre}')" 
+                    style="margin-top:10px;background:#e74c3c;color:white;border:none;
+                           padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;">
+                    🗑️ Eliminar estado
+                </button>
+            ` : ''}
+        `;
+        
+        // Configurar drag & drop
+        columna.ondragover = (event) => event.preventDefault();
+        columna.ondrop = (event) => drop(event, estado.nombre);
+        
+        container.appendChild(columna);
+    });
+    
+    // Agregar columna para formulario de nuevo lead (siempre en "Contacto Inicial")
+    const columnaFormulario = document.querySelector('[data-estado="Contacto Inicial"]');
+    if (columnaFormulario && !columnaFormulario.querySelector('#toggle-form')) {
+        const formContainer = document.createElement('div');
+        formContainer.className = 'form-container';
+        formContainer.innerHTML = `
+            <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
+            <div id="lead-form" class="hidden">
+                <input type="text" id="lead-nombre" placeholder="Nombre" required>
+                <input type="text" id="lead-telefono" placeholder="Teléfono" required>
+                <textarea id="lead-notas" placeholder="Notas"></textarea>
+                <button onclick="crearLead()">Agregar</button>
+            </div>
+        `;
+        columnaFormulario.appendChild(formContainer);
+    }
+    
+    // Restaurar leads en sus columnas
+    Object.values(leadsActuales).forEach(leadClone => {
+        const estado = leadClone.closest('[data-estado]')?.getAttribute('data-estado');
+        if (estado) {
+            const columna = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+            if (columna) {
+                columna.appendChild(leadClone);
+            }
+        }
+    });
+    
+    console.log('✅ Columnas de leads renderizadas');
+}
+
+// ============================================================================
+// CARGAR LEADS CON ESTADOS DINÁMICOS
+// ============================================================================
+async function cargarLeads() {
+    // Primero cargar estados
+    await cargarEstadosLead();
+    
+    // Renderizar columnas
+    renderizarColumnasLeads();
+    
+    // Cargar leads
+    try {
+        const resp = await fetch('/leads');
+        const leads = await resp.json();
+        
+        // Limpiar todas las listas
+        document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = '');
+        
+        // Distribuir leads en columnas
+        leads.forEach(lead => {
+            const estadoLimpio = lead.estado.trim();
+            const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
+            
+            if (leadList) {
+                const leadElement = document.createElement('div');
+                leadElement.classList.add('lead');
+                leadElement.setAttribute('data-id', lead.id);
+                leadElement.setAttribute('data-telefono', lead.telefono);
+                leadElement.setAttribute('draggable', 'true');
+                leadElement.ondragstart = (event) => drag(event);
+                leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
+                
+                leadElement.innerHTML = `
+                    <div class="lead-content">
+                        <strong class="lead-nombre">${lead.nombre}</strong>
+                        <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">
+                            ${lead.ultimo_mensaje || "No hay mensajes recientes"}
+                        </p>
+                    </div>
+                `;
+                
+                leadList.appendChild(leadElement);
+            }
+        });
+        
+        console.log(`✅ ${leads.length} leads cargados`);
+    } catch (err) {
+        console.error('❌ Error al cargar leads:', err);
+    }
+}
+
+// ============================================================================
+// MOSTRAR MODAL PARA CONFIGURAR ESTADOS
+// ============================================================================
+let estadosLeadTemp = [];
+
+function mostrarModalEstadosLead() {
+    cargarEstadosLead().then(() => {
+        estadosLeadTemp = JSON.parse(JSON.stringify(estadosLeadConfig));
+        renderizarListaEstadosLead();
+        document.getElementById('modal-estados-lead').classList.remove('hidden');
+    });
+}
+
+function cerrarModalEstadosLead() {
+    document.getElementById('modal-estados-lead').classList.add('hidden');
+}
+
+function renderizarListaEstadosLead() {
+    const cont = document.getElementById('lista-estados-lead');
+    if (!cont) return;
+    
+    cont.innerHTML = estadosLeadTemp.map((estado, idx) => `
+        <div class="panel-card" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;">
+            <input type="text" value="${estado.nombre}" 
+                ${estado.fijo ? 'disabled' : ''}
+                oninput="estadosLeadTemp[${idx}].nombre=this.value"
+                style="flex:2;padding:8px;border:1px solid #ddd;border-radius:4px;">
+            
+            <input type="color" value="${estado.color}" 
+                oninput="estadosLeadTemp[${idx}].color=this.value"
+                style="width:50px;height:40px;border:none;cursor:pointer;">
+            
+            <span style="font-size:12px;color:#7f8c8d;">
+                ${estado.fijo ? '🔒 Fijo' : ''}
+            </span>
+            
+            ${!estado.fijo ? `
+                <button onclick="estadosLeadTemp.splice(${idx},1);renderizarListaEstadosLead()"
+                    style="background:#e74c3c;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;">
+                    🗑️
+                </button>
+            ` : ''}
+        </div>
+    `).join('');
+    
+    // Agregar botón para agregar estado
+    const btnAgregar = document.createElement('button');
+    btnAgregar.textContent = '➕ Agregar estado';
+    btnAgregar.onclick = () => {
+        estadosLeadTemp.push({ nombre: '', color: '#1e88e5', orden: estadosLeadTemp.length, fijo: false });
+        renderizarListaEstadosLead();
+    };
+    btnAgregar.style.cssText = 'width:100%;padding:10px;background:#1e88e5;color:white;border:none;border-radius:4px;cursor:pointer;margin-top:10px;';
+    cont.appendChild(btnAgregar);
+}
+
+async function guardarEstadosLeadConfig() {
+    // Validar que los estados fijos existan
+    const tieneContactoInicial = estadosLeadTemp.some(e => e.nombre === 'Contacto Inicial');
+    const tieneEnProceso = estadosLeadTemp.some(e => e.nombre === 'En proceso');
+    
+    if (!tieneContactoInicial || !tieneEnProceso) {
+        alert('⚠️ Los estados "Contacto Inicial" y "En proceso" son requeridos');
+        return;
+    }
+    
+    try {
+        const resp = await fetch('/leads/estados', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estados: estadosLeadTemp })
+        });
+        
+        const data = await resp.json();
+        
+        if (data.ok) {
+            mostrarNotificacionSuave('✅ Estados actualizados', 'success');
+            setTimeout(() => {
+                cerrarModalEstadosLead();
+                cargarLeads();  // Recargar vista
+            }, 800);
+        } else {
+            mostrarNotificacionSuave('❌ Error: ' + (data.error || 'desconocido'), 'error');
+        }
+    } catch (err) {
+        console.error('Error en guardarEstadosLeadConfig:', err);
+        mostrarNotificacionSuave('❌ Error de conexión', 'error');
+    }
+}
+
+async function eliminarEstadoLead(nombreEstado) {
+    // Obtener estado destino para mover los leads
+    const estadoDestino = prompt(
+        `¿A qué estado quieres mover los leads de "${nombreEstado}"?\n` +
+        `Escribe el nombre exacto del estado destino:`
+    );
+    
+    if (!estadoDestino) return;
+    
+    try {
+        const resp = await fetch('/leads/estado/eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre: nombreEstado, estado_destino: estadoDestino })
+        });
+        
+        const data = await resp.json();
+        
+        if (data.ok) {
+            mostrarNotificacionSuave('🗑️ Estado eliminado', 'success');
+            cargarLeads();
+        } else {
+            alert('❌ Error: ' + (data.error || 'desconocido'));
+        }
+    } catch (err) {
+        console.error('Error al eliminar estado:', err);
+        alert('❌ Error de conexión');
+    }
+}
+
+// ============================================================================
+// LISTENER SOCKET PARA ACTUALIZACIÓN DE ESTADOS
+// ============================================================================
+socket.on("configuracion_lead_actualizada", data => {
+    console.log("📋 Configuración de leads actualizada:", data);
+    
+    if (data.tipo === "estados") {
+        leadEstadosActualizados = true;
+        
+        // Si el modal está abierto, recargar
+        const modal = document.getElementById('modal-estados-lead');
+        if (modal && !modal.classList.contains('hidden')) {
+            mostrarModalEstadosLead();
+        }
+        
+        // Si la sección de leads está visible, recargar
+        const seccionLeads = document.getElementById('leads');
+        if (seccionLeads && !seccionLeads.classList.contains('hidden')) {
+            cargarLeads();
+        }
+        
+        mostrarNotificacionSuave('📋 Estados de lead actualizados', 'success');
+    }
+});
+
+
+
+
+
+
+
+
+
+    
         
 /*============================================
 //RECIBE MENSAJE DESDE EL BOT (TEXTO O IMAGEN)
