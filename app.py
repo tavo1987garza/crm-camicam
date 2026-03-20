@@ -400,7 +400,6 @@ def guardar_estados_lead():
                 "cliente_id": cliente_id,
                 "timestamp": datetime.now().isoformat()
             },
-            broadcast=True
         )
         
         return jsonify({"ok": True}), 200
@@ -470,7 +469,6 @@ def eliminar_estado_lead():
                 "cliente_id": cliente_id,
                 "timestamp": datetime.now().isoformat()
             },
-            broadcast=True
         )
         
         return jsonify({"ok": True}), 200
