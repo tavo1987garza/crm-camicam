@@ -4280,7 +4280,7 @@ async function cargarLeadsEnSelect() {
        3) AGREGAR FECHA MANUALMENTE
     =========================================*/
 // ============================================================================
-// FUNCIÓN PARA MOSTRAR FORMULARIO DE AGREGAR FECHA (CON MANEJO DE ERRORES)
+// FUNCIÓN PARA MOSTRAR FORMULARIO DE AGREGAR FECHA (CON SERVICIOS ORDENADOS)
 // ============================================================================
 async function mostrarFormularioFecha() {
     console.log('🔍 [DEBUG] mostrarFormularioFecha() iniciando...');
@@ -4298,14 +4298,25 @@ async function mostrarFormularioFecha() {
         console.log('📋 Cargando leads...');
         await cargarLeadsEnSelect();
         
-        // 3. Cargar servicios personalizados
+        // 3. Cargar servicios personalizados y ORDENARLOS POR TIPO
         console.log('🔧 Cargando servicios...');
         let servicios = [];
         try {
             const resp = await fetch('/servicios');
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             servicios = await resp.json();
-            console.log(`✅ ${servicios.length} servicios cargados`);
+            
+            // ✅ ORDENAR: Primero checkbox (boolean), luego números (number)
+            // Dentro de cada grupo, orden alfabético por nombre
+            servicios.sort((a, b) => {
+                // Primero por tipo (boolean antes que number)
+                if (a.tipo === 'boolean' && b.tipo === 'number') return -1;
+                if (a.tipo === 'number' && b.tipo === 'boolean') return 1;
+                // Si mismo tipo, orden alfabético por nombre
+                return a.nombre.localeCompare(b.nombre);
+            });
+            
+            console.log(`✅ ${servicios.length} servicios cargados y ordenados`);
         } catch (err) {
             console.warn('⚠️ No se pudieron cargar servicios:', err);
             servicios = [];
@@ -4314,6 +4325,11 @@ async function mostrarFormularioFecha() {
         const serviciosContainer = document.getElementById('servicios-fijos');
         if (serviciosContainer) {
             serviciosContainer.innerHTML = '';
+            
+            // ✅ Separar visualmente los grupos
+            let tieneBoolean = servicios.some(s => s.tipo === 'boolean');
+            let tieneNumber = servicios.some(s => s.tipo === 'number');
+            
             servicios.forEach(serv => {
                 let inputHTML = '';
                 if (serv.tipo === 'number') {
@@ -4333,6 +4349,13 @@ async function mostrarFormularioFecha() {
                 }
                 serviciosContainer.innerHTML += inputHTML;
             });
+            
+            // ✅ Agregar separador visual si hay ambos tipos
+            if (tieneBoolean && tieneNumber) {
+                const separador = document.createElement('div');
+                separador.style.cssText = 'border-top: 2px dashed #ddd; margin: 15px 0;';
+                serviciosContainer.appendChild(separador);
+            }
         } else {
             console.warn('⚠️ Contenedor servicios-fijos no encontrado');
         }
@@ -4542,6 +4565,9 @@ function agregarFechaManual(force = false) {
   
   
 // ============== 3) ABRIR MODAL DE EDICIÓN ==============
+// ============================================================================
+// FUNCIÓN PARA ABRIR MODAL DE EDICIÓN (CON SERVICIOS ORDENADOS POR TIPO)
+// ============================================================================
 async function abrirModalFecha(calId) {
     try {
         // 1. Cargar datos del evento desde BD
@@ -4572,10 +4598,18 @@ async function abrirModalFecha(calId) {
             editTicket.value = '';
         }
         
-        // 3. Cargar SERVICIOS DINÁMICOS
+        // 3. Cargar SERVICIOS DINÁMICOS (ORDENADOS POR TIPO)
         const serviciosResp = await fetch('/servicios');
         if (serviciosResp.ok) {
-            const servicios = await serviciosResp.json();
+            let servicios = await serviciosResp.json();
+            
+            // ✅ ORDENAR: Primero checkbox (boolean), luego números (number)
+            servicios.sort((a, b) => {
+                if (a.tipo === 'boolean' && b.tipo === 'number') return -1;
+                if (a.tipo === 'number' && b.tipo === 'boolean') return 1;
+                return a.nombre.localeCompare(b.nombre);
+            });
+            
             const serviciosContainer = document.getElementById('edit-servicios-fijos');
             
             if (serviciosContainer) {
