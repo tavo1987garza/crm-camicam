@@ -1359,7 +1359,6 @@ def editar_calendario(cal_id):
                     "titulo": titulo,
                     "cal_id": cal_id
                 },
-                broadcast=True
             )
         
         return jsonify({"ok": True, "mensaje": "Fecha actualizada"}), 200
@@ -1404,7 +1403,6 @@ def eliminar_calendario(cal_id):
                     "fecha": fecha_evento.strftime("%Y-%m-%d") if fecha_evento else None,
                     "cal_id": cal_id
                 },
-                broadcast=True
             )
         
         return jsonify({"ok": True, "mensaje": "Fecha eliminada"}), 200
@@ -2339,7 +2337,6 @@ def obtener_campos_evento():
 
 
 # 📌 Endpoint para guardar campos del tenant
-# 📌 Endpoint para guardar campos del tenant
 @app.route("/campos_evento", methods=["POST"])
 def guardar_campos_evento():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -2395,7 +2392,6 @@ def guardar_campos_evento():
             "timestamp": datetime.now().isoformat(),
             "cantidad_campos": len(campos)
         },
-        broadcast=True  # Envía a TODOS los clientes conectados
     )
     
     return jsonify({"ok": True})
@@ -2419,6 +2415,7 @@ def obtener_servicios_tenant():
     servicios = [{"nombre": r[0], "clave": r[1], "tipo": r[2]} for r in cur.fetchall()]
     liberar_db(conn)
     return jsonify(servicios)
+
 
 # Actualiza la función guardar_servicios_tenant en Pasted_Text_1773946908608.txt
 @app.route("/servicios", methods=["POST"])
@@ -2454,7 +2451,6 @@ def guardar_servicios_tenant():
             "cliente_id": cliente_id,
             "timestamp": datetime.now().isoformat()
         },
-        broadcast=True
     )
     
     return jsonify({"ok": True})
