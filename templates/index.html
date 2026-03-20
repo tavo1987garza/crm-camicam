@@ -1720,6 +1720,181 @@ ESTILOS PARA CAMPOS PERSONALIZADOS (AUTO-GENERACIÓN)
 }
   
 
+
+
+/* ============================================================================
+ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
+============================================================================ */
+
+/* 🔹 Hacer los modales de configuración más anchos */
+#modal-campos-evento .modal-content,
+#modal-servicios .modal-content {
+    max-width: 800px;  /* ← Antes era 500px, ahora 800px */
+    width: 95%;
+}
+
+/* 🔹 Contenedor de cada campo/servicio (panel-card) */
+#lista-campos-evento .panel-card,
+#lista-servicios .panel-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+/* 🔹 Fila de inputs dentro de cada campo/servicio */
+#lista-campos-evento .panel-card > div:first-child,
+#lista-servicios .panel-card > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+/* 🔹 Inputs de texto - ancho específico */
+#lista-campos-evento input[type="text"],
+#lista-servicios input[type="text"] {
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#lista-campos-evento input[type="text"]:focus,
+#lista-servicios input[type="text"]:focus {
+    border-color: #1e88e5;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+}
+
+/* 🔹 Anchos específicos para cada campo */
+/* Nombre del campo/servicio - más ancho */
+#lista-campos-evento input[placeholder="Nombre del campo"],
+#lista-servicios input[placeholder="Nombre del servicio"] {
+    flex: 2;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+/* Clave (ID único) - más corto */
+#lista-campos-evento input[placeholder="Clave (ID único)"],
+#lista-servicios input[placeholder="Clave (ID único)"] {
+    flex: 1;
+    min-width: 120px;
+    max-width: 180px;
+}
+
+/* 🔹 Selects */
+#lista-campos-evento select,
+#lista-servicios select {
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    min-width: 130px;
+}
+
+#lista-campos-evento select:focus,
+#lista-servicios select:focus {
+    border-color: #1e88e5;
+    outline: none;
+}
+
+/* 🔹 Checkbox de obligatorio */
+#lista-campos-evento label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #495057;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#lista-campos-evento input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #1e88e5;
+    cursor: pointer;
+}
+
+/* 🔹 Botón de eliminar - siempre en la misma línea */
+#lista-campos-evento button[onclick*="splice"],
+#lista-servicios button[onclick*="splice"] {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s, transform 0.1s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+}
+
+#lista-campos-evento button[onclick*="splice"]:hover,
+#lista-servicios button[onclick*="splice"]:hover {
+    background: #c0392b;
+    transform: scale(1.05);
+}
+
+#lista-campos-evento button[onclick*="splice"]:active,
+#lista-servicios button[onclick*="splice"]:active {
+    transform: scale(0.95);
+}
+
+/* 🔹 Input de opciones (solo para campos tipo select) */
+#lista-campos-evento input[placeholder*="Opciones"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+#lista-campos-evento input[placeholder*="Opciones"]:focus {
+    border-color: #1e88e5;
+    outline: none;
+}
+
+/* 🔹 Responsive para pantallas pequeñas */
+@media (max-width: 768px) {
+    #modal-campos-evento .modal-content,
+    #modal-servicios .modal-content {
+        max-width: 95%;
+        padding: 15px;
+    }
+    
+    #lista-campos-evento .panel-card > div:first-child,
+    #lista-servicios .panel-card > div:first-child {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    #lista-campos-evento input[placeholder="Nombre del campo"],
+    #lista-servicios input[placeholder="Nombre del servicio"],
+    #lista-campos-evento input[placeholder="Clave (ID único)"],
+    #lista-servicios input[placeholder="Clave (ID único)"],
+    #lista-campos-evento select,
+    #lista-servicios select {
+        max-width: 100%;
+    }
+    
+    #lista-campos-evento button[onclick*="splice"],
+    #lista-servicios button[onclick*="splice"] {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -5904,45 +6079,31 @@ function renderizarListaCampos() {
     const cont = document.getElementById('lista-campos-evento');
     if (!cont) return;
     
-    cont.innerHTML = camposEvento.map((campo, idx) => {
-        // Generar clave por defecto SOLO si está vacía
-        const claveDisplay = campo.clave || campo.nombre.toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // Remove accents
-            .replace(/[^a-z0-9]+/g, '_')                        // Replace non-alphanumeric with _
-            .replace(/^_+|_+$/g, '')                            // Trim underscores
-            .substring(0, 30);                                  // Limit length
-        
-        return `
-        <div class="panel-card" style="margin-bottom:10px;" data-idx="${idx}">
-            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+    cont.innerHTML = camposEvento.map((campo, idx) => `
+        <div class="panel-card" data-idx="${idx}">
+            <!-- Fila principal de controles -->
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
                 
-                <!-- Campo NOMBRE -->
+                <!-- Nombre del campo -->
                 <input type="text" 
                     placeholder="Nombre del campo" 
-                    value="${campo.nombre}" 
+                    value="${campo.nombre}"
                     data-field="nombre"
                     data-idx="${idx}"
                     class="campo-input-nombre"
-                    style="flex:2;min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px;"
                 >
                 
-                <!-- Campo CLAVE (con indicador de auto-generación) -->
-                <div style="position:relative;flex:1;min-width:120px;">
-                    <input type="text" 
-                        placeholder="Clave (ID único)" 
-                        value="${campo.clave}" 
-                        data-field="clave"
-                        data-idx="${idx}"
-                        class="campo-input-clave ${!campo.clave ? 'auto-generated' : ''}"
-                        style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;${!campo.clave ? 'background:#f8f9fa;' : ''}"
-                    >
-                    ${!campo.clave ? '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#6c757d;"></span>' : ''}
-                </div>
+                <!-- Clave (ID único) -->
+                <input type="text" 
+                    placeholder="Clave (ID único)" 
+                    value="${campo.clave}"
+                    data-field="clave"
+                    data-idx="${idx}"
+                    class="campo-input-clave"
+                >
                 
                 <!-- Tipo de campo -->
-                <select data-field="tipo" data-idx="${idx}" 
-                    class="campo-input-tipo"
-                    style="min-width:120px;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                <select data-field="tipo" data-idx="${idx}" class="campo-input-tipo">
                     <option value="text" ${campo.tipo==='text'?'selected':''}>Texto</option>
                     <option value="number" ${campo.tipo==='number'?'selected':''}>Número</option>
                     <option value="select" ${campo.tipo==='select'?'selected':''}>Selección</option>
@@ -5951,7 +6112,7 @@ function renderizarListaCampos() {
                 </select>
                 
                 <!-- Checkbox Obligatorio -->
-                <label style="display:flex;align-items:center;gap:5px;font-size:14px;">
+                <label>
                     <input type="checkbox" 
                         data-field="obligatorio"
                         data-idx="${idx}"
@@ -5961,30 +6122,28 @@ function renderizarListaCampos() {
                     Obligatorio
                 </label>
                 
-                <!-- Botón eliminar -->
-                <button onclick="eliminarCampoEvento(${idx})" 
-                    style="background:#e74c3c;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;"
-                    title="Eliminar campo">🗑️</button>
+                <!-- Botón Eliminar -->
+                <button onclick="eliminarCampoEvento(${idx})" title="Eliminar campo">
+                    🗑️
+                </button>
             </div>
             
-            <!-- Campo OPCIONES (solo para tipo select) -->
+            <!-- Campo de opciones (solo para tipo select) -->
             ${campo.tipo === 'select' ? `
-                <div style="margin-top:8px;">
+                <div style="margin-top:10px;">
                     <input type="text" 
-                        placeholder="Opciones separadas por comas (ej: Opción1,Opción2,Opción3)" 
-                        value="${campo.opciones?.join(',') || ''}" 
+                        placeholder="Opciones separadas por comas (ej: Opción1,Opción2,Opción3)"
+                        value="${campo.opciones?.join(',') || ''}"
                         data-field="opciones"
                         data-idx="${idx}"
                         class="campo-input-opciones"
-                        style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;"
                     >
                 </div>
             ` : ''}
         </div>
-        `;
-    }).join('');
+    `).join('');
     
-    // ✅ Configurar event listeners DESPUÉS de renderizar (evita conflictos de foco)
+    // Configurar listeners después de renderizar
     configurarListenersCamposEvento();
 }
 
@@ -6182,59 +6341,44 @@ function renderizarListaServicios() {
     const cont = document.getElementById('lista-servicios');
     if (!cont) return;
     
-    cont.innerHTML = serviciosConfig.map((serv, idx) => {
-        // Generar clave por defecto SOLO si está vacía
-        const claveDisplay = serv.clave || serv.nombre.toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // Remove accents
-            .replace(/[^a-z0-9]+/g, '_')                        // Replace non-alphanumeric with _
-            .replace(/^_+|_+$/g, '')                            // Trim underscores
-            .substring(0, 30);                                  // Limit length
-        
-        return `
-        <div class="panel-card" style="margin-bottom:10px;" data-idx="${idx}">
-            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+    cont.innerHTML = serviciosConfig.map((serv, idx) => `
+        <div class="panel-card" data-idx="${idx}">
+            <!-- Fila principal de controles -->
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
                 
-                <!-- Campo NOMBRE -->
+                <!-- Nombre del servicio -->
                 <input type="text" 
                     placeholder="Nombre del servicio" 
-                    value="${serv.nombre}" 
+                    value="${serv.nombre}"
                     data-field="nombre"
                     data-idx="${idx}"
                     class="servicio-input-nombre"
-                    style="flex:2;min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px;"
                 >
                 
-                <!-- Campo CLAVE (con indicador de auto-generación) -->
-                <div style="position:relative;flex:1;min-width:120px;">
-                    <input type="text" 
-                        placeholder="Clave (ID único)" 
-                        value="${serv.clave}" 
-                        data-field="clave"
-                        data-idx="${idx}"
-                        class="servicio-input-clave ${!serv.clave ? 'auto-generated' : ''}"
-                        style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;${!serv.clave ? 'background:#f8f9fa;' : ''}"
-                    >
-                    ${!serv.clave ? '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#6c757d;"></span>' : ''}
-                </div>
+                <!-- Clave (ID único) -->
+                <input type="text" 
+                    placeholder="Clave (ID único)" 
+                    value="${serv.clave}"
+                    data-field="clave"
+                    data-idx="${idx}"
+                    class="servicio-input-clave"
+                >
                 
                 <!-- Tipo de servicio -->
-                <select data-field="tipo" data-idx="${idx}" 
-                    class="servicio-input-tipo"
-                    style="min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                <select data-field="tipo" data-idx="${idx}" class="servicio-input-tipo">
                     <option value="boolean" ${serv.tipo==='boolean'?'selected':''}>Checkbox (Sí/No)</option>
                     <option value="number" ${serv.tipo==='number'?'selected':''}>Número (Cantidad)</option>
                 </select>
                 
-                <!-- Botón eliminar -->
-                <button onclick="eliminarServicio(${idx})" 
-                    style="background:#e74c3c;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;"
-                    title="Eliminar servicio">🗑️</button>
+                <!-- Botón Eliminar -->
+                <button onclick="eliminarServicio(${idx})" title="Eliminar servicio">
+                    🗑️
+                </button>
             </div>
         </div>
-        `;
-    }).join('');
+    `).join('');
     
-    // ✅ Configurar event listeners DESPUÉS de renderizar (evita conflictos)
+    // Configurar listeners después de renderizar
     configurarListenersServicios();
 }
 
