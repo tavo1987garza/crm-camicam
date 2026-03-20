@@ -3784,51 +3784,62 @@ function initCalendario() {
 
 
 // ============================================================================
-// LISTENER SOCKET: CALENDARIO ACTUALIZADO (PRESERVAR VISTA ACTUAL)
+// LISTENER SOCKET: CALENDARIO ACTUALIZADO 
 // ============================================================================
 socket.on("calendario_actualizado", data => {
     console.log("📡 Calendario actualizado:", data);
     
-    // 1) Recargar años (tarjetas)
+    // 1) Recargar años (tarjetas) - esto siempre está bien
     cargarAnios(true);
     
-    // 2) ✅ VERIFICAR si estamos en vista de eventos de un año
+    // 2) ✅ VERIFICAR en qué vista estamos antes de actualizar
     if (anioSeleccionado === data.anio) {
-        // ✅ Solo recargar la lista de fechas, NO cambiar la vista
-        const vistaEventos = document.getElementById("vista-eventos-anio");
+        const vistaAnios = document.getElementById("vista-anios");
         const vistaMeses = document.getElementById("vista-meses");
+        const vistaEventos = document.getElementById("vista-eventos-anio");
         
+        // ¿Estamos en vista de FECHAS de un mes específico?
         if (!vistaEventos.classList.contains("hidden")) {
-            // Estamos en vista de fechas → recargar solo la lista
-            console.log("📅 En vista de fechas, recargando lista...");
-            fetch("/calendario/fechas_ocupadas")
-                .then(r => r.json())
-                .then(dataFechas => {
-                    if (dataFechas.error) throw new Error(dataFechas.error);
-                    
-                    // Obtener el mes actual del título
-                    const tituloMes = document.getElementById("anio-actual").textContent;
-                    const mesesNombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                                         "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-                    const mesActual = mesesNombres.findIndex(m => tituloMes.includes(m));
-                    
-                    if (mesActual !== -1) {
-                        // Filtrar fechas del mes actual
+            console.log("📅 En vista de fechas, recargando solo la lista...");
+            
+            // Obtener el mes actual del título
+            const tituloMes = document.getElementById("anio-actual").textContent;
+            const mesesNombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                                 "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+            const mesActual = mesesNombres.findIndex(m => tituloMes.includes(m));
+            
+            if (mesActual !== -1) {
+                // Recargar fechas ocupadas y filtrar por mes
+                fetch("/calendario/fechas_ocupadas")
+                    .then(r => r.json())
+                    .then(dataFechas => {
+                        if (dataFechas.error) throw new Error(dataFechas.error);
+                        
+                        // Filtrar fechas del mes y año actual
                         const fechasDelMes = (dataFechas.fechas || []).filter(f => {
                             const fechaObj = new Date(f.fecha + "T12:00:00");
                             return fechaObj.getMonth() === mesActual && 
                                    fechaObj.getFullYear() === anioSeleccionado;
                         });
                         
-                        // Re-renderizar la lista de fechas
-                        mostrarEventosDelMes(anioSeleccionado, mesActual, fechasDelMes, yearColors[anioSeleccionado]);
-                    }
-                })
-                .catch(err => console.error("Error al recargar fechas:", err));
-        } else if (!vistaMeses.classList.contains("hidden")) {
-            // Estamos en vista de meses → recargar meses
-            console.log("📅 En vista de meses, recargando...");
+                        // Obtener el color del año
+                        const colorAnio = yearColors[anioSeleccionado] || "#1e88e5";
+                        
+                        // Re-renderizar la lista SIN cambiar la vista
+                        mostrarEventosDelMes(anioSeleccionado, mesActual, fechasDelMes, colorAnio);
+                    })
+                    .catch(err => console.error("Error al recargar fechas:", err));
+            }
+        }
+        // ¿Estamos en vista de MESES?
+        else if (!vistaMeses.classList.contains("hidden")) {
+            console.log("📅 En vista de meses, recargando meses...");
             cargarCalendario();
+        }
+        // ¿Estamos en vista de AÑOS?
+        else if (!vistaAnios.classList.contains("hidden")) {
+            console.log("📅 En vista de años, recargando años...");
+            cargarAnios(true);
         }
     }
     
@@ -4045,7 +4056,7 @@ function mostrarEventosDelMes(anio, mes, lista, colorAnio) {
             </div>
             <i class="fas fa-chevron-right"></i>`;
         
-        // ✅ AGREGAR EVENT LISTENER CORRECTAMENTE
+        // ✅ AGREGAR EVENT LISTENER EXPLÍCITO
         li.style.cursor = "pointer";
         li.onclick = () => {
             console.log("📅 Click en evento:", ev.id);
@@ -4065,7 +4076,6 @@ function mostrarEventosDelMes(anio, mes, lista, colorAnio) {
     
     console.log(`✅ ${lista.length} eventos renderizados con listeners`);
 }
-
 
 
 //  función para disminuir los valores RGB y obtener un color más oscuro:
@@ -4991,8 +5001,8 @@ function guardarEdicionFecha() {
                 console.error("Error al guardar:", data.error);
             } else if (data.ok) {
                 console.log("✅ Cambios guardados - Socket actualizará la vista");
-                // ✅ NO llamar cargarCalendario() aquí, el socket.on lo hará
-                // ✅ Esto evita que la vista se reinicie a "Meses"
+                // ❌ NO llamar cargarCalendario() aquí
+                // ✅ El socket.on("calendario_actualizado") se encargará
             }
         })
         .catch(err => console.error("Error al guardar:", err));
