@@ -2009,6 +2009,9 @@ th {
                 <label for="titulo-input">Título del evento:</label>
                 <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
                 
+                <!-- Contenedor DINÁMICO para campos personalizados -->
+                <div id="contenedor-campos-personalizados"></div>
+
                 <label for="notas-textarea">Notas:</label>
                 <textarea id="notas-textarea" rows="3" placeholder="Observaciones..."></textarea>
                 
@@ -2020,9 +2023,6 @@ th {
                 <div class="services-grid" id="servicios-fijos">
                   <!-- Se generará dinámicamente desde /servicios -->
                 </div>
-                
-                <!-- Contenedor DINÁMICO para campos personalizados -->
-                <div id="contenedor-campos-personalizados"></div>
                 
                 <div class="modal-buttons">
                   <button onclick="agregarFechaManual()" class="save-btn">Guardar</button>
