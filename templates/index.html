@@ -3796,10 +3796,10 @@ function initCalendario() {
 socket.on("calendario_actualizado", data => {
     console.log("📡 Calendario actualizado:", data);
     
-    // 1) Recargar años (tarjetas) - esto siempre está bien
+    // 1) Recargar años (tarjetas)
     cargarAnios(true);
     
-    // 2) ✅ VERIFICAR en qué vista estamos antes de actualizar
+    // 2) Verificar en qué vista estamos antes de actualizar
     if (anioSeleccionado === data.anio) {
         const vistaAnios = document.getElementById("vista-anios");
         const vistaMeses = document.getElementById("vista-meses");
@@ -3856,7 +3856,6 @@ socket.on("calendario_actualizado", data => {
         cargarProximosEventos();
     }
 });
-
 
 /***********************
 ========================
@@ -4713,7 +4712,29 @@ async function abrirModalFecha(calId) {
 }
 
 // ============================================================================
-// CERRAR MODAL (SOLO USAR CLASE HIDDEN, NO STYLE.DISPLAY)
+// CERRAR MODAL DE AGREGAR FECHA
+// ============================================================================
+function cerrarAddFechaModal() {
+    console.log('🚪 Cerrando modal de agregar fecha...');
+    
+    const modal = document.getElementById('add-fecha-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+    
+    // Limpiar campos del formulario
+    document.getElementById('fecha-input').value = '';
+    document.getElementById('titulo-input').value = '';
+    document.getElementById('notas-textarea').value = '';
+    document.getElementById('ticket-input').value = '';
+    document.getElementById('lead-select').value = '';
+    
+    console.log('✅ Modal de agregar fecha cerrado');
+}
+
+// ============================================================================
+// CERRAR MODAL DE EDICION
 // ============================================================================
 function cerrarModalFecha() {
     console.log('🚪 Cerrando modal de edición...');
@@ -5129,22 +5150,77 @@ function mostrarNotificacion(mensaje, tipo = "success") {
 }
 
 
-// Función para eliminar (se mantiene igual)
+// ============================================================================
+// ELIMINAR FECHA DESDE MODAL (CON CÓDIGO DE SEGURIDAD)
+// ============================================================================
 function eliminarFechaDesdeModal() {
-    if (!confirm("¿Seguro que quieres eliminar esta fecha?")) return;
+    const calId = document.getElementById("edit-fecha-id").value;
+    const fecha = document.getElementById("edit-fecha-input").value;
+    const titulo = document.getElementById("edit-fecha-titulo").value || "Sin título";
     
-    let calId = document.getElementById("edit-fecha-id").value;
-    fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
+    if (!calId) {
+        alert("❌ Error: No se pudo identificar el evento");
+        return;
+    }
+    
+    // 🔐 Pedir código de seguridad
+    const pass = prompt(
+        `⚠️ Vas a eliminar la fecha: ${fecha}\n` +
+        `Evento: ${titulo}\n\n` +
+        "Esta operación no se puede deshacer.\n" +
+        "Ingresa tu código de seguridad (4 dígitos) para continuar:"
+    );
+    
+    // Validar formato: solo 4 dígitos
+    if (!pass || !/^\d{4}$/.test(pass)) {
+        alert("❌ Código inválido. Debe ser un número de 4 dígitos.");
+        return;
+    }
+    
+    // Verificar código con el backend
+    fetch("/verificar_codigo_seguridad", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo: pass })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.valido) {
+            alert("❌ Código de seguridad incorrecto.");
+            return;
+        }
+        
+        // ✅ Código correcto, proceder con eliminación
+        if (!confirm(`¿Seguro que quieres eliminar esta fecha?\n\n${fecha} - ${titulo}`)) {
+            return;
+        }
+        
+        // Ejecutar eliminación
+        fetch(`/calendario/eliminar/${calId}`, { method: "POST" })
         .then(r => r.json())
         .then(data => {
             if (data.error) {
-                alert("Error: " + data.error);
+                alert("❌ Error: " + data.error);
             } else if (data.ok) {
-                cargarCalendario();
+                console.log("✅ Fecha eliminada correctamente");
+                mostrarNotificacionSuave("🗑️ Fecha eliminada", "success");
+                
+                // Cerrar modal
                 cerrarModalFecha();
+                
+                // ✅ El socket.on se encargará de actualizar la vista
+                // NO llamar cargarCalendario() aquí
             }
         })
-        .catch(err => console.error(err));
+        .catch(err => {
+            console.error("❌ Error al eliminar:", err);
+            alert("❌ Error de conexión al eliminar");
+        });
+    })
+    .catch(err => {
+        console.error("❌ Error al verificar código:", err);
+        alert("❌ Error de conexión al verificar código");
+    });
 }
    
 //Funcion para cambiar el color
