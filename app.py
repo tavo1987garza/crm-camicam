@@ -1480,19 +1480,24 @@ def reporte_ingresos():
     anio = request.args.get("anio")
     if not mes or not anio:
         return jsonify({"error": "Falta mes o año"}), 400
-
+    
+    # ✅ OBTENER cliente_id DEL SUBDOMINIO
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+    
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar DB"}), 500
-
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT COALESCE(SUM(ticket), 0)
-            FROM calendario
-            WHERE EXTRACT(MONTH FROM fecha) = %s
-              AND EXTRACT(YEAR FROM fecha) = %s
-        """, (mes, anio))
+        SELECT COALESCE(SUM(ticket), 0)
+        FROM calendario
+        WHERE EXTRACT(MONTH FROM fecha) = %s
+          AND EXTRACT(YEAR FROM fecha) = %s
+          AND cliente_id = %s              
+        """, (mes, anio, cliente_id))      
         total = cursor.fetchone()[0] or 0
         return jsonify({
             "mes": int(mes),
@@ -1505,64 +1510,71 @@ def reporte_ingresos():
         liberar_db(conn)
         
         
-        
 @app.route("/reportes/ingresos_anual", methods=["GET"])
 def reporte_ingresos_anual():
     anio = request.args.get("anio")
     if not anio:
         return jsonify({"error": "Falta el parámetro año"}), 400
-
+    
+    # ✅ OBTENER cliente_id DEL SUBDOMINIO
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+    
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
     try:
         cursor = conn.cursor()
-
-        # ── 1) Ingresos por mes ─────────────────────────
+        
+        # ── 1) Ingresos por mes (CON FILTRO cliente_id) ─────────────────────────
         cursor.execute("""
             SELECT EXTRACT(MONTH FROM fecha)::int   AS mes,
                    COALESCE(SUM(ticket),0)          AS total_ingresos
             FROM calendario
             WHERE EXTRACT(YEAR FROM fecha) = %s
+              AND cliente_id = %s              -- ✅ FILTRO AGREGADO
             GROUP BY mes
-        """, (anio,))
+        """, (anio, cliente_id))  # ✅ PASAR cliente_id COMO PARÁMETRO
+        
         ingresos_por_mes = {m:0.0 for m in range(1,13)}
         for mes, total in cursor.fetchall():
             ingresos_por_mes[int(mes)] = float(total)
-
-        # ── 2) Gastos reales por mes ────────────────────
+        
+        # ── 2) Gastos reales por mes (CON FILTRO cliente_id) ────────────────────
         cursor.execute("""
             SELECT EXTRACT(MONTH FROM fecha)::int   AS mes,
                    COALESCE(SUM(monto),0)           AS total_gastos
             FROM gastos
             WHERE EXTRACT(YEAR FROM fecha) = %s
+              AND cliente_id = %s              -- ✅ FILTRO AGREGADO
             GROUP BY mes
-        """, (anio,))
+        """, (anio, cliente_id))
+        
         gastos_por_mes = {m:0.0 for m in range(1,13)}
         for mes, total in cursor.fetchall():
             gastos_por_mes[int(mes)] = float(total)
-
+        
         # ── 3) Costos finales = max(gastos, 30 % ingresos) ──
         costos_por_mes = {}
         for m in range(1,13):
             min_30 = ingresos_por_mes[m] * 0.30
             costos_por_mes[m] = max(gastos_por_mes[m], min_30)
-
-        # ── 4) Número total de eventos del año ──────────
+        
+        # ── 4) Número total de eventos del año (CON FILTRO cliente_id) ──────────
         cursor.execute("""
             SELECT COUNT(*) FROM calendario
             WHERE EXTRACT(YEAR FROM fecha) = %s
-        """, (anio,))
+              AND cliente_id = %s              -- ✅ FILTRO AGREGADO
+        """, (anio, cliente_id))
         total_eventos = cursor.fetchone()[0] or 0
-
+        
         return jsonify({
             "anio": int(anio),
             "ingresos_anual": ingresos_por_mes,
-            "costos_anual":   costos_por_mes,   # ← devuelvo el AJUSTADO
+            "costos_anual":   costos_por_mes,
             "total_eventos":  total_eventos
         }), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
@@ -1577,6 +1589,7 @@ def reporte_servicios_anual():
     if not anio:
         return jsonify({"error": "Falta año"}), 400
     
+    # ✅ OBTENER cliente_id DEL SUBDOMINIO
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "Cliente no autorizado"}), 404
@@ -1588,14 +1601,14 @@ def reporte_servicios_anual():
     try:
         cursor = conn.cursor()
         
-        # 🔹 1. Obtener servicios configurados por este tenant
+        # 🔹 1. Obtener servicios configurados por este tenant (CON FILTRO)
         cursor.execute("""
             SELECT clave, nombre, tipo
             FROM servicios_tenant
             WHERE cliente_id = %s AND activo = true
             ORDER BY nombre
         """, (cliente_id,))
-        servicios_config = cursor.fetchall()  # [(clave, nombre, tipo), ...]
+        servicios_config = cursor.fetchall()
         
         if not servicios_config:
             return jsonify({
@@ -1618,16 +1631,18 @@ def reporte_servicios_anual():
                     COALESCE(SUM(CASE WHEN (servicios->>'{clave}')::int = 1 THEN 1 ELSE 0 END), 0) AS "{clave}"
                 """)
         
+        # 🔹 3. Query principal CON FILTRO cliente_id
         query = f"""
             SELECT {', '.join(select_parts)}
             FROM calendario
-            WHERE EXTRACT(YEAR FROM fecha) = %s AND cliente_id = %s
+            WHERE EXTRACT(YEAR FROM fecha) = %s 
+              AND cliente_id = %s              -- ✅ FILTRO AGREGADO
         """
         
-        cursor.execute(query, (anio, cliente_id))
+        cursor.execute(query, (anio, cliente_id))  # ✅ PASAR cliente_id
         row = cursor.fetchone()
         
-        # 🔹 3. Construir respuesta con nombres legibles
+        # 🔹 4. Construir respuesta con nombres legibles
         servicios_reporte = []
         for i, (clave, nombre, tipo) in enumerate(servicios_config):
             cantidad = row[i] if row and row[i] is not None else 0
@@ -1638,7 +1653,7 @@ def reporte_servicios_anual():
                 "cantidad": int(cantidad)
             })
         
-        # 🔹 4. Ordenar: primero boolean (checkbox), luego number (cantidad)
+        # 🔹 5. Ordenar: primero boolean (checkbox), luego number (cantidad)
         servicios_reporte.sort(key=lambda s: (0 if s['tipo'] == 'boolean' else 1, s['nombre']))
         
         return jsonify({

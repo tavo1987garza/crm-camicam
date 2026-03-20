@@ -2589,7 +2589,13 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
 
     <script> 
 
- /* === 0. Cargar información de la cuenta ================= */
+// ============================================================================
+// VARIABLES GLOBALES PARA CONTROL DE ACTUALIZACIÓN EN TIEMPO REAL
+// ============================================================================
+let serviciosConfigActualizados = false;  // Bandera para saber si hubo cambios
+let camposEventoActualizados = false;     // Bandera para campos personalizados
+
+        /* === 0. Cargar información de la cuenta ================= */
 // Variables para almacenar datos temporales
 let datosCuenta = null;
 
@@ -2833,6 +2839,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// ============================================================================
+// FUNCIÓN PARA MOSTRAR SECCIÓN (CON REFRESCO INTELIGENTE)
+// ============================================================================
 function mostrarSeccion(seccionId, callback = null) {
     // 1. Ocultar todas las secciones
     document.querySelectorAll('.seccion').forEach(el => {
@@ -2873,60 +2882,27 @@ function mostrarSeccion(seccionId, callback = null) {
             initConfiguracion();
             break;
         case 'reportes':
-            // Reportes no necesita inicialización adicional
+            // ✅ VERIFICAR SI HUBO ACTUALIZACIÓN DE SERVICIOS
+            if (serviciosConfigActualizados || camposEventoActualizados) {
+                console.log("🔄 Detectados cambios en configuración, refrescando...");
+                serviciosConfigActualizados = false;
+                camposEventoActualizados = false;
+                
+                // Si hay un reporte cargado, refrescarlo
+                const anioInput = document.getElementById("reporte-anio-anual");
+                if (anioInput && anioInput.value) {
+                    verReporteServiciosAnual(parseInt(anioInput.value));
+                }
+            }
             break;
     }
     
-    // 5. Ejecutar callback si existe (para compatibilidad)
+    // 5. Ejecutar callback si existe
     if (callback) {
         callback();
     }
 }
 
-
-/*function mostrarSeccion(seccion, callback = null) { 
-  // 1) Ocultar todas…
-  //document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
-  //const elemento = document.getElementById(seccion);
-  //if (!elemento) return;
-
-  // 2) Mostrar la que toca
-  elemento.classList.remove('hidden');
-
-  // 3) Resaltar el botón del sidebar
-  document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelector(`.sidebar-btn[onclick*="${seccion}"]`)?.classList.add('active');
-
-  // 4) Lógica particular por sección
-   if (seccion === 'cuenta') {
-        initCuenta();
-    }
-  if (seccion === 'leads') {
-    cargarLeads(); 
-  }
-  if (seccion === 'calendario') {
-    initCalendario();
-    cargarLeadsEnSelect();
-    return;
-  }
-  if (seccion === 'gastos') {
-    cargarEtiquetasEnVista();
-    return;
-  }
-  if (seccion === 'configuracion') {
-    initConfiguracion();
-    return;
-  }
-  if (seccion === 'panel') {
-    initPanel();
-    return;
-  }
-
-  if (callback) {
-    callback();
-  }
-}
-*/
                 
 /*==============================================================
 // 🔹CON ESTO CONECTAMOS CON WEBSOCKET Actualizacion en Tiempo Real
@@ -3033,10 +3009,6 @@ async function cargarProximosEventos() {
     cont.appendChild(div);
   });
 }
-
-
-
-
 
 /* === 4. Últimos 3 leads ======================== */
 async function cargarUltimosLeads() {
@@ -3408,9 +3380,6 @@ function actualizarListaChats(remitente, mensaje) {
   }
   return chatExistente;
 }
-        
-
-
 
         function cargarChat() {
             fetch("/mensajes")
@@ -3442,9 +3411,7 @@ function actualizarListaChats(remitente, mensaje) {
                 })
                 .catch(error => console.error("❌ Error al cargar chats:", error));
         }
-
-
-        
+       
         //Funcion para seleccionar los chats a un lado del chatbox (Telefono)
         function seleccionarChat(chatDiv) {
             document.querySelectorAll(".chat-item").forEach(div => div.classList.remove("selected"));
@@ -5264,103 +5231,93 @@ async function eliminarAnio(anio) {
 ************************/
 
 
-//REPORTE DE INGRESOS POR AÑO
 /***********************************************
- * REPORTE INGRESOS + COSTOS + UTILIDAD (ANUAL)
- * Ahora genera también la gráfica triple y pinta
- * los encabezados con el color del año
+ * REPORTE INGRESOS POR AÑO
  ***********************************************/
-async function verReporteIngresosAnual() {
-  const anioInput = document.getElementById("reporte-anio-anual").value.trim();
-  const anio      = parseInt(anioInput, 10);
-  const divTabla  = document.getElementById("resultado-ingresos-anual");
-
-  if (!anio) {
-    divTabla.textContent = "Ingresa un año válido.";
-    return;
-  }
-
-  divTabla.textContent = "Cargando reporte anual…";
-
-   // OCULTA los tres contenedores antes de pedir datos
-   ["resultado-ingresos-anual","resultado-grafica","resultado-servicios"]
-   .forEach(id => document.getElementById(id).classList.add("hidden"));
-
-  try {
-    const resp = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
-    const data = await resp.json();
-    if (data.error) { divTabla.textContent = "Error: " + data.error; return; }
-
-    /* ───────────── construir tabla ───────────── */
-    const mesesNombre = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                         "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-
-    let totalIngresos = 0, totalCostos = 0, totalUtilidad = 0;
-
-    const ingresosArr   = [];
-    const costosArr     = [];
-    const utilidadesArr = [];
-
-    let html  = `<h3>Reporte del año ${data.anio}</h3>`;
-    html     += `<table><thead><tr>
-                   <th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th>
-                 </tr></thead><tbody>`;
-
-    for (let mes = 1; mes <= 12; mes++) {
-      const ingreso  = data.ingresos_anual[mes] || 0;
-      const costo    = data.costos_anual   ? (data.costos_anual[mes] || 0) : 0;
-      const utilidad = ingreso - costo;
-
-      totalIngresos += ingreso;
-      totalCostos   += costo;
-      totalUtilidad += utilidad;
-
-      ingresosArr  .push(ingreso);
-      costosArr    .push(costo);
-      utilidadesArr.push(utilidad);
-
-      html += `<tr>
-        <td>${mesesNombre[mes-1]}</td>
-        <td>${ingreso .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
-        <td>${costo   .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
-        <td>${utilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
-      </tr>`;
-    }
-
-    /* totales */
-    html += `<tr style="font-weight:bold">
-      <td>TOTALES</td>
-      <td>${totalIngresos.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
-      <td>${totalCostos  .toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
-      <td>${totalUtilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
-    </tr></tbody></table>`;
+//REPORTE DE INGRESOS TABLA
+ async function verReporteIngresosAnual() {
+    const anioInput = document.getElementById("reporte-anio-anual").value.trim();
+    const anio = parseInt(anioInput, 10);
+    const divTabla = document.getElementById("resultado-ingresos-anual");
     
-    // Muestra contenedor y colorea
-    divTabla.classList.remove("hidden");
-    divTabla.innerHTML = html;
-    pintarColorReporte(anio);
-
-    /* ───────────── generar gráfica ───────────── */
-    generarGraficaAnual(
-      anio,
-      ingresosArr,
-      costosArr,
-      utilidadesArr,
-      data.total_eventos
-    );
-
-    /* ───────────── servicios anuales ─────────── */
-    await verReporteServiciosAnual(anio);   // se repinta color dentro
-    document.getElementById("resultado-servicios").classList.remove("hidden");
-    pintarColorReporte(anio);
-
-  } catch (err) {
-    console.error("Error en verReporteIngresosAnual:", err);
-    divTabla.textContent = "Error al obtener el reporte anual.";
-    divTabla.classList.remove("hidden");
-  }
+    if (!anio) {
+        divTabla.textContent = "Ingresa un año válido.";
+        return;
+    }
+    
+    divTabla.textContent = "Cargando reporte anual…";
+    
+    // OCULTA los tres contenedores antes de pedir datos
+    ["resultado-ingresos-anual","resultado-grafica","resultado-servicios"]
+        .forEach(id => document.getElementById(id).classList.add("hidden"));
+    
+    try {
+        const resp = await fetch(`/reportes/ingresos_anual?anio=${anio}`);
+        const data = await resp.json();
+        
+        // ✅ MANEJAR ERROR DE AUTORIZACIÓN
+        if (data.error) { 
+            divTabla.textContent = "Error: " + data.error; 
+            return; 
+        }
+        
+        /* ───────────── construir tabla ───────────── */
+        const mesesNombre = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                            "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+        let totalIngresos = 0, totalCostos = 0, totalUtilidad = 0;
+        const ingresosArr = [], costosArr = [], utilidadesArr = [];
+        
+        let html = `<h3>Reporte del año ${data.anio}</h3>`;
+        html += `<table><thead><tr><th>Mes</th><th>Ingresos</th><th>Costos</th><th>Utilidad</th></tr></thead><tbody>`;
+        
+        for (let mes = 1; mes <= 12; mes++) {
+            const ingreso = data.ingresos_anual[mes] || 0;
+            const costo = data.costos_anual ? (data.costos_anual[mes] || 0) : 0;
+            const utilidad = ingreso - costo;
+            
+            totalIngresos += ingreso;
+            totalCostos += costo;
+            totalUtilidad += utilidad;
+            
+            ingresosArr.push(ingreso);
+            costosArr.push(costo);
+            utilidadesArr.push(utilidad);
+            
+            html += `<tr>
+                <td>${mesesNombre[mes-1]}</td>
+                <td>${ingreso.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+                <td>${costo.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+                <td>${utilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+            </tr>`;
+        }
+        
+        /* totales */
+        html += `<tr style="font-weight:bold">
+            <td>TOTALES</td>
+            <td>${totalIngresos.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+            <td>${totalCostos.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+            <td>${totalUtilidad.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0})}</td>
+        </tr></tbody></table>`;
+        
+        // Muestra contenedor y colorea
+        divTabla.classList.remove("hidden");
+        divTabla.innerHTML = html;
+        pintarColorReporte(anio);
+        
+        /* ───────────── generar gráfica ───────────── */
+        generarGraficaAnual(anio, ingresosArr, costosArr, utilidadesArr, data.total_eventos || 0);
+        
+        /* ───────────── servicios anuales ─────────── */
+        await verReporteServiciosAnual(anio);
+        document.getElementById("resultado-servicios").classList.remove("hidden");
+        pintarColorReporte(anio);
+        
+    } catch (err) {
+        console.error("Error en verReporteIngresosAnual:", err);
+        divTabla.textContent = "Error al obtener el reporte anual.";
+        divTabla.classList.remove("hidden");
+    }
 }
-
 
 //REPORTE DE INGRESOS GRÁFICA
 let graficaAnual = null;   // referencia para poder destruir/redibujar
@@ -5444,19 +5401,17 @@ ctx.style.maxHeight = graphHeight + "px";                 // opcional: evita que
 }
 
   
-// ============================================================================
 // REPORTE DE SERVICIOS CONTRATADOS (DINÁMICO POR TENANT)
-// ============================================================================
 async function verReporteServiciosAnual(anio) {
     const resultadoDiv = document.getElementById("resultado-servicios");
-    resultadoDiv.innerHTML = "<p>Cargando servicios...</p>";
+    resultadoDiv.textContent = "Cargando servicios anuales...";
     
     try {
         const response = await fetch(`/reportes/servicios_anual?anio=${anio}`);
         const data = await response.json();
         
         if (data.error) {
-            resultadoDiv.innerHTML = `<p style="color:#d32f2f;">Error: ${data.error}</p>`;
+            resultadoDiv.textContent = "Error: " + data.error;
             return;
         }
         
@@ -5500,12 +5455,8 @@ async function verReporteServiciosAnual(anio) {
             tableHTML += `
                 <h4 style="margin:15px 0 8px;color:#495057;">☑ Servicios (Sí/No)</h4>
                 <table style="margin-bottom:15px;">
-                    <thead>
-                        <tr><th>Servicio</th><th>Veces contratado</th></tr>
-                    </thead>
-                    <tbody>
-                        ${generarFilas(booleanos)}
-                    </tbody>
+                    <thead><tr><th>Servicio</th><th>Veces contratado</th></tr></thead>
+                    <tbody>${generarFilas(booleanos)}</tbody>
                 </table>
             `;
         }
@@ -5514,24 +5465,18 @@ async function verReporteServiciosAnual(anio) {
             tableHTML += `
                 <h4 style="margin:15px 0 8px;color:#495057;">🔢 Servicios por Cantidad</h4>
                 <table>
-                    <thead>
-                        <tr><th>Servicio</th><th>Cantidad total</th></tr>
-                    </thead>
-                    <tbody>
-                        ${generarFilas(numeros)}
-                    </tbody>
+                    <thead><tr><th>Servicio</th><th>Cantidad total</th></tr></thead>
+                    <tbody>${generarFilas(numeros)}</tbody>
                 </table>
             `;
         }
         
         resultadoDiv.innerHTML = tableHTML;
-        
-        // Repintar colores del año
         pintarColorReporte(anio);
         
     } catch (err) {
         console.error("Error en verReporteServiciosAnual:", err);
-        resultadoDiv.innerHTML = `<p style="color:#d32f2f;">Error al cargar el reporte de servicios.</p>`;
+        resultadoDiv.textContent = "Error al cargar el reporte de servicios.";
     }
 }
   
@@ -5922,24 +5867,46 @@ async function initConfiguracion() {
 }
 
 // Socket ON para actualizacion en tiempo real de configuracion
+// ============================================================================
+// LISTENER SOCKET: CONFIGURACIÓN ACTUALIZADA (SERVICIOS Y CAMPOS)
+// ============================================================================
 socket.on("configuracion_actualizada", data => {
     console.log("⚙️ Configuración actualizada:", data);
     
-    // 1) Si el modal de campos de evento está abierto, recargar
-    if (!document.getElementById('modal-campos-evento').classList.contains('hidden')) {
-        mostrarModalCamposEvento();
+    // 1) Marcar banderas de actualización
+    if (data.tipo === "servicios") {
+        serviciosConfigActualizados = true;
+        console.log("📋 Servicios marcados como actualizados");
     }
     
-    // 2) Si el modal de servicios está abierto, recargar
-    if (!document.getElementById('modal-servicios').classList.contains('hidden')) {
+    if (data.tipo === "campos_evento") {
+        camposEventoActualizados = true;
+        console.log("📝 Campos de evento marcados como actualizados");
+    }
+    
+    // 2) Si el modal de configuración está abierto, recargarlo
+    const modalServicios = document.getElementById('modal-servicios');
+    if (modalServicios && !modalServicios.classList.contains('hidden')) {
         mostrarModalServicios();
     }
     
-    // 3) Si estamos en el formulario de agregar fecha, recargar campos
-    // (los campos se cargan cada vez que se abre el modal, así que no es necesario)
+    const modalCampos = document.getElementById('modal-campos-evento');
+    if (modalCampos && !modalCampos.classList.contains('hidden')) {
+        mostrarModalCamposEvento();
+    }
     
-    // 4) Mostrar notificación
-    mostrarNotificacionSuave(`⚙️ Configuración actualizada: ${data.tipo}`);
+    // 3) Si la sección de Reportes es visible, refrescar el reporte de servicios
+    const seccionReportes = document.getElementById('reportes');
+    if (seccionReportes && !seccionReportes.classList.contains('hidden')) {
+        console.log("📊 Reportes visible, refrescando servicios...");
+        const anioInput = document.getElementById("reporte-anio-anual");
+        if (anioInput && anioInput.value) {
+            verReporteServiciosAnual(parseInt(anioInput.value));
+        }
+    }
+    
+    // 4) Mostrar notificación suave
+    mostrarNotificacionSuave(`⚙️ Configuración actualizada: ${data.tipo}`, "success");
 });
 
 
@@ -6529,20 +6496,10 @@ function configurarListenersServicios() {
 
 
 // ============================================================================
-// FUNCIÓN PARA GUARDAR SERVICIOS PERSONALIZADOS (CON SOCKET.IO)
+// GUARDAR SERVICIOS (CON BANDERA DE ACTUALIZACIÓN)
 // ============================================================================
 async function guardarServicios() {
-    // 1. Validar que todos tengan nombre y clave única
     const validos = serviciosConfig.filter(s => s.nombre.trim() && s.clave?.trim());
-    
-    // Validar claves únicas
-    const claves = validos.map(s => s.clave?.toLowerCase().trim());
-    const duplicados = claves.filter((c, i) => claves.indexOf(c) !== i);
-    
-    if (duplicados.length > 0) {
-        mostrarNotificacionSuave(`⚠️ Claves duplicadas: ${[...new Set(duplicados)].join(', ')}`, "error");
-        return;
-    }
     
     if (validos.length === 0) {
         mostrarNotificacionSuave('⚠️ Agrega al menos un servicio con nombre y clave', "error");
@@ -6557,13 +6514,9 @@ async function guardarServicios() {
         });
         
         if (resp.ok) {
-            // ✅ NOTIFICACIÓN SUAVE (no bloqueante)
             mostrarNotificacionSuave('✅ Servicios actualizados', "success");
             
-            // ✅ EL SOCKET SE ENCARGA DE ACTUALIZAR OTRAS PESTAÑAS
-            // No recargamos manualmente, dejamos que socket.on lo haga
-            
-            // ✅ CERRAR MODAL DESPUÉS DE UN BREVE DELAY para mejor UX
+            // ✅ EL SOCKET SE ENCARGA DE NOTIFICAR A OTRAS SECCIONES
             setTimeout(() => {
                 cerrarModalServicios();
             }, 800);
@@ -6577,7 +6530,6 @@ async function guardarServicios() {
         mostrarNotificacionSuave('❌ Error de conexión', "error");
     }
 }
-
 
 //Cargar Lista de Usuarios 
 async function cargarUsuarios() {
