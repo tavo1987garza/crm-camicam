@@ -3577,48 +3577,23 @@ function initCalendario() {
 socket.on("calendario_actualizado", data => {
     console.log("📡 Calendario actualizado:", data);
     
-    // 1) Vuelve a pintar la lista de años (tarjetas)
+    // 1) Actualizar lista de años (tarjetas)
     cargarAnios(true);
     
-    // 2) Si el usuario ya está dentro de ese año, actualiza la lista de eventos
+    // 2) Si estamos en vista de eventos de un año, recargar
     if (anioSeleccionado === data.anio) {
-        cargarCalendario();   // usa la variable global anioSeleccionado
+        cargarCalendario();
     }
     
-    // 3) Si estamos en el Panel, actualizar próximos eventos
-    if (!document.getElementById('panel').classList.contains('hidden')) {
+    // 3) Si el Panel está visible, actualizar próximos eventos
+    const panel = document.getElementById('panel');
+    if (panel && !panel.classList.contains('hidden')) {
         cargarProximosEventos();
     }
     
-    // 4) Mostrar notificación suave (opcional)
-    mostrarNotificacionSuave(`📅 Calendario actualizado: ${data.accion}`);
+    // 4) Notificación suave (opcional)
+    mostrarNotificacionSuave(`📅 Actualizado: ${data.accion}`);
 });
-
-// Función auxiliar para notificaciones suaves
-function mostrarNotificacionSuave(mensaje) {
-    let notif = document.getElementById("notificacion-suave");
-    if (!notif) {
-        notif = document.createElement("div");
-        notif.id = "notificacion-suave";
-        notif.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #1e88e5;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            z-index: 9999;
-            opacity: 0;
-            transition: opacity 0.3s;
-        `;
-        document.body.appendChild(notif);
-    }
-    notif.textContent = mensaje;
-    notif.style.opacity = "1";
-    setTimeout(() => { notif.style.opacity = "0"; }, 2000);
-}
-
 
 
 /***********************
@@ -4175,7 +4150,8 @@ document.getElementById("ticket-input").addEventListener("blur", function() {
   }); 
   
 
-//Aquí se añade la validación para que la fecha ingresada pertenezca al año seleccionado:
+
+  //Aquí se añade la validación para que la fecha ingresada pertenezca al año seleccionado:
 function agregarFechaManual(force = false) {
   const fecha = document.getElementById("fecha-input").value;
   if (!fecha) {
@@ -4521,38 +4497,144 @@ function manejarInputAutoGuardado(event) {
     
     // Configurar nuevo timer (1 segundo de espera)
     debounceTimerEdicion = setTimeout(() => {
-        console.log('✏️ Input detectado, guardando...');
+        console.log('✏️ Input detectado, guardando con debounce...');
         guardarEdicionFecha();
     }, 1000);
 }
 
+
 // ============================================================================
-// FUNCIÓN PARA CERRAR MODAL CON LIMPIEZA DE LISTENERS
+// FUNCIÓN PARA CERRAR MODAL CON LIMPIEZA DE LISTENERS Y GUARDADO SEGURO
 // ============================================================================
 function cerrarModalFecha() {
     console.log('🚪 Cerrando modal de edición...');
     
-    // 1. Limpiar todos los listeners
-    limpiarListenersAutoGuardado();
+    // 1. Limpiar listeners de auto-guardado (evitar memory leaks)
+    document.querySelectorAll('.auto-save-input').forEach(input => {
+        input.removeEventListener('change', guardarEdicionFecha);
+        if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+            input.removeEventListener('blur', guardarEdicionFecha);
+            input.removeEventListener('input', manejarInputAutoGuardado);
+        }
+    });
     
-    // 2. Guardar cambios pendientes antes de cerrar (opcional)
-    if (debounceTimerEdicion) {
-        clearTimeout(debounceTimerEdicion);
-        guardarEdicionFecha();
+    // También limpiar listeners de campos dinámicos
+    const serviciosContainer = document.getElementById('edit-servicios-fijos');
+    if (serviciosContainer) {
+        serviciosContainer.querySelectorAll('input').forEach(input => {
+            input.removeEventListener('change', guardarEdicionFecha);
+            input.removeEventListener('input', manejarInputAutoGuardado);
+        });
     }
     
-    // 3. Ocultar modal
+    const customFieldsContainer = document.getElementById('edit-contenedor-campos-personalizados');
+    if (customFieldsContainer) {
+        customFieldsContainer.querySelectorAll('input, select, textarea').forEach(input => {
+            input.removeEventListener('change', guardarEdicionFecha);
+            input.removeEventListener('blur', guardarEdicionFecha);
+            input.removeEventListener('input', manejarInputAutoGuardado);
+        });
+    }
+    
+    // 2. Guardar cambios pendientes ANTES de cerrar (sin debounce extra)
+    if (debounceTimerEdicion) {
+        clearTimeout(debounceTimerEdicion);
+    }
+    
+    // Ejecutar guardado inmediato (sin esperar debounce)
+    ejecutarGuardadoInmediato();
+    
+    // 3. Ocultar modal DESPUÉS de iniciar el guardado
+    // (El socket.on se encargará de refrescar la UI)
     const modal = document.getElementById('edit-fecha-modal');
     if (modal) {
         modal.classList.add('hidden');
         modal.style.display = 'none';
     }
     
-    console.log('✅ Modal cerrado y listeners limpiados');
+    console.log('✅ Modal cerrado, guardado en progreso');
 }
 
-
-
+// ============================================================================
+// FUNCIÓN AUXILIAR: GUARDADO INMEDIATO (sin debounce)
+// ============================================================================
+function ejecutarGuardadoInmediato() {
+    const calId = document.getElementById("edit-fecha-id").value;
+    if (!calId) return;
+    
+    const titulo = document.getElementById("edit-fecha-titulo").value.trim();
+    const notas = document.getElementById("edit-fecha-notas").value.trim();
+    
+    const ticketInput = document.getElementById("edit-fecha-ticket").value.trim();
+    const ticketStr = ticketInput.replace(/[^0-9.]/g, '');
+    const ticketNum = parseFloat(ticketStr) || 0;
+    
+    // Recopilar servicios
+    const servicios = {};
+    const serviciosContainer = document.getElementById('edit-servicios-fijos');
+    if (serviciosContainer) {
+        serviciosContainer.querySelectorAll('[name]').forEach(input => {
+            if (input.type === 'checkbox') {
+                servicios[input.name] = input.checked ? 1 : 0;
+            } else if (input.type === 'number') {
+                servicios[input.name] = parseInt(input.value) || 0;
+            }
+        });
+    }
+    
+    // Recopilar campos personalizados
+    const metadatos = {};
+    const customFieldsContainer = document.getElementById('edit-contenedor-campos-personalizados');
+    if (customFieldsContainer) {
+        customFieldsContainer.querySelectorAll('[name]').forEach(input => {
+            const fieldName = input.name;
+            let fieldValue;
+            
+            if (input.type === 'checkbox') {
+                fieldValue = input.checked;
+            } else if (input.type === 'number') {
+                fieldValue = input.value !== '' ? parseFloat(input.value) : null;
+            } else if (input.type === 'date' || input.type === 'time') {
+                fieldValue = input.value || null;
+            } else {
+                fieldValue = input.value.trim() || null;
+            }
+            
+            if (fieldValue !== null && fieldValue !== '') {
+                metadatos[fieldName] = fieldValue;
+            }
+        });
+    }
+    
+    const payload = {
+        titulo,
+        notas,
+        ticket: ticketNum,
+        servicios,
+        metadatos
+    };
+    
+    // Enviar SIN debounce
+    fetch(`/calendario/editar/${calId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            console.log("✅ Guardado inmediato completado - Socket actualizará la UI");
+            mostrarNotificacionSuave("Cambios guardados", "success");
+        } else {
+            console.error("❌ Error en guardado inmediato:", data.error);
+            mostrarNotificacionSuave("Error al guardar", "error");
+        }
+    })
+    .catch(err => {
+        console.error("❌ Error de conexión en guardado inmediato:", err);
+        mostrarNotificacionSuave("Error de conexión", "error");
+    });
+}
 
 // ============================================================================
 // FUNCIÓN PARA GUARDAR EDICIÓN DE FECHA (CON CAMPOS PERSONALIZADOS)
@@ -4656,7 +4738,42 @@ function guardarEdicionFecha() {
     }, 500); // 500ms de debounce
 }
 
-
+// ============================================================================
+// FUNCIÓN AUXILIAR PARA NOTIFICACIONES SUAVES (sin alert)
+// ============================================================================
+function mostrarNotificacionSuave(mensaje, tipo = "success") {
+    let notif = document.getElementById("notificacion-suave");
+    
+    // Crear elemento si no existe
+    if (!notif) {
+        notif = document.createElement("div");
+        notif.id = "notificacion-suave";
+        notif.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        document.body.appendChild(notif);
+    }
+    
+    // Configurar color según tipo
+    notif.style.background = tipo === "success" ? "#43a047" : "#e53935";
+    notif.textContent = mensaje;
+    notif.style.opacity = "1";
+    
+    // Ocultar después de 2.5 segundos
+    setTimeout(() => {
+        notif.style.opacity = "0";
+    }, 2500);
+}
 
 // ============================================================================
 // FUNCIÓN AUXILIAR PARA MOSTRAR NOTIFICACIONES
@@ -5684,14 +5801,17 @@ function renderizarListaCampos() {
     `).join('');
 }
 
-// GUARDAR CAMPOS PERSONALIZADOS
+
+// ============================================================================
+// FUNCIÓN PARA GUARDAR CAMPOS PERSONALIZADOS (CON SOCKET.IO)
+// ============================================================================
 async function guardarCamposEvento() {
     // 1. Validar claves únicas
     const claves = camposEvento.map(c => c.clave?.toLowerCase().trim());
     const duplicados = claves.filter((c, i) => claves.indexOf(c) !== i);
     
     if (duplicados.length > 0) {
-        alert(`⚠️ Claves duplicadas: ${[...new Set(duplicados)].join(', ')}`);
+        mostrarNotificacionSuave(`⚠️ Claves duplicadas: ${[...new Set(duplicados)].join(', ')}`, "error");
         return;
     }
     
@@ -5699,7 +5819,7 @@ async function guardarCamposEvento() {
     const validos = camposEvento.filter(c => c.nombre.trim() && c.clave.trim());
     
     if (validos.length === 0) {
-        alert('⚠️ Debes agregar al menos un campo con nombre y clave');
+        mostrarNotificacionSuave('⚠️ Agrega al menos un campo con nombre y clave', "error");
         return;
     }
     
@@ -5713,17 +5833,23 @@ async function guardarCamposEvento() {
         const data = await resp.json();
         
         if (data.ok) {
-            alert('✅ Formulario de evento actualizado');
-            // 3. Recargar campos desde BD antes de cerrar
-            await mostrarModalCamposEvento();
-            // 4. Cerrar después de recargar
-            setTimeout(() => cerrarModalCamposEvento(), 500);
+            // ✅ NOTIFICACIÓN SUAVE (no bloqueante)
+            mostrarNotificacionSuave('✅ Campos actualizados', "success");
+            
+            // ✅ EL SOCKET SE ENCARGA DE ACTUALIZAR OTRAS PESTAÑAS
+            // No recargamos manualmente, dejamos que socket.on lo haga
+            
+            // ✅ CERRAR MODAL DESPUÉS DE UN BREVE DELAY
+            setTimeout(() => {
+                cerrarModalCamposEvento();
+            }, 800);
+            
         } else {
-            alert('❌ Error al guardar: ' + (data.error || 'desconocido'));
+            mostrarNotificacionSuave('❌ Error: ' + (data.error || 'desconocido'), "error");
         }
     } catch (err) {
-        console.error('Error:', err);
-        alert('❌ Error de conexión');
+        console.error('Error en guardarCamposEvento:', err);
+        mostrarNotificacionSuave('❌ Error de conexión', "error");
     }
 }
 
@@ -5761,49 +5887,87 @@ function agregarServicio() {
 
 // Renderizar lista de servicios en el modal
 function renderizarListaServicios() {
-  const cont = document.getElementById('lista-servicios');
-  cont.innerHTML = serviciosConfig.map((serv, idx) => `
-    <div class="panel-card" style="margin-bottom:10px;">
-      <div style="display:flex;gap:10px;margin-bottom:8px;">
-        <input type="text" placeholder="Nombre del servicio" value="${serv.nombre}" 
-               oninput="serviciosConfig[${idx}].nombre=this.value; serviciosConfig[${idx}].clave=this.value.toLowerCase().replace(/[^a-z0-9]/g,'_')">
-        <select onchange="serviciosConfig[${idx}].tipo=this.value">
-          <option value="boolean" ${serv.tipo==='boolean'?'selected':''}>Checkbox (Sí/No)</option>
-          <option value="number" ${serv.tipo==='number'?'selected':''}>Número (Cantidad)</option>
-        </select>
-        <button onclick="serviciosConfig.splice(${idx},1);renderizarListaServicios()">🗑️</button>
-      </div>
-    </div>
-  `).join('');
+    const cont = document.getElementById('lista-servicios');
+    cont.innerHTML = serviciosConfig.map((serv, idx) => `
+        <div class="panel-card" style="margin-bottom:10px;">
+            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+                <input type="text" placeholder="Nombre del servicio" value="${serv.nombre}"
+                    style="flex:2;min-width:150px;"
+                    oninput="serviciosConfig[${idx}].nombre=this.value; 
+                            if(!serviciosConfig[${idx}].clave) {
+                                serviciosConfig[${idx}].clave=this.value.toLowerCase()
+                                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
+                                    .replace(/[^a-z0-9]/g,'_');
+                                renderizarListaServicios();
+                            }">
+                
+                <input type="text" placeholder="Clave (ID único)" value="${serv.clave}"
+                    style="flex:1;min-width:120px;"
+                    oninput="serviciosConfig[${idx}].clave=this.value.toLowerCase()
+                        .replace(/[^a-z0-9_]/g,'')">
+                
+                <select onchange="serviciosConfig[${idx}].tipo=this.value"
+                    style="min-width:150px;">
+                    <option value="boolean" ${serv.tipo==='boolean'?'selected':''}>Checkbox (Sí/No)</option>
+                    <option value="number" ${serv.tipo==='number'?'selected':''}>Número (Cantidad)</option>
+                </select>
+                
+                <button onclick="serviciosConfig.splice(${idx},1);renderizarListaServicios()"
+                    style="background:#e74c3c;color:white;border:none;padding:5px 10px;
+                           border-radius:4px;cursor:pointer;">🗑️</button>
+            </div>
+        </div>
+    `).join('');
 }
 
-// Guardar servicios en el backend
+// ============================================================================
+// FUNCIÓN PARA GUARDAR SERVICIOS PERSONALIZADOS (CON SOCKET.IO)
+// ============================================================================
 async function guardarServicios() {
-  // Validar que todos tengan nombre
-  const validos = serviciosConfig.filter(s => s.nombre.trim());
-  if (validos.length === 0) {
-    alert('Debes agregar al menos un servicio con nombre');
-    return;
-  }
-  
-  try {
-    const resp = await fetch('/servicios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ servicios: validos })
-    });
+    // 1. Validar que todos tengan nombre y clave única
+    const validos = serviciosConfig.filter(s => s.nombre.trim() && s.clave?.trim());
     
-    if (resp.ok) {
-      alert('Servicios guardados correctamente');
-      cerrarModalServicios();
-    } else {
-      const error = await resp.json();
-      alert('Error al guardar: ' + (error.error || 'desconocido'));
+    // Validar claves únicas
+    const claves = validos.map(s => s.clave?.toLowerCase().trim());
+    const duplicados = claves.filter((c, i) => claves.indexOf(c) !== i);
+    
+    if (duplicados.length > 0) {
+        mostrarNotificacionSuave(`⚠️ Claves duplicadas: ${[...new Set(duplicados)].join(', ')}`, "error");
+        return;
     }
-  } catch (err) {
-    console.error('Error al guardar servicios:', err);
-    alert('Error de conexión al guardar servicios');
-  }
+    
+    if (validos.length === 0) {
+        mostrarNotificacionSuave('⚠️ Agrega al menos un servicio con nombre y clave', "error");
+        return;
+    }
+    
+    try {
+        const resp = await fetch('/servicios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ servicios: validos })
+        });
+        
+        if (resp.ok) {
+            // ✅ NOTIFICACIÓN SUAVE (no bloqueante)
+            mostrarNotificacionSuave('✅ Servicios actualizados', "success");
+            
+            // ✅ EL SOCKET SE ENCARGA DE ACTUALIZAR OTRAS PESTAÑAS
+            // No recargamos manualmente, dejamos que socket.on lo haga
+            
+            // ✅ CERRAR MODAL DESPUÉS DE UN BREVE DELAY para mejor UX
+            setTimeout(() => {
+                cerrarModalServicios();
+            }, 800);
+            
+        } else {
+            const error = await resp.json();
+            mostrarNotificacionSuave('❌ Error: ' + (error.error || 'desconocido'), "error");
+        }
+    } catch (err) {
+        console.error('Error en guardarServicios:', err);
+        mostrarNotificacionSuave('❌ Error de conexión', "error");
+    }
 }
 
 
