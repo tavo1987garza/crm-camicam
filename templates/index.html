@@ -3783,16 +3783,53 @@ function initCalendario() {
 }
 
 
-/** 📡 Evento que el backend emite tras insertar una fecha */
+// ============================================================================
+// LISTENER SOCKET: CALENDARIO ACTUALIZADO (PRESERVAR VISTA ACTUAL)
+// ============================================================================
 socket.on("calendario_actualizado", data => {
     console.log("📡 Calendario actualizado:", data);
     
-    // 1) Actualizar lista de años (tarjetas)
+    // 1) Recargar años (tarjetas)
     cargarAnios(true);
     
-    // 2) Si estamos en vista de eventos de un año, recargar
+    // 2) ✅ VERIFICAR si estamos en vista de eventos de un año
     if (anioSeleccionado === data.anio) {
-        cargarCalendario();
+        // ✅ Solo recargar la lista de fechas, NO cambiar la vista
+        const vistaEventos = document.getElementById("vista-eventos-anio");
+        const vistaMeses = document.getElementById("vista-meses");
+        
+        if (!vistaEventos.classList.contains("hidden")) {
+            // Estamos en vista de fechas → recargar solo la lista
+            console.log("📅 En vista de fechas, recargando lista...");
+            fetch("/calendario/fechas_ocupadas")
+                .then(r => r.json())
+                .then(dataFechas => {
+                    if (dataFechas.error) throw new Error(dataFechas.error);
+                    
+                    // Obtener el mes actual del título
+                    const tituloMes = document.getElementById("anio-actual").textContent;
+                    const mesesNombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                                         "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+                    const mesActual = mesesNombres.findIndex(m => tituloMes.includes(m));
+                    
+                    if (mesActual !== -1) {
+                        // Filtrar fechas del mes actual
+                        const fechasDelMes = (dataFechas.fechas || []).filter(f => {
+                            const fechaObj = new Date(f.fecha + "T12:00:00");
+                            return fechaObj.getMonth() === mesActual && 
+                                   fechaObj.getFullYear() === anioSeleccionado;
+                        });
+                        
+                        // Re-renderizar la lista de fechas
+                        mostrarEventosDelMes(anioSeleccionado, mesActual, fechasDelMes, yearColors[anioSeleccionado]);
+                    }
+                })
+                .catch(err => console.error("Error al recargar fechas:", err));
+        } else if (!vistaMeses.classList.contains("hidden")) {
+            // Estamos en vista de meses → recargar meses
+            console.log("📅 En vista de meses, recargando...");
+            cargarCalendario();
+        }
     }
     
     // 3) Si el Panel está visible, actualizar próximos eventos
@@ -3800,9 +3837,6 @@ socket.on("calendario_actualizado", data => {
     if (panel && !panel.classList.contains('hidden')) {
         cargarProximosEventos();
     }
-    
-    // 4) Notificación suave (opcional)
-    mostrarNotificacionSuave(`📅 Actualizado: ${data.accion}`);
 });
 
 
@@ -3980,46 +4014,56 @@ function mostrarMesesDelAnio(anio, todasLasFechas, colorAnio = "#1e88e5") {
 
 
 /* ---------------  Eventos de un mes --------------- */
+// ============================================================================
+// MOSTRAR EVENTOS DE UN MES 
+// ============================================================================
 function mostrarEventosDelMes(anio, mes, lista, colorAnio) {
-  // ordenar con comparación de strings "YYYY-MM-DD"
-  lista.sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
-
-  /* preparar vista */
-  document.getElementById("vista-meses").classList.add("hidden");
-  document.getElementById("vista-eventos-anio").classList.remove("hidden");
-  document.getElementById("anio-actual").textContent =
-    `Eventos ${["Enero","Febrero","Marzo","Abril","Mayo","Junio",
-               "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes]} ${anio}`;
-
-  const ul = document.getElementById("lista-fechas-ocupadas");
-  ul.innerHTML = "";
-
-  const hoyISO = new Date().toISOString().slice(0, 10);           // "YYYY-MM-DD"
-  const proxIdx = lista.findIndex(ev => ev.fecha >= hoyISO);
-
-  lista.forEach((ev, idx) => {
-    /* dia/mes SIN Date()  */
-    const dia = formatoFechaLargo(ev.fecha);   // ← “Jue. 01 de Mayo”
-
-    const li = document.createElement("li");    
-    li.innerHTML = `
-      <div class="fecha-info">
-        <span class="fecha-fecha">${dia}</span>
-        <span class="dot-sep">•</span>
-        ${ev.titulo ? `<span class="fecha-titulo">${ev.titulo}</span>` : ""}
-      </div>
-      <i class="fas fa-chevron-right"></i>`;
+    // Ordenar fechas
+    lista.sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
     
-    li.onclick = () => abrirModalFecha(ev.id);
-    li.style.borderLeft = `4px solid ${colorAnio}`;
-
-    /* resalta próximo evento */
-    if (proxIdx !== -1 && idx === proxIdx) {
-      li.classList.add("next-event");
-      li.style.backgroundColor = hexToRgba(colorAnio, 0.6);
-    }
-    ul.appendChild(li);
-  });
+    /* Preparar vista */
+    document.getElementById("vista-meses").classList.add("hidden");
+    document.getElementById("vista-eventos-anio").classList.remove("hidden");
+    document.getElementById("anio-actual").textContent =
+        `Eventos ${["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+        "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes]} ${anio}`;
+    
+    const ul = document.getElementById("lista-fechas-ocupadas");
+    ul.innerHTML = "";
+    
+    const hoyISO = new Date().toISOString().slice(0, 10);
+    const proxIdx = lista.findIndex(ev => ev.fecha >= hoyISO);
+    
+    lista.forEach((ev, idx) => {
+        const dia = formatoFechaLargo(ev.fecha);
+        const li = document.createElement("li");
+        li.innerHTML = `
+            <div class="fecha-info">
+                <span class="fecha-fecha">${dia}</span>
+                <span class="dot-sep">•</span>
+                ${ev.titulo ? `<span class="fecha-titulo">${ev.titulo}</span>` : ""}
+            </div>
+            <i class="fas fa-chevron-right"></i>`;
+        
+        // ✅ AGREGAR EVENT LISTENER CORRECTAMENTE
+        li.style.cursor = "pointer";
+        li.onclick = () => {
+            console.log("📅 Click en evento:", ev.id);
+            abrirModalFecha(ev.id);
+        };
+        
+        li.style.borderLeft = `4px solid ${colorAnio}`;
+        
+        /* Resalta próximo evento */
+        if (proxIdx !== -1 && idx === proxIdx) {
+            li.classList.add("next-event");
+            li.style.backgroundColor = hexToRgba(colorAnio, 0.6);
+        }
+        
+        ul.appendChild(li);
+    });
+    
+    console.log(`✅ ${lista.length} eventos renderizados con listeners`);
 }
 
 
@@ -4533,14 +4577,24 @@ function agregarFechaManual(force = false) {
   
 // ============== 3) ABRIR MODAL DE EDICIÓN ==============
 // ============================================================================
-// FUNCIÓN PARA ABRIR MODAL DE EDICIÓN (CON SERVICIOS ORDENADOS POR TIPO)
+// ABRIR MODAL DE EDICIÓN (CON DEBUG PARA VERIFICAR)
 // ============================================================================
 async function abrirModalFecha(calId) {
+    console.log("🔍 abrirModalFecha() llamado con calId:", calId);
+    
+    if (!calId) {
+        console.error("❌ calId es undefined o null");
+        alert("Error: No se pudo identificar el evento");
+        return;
+    }
+    
     try {
-        // 1. Cargar datos del evento desde BD
+        // 1. Cargar datos del evento
         const respEvento = await fetch(`/calendario/detalle/${calId}`);
         if (!respEvento.ok) throw new Error('Error al cargar datos del evento');
+        
         const data = await respEvento.json();
+        console.log("📦 Datos del evento:", data);
         
         if (data.error) {
             alert('Error: ' + data.error);
@@ -4554,128 +4608,88 @@ async function abrirModalFecha(calId) {
         document.getElementById("edit-fecha-notas").value = data.notas || "";
         
         const editTicket = document.getElementById("edit-fecha-ticket");
-        if (data.ticket) {
-            editTicket.value = parseFloat(data.ticket).toLocaleString('es-MX', {
-                style: 'currency',
-                currency: 'MXN',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            });
-        } else {
-            editTicket.value = '';
-        }
+        editTicket.value = data.ticket ? parseFloat(data.ticket).toLocaleString('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }) : '';
         
-        // 3. Cargar SERVICIOS DINÁMICOS (ORDENADOS POR TIPO)
-        const serviciosResp = await fetch('/servicios');
-        if (serviciosResp.ok) {
-            let servicios = await serviciosResp.json();
+        // 3. Cargar SERVICIOS DINÁMICOS
+        const servicios = await fetch('/servicios').then(r => r.json());
+        const serviciosContainer = document.getElementById('edit-servicios-fijos');
+        if (serviciosContainer) {
+            serviciosContainer.innerHTML = '';
+            const serviciosActuales = data.servicios || {};
             
-            // ✅ ORDENAR: Primero checkbox (boolean), luego números (number)
-            servicios.sort((a, b) => {
-                if (a.tipo === 'boolean' && b.tipo === 'number') return -1;
-                if (a.tipo === 'number' && b.tipo === 'boolean') return 1;
-                return a.nombre.localeCompare(b.nombre);
-            });
-            
-            const serviciosContainer = document.getElementById('edit-servicios-fijos');
-            
-            if (serviciosContainer) {
-                serviciosContainer.innerHTML = '';
-                const serviciosActuales = data.servicios || {};
+            servicios.forEach(serv => {
+                let inputHTML = '';
+                const valorActual = serviciosActuales[serv.clave] || (serv.tipo === 'number' ? 0 : false);
                 
-                servicios.forEach(serv => {
-                    let inputHTML = '';
-                    const valorActual = serviciosActuales[serv.clave] || (serv.tipo === 'number' ? 0 : false);
-                    
-                    if (serv.tipo === 'number') {
-                        inputHTML = `
-                            <div class="service-item">
-                                <label for="edit-serv-${serv.clave}">${serv.nombre}:</label>
-                                <input type="number" id="edit-serv-${serv.clave}" min="0" 
-                                    value="${valorActual}" class="auto-save-input" name="${serv.clave}" />
-                            </div>
-                        `;
-                    } else {
-                        inputHTML = `
-                            <div class="service-item">
-                                <input type="checkbox" id="edit-serv-${serv.clave}" name="${serv.clave}"
-                                    class="auto-save-input" ${valorActual ? 'checked' : ''} />
-                                <label for="edit-serv-${serv.clave}">${serv.nombre}</label>
-                            </div>
-                        `;
-                    }
-                    serviciosContainer.innerHTML += inputHTML;
-                });
-            }
+                if (serv.tipo === 'number') {
+                    inputHTML = `
+                        <div class="service-item">
+                            <label for="edit-serv-${serv.clave}">${serv.nombre}:</label>
+                            <input type="number" id="edit-serv-${serv.clave}" min="0" value="${valorActual}"
+                                class="auto-save-input" name="${serv.clave}" />
+                        </div>
+                    `;
+                } else {
+                    inputHTML = `
+                        <div class="service-item">
+                            <input type="checkbox" id="edit-serv-${serv.clave}" name="${serv.clave}"
+                                class="auto-save-input" ${valorActual ? 'checked' : ''} />
+                            <label for="edit-serv-${serv.clave}">${serv.nombre}</label>
+                        </div>
+                    `;
+                }
+                serviciosContainer.innerHTML += inputHTML;
+            });
         }
         
         // 4. Cargar CAMPOS PERSONALIZADOS (metadatos)
-        const camposResp = await fetch('/campos_evento');
-        if (camposResp.ok) {
-            const campos = await camposResp.json();
-            const cont = document.getElementById('edit-contenedor-campos-personalizados');
+        const campos = await fetch('/campos_evento').then(r => r.json());
+        const cont = document.getElementById('edit-contenedor-campos-personalizados');
+        if (cont) {
+            cont.innerHTML = '';
+            const metadatosActuales = data.metadatos || {};
             
-            if (cont) {
-                cont.innerHTML = '';
-                const metadatosActuales = data.metadatos || {};
+            campos.forEach(campo => {
+                let inputHTML = '';
+                const valorActual = metadatosActuales[campo.clave] || '';
                 
-                if (campos.length === 0) {
-                    cont.innerHTML = '<p style="color:#7f8c8d;font-style:italic;">No hay campos personalizados configurados</p>';
+                if (campo.tipo === 'select') {
+                    const options = campo.opciones.map(opt =>
+                        `<option value="${opt}" ${valorActual === opt ? 'selected' : ''}>${opt}</option>`
+                    ).join('');
+                    inputHTML = `<select name="${campo.clave}" class="auto-save-input">${options}</select>`;
+                } else if (campo.tipo === 'time') {
+                    inputHTML = `<input type="time" name="${campo.clave}" value="${valorActual}" class="auto-save-input">`;
+                } else if (campo.tipo === 'date') {
+                    inputHTML = `<input type="date" name="${campo.clave}" value="${valorActual}" class="auto-save-input">`;
+                } else if (campo.tipo === 'number') {
+                    inputHTML = `<input type="number" name="${campo.clave}" value="${valorActual}" class="auto-save-input">`;
                 } else {
-                    campos.forEach(campo => {
-                        let inputHTML = '';
-                        const valorActual = metadatosActuales[campo.clave] || '';
-                        const requiredAttr = campo.obligatorio ? 'required' : '';
-                        const asterisk = campo.obligatorio ? ' *' : '';
-                        
-                        switch(campo.tipo) {
-                            case 'select':
-                                const options = (campo.opciones || []).map(opt => 
-                                    `<option value="${opt}" ${valorActual === opt ? 'selected' : ''}>${opt}</option>`
-                                ).join('');
-                                inputHTML = `<select name="${campo.clave}" class="auto-save-input" ${requiredAttr}>
-                                    <option value="">-- Seleccionar --</option>
-                                    ${options}
-                                </select>`;
-                                break;
-                            case 'time':
-                                inputHTML = `<input type="time" name="${campo.clave}" value="${valorActual}" 
-                                    class="auto-save-input" ${requiredAttr}>`;
-                                break;
-                            case 'date':
-                                inputHTML = `<input type="date" name="${campo.clave}" value="${valorActual}" 
-                                    class="auto-save-input" ${requiredAttr}>`;
-                                break;
-                            case 'number':
-                                inputHTML = `<input type="number" name="${campo.clave}" value="${valorActual}" 
-                                    class="auto-save-input" ${requiredAttr}>`;
-                                break;
-                            case 'text':
-                            default:
-                                inputHTML = `<input type="text" name="${campo.clave}" value="${valorActual}" 
-                                    class="auto-save-input" ${requiredAttr}>`;
-                                break;
-                        }
-                        
-                        cont.innerHTML += `
-                            <div class="form-group">
-                                <label>${campo.nombre}${asterisk}</label>
-                                ${inputHTML}
-                            </div>
-                        `;
-                    });
+                    inputHTML = `<input type="text" name="${campo.clave}" value="${valorActual}" class="auto-save-input">`;
                 }
-            }
+                
+                cont.innerHTML += `
+                    <div class="form-group">
+                        <label>${campo.nombre}${campo.obligatorio ? ' *' : ''}</label>
+                        ${inputHTML}
+                    </div>
+                `;
+            });
         }
         
-        // 5. Configurar auto-guardado
+        // 5. Configurar auto-guardado y mostrar modal
         configurarAutoGuardado();
-        
-        // 6. Mostrar modal
         document.getElementById("edit-fecha-modal").classList.remove("hidden");
         
+        console.log("✅ Modal de edición abierto correctamente");
+        
     } catch (err) {
-        console.error('Error en abrirModalFecha:', err);
+        console.error('❌ Error en abrirModalFecha:', err);
         alert('❌ Error al cargar el evento: ' + err.message);
     }
 }
@@ -4815,50 +4829,28 @@ function manejarInputAutoGuardado(event) {
 function cerrarModalFecha() {
     console.log('🚪 Cerrando modal de edición...');
     
-    // 1. Limpiar listeners de auto-guardado (evitar memory leaks)
+    // 1. Limpiar listeners de auto-guardado
     document.querySelectorAll('.auto-save-input').forEach(input => {
         input.removeEventListener('change', guardarEdicionFecha);
         if (input.type === 'text' || input.tagName === 'TEXTAREA') {
             input.removeEventListener('blur', guardarEdicionFecha);
-            input.removeEventListener('input', manejarInputAutoGuardado);
         }
     });
     
-    // También limpiar listeners de campos dinámicos
-    const serviciosContainer = document.getElementById('edit-servicios-fijos');
-    if (serviciosContainer) {
-        serviciosContainer.querySelectorAll('input').forEach(input => {
-            input.removeEventListener('change', guardarEdicionFecha);
-            input.removeEventListener('input', manejarInputAutoGuardado);
-        });
+    // 2. Guardar cambios pendientes antes de cerrar
+    if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+        guardarEdicionFecha();
     }
     
-    const customFieldsContainer = document.getElementById('edit-contenedor-campos-personalizados');
-    if (customFieldsContainer) {
-        customFieldsContainer.querySelectorAll('input, select, textarea').forEach(input => {
-            input.removeEventListener('change', guardarEdicionFecha);
-            input.removeEventListener('blur', guardarEdicionFecha);
-            input.removeEventListener('input', manejarInputAutoGuardado);
-        });
-    }
-    
-    // 2. Guardar cambios pendientes ANTES de cerrar (sin debounce extra)
-    if (debounceTimerEdicion) {
-        clearTimeout(debounceTimerEdicion);
-    }
-    
-    // Ejecutar guardado inmediato (sin esperar debounce)
-    ejecutarGuardadoInmediato();
-    
-    // 3. Ocultar modal DESPUÉS de iniciar el guardado
-    // (El socket.on se encargará de refrescar la UI)
+    // 3. Ocultar modal (SIN cambiar la vista de calendario)
     const modal = document.getElementById('edit-fecha-modal');
     if (modal) {
         modal.classList.add('hidden');
         modal.style.display = 'none';
     }
     
-    console.log('✅ Modal cerrado, guardado en progreso');
+    console.log('✅ Modal cerrado - Vista actual preservada');
 }
 
 // ============================================================================
@@ -4946,102 +4938,65 @@ function ejecutarGuardadoInmediato() {
 // FUNCIÓN PARA GUARDAR EDICIÓN DE FECHA (CON CAMPOS PERSONALIZADOS)
 // ============================================================================
 function guardarEdicionFecha() {
-    // 1. Obtener ID del evento
-    const calId = document.getElementById("edit-fecha-id").value;
-    if (!calId) {
-        console.error("❌ No se encontró el ID del evento");
-        return;
-    }
+    let calId = document.getElementById("edit-fecha-id").value;
+    if (!calId) return;
     
-    // 2. Obtener campos FIJOS
-    const titulo = document.getElementById("edit-fecha-titulo").value.trim();
-    const notas = document.getElementById("edit-fecha-notas").value.trim();
+    let titulo = document.getElementById("edit-fecha-titulo").value.trim();
+    let notas = document.getElementById("edit-fecha-notas").value.trim();
     
-    // 3. Procesar el ticket (formato moneda a número)
-    const ticketInput = document.getElementById("edit-fecha-ticket").value.trim();
-    const ticketStr = ticketInput.replace(/[^0-9.]/g, '');
-    const ticketNum = parseFloat(ticketStr) || 0;
+    // Extraer y transformar el valor del ticket
+    let ticketInput = document.getElementById("edit-fecha-ticket").value.trim();
+    let ticketStr = ticketInput.replace(/[^0-9.]/g, '');
+    let ticketNum = parseFloat(ticketStr) || 0;
     
-    // 4. Recopilar SERVICIOS dinámicos
-    const servicios = {};
-    const serviciosContainer = document.getElementById('edit-servicios-fijos');
-    if (serviciosContainer) {
-        serviciosContainer.querySelectorAll('[name]').forEach(input => {
-            if (input.type === 'checkbox') {
-                servicios[input.name] = input.checked ? 1 : 0;
-            } else if (input.type === 'number') {
-                servicios[input.name] = parseInt(input.value) || 0;
-            }
-        });
-    }
+    // Recopilar servicios
+    let servicios = {};
+    document.querySelectorAll('#edit-servicios-fijos [name]').forEach(input => {
+        if (input.type === 'checkbox') {
+            servicios[input.name] = input.checked ? 1 : 0;
+        } else {
+            servicios[input.name] = parseInt(input.value) || 0;
+        }
+    });
     
-    // 5. Recopilar CAMPOS PERSONALIZADOS (metadatos)
-    const metadatos = {};
-    const customFieldsContainer = document.getElementById('edit-contenedor-campos-personalizados');
-    if (customFieldsContainer) {
-        customFieldsContainer.querySelectorAll('[name]').forEach(input => {
-            const fieldName = input.name;
-            let fieldValue;
-            
-            if (input.type === 'checkbox') {
-                fieldValue = input.checked;
-            } else if (input.type === 'number') {
-                fieldValue = input.value !== '' ? parseFloat(input.value) : null;
-            } else if (input.type === 'date' || input.type === 'time') {
-                fieldValue = input.value || null;
-            } else {
-                fieldValue = input.value.trim() || null;
-            }
-            
-            // Solo guardar si tiene valor (evitar nulls innecesarios)
-            if (fieldValue !== null && fieldValue !== '') {
-                metadatos[fieldName] = fieldValue;
-            }
-        });
-    }
+    // Recopilar campos personalizados
+    let metadatos = {};
+    document.querySelectorAll('#edit-contenedor-campos-personalizados [name]').forEach(input => {
+        if (input.type === 'checkbox') {
+            metadatos[input.name] = input.checked;
+        } else {
+            metadatos[input.name] = input.value;
+        }
+    });
     
-    // 6. Construir payload
-    const payload = {
-        titulo: titulo,
-        notas: notas,
+    let payload = {
+        titulo,
+        notas,
         ticket: ticketNum,
-        servicios: servicios,
-        metadatos: metadatos
+        servicios,
+        metadatos
     };
     
-    // 7. Enviar al backend con debounce (usar variable GLOBAL)
-    if (debounceTimerEdicion) {
-        clearTimeout(debounceTimerEdicion);
-    }
-    
-    debounceTimerEdicion = setTimeout(async () => {
-        try {
-            const resp = await fetch(`/calendario/editar/${calId}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            });
-            
-            const data = await resp.json();
-            
+    // Usamos un pequeño timeout para evitar múltiples llamadas rápidas
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+        fetch(`/calendario/editar/${calId}`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
             if (data.error) {
-                console.error("❌ Error al guardar:", data.error);
-                mostrarNotificacionSuave("Error al guardar: " + data.error, "error");
+                console.error("Error al guardar:", data.error);
             } else if (data.ok) {
-                console.log("✅ Cambios guardados - Socket se encargará de actualizar");
+                console.log("✅ Cambios guardados - Socket actualizará la vista");
                 // ✅ NO llamar cargarCalendario() aquí, el socket.on lo hará
-                // ✅ Solo mostrar notificación suave
-                mostrarNotificacionSuave("Cambios guardados", "success");
-            } else {
-                console.warn("⚠️ Respuesta inesperada:", data);
+                // ✅ Esto evita que la vista se reinicie a "Meses"
             }
-        } catch (err) {
-            console.error("❌ Error de conexión al guardar:", err);
-            mostrarNotificacionSuave("Error de conexión", "error");
-        }
-    }, 500); // 500ms de debounce
+        })
+        .catch(err => console.error("Error al guardar:", err));
+    }, 500);
 }
 
 // ============================================================================
