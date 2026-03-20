@@ -1570,55 +1570,87 @@ def reporte_ingresos_anual():
 
 
 
+# 📌 Endpoint para reporte de servicios contratados (DINÁMICO por tenant)
 @app.route("/reportes/servicios_anual", methods=["GET"])
 def reporte_servicios_anual():
     anio = request.args.get("anio")
     if not anio:
         return jsonify({"error": "Falta año"}), 400
-
+    
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+    
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar DB"}), 500
-
+    
     try:
         cursor = conn.cursor()
+        
+        # 🔹 1. Obtener servicios configurados por este tenant
         cursor.execute("""
-            SELECT 
-                COALESCE(SUM((servicios->>'letrasGigantes')::int), 0),
-                COALESCE(SUM((servicios->>'chisperos')::int), 0),
-                COALESCE(SUM((servicios->>'cabinaFotos')::int), 0),
-                COALESCE(SUM((servicios->>'cabina360')::int), 0),
-                COALESCE(SUM((servicios->>'caritoDeShotsSinAlcohol')::int), 0),
-                COALESCE(SUM((servicios->>'caritoDeShotsConAlcohol')::int), 0),
-                COALESCE(SUM((servicios->>'lluviaDeMariposas')::int), 0),
-                COALESCE(SUM((servicios->>'lluviaMetalica')::int), 0),
-                COALESCE(SUM((servicios->>'nieblaDePiso')::int), 0),
-                COALESCE(SUM((servicios->>'scrapbook')::int), 0),
-                COALESCE(SUM((servicios->>'audioGuestBook')::int), 0),
-                COUNT(*)
+            SELECT clave, nombre, tipo
+            FROM servicios_tenant
+            WHERE cliente_id = %s AND activo = true
+            ORDER BY nombre
+        """, (cliente_id,))
+        servicios_config = cursor.fetchall()  # [(clave, nombre, tipo), ...]
+        
+        if not servicios_config:
+            return jsonify({
+                "anio": int(anio),
+                "servicios": [],
+                "mensaje": "No hay servicios configurados para este tenant"
+            }), 200
+        
+        # 🔹 2. Construir consulta dinámica para contar cada servicio
+        select_parts = []
+        for clave, nombre, tipo in servicios_config:
+            if tipo == 'number':
+                # Para servicios numéricos: SUMAR las cantidades
+                select_parts.append(f"""
+                    COALESCE(SUM((servicios->>'{clave}')::int), 0) AS "{clave}"
+                """)
+            else:
+                # Para servicios boolean: CONTAR cuántas veces se marcaron
+                select_parts.append(f"""
+                    COALESCE(SUM(CASE WHEN (servicios->>'{clave}')::int = 1 THEN 1 ELSE 0 END), 0) AS "{clave}"
+                """)
+        
+        query = f"""
+            SELECT {', '.join(select_parts)}
             FROM calendario
-            WHERE EXTRACT(YEAR FROM fecha) = %s
-        """, (anio,))
+            WHERE EXTRACT(YEAR FROM fecha) = %s AND cliente_id = %s
+        """
+        
+        cursor.execute(query, (anio, cliente_id))
         row = cursor.fetchone()
         
-        # row = (letrasGigantes, chisperos, cabinaFotos, cabina360, shotsSin, shotsCon, lluviaM, lluviaMetalica, niebla, scrapbook, audioGB, totalEventos)
+        # 🔹 3. Construir respuesta con nombres legibles
+        servicios_reporte = []
+        for i, (clave, nombre, tipo) in enumerate(servicios_config):
+            cantidad = row[i] if row and row[i] is not None else 0
+            servicios_reporte.append({
+                "clave": clave,
+                "nombre": nombre,
+                "tipo": tipo,
+                "cantidad": int(cantidad)
+            })
+        
+        # 🔹 4. Ordenar: primero boolean (checkbox), luego number (cantidad)
+        servicios_reporte.sort(key=lambda s: (0 if s['tipo'] == 'boolean' else 1, s['nombre']))
+        
         return jsonify({
             "anio": int(anio),
-            "letrasGigantes": row[0],
-            "chisperos": row[1],
-            "cabinaFotos": row[2],
-            "cabina360": row[3],
-            "caritoDeShotsSinAlcohol": row[4],
-            "caritoDeShotsConAlcohol": row[5],
-            "lluviaDeMariposas": row[6],
-            "lluviaMetalica": row[7],
-            "nieblaDePiso": row[8],
-            "scrapbook": row[9],
-            "audioGuestBook": row[10],
-            "eventosContados": row[11]
+            "servicios": servicios_reporte,
+            "total_servicios": len(servicios_reporte)
         }), 200
-
+        
     except Exception as e:
+        print(f"❌ Error en /reportes/servicios_anual: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)

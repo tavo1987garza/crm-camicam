@@ -5444,54 +5444,96 @@ ctx.style.maxHeight = graphHeight + "px";                 // opcional: evita que
 }
 
   
-//REPORTE DE SERVICIOS CONTRATADOS
-  async function verReporteServiciosAnual(anio) {
-    const resultadoDiv = document.getElementById("resultado-servicios"); // Un contenedor debajo del reporte anual
-    resultadoDiv.textContent = "Cargando servicios anuales...";
-  
+// ============================================================================
+// REPORTE DE SERVICIOS CONTRATADOS (DINÁMICO POR TENANT)
+// ============================================================================
+async function verReporteServiciosAnual(anio) {
+    const resultadoDiv = document.getElementById("resultado-servicios");
+    resultadoDiv.innerHTML = "<p>Cargando servicios...</p>";
+    
     try {
-      const response = await fetch(`/reportes/servicios_anual?anio=${anio}`);
-      const data = await response.json();
-  
-      if (data.error) {
-        resultadoDiv.textContent = "Error: " + data.error;
-        return;
-      }
-  
-      // Construir la tabla con los datos de servicios para TODO el año
-      let tableHTML = `
-        <h3>Servicios Contratados en ${data.anio}</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Servicio</th>
-              <th>Cantidad</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>Letras Gigantes</td><td>${data.letrasGigantes}</td></tr>
-            <tr><td>Chisperos</td><td>${data.chisperos}</td></tr>
-            <tr><td>Cabina Fotos</td><td>${data.cabinaFotos}</td></tr>
-            <tr><td>Cabina 360</td><td>${data.cabina360}</td></tr>
-            <tr><td>Shots Sin Alcohol</td><td>${data.caritoDeShotsSinAlcohol}</td></tr>
-            <tr><td>Shots Con Alcohol</td><td>${data.caritoDeShotsConAlcohol}</td></tr>
-            <tr><td>Lluvia de Mariposas</td><td>${data.lluviaDeMariposas}</td></tr>
-            <tr><td>Lluvia Metálica</td><td>${data.lluviaMetalica}</td></tr>
-            <tr><td>Niebla de Piso</td><td>${data.nieblaDePiso}</td></tr>
-            <tr><td>Scrapbook</td><td>${data.scrapbook}</td></tr>
-            <tr><td>Audio Guest Book</td><td>${data.audioGuestBook}</td></tr>
-          </tbody>
-        </table>
-      `;
-  
-      resultadoDiv.innerHTML = tableHTML;
-      /* Repintar encabezados ahora que la tabla ya existe */
-      pintarColorReporte(anio);
+        const response = await fetch(`/reportes/servicios_anual?anio=${anio}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            resultadoDiv.innerHTML = `<p style="color:#d32f2f;">Error: ${data.error}</p>`;
+            return;
+        }
+        
+        // Si no hay servicios configurados
+        if (!data.servicios || data.servicios.length === 0) {
+            resultadoDiv.innerHTML = `
+                <h3>Servicios Contratados en ${data.anio}</h3>
+                <p style="color:#7f8c8d;font-style:italic;">
+                    No hay servicios configurados para este tenant.
+                    <br>Ve a <strong>Configuración → Configurar mis servicios</strong> para agregarlos.
+                </p>
+            `;
+            return;
+        }
+        
+        // Separar servicios por tipo para agrupar visualmente
+        const booleanos = data.servicios.filter(s => s.tipo === 'boolean');
+        const numeros = data.servicios.filter(s => s.tipo === 'number');
+        
+        // Función auxiliar para generar filas de tabla
+        const generarFilas = (servicios) => 
+            servicios.map(s => `
+                <tr>
+                    <td>
+                        ${s.tipo === 'boolean' ? '☑' : '🔢'} 
+                        ${s.nombre}
+                        <small style="color:#7f8c8d;display:block;font-size:11px;">
+                            ${s.tipo === 'boolean' ? 'Veces contratado' : 'Cantidad total'}
+                        </small>
+                    </td>
+                    <td style="font-weight:600;color:#1e88e5;">
+                        ${s.cantidad.toLocaleString('es-MX')}
+                    </td>
+                </tr>
+            `).join('');
+        
+        // Construir HTML con agrupación visual
+        let tableHTML = `<h3>Servicios Contratados en ${data.anio}</h3>`;
+        
+        if (booleanos.length > 0) {
+            tableHTML += `
+                <h4 style="margin:15px 0 8px;color:#495057;">☑ Servicios (Sí/No)</h4>
+                <table style="margin-bottom:15px;">
+                    <thead>
+                        <tr><th>Servicio</th><th>Veces contratado</th></tr>
+                    </thead>
+                    <tbody>
+                        ${generarFilas(booleanos)}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        if (numeros.length > 0) {
+            tableHTML += `
+                <h4 style="margin:15px 0 8px;color:#495057;">🔢 Servicios por Cantidad</h4>
+                <table>
+                    <thead>
+                        <tr><th>Servicio</th><th>Cantidad total</th></tr>
+                    </thead>
+                    <tbody>
+                        ${generarFilas(numeros)}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        resultadoDiv.innerHTML = tableHTML;
+        
+        // Repintar colores del año
+        pintarColorReporte(anio);
+        
     } catch (err) {
-      console.error("Error reporte_servicios_anual:", err);
-      resultadoDiv.textContent = "Error al obtener el reporte de servicios anuales.";
+        console.error("Error en verReporteServiciosAnual:", err);
+        resultadoDiv.innerHTML = `<p style="color:#d32f2f;">Error al cargar el reporte de servicios.</p>`;
     }
-  }
+}
   
 
 /***********************
