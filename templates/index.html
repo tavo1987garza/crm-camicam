@@ -362,7 +362,9 @@
         #kpi-actual.red   { color:#d32f2f; }
         
 
-        /* ============================================================================
+
+
+/* ============================================================================
 ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
 ============================================================================ */
 .leads-column {
@@ -403,6 +405,8 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
 }
 
 
+
+
 /* ───── Estilos para el Contenedor principal de Leads──── */
        
 .leads-container {
@@ -411,75 +415,6 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     overflow-x: auto;
     padding: 10px;
     justify-content: center; /* Centra las columnas */
-}
-
-/* 🔹 Cada columna de Leads */
-.leads-column {
-    min-width: 180px;
-    max-width: 220px;
-    flex-grow: 1;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    transition: all 0.3s ease-in-out; /* 🔹 Transición suave para todas las propiedades */
-    background: white; /* 🔹 Fondo blanco por defecto */
-    border: 1px solid #e0e0e0; /* 🔹 Borde sutil */
-}
-
-/* 🔹 Efecto al pasar el cursor */
-.leads-column:hover {
-    transform: scale(1.02); /* 🔹 Escala más pequeña para un efecto más sutil */
-    box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.2); /* 🔹 Sombra más pronunciada */
-    border-color: #1e88e5; /* 🔹 Cambiar color del borde al hacer hover */
-}
-
-/* 🔹 Colores para cada columna */ 
-[data-estado="Contacto Inicial"] {
-    background: #e3f2fd; /* Azul claro */
-    border-left: 5px solid #1e88e5;
-}
-
-[data-estado="En proceso"] {
-    background: #fff3e0; /* Naranja claro */
-    border-left: 5px solid #ff9800;
-}
-
-[data-estado="Seguimiento XV"] {
-    background: #f5e9f8ff; /* Morado claro */
-    border-left: 5px solid #9543a0ff;
-}
-
-
-[data-estado="Seguimiento Boda"] {
-    background: #f8e9e9ff; /* rojo claro */
-    border-left: 5px solid #a04343ff;
-}
-
-[data-estado="Seguimiento Otro"] {
-    background: #f1f8e9; /* Verde claro */
-    border-left: 5px solid #43a047;
-}
-
-[data-estado="Cliente"] {
-    background: #e8f5e9; /* Verde pastel */
-    border-left: 5px solid #2e7d32;
-}
-
-[data-estado="No cliente"] {
-    background: #ffebee; /* Rojo claro */
-    border-left: 5px solid #d32f2f;
-}
-
-
-/* 🔹 Lista de Leads dentro de cada columna */
-.leads-list {
-    min-height: 100px;
-    padding: 10px;
-    background: white;
-    border-radius: 5px;
-    margin-top: 10px;
-    box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* 🔹 Estilo de cada Lead. Transparentes inicialmente */
@@ -508,7 +443,7 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
 
 /* 🔹 Cuando se suelta un lead, tomará el color de la columna */
 [data-estado="Contacto Inicial"] .lead {
-    background: #bbdefb; /* Azul claro */
+    background: #bbdefb;  Azul claro */
 }
 
 [data-estado="En proceso"] .lead {
@@ -2097,7 +2032,7 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
         <div id="leads" class="seccion hidden">
             <h1>📩 Leads</h1>
             
-            <!-- 🔍 BUSCADOR GLOBAL DE LEADS -->
+            <!-- 🔍 Buscador global -->
             <div style="margin-bottom:15px;">
                 <input type="text" 
                     id="buscador-leads" 
@@ -2121,7 +2056,6 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
                     <input type="text" id="edit-lead-nombre" placeholder="Nombre">
                     <input type="text" id="edit-lead-telefono" placeholder="Teléfono" disabled>
                     <textarea id="edit-lead-notas" placeholder="Notas"></textarea>
-                    
                     <div class="modal-buttons">
                         <button class="delete-btn" onclick="eliminarLeadDesdeModal()">🗑️</button>
                     </div>
@@ -2901,12 +2835,7 @@ function mostrarSeccion(seccionId, callback = null) {
         case 'panel':
             initPanel();
             break;
-        case 'leads':
-            // Verificar si hubo actualización de estados
-            if (leadEstadosActualizados) {
-                leadEstadosActualizados = false;
-                cargarEstadosLead();
-            }
+            case 'leads':
             cargarLeads();
             break;
         case 'calendario':
@@ -3206,7 +3135,22 @@ async function cargarEstadosLead() {
 // ============================================================================
 function renderizarColumnasLeads() {
     const container = document.getElementById('leads-container');
-    if (!container) return;
+    console.log('🔍 [DEBUG] renderizarColumnasLeads() - container:', container);
+    
+    if (!container) {
+        console.error('❌ ERROR: No se encontró #leads-container');
+        return;
+    }
+    
+    console.log('🔍 [DEBUG] estadosLeadConfig:', estadosLeadConfig);
+    
+    if (!estadosLeadConfig || estadosLeadConfig.length === 0) {
+        console.warn('⚠️ No hay estados configurados, usando defaults');
+        estadosLeadConfig = [
+            { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
+            { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
+        ];
+    }
     
     // Guardar leads actuales antes de re-renderizar (para no perderlos)
     const leadsActuales = {};
@@ -3286,7 +3230,7 @@ function renderizarColumnasLeads() {
 }
 
 // ============================================================================
-// CARGAR LEADS CON ESTADOS DINÁMICOS
+// CARGAR LEADS CON ESTADOS DINÁMICOS (FUNCIÓN PRINCIPAL)
 // ============================================================================
 async function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
@@ -3393,7 +3337,6 @@ function filtrarLeads(termino) {
 // ELIMINAR ESTADO DE LEAD (SOLO NO FIJOS)
 // ============================================================================
 async function eliminarEstadoLead(nombreEstado) {
-    // Obtener estado destino para mover los leads
     const estadoDestino = prompt(
         `¿A qué estado quieres mover los leads de "${nombreEstado}"?\n` +
         `Escribe el nombre exacto del estado destino:`
@@ -3422,6 +3365,37 @@ async function eliminarEstadoLead(nombreEstado) {
     }
 }
 
+// ============================================================================
+// NOTIFICACIÓN SUAVE (SIN ALERT BLOQUEANTE)
+// ============================================================================
+function mostrarNotificacionSuave(mensaje, tipo = "success") {
+    let notif = document.getElementById("notificacion-suave");
+    
+    if (!notif) {
+        notif = document.createElement("div");
+        notif.id = "notificacion-suave";
+        notif.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        document.body.appendChild(notif);
+    }
+    
+    notif.style.background = tipo === "success" ? "#43a047" : "#e53935";
+    notif.textContent = mensaje;
+    notif.style.opacity = "1";
+    
+    setTimeout(() => { notif.style.opacity = "0"; }, 2500);
+}
 
 // ============================================================================
 // LISTENER SOCKET PARA ACTUALIZACIÓN DE ESTADOS DE LEADS
@@ -3439,6 +3413,7 @@ socket.on("configuracion_lead_actualizada", data => {
         mostrarNotificacionSuave('📋 Estados de lead actualizados', 'success');
     }
 });
+
 
 
 
