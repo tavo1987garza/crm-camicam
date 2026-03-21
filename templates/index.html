@@ -3230,19 +3230,19 @@ function renderizarColumnasLeads() {
 }
 
 // ============================================================================
-// CARGAR LEADS CON ESTADOS DINÁMICOS (FUNCIÓN PRINCIPAL)
+// CARGAR LEADS CON ESTADOS DINÁMICOS (RETORNA PROMISE)
 // ============================================================================
 async function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
     
-    // 1. Primero cargar estados desde BD
-    await cargarEstadosLead();
-    
-    // 2. Renderizar columnas dinámicas
-    renderizarColumnasLeads();
-    
-    // 3. Cargar leads desde backend
     try {
+        // 1. Primero cargar estados desde BD
+        await cargarEstadosLead();
+        
+        // 2. Renderizar columnas dinámicas
+        renderizarColumnasLeads();
+        
+        // 3. Cargar leads desde backend
         const resp = await fetch('/leads');
         if (!resp.ok) throw new Error('Error al cargar leads');
         
@@ -3278,8 +3278,6 @@ async function cargarLeads() {
                 `;
                 
                 leadList.appendChild(leadElement);
-                
-                // Animación de nuevo lead
                 setTimeout(() => leadElement.classList.remove('lead-nuevo'), 3000);
             }
         });
@@ -3291,8 +3289,11 @@ async function cargarLeads() {
         }
         
         console.log(`✅ ${leads.length} leads cargados y distribuidos`);
+        return true; // ✅ Retornar valor para encadenar .then()
+        
     } catch (err) {
         console.error('❌ Error al cargar leads:', err);
+        return false; // ✅ Retornar error para manejar con .catch()
     }
 }
 
