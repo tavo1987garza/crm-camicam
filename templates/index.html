@@ -3219,40 +3219,50 @@ function renderizarColumnasLeads() {
 }
 
 // ============================================================================
-// CARGAR LEADS CON ESTADOS DINÁMICOS (RETORNA PROMISE)
+// CARGAR LEADS CON COLUMNAS DINÁMICAS (VERSIÓN INTEGRADA)
 // ============================================================================
-function cargarLeads() {
+async function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
     
-    fetch("/leads")
-    .then(response => response.json())
-    .then(leads => {
-        // Limpiar todas las listas
-        document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
+    try {
+        // 🔹 PASO 1: Cargar estados desde la base de datos
+        await cargarEstadosLead();
+        console.log('🔍 estadosLeadConfig:', estadosLeadConfig);
         
-        // Para cada lead, aplicar color según su estado
+        // 🔹 PASO 2: Renderizar columnas dinámicas
+        renderizarColumnasLeads();
+        
+        // 🔹 PASO 3: Cargar leads desde backend
+        const resp = await fetch('/leads');
+        if (!resp.ok) throw new Error('Error al cargar leads: ' + resp.status);
+        
+        const leads = await resp.json();
+        console.log(`📦 ${leads.length} leads recibidos`);
+        
+        // Limpiar todas las listas
+        document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = '');
+        
+        // 🔹 PASO 4: Distribuir leads en columnas dinámicas
         leads.forEach(lead => {
-            const estadoLimpio = lead.estado.trim();
+            const estadoLimpio = lead.estado?.trim() || 'Contacto Inicial';
             const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
             
             if (leadList) {
-                const leadElement = document.createElement("div");
-                leadElement.classList.add("lead", "lead-nuevo");
-                leadElement.setAttribute("data-id", lead.id);
-                leadElement.setAttribute("data-telefono", lead.telefono);
-                leadElement.setAttribute("draggable", "true");
+                const leadElement = document.createElement('div');
+                leadElement.classList.add('lead', 'lead-nuevo');
+                leadElement.setAttribute('data-id', lead.id);
+                leadElement.setAttribute('data-telefono', lead.telefono);
+                leadElement.setAttribute('data-estado-original', estadoLimpio);
+                leadElement.setAttribute('data-notas', lead.notas || '');
+                leadElement.setAttribute('draggable', 'true');
                 leadElement.ondragstart = (event) => drag(event);
                 leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
                 
-                // ✅ APLICAR COLOR DINÁMICO según el estado del lead
+                // ✅ Aplicar color dinámico al lead según su columna
                 const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
                 if (columna) {
-                    const style = window.getComputedStyle(columna);
-                    const borderLeft = style.borderLeft;
-                    const colorMatch = borderLeft.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+                    const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
                     const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-                    
-                    // Aplicar fondo más claro (25% opacity)
                     leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
                 }
                 
@@ -3266,13 +3276,23 @@ function cargarLeads() {
                 `;
                 
                 leadList.appendChild(leadElement);
-                setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+                setTimeout(() => leadElement.classList.remove('lead-nuevo'), 3000);
+            } else {
+                console.warn(`⚠️ No se encontró columna para estado: "${estadoLimpio}"`);
             }
         });
         
-        console.log(`✅ ${leads.length} leads cargados con colores dinámicos`);
-    })
-    .catch(error => console.error("❌ Error al cargar leads:", error));
+        // Actualizar contador en el buscador
+        const resultadosDiv = document.getElementById('leads-search-results');
+        if (resultadosDiv) {
+            resultadosDiv.textContent = `📊 ${leads.length} lead(s) en total`;
+        }
+        
+        console.log(`✅ ${leads.length} leads cargados y distribuidos`);
+        
+    } catch (err) {
+        console.error('❌ Error al cargar leads:', err);
+    }
 }
      
 // ============================================================================
