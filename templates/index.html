@@ -3253,18 +3253,8 @@ async function cargarLeads() {
                 leadElement.setAttribute('data-notas', lead.notas || '');
                 leadElement.setAttribute('draggable', 'true');
                 leadElement.ondragstart = (event) => drag(event);
-                leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
-                
-                
-    // ✅ APLICAR COLOR DINÁMICO según el estado del lead
-    const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
-    if (columna) {
-        const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-        const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-        leadElement.style.background = `${colorColumna}40`;  // 40 = 25% opacity
-    }
-    
-    
+                leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);   
+
                 leadElement.innerHTML = `
                     <div class="lead-content">
                         <strong class="lead-nombre">${lead.nombre}</strong>
