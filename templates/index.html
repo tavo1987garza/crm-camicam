@@ -417,6 +417,20 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     justify-content: center; /* Centra las columnas */
 }
 
+/* Estilo cuando se arrastra un lead */
+.lead.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+/* Estilo cuando una columna recibe un drop */
+.leads-column.dragover {
+    background: rgba(30, 136, 229, 0.1);
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+
 /* 🔹 Estilo de cada Lead. Transparentes inicialmente */
 .lead {
     background: transparent;
@@ -430,7 +444,7 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     align-items: center;
     text-align: center;
     cursor: pointer;
-    transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: all 0.3s ease;
     border: 1px solid #e0e0e0; /* 🔹 Borde sutil */
 }
 
@@ -439,7 +453,7 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
 .lead:hover {
     background: #f5f5f5; /* 🔹 Fondo gris claro */
     transform: translateY(-2px); /* 🔹 Levantar ligeramente el lead */
-    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.15); /* 🔹 Sombra sutil */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 
@@ -2599,7 +2613,7 @@ async function cargarInfoCuenta() {
     } catch (error) {
         console.error('Error al cargar info de la cuenta:', error);
     }
-} 
+
 
 
 function handleLogout() {
@@ -2609,6 +2623,7 @@ function handleLogout() {
             .catch(error => console.error('Error al cerrar sesión:', error));
     }
 } 
+
 
 // Abrir modal de edición
 function abrirModalEditarNegocio() {
@@ -3044,6 +3059,27 @@ function getColorWithOpacity(hex, opacity = 0.25) {
     // Retornar en formato rgba
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
+// Función auxiliar para obtener el color de una columna
+function getColumnColor(columnaElement) {
+    // Intentar obtener el color del border-left
+    const style = window.getComputedStyle(columnaElement);
+    const borderLeft = style.borderLeft;
+    
+    // Extraer el color hexadecimal del border-left
+    const colorMatch = borderLeft.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+    if (colorMatch) {
+        return colorMatch[0];
+    }
+    
+    // Fallback: buscar en el estilo inline o en el h3
+    const h3 = columnaElement.querySelector('h3');
+    if (h3 && h3.style.color) {
+        return h3.style.color;
+    }
+    
+    // Color por defecto
+    return '#1e88e5';
+}
 
 function mostrarModalEstadosLead() {
     cargarEstadosLead().then(() => {
@@ -3130,10 +3166,6 @@ async function guardarEstadosLeadConfig() {
     }
 }
 
-
-// ============================================================================
-// CARGAR ESTADOS DE LEADS DESDE EL BACKEND
-// ============================================================================
 async function cargarEstadosLead() {
     try {
         console.log('🔍 [DEBUG] cargarEstadosLead() - Fetching /leads/estados...');
@@ -3168,19 +3200,16 @@ async function cargarEstadosLead() {
     }
 }
 
-// ============================================================================
-// RENDERIZAR COLUMNAS DE LEADS DINÁMICAS
-// ============================================================================
+
+
 function renderizarColumnasLeads() {
     const container = document.getElementById('leads-container');
-    console.log('🔍 [DEBUG] renderizarColumnasLeads() - container:', container);
+    console.log('🔍 [DEBUG] renderizarColumnasLeads() - Iniciando...');
     
     if (!container) {
         console.error('❌ ERROR: No se encontró #leads-container');
         return;
     }
-    
-    console.log('🔍 [DEBUG] estadosLeadConfig:', estadosLeadConfig);
     
     if (!estadosLeadConfig || estadosLeadConfig.length === 0) {
         console.warn('⚠️ No hay estados configurados, usando defaults');
@@ -3198,14 +3227,17 @@ function renderizarColumnasLeads() {
         const columna = document.createElement('div');
         columna.className = 'leads-column';
         columna.setAttribute('data-estado', estado.nombre);
-        columna.style.borderLeft = `5px solid ${estado.color}`;
-        columna.style.background = `${estado.color}40`; // 40 = 25% opacity
+        
+        // ✅ APLICAR COLOR CORRECTAMENTE
+        const colorHex = estado.color;
+        columna.style.borderLeft = `5px solid ${colorHex}`;
+        columna.style.background = getColorWithOpacity(colorHex, 0.15); // Fondo más claro
         
         columna.innerHTML = `
-            <h3 style="color: ${estado.color}; margin:0 0 10px 0;">${estado.nombre}</h3>
-            <div class="leads-list"></div>
+            <h3 style="color: ${colorHex}; margin:0 0 10px 0;">${escapeHTML(estado.nombre)}</h3>
+            <div class="leads-list" data-estado-list="${estado.nombre}"></div>
             ${!estado.fijo ? `
-                <button onclick="eliminarEstadoLead('${estado.nombre}')" 
+                <button onclick="eliminarEstadoLead('${escapeHTML(estado.nombre)}')" 
                     style="margin-top:10px;background:#e74c3c;color:white;border:none;
                            padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;">
                     🗑️ Eliminar estado
@@ -3213,44 +3245,52 @@ function renderizarColumnasLeads() {
             ` : ''}
         `;
         
-        // Configurar drag & drop
-        columna.ondragover = (event) => event.preventDefault();
-        columna.ondrop = (event) => drop(event, estado.nombre);
+        // Configurar drag & drop para la columna
+        columna.ondragover = (event) => {
+            event.preventDefault();
+            columna.classList.add('dragover');
+        };
+        
+        columna.ondragleave = () => {
+            columna.classList.remove('dragover');
+        };
+        
+        columna.ondrop = (event) => {
+            event.preventDefault();
+            columna.classList.remove('dragover');
+            handleDrop(event, estado.nombre);
+        };
         
         container.appendChild(columna);
-        console.log(`✅ Columna creada: ${estado.nombre}`);
+        console.log(`✅ Columna creada: ${estado.nombre} con color ${colorHex}`);
     });
     
     // Agregar formulario en la columna "Contacto Inicial"
-    const columnaInicial = document.querySelector('[data-estado="Contacto Inicial"]');
-    if (columnaInicial && !columnaInicial.querySelector('#toggle-form')) {
-        const formContainer = document.createElement('div');
-        formContainer.className = 'form-container';
-        formContainer.innerHTML = `
-            <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
-            <div id="lead-form" class="hidden">
-                <input type="text" id="lead-nombre" placeholder="Nombre" required>
-                <input type="text" id="lead-telefono" placeholder="Teléfono" required>
-                <textarea id="lead-notas" placeholder="Notas"></textarea>
-                <button onclick="crearLead()">Agregar</button>
-            </div>
-        `;
-        columnaInicial.appendChild(formContainer);
-        console.log('✅ Formulario agregado en "Contacto Inicial"');
-    }
+    agregarFormularioLead();
     
     console.log('✅ Columnas de leads renderizadas:', document.querySelectorAll('.leads-column').length);
 }
+// Función auxiliar para escapar HTML
+function escapeHTML(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
 
-// ============================================================================
-// CARGAR LEADS CON COLORES DINÁMICOS SEGÚN ESTADO
-// ============================================================================
+
+
 function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
     
-    // 1. Cargar leads desde backend
     fetch("/leads")
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error('Error al cargar leads');
+        return response.json();
+    })
     .then(leads => {
         // Limpiar todas las listas
         document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
@@ -3258,42 +3298,16 @@ function cargarLeads() {
         // Para cada lead, aplicar color según su estado
         leads.forEach(lead => {
             const estadoLimpio = lead.estado.trim();
-            const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
+            const leadList = document.querySelector(`.leads-list[data-estado-list="${estadoLimpio}"]`);
             
             if (leadList) {
-                const leadElement = document.createElement("div");
-                leadElement.classList.add("lead", "lead-nuevo");
-                leadElement.setAttribute("data-id", lead.id);
-                leadElement.setAttribute("data-telefono", lead.telefono);
-                leadElement.setAttribute("draggable", "true");
-                leadElement.ondragstart = (event) => drag(event);
-                leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
-                
-                leadElement.innerHTML = `
-                    <div class="lead-content">
-                        <strong class="lead-nombre">${lead.nombre}</strong>
-                        <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">
-                            ${lead.ultimo_mensaje || "No hay mensajes recientes"}
-                        </p>
-                    </div>
-                `;
-                
-                // ✅ APLICAR COLOR DINÁMICO según el estado del lead
-                const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
-                if (columna) {
-                    const style = window.getComputedStyle(columna);
-                    const borderLeft = style.borderLeft;
-                    const colorMatch = borderLeft.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-                    const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-                    
-                    // Aplicar fondo más claro (25% opacity)
-                    leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
-                }
-                
+                const leadElement = crearLeadElement(lead);
                 leadList.appendChild(leadElement);
                 
                 // Animación de nuevo lead
                 setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+            } else {
+                console.warn(`⚠️ No se encontró columna para estado: ${estadoLimpio}`);
             }
         });
         
@@ -3301,10 +3315,288 @@ function cargarLeads() {
     })
     .catch(error => console.error("❌ Error al cargar leads:", error));
 }
+// Función separada para crear un elemento lead
+function crearLeadElement(lead) {
+    const leadElement = document.createElement("div");
+    leadElement.classList.add("lead", "lead-nuevo");
+    leadElement.setAttribute("data-id", lead.id);
+    leadElement.setAttribute("data-telefono", lead.telefono);
+    leadElement.setAttribute("data-estado", lead.estado);
+    leadElement.setAttribute("draggable", "true");
+    
+    // Eventos drag
+    leadElement.ondragstart = (event) => {
+        event.dataTransfer.setData("text/plain", lead.id);
+        event.dataTransfer.effectAllowed = "move";
+        leadElement.classList.add("dragging");
+    };
+    
+    leadElement.ondragend = () => {
+        leadElement.classList.remove("dragging");
+    };
+    
+    leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
+    
+    leadElement.innerHTML = `
+        <div class="lead-content">
+            <strong class="lead-nombre">${escapeHTML(lead.nombre)}</strong>
+            <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">
+                ${escapeHTML(lead.ultimo_mensaje || "No hay mensajes recientes")}
+            </p>
+        </div>
+    `;
+    
+    // ✅ APLICAR COLOR DINÁMICO según el estado del lead
+    aplicarColorALead(leadElement, lead.estado);
+    
+    return leadElement;
+}
+// Función para aplicar color a un lead según su estado
+function aplicarColorALead(leadElement, estado) {
+    // Buscar la columna correspondiente
+    const columna = document.querySelector(`.leads-column[data-estado="${estado}"]`);
+    if (columna) {
+        const colorHex = getColumnColor(columna);
+        leadElement.style.background = getColorWithOpacity(colorHex, 0.25);
+        leadElement.style.borderLeft = `3px solid ${colorHex}`;
+    } else {
+        // Color por defecto si no encuentra la columna
+        leadElement.style.background = getColorWithOpacity('#1e88e5', 0.25);
+    }
+}
      
+
 // ============================================================================
-// FILTRAR LEADS POR BÚSQUEDA GLOBAL
+// MANEJADOR DE DROP UNIFICADO
 // ============================================================================
+async function handleDrop(event, nuevoEstado) {
+    event.preventDefault();
+    
+    // Obtener el ID del lead arrastrado
+    let leadId = event.dataTransfer.getData("text/plain");
+    if (!leadId) return;
+    
+    // Encontrar el lead elemento
+    const leadElement = document.querySelector(`.lead[data-id='${leadId}']`);
+    if (!leadElement) {
+        console.error('Lead no encontrado:', leadId);
+        return;
+    }
+    
+    // Verificar si realmente cambió de estado
+    const estadoActual = leadElement.getAttribute('data-estado');
+    if (estadoActual === nuevoEstado) {
+        console.log('Mismo estado, no se mueve');
+        return;
+    }
+    
+    // Encontrar la columna destino
+    const columnaDestino = document.querySelector(`.leads-column[data-estado="${nuevoEstado}"]`);
+    if (!columnaDestino) {
+        console.error('Columna destino no encontrada:', nuevoEstado);
+        return;
+    }
+    
+    // ✅ APLICAR COLOR DE LA COLUMNA DESTINO
+    const colorHex = getColumnColor(columnaDestino);
+    const colorFondo = getColorWithOpacity(colorHex, 0.25);
+    
+    // Animación antes de mover
+    leadElement.style.transition = 'all 0.3s ease';
+    leadElement.style.transform = 'scale(0.95)';
+    
+    // Enviar actualización al backend
+    try {
+        const response = await fetch("/cambiar_estado_lead", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: leadId, estado: nuevoEstado })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error en el servidor');
+        }
+        
+        const data = await response.json();
+        
+        // ✅ Mover el lead visualmente
+        const listaDestino = columnaDestino.querySelector('.leads-list');
+        if (listaDestino) {
+            // Actualizar atributo de estado
+            leadElement.setAttribute('data-estado', nuevoEstado);
+            
+            // Aplicar nuevo color
+            leadElement.style.background = colorFondo;
+            leadElement.style.borderLeft = `3px solid ${colorHex}`;
+            leadElement.style.transform = 'scale(1)';
+            
+            // Agregar animación de entrada
+            leadElement.classList.add('lead-mensaje-nuevo');
+            
+            // Mover el elemento en el DOM
+            listaDestino.appendChild(leadElement);
+            
+            // Remover animación después de 1 segundo
+            setTimeout(() => {
+                leadElement.classList.remove('lead-mensaje-nuevo');
+            }, 1000);
+            
+            console.log(`✅ Lead ${leadId} movido a: ${nuevoEstado} con color ${colorHex}`);
+            
+            // Mostrar notificación suave
+            mostrarNotificacionSuave(`Lead movido a "${nuevoEstado}"`, 'success');
+        }
+        
+    } catch (error) {
+        console.error("❌ Error al cambiar estado del lead:", error);
+        leadElement.style.transform = 'scale(1)';
+        mostrarNotificacionSuave('Error al mover el lead', 'error');
+    }
+}
+
+
+
+function agregarFormularioLead() {
+    const columnaInicial = document.querySelector('.leads-column[data-estado="Contacto Inicial"]');
+    if (!columnaInicial) return;
+    
+    // Verificar si ya existe el formulario
+    if (columnaInicial.querySelector('#toggle-form')) return;
+    
+    const formContainer = document.createElement('div');
+    formContainer.className = 'form-container';
+    formContainer.innerHTML = `
+        <button id="toggle-form" onclick="toggleFormulario()">➕ Agregar Lead</button>
+        <div id="lead-form" class="hidden">
+            <input type="text" id="lead-nombre" placeholder="Nombre" required>
+            <input type="text" id="lead-telefono" placeholder="Teléfono (ej: 521XXXXXXXXXX)" required>
+            <textarea id="lead-notas" placeholder="Notas"></textarea>
+            <button onclick="crearLead()">Agregar Lead</button>
+        </div>
+    `;
+    
+    columnaInicial.appendChild(formContainer);
+    console.log('✅ Formulario agregado en "Contacto Inicial"');
+}
+function toggleFormulario() {
+    let form = document.getElementById("lead-form");
+    let button = document.getElementById("toggle-form");
+    
+    if (form.classList.contains("hidden")) {
+        form.classList.remove("hidden");
+        button.textContent = "✖ Cerrar";
+    } else {
+        form.classList.add("hidden");
+        button.textContent = "➕ Agregar Lead";
+    }
+}
+
+
+
+function crearLead() {
+    let nombre = document.getElementById("lead-nombre").value.trim();
+    let telefono = document.getElementById("lead-telefono").value.trim();
+    let notas = document.getElementById("lead-notas").value.trim();
+    
+    if (!nombre || !telefono) {
+        alert("Por favor, ingresa nombre y teléfono.");
+        return;
+    }
+    
+    // Validar formato de teléfono (más flexible)
+    const telefonoLimpio = telefono.replace(/[^\d+]/g, '');
+    if (telefonoLimpio.length !== 13 || !(telefonoLimpio.startsWith('521') || telefonoLimpio.startsWith('+521'))) {
+        alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX o +521XXXXXXXXXX.");
+        return;
+    }
+    
+    // Mostrar indicador de carga
+    const boton = event.target;
+    const textoOriginal = boton.textContent;
+    boton.textContent = 'Creando...';
+    boton.disabled = true;
+    
+    fetch("/crear_lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, telefono: telefonoLimpio, notas })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert("Error al crear lead: " + data.error);
+        } else {
+            // Limpiar formulario
+            document.getElementById("lead-nombre").value = "";
+            document.getElementById("lead-telefono").value = "";
+            document.getElementById("lead-notas").value = "";
+            
+            // Cerrar formulario
+            toggleFormulario();
+            
+            // Recargar leads
+            cargarLeads();
+            
+            mostrarNotificacionSuave('✅ Lead creado correctamente', 'success');
+        }
+    })
+    .catch(error => {
+        console.error("❌ Error al crear lead:", error);
+        alert("Error al crear lead. Inténtalo de nuevo.");
+    })
+    .finally(() => {
+        boton.textContent = textoOriginal;
+        boton.disabled = false;
+    });
+}
+
+
+
+socket.on("nuevo_lead", (data) => {
+    console.log("🆕 Nuevo lead creado automáticamente:", data);
+    
+    const estado = data.estado || "Contacto Inicial";
+    const leadList = document.querySelector(`.leads-list[data-estado-list="${estado}"]`);
+    
+    if (leadList) {
+        const leadElement = crearLeadElement(data);
+        leadList.appendChild(leadElement);
+        
+        // Animación
+        setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+        
+        mostrarNotificacionSuave(`Nuevo lead: ${data.nombre}`, 'success');
+    }
+});
+
+
+
+socket.on("lead_estado_actualizado", (data) => {
+    console.log("🔄 lead_estado_actualizado recibido:", data);
+    
+    const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
+    if (!leadElement) return;
+    
+    const nuevaColumna = document.querySelector(`.leads-column[data-estado="${data.estado_nuevo}"] .leads-list`);
+    if (nuevaColumna) {
+        // Actualizar atributo
+        leadElement.setAttribute('data-estado', data.estado_nuevo);
+        
+        // Aplicar nuevo color
+        aplicarColorALead(leadElement, data.estado_nuevo);
+        
+        // Mover en el DOM
+        nuevaColumna.appendChild(leadElement);
+        
+        // Animación
+        leadElement.classList.add("lead-mensaje-nuevo");
+        setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 1000);
+        
+        console.log("✅ Lead movido a:", data.estado_nuevo);
+    }
+});
+
+
 function filtrarLeads(termino) {
     const leads = document.querySelectorAll('.lead');
     const resultadosDiv = document.getElementById('leads-search-results');
@@ -3339,9 +3631,6 @@ function filtrarLeads(termino) {
     console.log(`🔍 Búsqueda: "${termino}" → ${visibles} resultados`);
 }
 
-// ============================================================================
-// ELIMINAR ESTADO DE LEAD (SOLO NO FIJOS)
-// ============================================================================
 async function eliminarEstadoLead(nombreEstado) {
     const estadoDestino = prompt(
         `¿A qué estado quieres mover los leads de "${nombreEstado}"?\n` +
@@ -3371,9 +3660,6 @@ async function eliminarEstadoLead(nombreEstado) {
     }
 }
 
-// ============================================================================
-// NOTIFICACIÓN SUAVE (SIN ALERT BLOQUEANTE)
-// ============================================================================
 function mostrarNotificacionSuave(mensaje, tipo = "success") {
     let notif = document.getElementById("notificacion-suave");
     
@@ -3403,9 +3689,6 @@ function mostrarNotificacionSuave(mensaje, tipo = "success") {
     setTimeout(() => { notif.style.opacity = "0"; }, 2500);
 }
 
-// ============================================================================
-// LISTENER SOCKET PARA ACTUALIZACIÓN DE ESTADOS DE LEADS
-// ============================================================================
 socket.on("configuracion_lead_actualizada", data => {
     console.log("📋 Configuración de leads actualizada:", data);
     
@@ -3467,9 +3750,6 @@ socket.on("nuevo_mensaje", (data) => {
 
   actualizarUltimoMensajeLead(data.remitente, textoParaLista);
 });
-  
-        
-    
 
 // 🔹 Función para mostrar notificaciones (solo para mensajes "recibidos")
 function mostrarNotificacion(mensaje) {
@@ -3482,7 +3762,6 @@ function mostrarNotificacion(mensaje) {
         alerta.style.display = "none";
     }, 5000);
 }
-
 
 // 🔹 Función para actualizar el último mensaje en la sección de leads
 function actualizarUltimoMensajeLead(telefono, mensaje) {
@@ -3503,78 +3782,6 @@ function actualizarUltimoMensajeLead(telefono, mensaje) {
     });
 }
 
-
-socket.on("nuevo_lead", (data) => {
-    console.log("🆕 Nuevo lead creado automáticamente:", data);
-
-    let estado = "Contacto Inicial";
-    let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
-
-    if (leadList) {
-        let leadElement = document.createElement("div");
-        leadElement.classList.add("lead", "lead-nuevo");
-        leadElement.setAttribute("data-id", data.id);        // ✅ AGREGA ESTA LÍNEA
-        leadElement.setAttribute("data-telefono", data.telefono);
-
-        leadElement.innerHTML = `
-            <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
-                <strong class="lead-nombre">${data.nombre}</strong>
-                <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${data.telefono}')">
-                    ${data.ultimo_mensaje ? data.ultimo_mensaje : "No hay mensajes recientes"}
-                </p>
-            </div>
-        `;
-
-        leadList.appendChild(leadElement);
-        setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
-    }
-});
-
-
-socket.on("lead_estado_actualizado", (data) => {
-    console.log("🔄 lead_estado_actualizado recibido:", data);
-    
-    const moveLead = () => {
-        const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
-        if (!leadElement) {
-            // Reintentar en 300ms (por si aún no se renderiza)
-            setTimeout(moveLead, 300);
-            return;
-        }
-        
-        // Remover de columna actual
-        const columnaActual = leadElement.closest(".leads-column");
-        if (columnaActual) {
-            const listaActual = columnaActual.querySelector(".leads-list");
-            if (listaActual) listaActual.removeChild(leadElement);
-        }
-        
-        // Agregar a nueva columna
-        const nuevaColumna = document.querySelector(`.leads-column[data-estado="${data.estado_nuevo}"] .leads-list`);
-        if (nuevaColumna) {
-            // ✅ APLICAR COLOR DINÁMICO al mover
-            const style = window.getComputedStyle(nuevaColumna.parentElement);
-            const borderLeft = style.borderLeft;
-            const colorMatch = borderLeft.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-            const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-            
-            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
-            
-            // Animación sutil
-            leadElement.classList.add("lead-mensaje-nuevo");
-            setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
-            
-            nuevaColumna.appendChild(leadElement);
-            console.log("✅ Lead movido a:", data.estado_nuevo);
-        }
-    };
-    
-    moveLead();
-});
-
-/*====================================
-//RESPONDER A LOS MENSAJES UNIFICADO
-=====================================*/
 function enviarMensaje() {
     let input = document.getElementById("mensaje-input");
     let mensaje = input.value.trim();
@@ -3826,7 +4033,6 @@ function actualizarListaChats(remitente, mensaje) {
             document.querySelector(".chat-input button").disabled = false;
         } 
 
-
   /**
  * Crea el elemento HTML que representa un mensaje, de texto/imagen/(opcional) video.
  * Seguridad: no inyectar HTML arbitrario; usar textContent en textos.
@@ -3866,8 +4072,6 @@ function crearMensajeChat(mensaje, tipo) {
   div.classList.add(tipo === "enviado" ? "mensaje-enviado" : "mensaje-recibido");
   return div;
 }
-  
-
         
 /* 🔹 Abrir chat desde lead: corregir consumo de /mensajes_chat */
 function irAChat(telefono) {
@@ -3918,52 +4122,8 @@ function irAChat(telefono) {
         }
         // 🔹 Manejar el evento de soltar
 
-// ============================================================================
-// FUNCIÓN DROP ACTUALIZADA (CON COLOR DINÁMICO DEL LEAD)
-// ============================================================================
-function drop(event, nuevoEstado) {
-    event.preventDefault();
-    let leadId = event.dataTransfer.getData("text");
-    
-    // Encontrar la columna destino
-    const columnaDestino = document.querySelector(`[data-estado="${nuevoEstado}"]`);
-    if (!columnaDestino) return;
-    
-    // Encontrar el lead elemento
-    const leadElement = document.querySelector(`[data-id='${leadId}']`);
-    if (!leadElement) return;
-    
-    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO
-    // El color está en border-left: "5px solid #XXXXXX"
-    const style = window.getComputedStyle(columnaDestino);
-    const borderLeft = style.borderLeft;
-    
-    // Extraer el color hexadecimal del border-left
-    const colorMatch = borderLeft.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-    const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5'; // fallback
-    
-    // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro)
-    const colorFondo = getColorWithOpacity(colorColumna, 0.25);
-    leadElement.style.background = colorFondo;
-    
-    // ✅ Agregar animación sutil
-    leadElement.classList.add('moved');
-    setTimeout(() => leadElement.classList.remove('moved'), 500);
-    
-    // ✅ Enviar actualización al backend
-    fetch("/cambiar_estado_lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: leadId, estado: nuevoEstado })
-    })
-    .then(() => {
-        // ✅ Recargar leads para asegurar consistencia visual
-        cargarLeads();
-    })
-    .catch(error => console.error("Error al cambiar estado del lead:", error));
-}
-        
 
+        
         document.getElementById("leads-container").addEventListener("dragstart", (event) => {
             if (event.target.classList.contains("lead")) {
                 event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
@@ -3994,52 +4154,6 @@ function drop(event, nuevoEstado) {
         });
         
 
-        function crearLead() {
-            let nombre = document.getElementById("lead-nombre").value.trim();
-            let telefono = document.getElementById("lead-telefono").value.trim();
-            let notas = document.getElementById("lead-notas").value.trim();
-        
-            if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
-                alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
-                return;
-            }
-        
-            fetch("/crear_lead", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nombre, telefono, notas })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert("Error al crear lead: " + data.error);
-                } else {
-                    alert(data.mensaje);
-                    cargarLeads();
-                    document.getElementById("lead-nombre").value = "";
-                    document.getElementById("lead-telefono").value = "";
-                    document.getElementById("lead-notas").value = "";
-                    toggleFormulario();
-                }
-            })
-            .catch(error => {
-                console.error("❌ Error al crear lead:", error);
-                alert("Error al crear lead. Inténtalo de nuevo.");
-            });
-        }
-
-        function toggleFormulario() {
-            let form = document.getElementById("lead-form");
-            let button = document.getElementById("toggle-form");
-        
-            if (form.classList.contains("hidden")) {
-                form.classList.remove("hidden"); // 🔹 Mostrar formulario
-                button.textContent = "✖ Cerrar"; // 🔹 Cambiar el botón a "Cerrar"
-            } else {
-                form.classList.add("hidden"); // 🔹 Ocultar formulario
-                button.textContent = "➕ Agregar Lead"; // 🔹 Volver a mostrar el botón original
-            }
-        }
         
         function eliminarLeadDesdeModal() {
             let leadId = document.getElementById("edit-lead-id").value;
@@ -4088,8 +4202,6 @@ function drop(event, nuevoEstado) {
             .catch(error => console.error("❌ Error al actualizar nota:", error));
         }
         
-       
-
 function abrirModalEditar(id, nombre, telefono, notas) {
   document.getElementById("edit-lead-id").value = id;
   document.getElementById("edit-lead-nombre").value = nombre;
@@ -4104,9 +4216,6 @@ function abrirModalEditar(id, nombre, telefono, notas) {
   // Muestra el modal (en este ejemplo, cambiamos la propiedad display)
   modal.style.display = "flex";
 }
-
-        
-       
 
 function cerrarModal() {
   let modal = document.getElementById("edit-lead-modal");
