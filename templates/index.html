@@ -441,34 +441,18 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1); /* 🔹 Sombra sutil */
 }
 
-/* 🔹 Cuando se suelta un lead, tomará el color de la columna */
-[data-estado="Contacto Inicial"] .lead {
-    background: #bbdefb;  Azul claro */
+/* Clase para lead recién movido (animación sutil) */
+.lead.moved {
+    animation: highlight 0.5s ease;
 }
 
-[data-estado="En proceso"] .lead {
-    background: #ffe0b2; /* Naranja claro */
+@keyframes highlight {
+    0% { box-shadow: 0 0 0 0 rgba(30, 136, 229, 0.4); }
+    100% { box-shadow: 0 0 0 10px rgba(30, 136, 229, 0); }
 }
 
-[data-estado="Seguimiento XV"] .lead {
-    background: #e6c8edff; /* Morado claro */
-}
 
-[data-estado="Seguimiento Boda"] .lead {
-    background: #edc8c8ff; /* rojo claro */
-}
 
-[data-estado="Seguimiento Otro"] .lead {
-    background: #dcedc8; /* Verde claro */
-}
-
-[data-estado="Cliente"] .lead {
-    background: #c8e6c9; /* Verde pastel */
-}
-
-[data-estado="No cliente"] .lead {
-    background: #ffcdd2; /* Rojo claro */
-}
 
 /* 🔹 Estilo cuando se arrastra un lead */
 .lead.dragging {
@@ -3889,18 +3873,42 @@ function irAChat(telefono) {
             event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
         }
         // 🔹 Manejar el evento de soltar
-        function drop(event, nuevoEstado) {
-            event.preventDefault();
-            let leadId = event.dataTransfer.getData("text");
-            
-            fetch("/cambiar_estado_lead", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: leadId, estado: nuevoEstado })
-            })
-            .then(() => cargarLeads()) // 🔹 Recargar la lista para reflejar cambios
-            .catch(error => console.error("Error al cambiar estado del lead:", error));
-        }
+// ============================================================================
+// FUNCIÓN DROP ACTUALIZADA (CON COLOR DINÁMICO)
+// ============================================================================
+function drop(event, nuevoEstado) {
+    event.preventDefault();
+    let leadId = event.dataTransfer.getData("text");
+    
+    // Encontrar la columna destino
+    const columnaDestino = document.querySelector(`[data-estado="${nuevoEstado}"]`);
+    if (!columnaDestino) return;
+    
+    // Encontrar el lead elemento
+    const leadElement = document.querySelector(`[data-id='${leadId}']`);
+    if (!leadElement) return;
+    
+    // ✅ APLICAR COLOR DINÁMICO desde la columna destino
+    const colorColumna = columnaDestino.style.borderLeft.match(/#[0-9a-f]{6}/i)?.[0] || '#1e88e5';
+    const colorFondo = `${colorColumna}40`; // 40 = 25% opacity
+    
+    // Aplicar color al lead
+    leadElement.style.background = colorFondo;
+    leadElement.classList.add('moved'); // Animación sutil
+    setTimeout(() => leadElement.classList.remove('moved'), 500);
+    
+    // ✅ Enviar actualización al backend
+    fetch("/cambiar_estado_lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: leadId, estado: nuevoEstado })
+    })
+    .then(() => {
+        // Recargar leads para asegurar consistencia
+        cargarLeads();
+    })
+    .catch(error => console.error("Error al cambiar estado del lead:", error));
+}
         
 
         document.getElementById("leads-container").addEventListener("dragstart", (event) => {
