@@ -3109,13 +3109,19 @@ async function guardarEstadosLeadConfig() {
 // ============================================================================
 async function cargarEstadosLead() {
     try {
+        console.log('🔍 [DEBUG] cargarEstadosLead() - Fetching /leads/estados...');
         const resp = await fetch('/leads/estados');
-        if (!resp.ok) throw new Error('Error HTTP ' + resp.status);
+        
+        if (!resp.ok) {
+            throw new Error('Error HTTP ' + resp.status + ': ' + await resp.text());
+        }
         
         estadosLeadConfig = await resp.json();
+        console.log('🔍 [DEBUG] estadosLeadConfig recibido:', estadosLeadConfig);
         
         // Si no hay estados, usar defaults
         if (estadosLeadConfig.length === 0) {
+            console.log('⚠️ No hay estados configurados, usando defaults');
             estadosLeadConfig = [
                 { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
                 { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
@@ -3126,7 +3132,12 @@ async function cargarEstadosLead() {
         return estadosLeadConfig;
     } catch (err) {
         console.error('❌ Error al cargar estados:', err);
-        return [];
+        // Fallback a defaults en caso de error
+        estadosLeadConfig = [
+            { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
+            { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
+        ];
+        return estadosLeadConfig;
     }
 }
 
@@ -3151,15 +3162,6 @@ function renderizarColumnasLeads() {
             { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
         ];
     }
-    
-    // Guardar leads actuales antes de re-renderizar (para no perderlos)
-    const leadsActuales = {};
-    document.querySelectorAll('.lead').forEach(lead => {
-        const id = lead.getAttribute('data-id');
-        if (id) {
-            leadsActuales[id] = lead.cloneNode(true);
-        }
-    });
     
     // Limpiar contenedor
     container.innerHTML = '';
@@ -3189,6 +3191,7 @@ function renderizarColumnasLeads() {
         columna.ondrop = (event) => drop(event, estado.nombre);
         
         container.appendChild(columna);
+        console.log(`✅ Columna creada: ${estado.nombre}`);
     });
     
     // Agregar formulario en la columna "Contacto Inicial"
@@ -3206,27 +3209,10 @@ function renderizarColumnasLeads() {
             </div>
         `;
         columnaInicial.appendChild(formContainer);
+        console.log('✅ Formulario agregado en "Contacto Inicial"');
     }
     
-    // Restaurar leads en sus columnas correspondientes
-    Object.values(leadsActuales).forEach(leadClone => {
-        const estado = leadClone.getAttribute('data-estado-original') || 'Contacto Inicial';
-        const columna = document.querySelector(`[data-estado="${estado}"] .leads-list`);
-        if (columna) {
-            // Restaurar event listeners
-            leadClone.ondragstart = (event) => drag(event);
-            leadClone.onclick = () => {
-                const id = leadClone.getAttribute('data-id');
-                const nombre = leadClone.querySelector('.lead-nombre')?.textContent;
-                const telefono = leadClone.getAttribute('data-telefono');
-                const notas = leadClone.getAttribute('data-notas') || '';
-                abrirModalEditar(id, nombre, telefono, notas);
-            };
-            columna.appendChild(leadClone);
-        }
-    });
-    
-    console.log('✅ Columnas de leads renderizadas');
+    console.log('✅ Columnas de leads renderizadas:', document.querySelectorAll('.leads-column').length);
 }
 
 // ============================================================================
@@ -3238,13 +3224,14 @@ async function cargarLeads() {
     try {
         // 1. Primero cargar estados desde BD
         await cargarEstadosLead();
+        console.log('🔍 estadosLeadConfig después de cargar:', estadosLeadConfig);
         
         // 2. Renderizar columnas dinámicas
         renderizarColumnasLeads();
         
         // 3. Cargar leads desde backend
         const resp = await fetch('/leads');
-        if (!resp.ok) throw new Error('Error al cargar leads');
+        if (!resp.ok) throw new Error('Error al cargar leads: ' + resp.status);
         
         const leads = await resp.json();
         console.log(`📦 ${leads.length} leads recibidos`);
@@ -3254,7 +3241,7 @@ async function cargarLeads() {
         
         // Distribuir leads en columnas según su estado
         leads.forEach(lead => {
-            const estadoLimpio = lead.estado.trim();
+            const estadoLimpio = lead.estado?.trim() || 'Contacto Inicial';
             const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
             
             if (leadList) {
@@ -3279,6 +3266,8 @@ async function cargarLeads() {
                 
                 leadList.appendChild(leadElement);
                 setTimeout(() => leadElement.classList.remove('lead-nuevo'), 3000);
+            } else {
+                console.warn(`⚠️ No se encontró columna para estado: "${estadoLimpio}"`);
             }
         });
         
