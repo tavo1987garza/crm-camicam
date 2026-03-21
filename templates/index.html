@@ -1872,7 +1872,7 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
         <i class="fas fa-chart-line"></i> <!-- 🔹 Icono moderno -->
         <span>Panel</span>
     </button>
-    <button onclick="mostrarSeccion('leads', cargarLeads)" class="sidebar-btn">
+    <button onclick="mostrarSeccion('leads')" class="sidebar-btn">
         <i class="fas fa-envelope"></i> <!-- 🔹 Icono moderno -->
         <span>Leads</span>
     </button>
@@ -3219,20 +3219,19 @@ function renderizarColumnasLeads() {
 }
 
 // ============================================================================
-// CARGAR LEADS CON COLUMNAS DINÁMICAS (VERSIÓN INTEGRADA)
+// CARGAR LEADS CON ESTADOS DINÁMICOS (RETORNA PROMISE)
 // ============================================================================
 async function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
     
     try {
-        // 🔹 PASO 1: Cargar estados desde la base de datos
+        // 1. Primero cargar estados desde BD
         await cargarEstadosLead();
-        console.log('🔍 estadosLeadConfig:', estadosLeadConfig);
         
-        // 🔹 PASO 2: Renderizar columnas dinámicas
+        // 2. Renderizar columnas dinámicas
         renderizarColumnasLeads();
         
-        // 🔹 PASO 3: Cargar leads desde backend
+        // 3. Cargar leads desde backend
         const resp = await fetch('/leads');
         if (!resp.ok) throw new Error('Error al cargar leads: ' + resp.status);
         
@@ -3242,7 +3241,7 @@ async function cargarLeads() {
         // Limpiar todas las listas
         document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = '');
         
-        // 🔹 PASO 4: Distribuir leads en columnas dinámicas
+        // Distribuir leads en columnas
         leads.forEach(lead => {
             const estadoLimpio = lead.estado?.trim() || 'Contacto Inicial';
             const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
@@ -3258,12 +3257,12 @@ async function cargarLeads() {
                 leadElement.ondragstart = (event) => drag(event);
                 leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
                 
-                // ✅ Aplicar color dinámico al lead según su columna
+                // Aplicar color dinámico al lead
                 const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
                 if (columna) {
                     const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
                     const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-                    leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+                    leadElement.style.background = `${colorColumna}40`;
                 }
                 
                 leadElement.innerHTML = `
@@ -3277,8 +3276,6 @@ async function cargarLeads() {
                 
                 leadList.appendChild(leadElement);
                 setTimeout(() => leadElement.classList.remove('lead-nuevo'), 3000);
-            } else {
-                console.warn(`⚠️ No se encontró columna para estado: "${estadoLimpio}"`);
             }
         });
         
@@ -3289,9 +3286,11 @@ async function cargarLeads() {
         }
         
         console.log(`✅ ${leads.length} leads cargados y distribuidos`);
+        return true; // ✅ Retornar valor para encadenar .then()
         
     } catch (err) {
         console.error('❌ Error al cargar leads:', err);
+        return false; // ✅ Retornar error para manejar con .catch()
     }
 }
      
