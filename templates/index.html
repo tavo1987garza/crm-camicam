@@ -3000,6 +3000,27 @@ let leadEstadosActualizados = false;  // Bandera para actualización en tiempo r
 // ============================================================================
 let estadosLeadTemp = [];
 
+// ============================================================================
+// FUNCIÓN PARA GENERAR COLOR DE FONDO SUAVE A PARTIR DE UN COLOR HEX
+// ============================================================================
+function getColorWithOpacity(hex, opacity = 0.25) {
+    // Eliminar '#' si existe
+    hex = hex.replace('#', '');
+    
+    // Si el código es corto (3 dígitos), duplicarlo a 6 dígitos
+    if (hex.length === 3) {
+        hex = hex.split('').map(char => char + char).join('');
+    }
+    
+    // Parsear componentes RGB
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    // Retornar en formato rgba
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 function mostrarModalEstadosLead() {
     cargarEstadosLead().then(() => {
         estadosLeadTemp = JSON.parse(JSON.stringify(estadosLeadConfig));
@@ -3200,51 +3221,41 @@ function renderizarColumnasLeads() {
 // ============================================================================
 // CARGAR LEADS CON ESTADOS DINÁMICOS (RETORNA PROMISE)
 // ============================================================================
-async function cargarLeads() {
+function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
     
-    try {
-        // 1. Primero cargar estados desde BD
-        await cargarEstadosLead();
-        console.log('🔍 estadosLeadConfig después de cargar:', estadosLeadConfig);
-        
-        // 2. Renderizar columnas dinámicas
-        renderizarColumnasLeads();
-        
-        // 3. Cargar leads desde backend
-        const resp = await fetch('/leads');
-        if (!resp.ok) throw new Error('Error al cargar leads: ' + resp.status);
-        
-        const leads = await resp.json();
-        console.log(`📦 ${leads.length} leads recibidos`);
-        
+    fetch("/leads")
+    .then(response => response.json())
+    .then(leads => {
         // Limpiar todas las listas
-        document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = '');
+        document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = "");
         
-        // Distribuir leads en columnas según su estado
+        // Para cada lead, aplicar color según su estado
         leads.forEach(lead => {
-            const estadoLimpio = lead.estado?.trim() || 'Contacto Inicial';
+            const estadoLimpio = lead.estado.trim();
             const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
             
             if (leadList) {
-                const leadElement = document.createElement('div');
-                leadElement.classList.add('lead', 'lead-nuevo');
-                leadElement.setAttribute('data-id', lead.id);
-                leadElement.setAttribute('data-telefono', lead.telefono);
-                leadElement.setAttribute('data-estado-original', estadoLimpio);
-                leadElement.setAttribute('data-notas', lead.notas || '');
-                leadElement.setAttribute('draggable', 'true');
+                const leadElement = document.createElement("div");
+                leadElement.classList.add("lead", "lead-nuevo");
+                leadElement.setAttribute("data-id", lead.id);
+                leadElement.setAttribute("data-telefono", lead.telefono);
+                leadElement.setAttribute("draggable", "true");
                 leadElement.ondragstart = (event) => drag(event);
-                leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);   
-
-                 // ✅ APLICAR COLOR DINÁMICO según el estado del lead
-    const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
-    if (columna) {
-        const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-        const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-        leadElement.style.background = `${colorColumna}40`;  // 40 = 25% opacity
-    }
-
+                leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
+                
+                // ✅ APLICAR COLOR DINÁMICO según el estado del lead
+                const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
+                if (columna) {
+                    const style = window.getComputedStyle(columna);
+                    const borderLeft = style.borderLeft;
+                    const colorMatch = borderLeft.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+                    const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
+                    
+                    // Aplicar fondo más claro (25% opacity)
+                    leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+                }
+                
                 leadElement.innerHTML = `
                     <div class="lead-content">
                         <strong class="lead-nombre">${lead.nombre}</strong>
@@ -3255,27 +3266,14 @@ async function cargarLeads() {
                 `;
                 
                 leadList.appendChild(leadElement);
-                setTimeout(() => leadElement.classList.remove('lead-nuevo'), 3000);
-            } else {
-                console.warn(`⚠️ No se encontró columna para estado: "${estadoLimpio}"`);
+                setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
             }
         });
         
-        // Actualizar contador en el buscador
-        const resultadosDiv = document.getElementById('leads-search-results');
-        if (resultadosDiv) {
-            resultadosDiv.textContent = `📊 ${leads.length} lead(s) en total`;
-        }
-        
-        console.log(`✅ ${leads.length} leads cargados y distribuidos`);
-        return true; // ✅ Retornar valor para encadenar .then()
-        
-    } catch (err) {
-        console.error('❌ Error al cargar leads:', err);
-        return false; // ✅ Retornar error para manejar con .catch()
-    }
+        console.log(`✅ ${leads.length} leads cargados con colores dinámicos`);
+    })
+    .catch(error => console.error("❌ Error al cargar leads:", error));
 }
-
      
 // ============================================================================
 // FILTRAR LEADS POR BÚSQUEDA GLOBAL
@@ -3880,9 +3878,6 @@ function irAChat(telefono) {
             event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
         }
         // 🔹 Manejar el evento de soltar
-// ============================================================================
-// FUNCIÓN DROP ACTUALIZADA (CON COLOR DINÁMICO DEL LEAD)
-// ============================================================================
 function drop(event, nuevoEstado) {
     event.preventDefault();
     let leadId = event.dataTransfer.getData("text");
@@ -3896,11 +3891,14 @@ function drop(event, nuevoEstado) {
     if (!leadElement) return;
     
     // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO
-    const colorMatch = columnaDestino.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+    const style = window.getComputedStyle(columnaDestino);
+    const borderLeft = style.borderLeft;
+    const colorMatch = borderLeft.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
     const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
     
-    // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro, 25% opacity)
-    leadElement.style.background = `${colorColumna}40`;
+    // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro)
+    const colorFondo = getColorWithOpacity(colorColumna, 0.25);
+    leadElement.style.background = colorFondo;
     
     // ✅ Agregar animación sutil
     leadElement.classList.add('moved');
@@ -3912,7 +3910,7 @@ function drop(event, nuevoEstado) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: leadId, estado: nuevoEstado })
     })
-    .then(() => cargarLeads())  // Recargar para consistencia
+    .then(() => cargarLeads())
     .catch(error => console.error("Error al cambiar estado del lead:", error));
 }
 
@@ -3922,28 +3920,7 @@ function drop(event, nuevoEstado) {
             }
         });
 
-          // 🔹 Permitir soltar en las columnas
-        document.querySelectorAll(".leads-column").forEach(column => {
-            column.ondragover = (event) => event.preventDefault();
-            column.ondrop = (event) => {
-                event.preventDefault();
-                let leadId = event.dataTransfer.getData("text");
-                let newEstado = column.getAttribute("data-estado");
-                let leadElement = document.querySelector(`[data-id='${leadId}']`);
-        
-                // 🔹 Cambiar el fondo del lead al color de la nueva columna
-                if (leadElement) {
-                    leadElement.style.background = window.getComputedStyle(column).backgroundColor;
-                }
-        
-                // 🔹 Enviar la actualización al backend
-                fetch("/cambiar_estado_lead", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: leadId, estado: newEstado })
-                }).then(() => cargarLeads()); // Recargar para reflejar cambios
-            };
-        });
+
         
 
         function crearLead() {
