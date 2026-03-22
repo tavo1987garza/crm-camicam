@@ -3268,8 +3268,8 @@ async function cargarEstadosLead() {
         console.error('❌ Error al cargar estados:', err);
         // Fallback a defaults en caso de error
         estadosLeadConfig = [
-            { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
-            { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
+            { nombre: "✅ CONTACTO INICIAL", color: "#0281f7", orden: 0, fijo: true },
+            { nombre: "⏳ EN PROCESO", color: "#f9aa01", orden: 1, fijo: false }
         ];
         return estadosLeadConfig;
     }
@@ -3347,6 +3347,9 @@ function renderizarColumnasLeads() {
 // ============================================================================
 // CARGAR LEADS CON ESTADOS DINÁMICOS (RETORNA PROMISE)
 // ============================================================================
+// ============================================================================
+// CARGAR LEADS CON ESTADOS DINÁMICOS (VERSIÓN CORREGIDA)
+// ============================================================================
 async function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
     
@@ -3369,7 +3372,8 @@ async function cargarLeads() {
         
         // Distribuir leads en columnas
         leads.forEach(lead => {
-            const estadoLimpio = lead.estado?.trim() || 'Contacto Inicial';
+            // ✅ FALLBACK CON EMOJI
+            const estadoLimpio = lead.estado?.trim() || '✅ CONTACTO INICIAL';
             const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
             
             if (leadList) {
@@ -3383,13 +3387,11 @@ async function cargarLeads() {
                 leadElement.ondragstart = (event) => drag(event);
                 leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
                 
-                // Aplicar color dinámico al lead
+                // ✅ Aplicar color dinámico al lead (sin función extra)
                 const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
                 if (columna) {
-                    // ✅ Usar función robusta para extraer color
-                    const colorColumna = extraerColorDeColumna(columna);
-                    
-                    // Aplicar fondo más claro (25% opacity)
+                    const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+                    const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
                     leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
                 }
                 
@@ -3404,6 +3406,8 @@ async function cargarLeads() {
                 
                 leadList.appendChild(leadElement);
                 setTimeout(() => leadElement.classList.remove('lead-nuevo'), 3000);
+            } else {
+                console.warn(`⚠️ No se encontró columna para estado: "${estadoLimpio}"`);
             }
         });
         
@@ -3414,14 +3418,14 @@ async function cargarLeads() {
         }
         
         console.log(`✅ ${leads.length} leads cargados y distribuidos`);
-        return true; // ✅ Retornar valor para encadenar .then()
+        return true;
         
     } catch (err) {
         console.error('❌ Error al cargar leads:', err);
-        return false; // ✅ Retornar error para manejar con .catch()
+        return false;
     }
 }
-     
+  
 // ============================================================================
 // FILTRAR LEADS POR BÚSQUEDA GLOBAL
 // ============================================================================
