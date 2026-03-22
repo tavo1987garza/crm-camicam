@@ -23,7 +23,6 @@ from flask import (
 from flask_socketio import SocketIO
 
 
-
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = os.getenv('SECRET_KEY')
@@ -345,7 +344,7 @@ def obtener_estados_lead():
 
 @app.route("/leads/estados", methods=["POST"])
 def guardar_estados_lead():
-    """Guardar configuración de estados del tenant"""
+    """Guardar configuración de estados del tenant (CORREGIDO para renombrar fijos)"""
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 401
@@ -356,7 +355,7 @@ def guardar_estados_lead():
     if not isinstance(estados, list):
         return jsonify({"error": "Formato inválido"}), 400
     
-    # ✅ VALIDAR que existan al menos 2 estados (los fijos, aunque cambien de nombre)
+    # Validar que haya al menos 2 estados (los fijos)
     if len(estados) < 2:
         return jsonify({"error": "Se requieren al menos 2 estados"}), 400
     
@@ -367,16 +366,17 @@ def guardar_estados_lead():
     try:
         cur = conn.cursor()
         
-        # 🔹 1. OBTENER nombres anteriores de estados fijos (para actualizar leads)
+        # 🔹 1. OBTENER estados fijos anteriores (para mapear por orden, no por nombre)
         cur.execute("""
-            SELECT nombre FROM lead_estados_tenant 
+            SELECT id, nombre FROM lead_estados_tenant 
             WHERE cliente_id = %s AND fijo = TRUE
+            ORDER BY orden ASC
         """, (cliente_id,))
-        nombres_fijos_anteriores = [row[0] for row in cur.fetchall()]
+        estados_fijos_anteriores = cur.fetchall()  # [(id, nombre), ...]
         
-        # 🔹 2. MOVER LEADS de estados eliminados a "Contacto Inicial" (o el primer estado fijo)
+        # 🔹 2. MOVER LEADS de estados eliminados al primer estado disponible
         leads_movidos = 0
-        estado_destino = estados[0].get("nombre", "Contacto Inicial") if estados else "Contacto Inicial"
+        estado_destino = estados[0].get("nombre") if estados else "Contacto Inicial"
         
         for estado_eliminado in estados_eliminados:
             cur.execute("""
@@ -388,44 +388,54 @@ def guardar_estados_lead():
         if leads_movidos > 0:
             print(f"✅ {leads_movidos} leads movidos a '{estado_destino}'")
         
-        # 🔹 3. ELIMINAR estados anteriores (excepto fijos)
+        # 🔹 3. ELIMINAR estados personalizados (no fijos) que ya no existen
+        nombres_nuevos = [e.get("nombre", "").strip() for e in estados]
         cur.execute("""
             DELETE FROM lead_estados_tenant 
-            WHERE cliente_id = %s AND fijo = FALSE
-        """, (cliente_id,))
+            WHERE cliente_id = %s AND fijo = FALSE AND nombre NOT IN %s
+        """, (cliente_id, tuple(nombres_nuevos)))
         
-        # 🔹 4. INSERTAR/ACTUALIZAR todos los estados (incluyendo fijos con nombres editados)
+        # 🔹 4. PROCESAR cada estado nuevo
         for i, estado in enumerate(estados):
             nombre = estado.get("nombre", "").strip()
             color = estado.get("color", "#1e88e5")
             fijo = estado.get("fijo", False)
             
-            if nombre:
+            if not nombre:
+                continue
+            
+            if fijo and i < len(estados_fijos_anteriores):
+                # ✅ ESTADO FIJO: Actualizar por ID (no por nombre)
+                estado_id = estados_fijos_anteriores[i][0]
+                nombre_anterior = estados_fijos_anteriores[i][1]
+                
+                # Actualizar el estado existente
+                cur.execute("""
+                    UPDATE lead_estados_tenant 
+                    SET nombre = %s, color = %s, orden = %s
+                    WHERE id = %s AND cliente_id = %s
+                """, (nombre, color, i, estado_id, cliente_id))
+                
+                # 🔹 Si el nombre cambió, actualizar leads
+                if nombre_anterior != nombre:
+                    cur.execute("""
+                        UPDATE leads SET estado = %s
+                        WHERE cliente_id = %s AND estado = %s
+                    """, (nombre, cliente_id, nombre_anterior))
+                    print(f"✅ Leads actualizados: '{nombre_anterior}' → '{nombre}'")
+            else:
+                # ✅ ESTADO PERSONALIZADO: Insertar o actualizar por nombre
                 cur.execute("""
                     INSERT INTO lead_estados_tenant 
                     (cliente_id, nombre, color, orden, fijo, activo)
                     VALUES (%s, %s, %s, %s, %s, true)
                     ON CONFLICT (cliente_id, nombre) 
-                    DO UPDATE SET color = EXCLUDED.color, orden = EXCLUDED.orden
+                    DO UPDATE SET color = EXCLUDED.color, orden = EXCLUDED.orden, fijo = EXCLUDED.fijo
                 """, (cliente_id, nombre, color, i, fijo))
-                
-                # 🔹 5. Si el nombre de un estado fijo cambió, actualizar leads
-                if fijo and nombre in nombres_fijos_anteriores:
-                    # El nombre es el mismo, no hay que actualizar leads
-                    pass
-                elif fijo and i < len(nombres_fijos_anteriores):
-                    # El nombre cambió, actualizar leads
-                    nombre_anterior = nombres_fijos_anteriores[i]
-                    if nombre_anterior != nombre:
-                        cur.execute("""
-                            UPDATE leads SET estado = %s
-                            WHERE cliente_id = %s AND estado = %s
-                        """, (nombre, cliente_id, nombre_anterior))
-                        print(f"✅ Leads actualizados: '{nombre_anterior}' → '{nombre}'")
         
         conn.commit()
         
-        # 🔹 6. Emitir evento Socket para actualización en tiempo real
+        # 🔹 5. Emitir evento Socket para actualización en tiempo real
         socketio.emit(
             "configuracion_lead_actualizada",
             {
@@ -868,64 +878,50 @@ def obtener_leads():
 # 📌 Crear un nuevo lead manualmente        
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
-    print(f"🔍 DEBUG crear_lead - Iniciando solicitud")
-    print(f"🔍 DEBUG crear_lead - Headers: {dict(request.headers)}")
-    
     cliente_id = obtener_cliente_id_de_subdominio()
-    print(f"🔍 DEBUG crear_lead - cliente_id obtenido: {cliente_id}")
-    
     if not cliente_id:
-        print("❌ ERROR crear_lead - No se obtuvo cliente_id")
         return jsonify({"error": "Cliente no autorizado"}), 404
-
+    
     datos = request.json
-    print(f"🔍 DEBUG crear_lead - Datos recibidos: {datos}")
     nombre = datos.get("nombre")
     telefono = datos.get("telefono")
     notas = datos.get("notas", "")
-
+    estado = datos.get("estado", "Contacto Inicial")  # ✅ Estado dinámico con fallback
+    
     if not nombre or not telefono or not validar_telefono(telefono):
         return jsonify({"error": "El teléfono debe tener 13 dígitos"}), 400
-
+    
     try:
-        print(f"🔍 DEBUG crear_lead - Intentando conectar a BD")
         conn = conectar_db()
         if not conn:
-            print("❌ ERROR crear_lead - Falló conexión a BD")
             return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
-            
-        print(f"🔍 DEBUG crear_lead - Conexión exitosa. Ejecutando INSERT...")
-        
         
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO leads (nombre, telefono, estado, notas, cliente_id)
-            VALUES (%s, %s, 'Contacto Inicial', %s, %s)
+            VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (telefono, cliente_id) DO UPDATE
-            SET notas = EXCLUDED.notas
+            SET notas = EXCLUDED.notas, estado = EXCLUDED.estado
             RETURNING id
-        """, (nombre, telefono, notas, cliente_id))
-
+        """, (nombre, telefono, estado, notas, cliente_id))
+        
         lead_id = cursor.fetchone()
         conn.commit()
-
+        
         if lead_id:
             nuevo_lead = {
                 "id": lead_id[0],
                 "nombre": nombre,
                 "telefono": telefono,
-                "estado": "Contacto Inicial",
+                "estado": estado,
                 "notas": notas
             }
             socketio.emit("nuevo_lead", nuevo_lead)
             return jsonify({"mensaje": "Lead creado correctamente", "lead": nuevo_lead}), 200
         else:
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
-
     except Exception as e:
         print(f"💥 ERROR CRÍTICO crear_lead: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)

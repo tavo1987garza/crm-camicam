@@ -3170,29 +3170,30 @@ function renderizarListaEstadosLead() {
 // GUARDAR CONFIGURACIÓN DE ESTADOS (CON DETECCIÓN DE CAMBIOS DE NOMBRE)
 // ============================================================================
 async function guardarEstadosLeadConfig() {
-    // Validar que haya al menos 2 estados (los fijos)
+    // Validar que haya al menos 2 estados
     if (estadosLeadTemp.length < 2) {
         alert('⚠️ Se requieren al menos 2 estados');
         return;
     }
     
-    // ✅ DETECTAR estados eliminados
+    // ✅ DETECTAR estados eliminados (comparando por nombre)
     const estadosAnteriores = estadosLeadConfig.map(e => e.nombre);
     const estadosNuevos = estadosLeadTemp.map(e => e.nombre);
     const estadosEliminados = estadosAnteriores.filter(e => !estadosNuevos.includes(e));
     
-    // ✅ DETECTAR cambios de nombre en estados fijos
+    // ✅ DETECTAR cambios de nombre en estados fijos (por posición)
     const cambiosNombre = [];
-    estadosLeadConfig.forEach((estadoAnterior, idx) => {
-        if (estadoAnterior.fijo && estadosLeadTemp[idx]) {
-            if (estadoAnterior.nombre !== estadosLeadTemp[idx].nombre) {
+    estadosLeadConfig
+        .filter(e => e.fijo)  // Solo estados fijos
+        .forEach((estadoAnterior, idx) => {
+            if (estadosLeadTemp[idx] && estadoAnterior.nombre !== estadosLeadTemp[idx].nombre) {
                 cambiosNombre.push({
                     anterior: estadoAnterior.nombre,
-                    nuevo: estadosLeadTemp[idx].nombre
+                    nuevo: estadosLeadTemp[idx].nombre,
+                    posicion: idx
                 });
             }
-        }
-    });
+        });
     
     // Si hay cambios importantes, pedir confirmación
     if (estadosEliminados.length > 0 || cambiosNombre.length > 0) {
@@ -3247,7 +3248,6 @@ async function guardarEstadosLeadConfig() {
         mostrarNotificacionSuave('❌ Error de conexión', 'error');
     }
 }
-
 
 // ============================================================================
 // CARGAR ESTADOS DE LEADS DESDE EL BACKEND
@@ -3333,9 +3333,9 @@ function renderizarColumnasLeads() {
         console.log(`✅ Columna creada: ${estado.nombre}`);
     });
     
-    // Agregar formulario en la columna "Contacto Inicial"
-    const columnaInicial = document.querySelector('[data-estado="Contacto Inicial"]');
-    if (columnaInicial && !columnaInicial.querySelector('#toggle-form')) {
+    // Agregar formulario a la primer columna de estado fijo por orden
+    const primeraColumna = document.querySelector('.leads-column[data-estado]');
+    if (primeraColumna && !primeraColumna.querySelector('#toggle-form')) {
         const formContainer = document.createElement('div');
         formContainer.className = 'form-container';
         formContainer.innerHTML = `
@@ -3347,8 +3347,8 @@ function renderizarColumnasLeads() {
                 <button onclick="crearLead()">Agregar</button>
             </div>
         `;
-        columnaInicial.appendChild(formContainer);
-        console.log('✅ Formulario agregado en "Contacto Inicial"');
+        primeraColumna.appendChild(formContainer);
+        console.log('✅ Formulario agregado en la primera columna');
     }
     
     console.log('✅ Columnas de leads renderizadas:', document.querySelectorAll('.leads-column').length);
@@ -4092,41 +4092,49 @@ function drop(event, nuevoEstado) {
         });
 
 
-        
-
-        function crearLead() {
-            let nombre = document.getElementById("lead-nombre").value.trim();
-            let telefono = document.getElementById("lead-telefono").value.trim();
-            let notas = document.getElementById("lead-notas").value.trim();
-        
-            if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
-                alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
-                return;
-            }
-        
-            fetch("/crear_lead", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nombre, telefono, notas })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert("Error al crear lead: " + data.error);
-                } else {
-                    alert(data.mensaje);
-                    cargarLeads();
-                    document.getElementById("lead-nombre").value = "";
-                    document.getElementById("lead-telefono").value = "";
-                    document.getElementById("lead-notas").value = "";
-                    toggleFormulario();
-                }
-            })
-            .catch(error => {
-                console.error("❌ Error al crear lead:", error);
-                alert("Error al crear lead. Inténtalo de nuevo.");
-            });
+// ✅ DESPUÉS (obtiene el primer estado fijo dinámicamente)
+async function crearLead() {
+    let nombre = document.getElementById("lead-nombre").value.trim();
+    let telefono = document.getElementById("lead-telefono").value.trim();
+    let notas = document.getElementById("lead-notas").value.trim();
+    
+    if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
+        alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
+        return;
+    }
+    
+    // ✅ Obtener el primer estado fijo desde la configuración cargada
+    const primerEstado = estadosLeadConfig.find(e => e.fijo && e.orden === 0);
+    const estadoInicial = primerEstado ? primerEstado.nombre : 'Contacto Inicial';
+    
+    fetch("/crear_lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            nombre, 
+            telefono, 
+            notas,
+            estado: estadoInicial  // ✅ Enviar estado dinámico
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert("Error al crear lead: " + data.error);
+        } else {
+            alert(data.mensaje);
+            cargarLeads();
+            document.getElementById("lead-nombre").value = "";
+            document.getElementById("lead-telefono").value = "";
+            document.getElementById("lead-notas").value = "";
+            toggleFormulario();
         }
+    })
+    .catch(error => {
+        console.error("❌ Error al crear lead:", error);
+        alert("Error al crear lead. Inténtalo de nuevo.");
+    });
+}
 
         function toggleFormulario() {
             let form = document.getElementById("lead-form");
