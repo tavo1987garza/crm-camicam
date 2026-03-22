@@ -2633,7 +2633,7 @@ async function cargarInfoCuenta() {
     } catch (error) {
         console.error('Error al cargar info de la cuenta:', error);
     }
-} 
+
 
 
 function handleLogout() {
@@ -3124,14 +3124,17 @@ function cerrarModalEstadosLead() {
     document.getElementById('modal-estados-lead').classList.add('hidden');
 }
 
+// ============================================================================
+// RENDERIZAR LISTA DE ESTADOS EN EL MODAL (CON NOMBRES EDITABLES)
+// ============================================================================
 function renderizarListaEstadosLead() {
     const cont = document.getElementById('lista-estados-lead');
     if (!cont) return;
     
     cont.innerHTML = estadosLeadTemp.map((estado, idx) => `
         <div class="panel-card" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;">
+            <!-- ✅ QUITAR disabled del input de nombre (ahora es editable) -->
             <input type="text" value="${estado.nombre}" 
-                ${estado.fijo ? 'disabled' : ''}
                 oninput="estadosLeadTemp[${idx}].nombre=this.value"
                 style="flex:2;padding:8px;border:1px solid #ddd;border-radius:4px;">
             
@@ -3140,7 +3143,7 @@ function renderizarListaEstadosLead() {
                 style="width:50px;height:40px;border:none;cursor:pointer;">
             
             <span style="font-size:12px;color:#7f8c8d;">
-                ${estado.fijo ? '🔒 Fijo' : ''}
+                ${estado.fijo ? '🔒 Fijo (no eliminable)' : ''}
             </span>
             
             ${!estado.fijo ? `
@@ -3163,72 +3166,75 @@ function renderizarListaEstadosLead() {
     cont.appendChild(btnAgregar);
 }
 
+// ============================================================================
+// GUARDAR CONFIGURACIÓN DE ESTADOS (CON DETECCIÓN DE CAMBIOS DE NOMBRE)
+// ============================================================================
 async function guardarEstadosLeadConfig() {
-    // Validar que los estados fijos existan
-    const tieneContactoInicial = estadosLeadTemp.some(e => e.nombre === 'Contacto Inicial');
-    const tieneEnProceso = estadosLeadTemp.some(e => e.nombre === 'En proceso');
-    
-    if (!tieneContactoInicial || !tieneEnProceso) {
-        alert('⚠️ Los estados "Contacto Inicial" y "En proceso" son requeridos');
+    // Validar que haya al menos 2 estados (los fijos)
+    if (estadosLeadTemp.length < 2) {
+        alert('⚠️ Se requieren al menos 2 estados');
         return;
     }
     
-    // ⚠️ DETECTAR estados eliminados
+    // ✅ DETECTAR estados eliminados
     const estadosAnteriores = estadosLeadConfig.map(e => e.nombre);
     const estadosNuevos = estadosLeadTemp.map(e => e.nombre);
     const estadosEliminados = estadosAnteriores.filter(e => !estadosNuevos.includes(e));
     
-    // Si hay estados eliminados, pedir código de seguridad
-    if (estadosEliminados.length > 0) {
-        const codigo = prompt(
-            `⚠️ VAS A ELIMINAR ${estadosEliminados.length} ESTADO(S):\n` +
-            `${estadosEliminados.join(', ')}\n\n` +
-            `Los leads en estos estados se moverán a "Contacto Inicial".\n\n` +
-            `Ingresa tu código de seguridad (4 dígitos) para confirmar:`
-        );
-        
-        // Validar formato del código
-        if (!codigo || !/^\d{4}$/.test(codigo)) {
-            alert('❌ Código inválido. Debe ser un número de 4 dígitos.');
-            return;
-        }
-        
-        // Verificar código con el backend
-        try {
-            const respCodigo = await fetch('/verificar_codigo_seguridad', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codigo: codigo })
-            });
-            
-            const dataCodigo = await respCodigo.json();
-            
-            if (!dataCodigo.valido) {
-                alert('❌ Código de seguridad incorrecto.');
-                return;
+    // ✅ DETECTAR cambios de nombre en estados fijos
+    const cambiosNombre = [];
+    estadosLeadConfig.forEach((estadoAnterior, idx) => {
+        if (estadoAnterior.fijo && estadosLeadTemp[idx]) {
+            if (estadoAnterior.nombre !== estadosLeadTemp[idx].nombre) {
+                cambiosNombre.push({
+                    anterior: estadoAnterior.nombre,
+                    nuevo: estadosLeadTemp[idx].nombre
+                });
             }
-        } catch (err) {
-            console.error('Error al verificar código:', err);
-            alert('❌ Error de conexión al verificar código.');
-            return;
         }
+    });
+    
+    // Si hay cambios importantes, pedir confirmación
+    if (estadosEliminados.length > 0 || cambiosNombre.length > 0) {
+        let mensajeConfirmacion = '⚠️ CAMBIOS DETECTADOS:\n\n';
+        
+        if (cambiosNombre.length > 0) {
+            mensajeConfirmacion += '📝 Nombres cambiados:\n';
+            cambiosNombre.forEach(c => {
+                mensajeConfirmacion += `  • "${c.anterior}" → "${c.nuevo}"\n`;
+            });
+            mensajeConfirmacion += '\n';
+        }
+        
+        if (estadosEliminados.length > 0) {
+            mensajeConfirmacion += `🗑️ Estados eliminados: ${estadosEliminados.join(', ')}\n`;
+            mensajeConfirmacion += 'Los leads en estos estados se moverán al primer estado disponible.\n\n';
+        }
+        
+        mensajeConfirmacion += '¿Continuar?';
+        
+        const confirmacion = confirm(mensajeConfirmacion);
+        if (!confirmacion) return;
     }
     
-    // ✅ Código verificado, proceder con el guardado
     try {
         const resp = await fetch('/leads/estados', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 estados: estadosLeadTemp,
-                estados_eliminados: estadosEliminados  // ← Enviar estados eliminados al backend
+                estados_eliminados: estadosEliminados
             })
         });
         
         const data = await resp.json();
         
         if (data.ok) {
-            mostrarNotificacionSuave('✅ Estados actualizados', 'success');
+            let mensaje = '✅ Estados actualizados';
+            if (data.leads_movidos && data.leads_movidos > 0) {
+                mensaje += ` (${data.leads_movidos} leads actualizados)`;
+            }
+            mostrarNotificacionSuave(mensaje, 'success');
             setTimeout(() => {
                 cerrarModalEstadosLead();
                 cargarLeads();  // Recargar vista

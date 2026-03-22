@@ -343,7 +343,6 @@ def obtener_estados_lead():
     finally:
         liberar_db(conn)
 
-
 @app.route("/leads/estados", methods=["POST"])
 def guardar_estados_lead():
     """Guardar configuración de estados del tenant"""
@@ -357,13 +356,9 @@ def guardar_estados_lead():
     if not isinstance(estados, list):
         return jsonify({"error": "Formato inválido"}), 400
     
-    # Validar que al menos los estados fijos existan
-    estados_fijos_requeridos = ["Contacto Inicial", "En proceso"]
-    nombres_estados = [e.get("nombre", "").strip() for e in estados]
-    
-    for fijo in estados_fijos_requeridos:
-        if fijo not in nombres_estados:
-            return jsonify({"error": f"El estado '{fijo}' es requerido"}), 400
+    # ✅ VALIDAR que existan al menos 2 estados (los fijos, aunque cambien de nombre)
+    if len(estados) < 2:
+        return jsonify({"error": "Se requieren al menos 2 estados"}), 400
     
     conn = conectar_db()
     if not conn:
@@ -372,25 +367,34 @@ def guardar_estados_lead():
     try:
         cur = conn.cursor()
         
-        # 🔹 1. MOVER LEADS de estados eliminados a "Contacto Inicial"
+        # 🔹 1. OBTENER nombres anteriores de estados fijos (para actualizar leads)
+        cur.execute("""
+            SELECT nombre FROM lead_estados_tenant 
+            WHERE cliente_id = %s AND fijo = TRUE
+        """, (cliente_id,))
+        nombres_fijos_anteriores = [row[0] for row in cur.fetchall()]
+        
+        # 🔹 2. MOVER LEADS de estados eliminados a "Contacto Inicial" (o el primer estado fijo)
         leads_movidos = 0
+        estado_destino = estados[0].get("nombre", "Contacto Inicial") if estados else "Contacto Inicial"
+        
         for estado_eliminado in estados_eliminados:
             cur.execute("""
-                UPDATE leads SET estado = 'Contacto Inicial'
+                UPDATE leads SET estado = %s
                 WHERE cliente_id = %s AND estado = %s
-            """, (cliente_id, estado_eliminado))
+            """, (estado_destino, cliente_id, estado_eliminado))
             leads_movidos += cur.rowcount
         
         if leads_movidos > 0:
-            print(f"✅ {leads_movidos} leads movidos a 'Contacto Inicial'")
+            print(f"✅ {leads_movidos} leads movidos a '{estado_destino}'")
         
-        # 🔹 2. Eliminar estados anteriores (excepto fijos)
+        # 🔹 3. ELIMINAR estados anteriores (excepto fijos)
         cur.execute("""
             DELETE FROM lead_estados_tenant 
             WHERE cliente_id = %s AND fijo = FALSE
         """, (cliente_id,))
         
-        # 🔹 3. Insertar/actualizar estados
+        # 🔹 4. INSERTAR/ACTUALIZAR todos los estados (incluyendo fijos con nombres editados)
         for i, estado in enumerate(estados):
             nombre = estado.get("nombre", "").strip()
             color = estado.get("color", "#1e88e5")
@@ -404,10 +408,24 @@ def guardar_estados_lead():
                     ON CONFLICT (cliente_id, nombre) 
                     DO UPDATE SET color = EXCLUDED.color, orden = EXCLUDED.orden
                 """, (cliente_id, nombre, color, i, fijo))
+                
+                # 🔹 5. Si el nombre de un estado fijo cambió, actualizar leads
+                if fijo and nombre in nombres_fijos_anteriores:
+                    # El nombre es el mismo, no hay que actualizar leads
+                    pass
+                elif fijo and i < len(nombres_fijos_anteriores):
+                    # El nombre cambió, actualizar leads
+                    nombre_anterior = nombres_fijos_anteriores[i]
+                    if nombre_anterior != nombre:
+                        cur.execute("""
+                            UPDATE leads SET estado = %s
+                            WHERE cliente_id = %s AND estado = %s
+                        """, (nombre, cliente_id, nombre_anterior))
+                        print(f"✅ Leads actualizados: '{nombre_anterior}' → '{nombre}'")
         
         conn.commit()
         
-        # 🔹 4. Emitir evento Socket para actualización en tiempo real
+        # 🔹 6. Emitir evento Socket para actualización en tiempo real
         socketio.emit(
             "configuracion_lead_actualizada",
             {
