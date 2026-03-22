@@ -362,8 +362,6 @@
         #kpi-actual.red   { color:#d32f2f; }
         
 
-
-
 /* ============================================================================
 ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
 ============================================================================ */
@@ -377,6 +375,8 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     text-align: center;
     transition: all 0.3s ease-in-out;
     border: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
 }
 
 .leads-column:hover {
@@ -397,7 +397,11 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     border-radius: 5px;
     margin-top: 10px;
     box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.1);
+    flex-grow: 1;
 }
+
+
+
 
 /* Colores dinámicos por estado (se aplican via inline style) */
 [data-estado] {
@@ -525,7 +529,9 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     padding: 10px;
     border-radius: 5px;
     box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-    margin-top: 10px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #ddd;
 }
 
 /* 🔹 Inputs estilizados */
