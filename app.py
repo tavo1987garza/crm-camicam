@@ -393,10 +393,6 @@ def guardar_estados_lead():
             color = estado.get("color", "#1e88e5")
             fijo = estado.get("fijo", False)
             
-            # ⚠️ Saltar el estado fijo (ya existe, no lo tocamos)
-            if nombre == "✅ CONTACTO INICIAL":
-                continue
-            
             if nombre:
                 cur.execute("""
                     INSERT INTO lead_estados_tenant 
@@ -404,7 +400,8 @@ def guardar_estados_lead():
                     VALUES (%s, %s, %s, %s, %s, true)
                     ON CONFLICT (cliente_id, nombre) 
                     DO UPDATE SET color = EXCLUDED.color, orden = EXCLUDED.orden, fijo = EXCLUDED.fijo
-                """, (cliente_id, nombre, color, i, fijo))
+                    -- ↑↑↑ IMPORTANTE: actualizar también 'orden' y 'fijo'
+                """, (cliente_id, nombre, color, i, fijo))  # ← 'i' es el nuevo orden
         
         conn.commit()
         
