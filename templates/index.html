@@ -3111,11 +3111,56 @@ async function guardarEstadosLeadConfig() {
         return;
     }
     
+    // ⚠️ DETECTAR estados eliminados
+    const estadosAnteriores = estadosLeadConfig.map(e => e.nombre);
+    const estadosNuevos = estadosLeadTemp.map(e => e.nombre);
+    const estadosEliminados = estadosAnteriores.filter(e => !estadosNuevos.includes(e));
+    
+    // Si hay estados eliminados, pedir código de seguridad
+    if (estadosEliminados.length > 0) {
+        const codigo = prompt(
+            `⚠️ VAS A ELIMINAR ${estadosEliminados.length} ESTADO(S):\n` +
+            `${estadosEliminados.join(', ')}\n\n` +
+            `Los leads en estos estados se moverán a "Contacto Inicial".\n\n` +
+            `Ingresa tu código de seguridad (4 dígitos) para confirmar:`
+        );
+        
+        // Validar formato del código
+        if (!codigo || !/^\d{4}$/.test(codigo)) {
+            alert('❌ Código inválido. Debe ser un número de 4 dígitos.');
+            return;
+        }
+        
+        // Verificar código con el backend
+        try {
+            const respCodigo = await fetch('/verificar_codigo_seguridad', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo: codigo })
+            });
+            
+            const dataCodigo = await respCodigo.json();
+            
+            if (!dataCodigo.valido) {
+                alert('❌ Código de seguridad incorrecto.');
+                return;
+            }
+        } catch (err) {
+            console.error('Error al verificar código:', err);
+            alert('❌ Error de conexión al verificar código.');
+            return;
+        }
+    }
+    
+    // ✅ Código verificado, proceder con el guardado
     try {
         const resp = await fetch('/leads/estados', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ estados: estadosLeadTemp })
+            body: JSON.stringify({ 
+                estados: estadosLeadTemp,
+                estados_eliminados: estadosEliminados  // ← Enviar estados eliminados al backend
+            })
         });
         
         const data = await resp.json();
@@ -3433,7 +3478,13 @@ socket.on("configuracion_lead_actualizada", data => {
             cargarLeads();
         }
         
-        mostrarNotificacionSuave('📋 Estados de lead actualizados', 'success');
+        // Mostrar notificación con información de leads movidos
+        let mensaje = '📋 Estados de lead actualizados';
+        if (data.leads_movidos && data.leads_movidos > 0) {
+            mensaje += ` (${data.leads_movidos} leads movidos a "Contacto Inicial")`;
+        }
+        
+        mostrarNotificacionSuave(mensaje, 'success');
     }
 });
 

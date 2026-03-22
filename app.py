@@ -23,6 +23,7 @@ from flask import (
 from flask_socketio import SocketIO
 
 
+
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = os.getenv('SECRET_KEY')
@@ -351,6 +352,8 @@ def guardar_estados_lead():
         return jsonify({"error": "No autorizado"}), 401
     
     estados = request.json.get("estados", [])
+    estados_eliminados = request.json.get("estados_eliminados", [])
+    
     if not isinstance(estados, list):
         return jsonify({"error": "Formato inválido"}), 400
     
@@ -369,13 +372,25 @@ def guardar_estados_lead():
     try:
         cur = conn.cursor()
         
-        # Eliminar estados anteriores (excepto fijos)
+        # 🔹 1. MOVER LEADS de estados eliminados a "Contacto Inicial"
+        leads_movidos = 0
+        for estado_eliminado in estados_eliminados:
+            cur.execute("""
+                UPDATE leads SET estado = 'Contacto Inicial'
+                WHERE cliente_id = %s AND estado = %s
+            """, (cliente_id, estado_eliminado))
+            leads_movidos += cur.rowcount
+        
+        if leads_movidos > 0:
+            print(f"✅ {leads_movidos} leads movidos a 'Contacto Inicial'")
+        
+        # 🔹 2. Eliminar estados anteriores (excepto fijos)
         cur.execute("""
             DELETE FROM lead_estados_tenant 
             WHERE cliente_id = %s AND fijo = FALSE
         """, (cliente_id,))
         
-        # Insertar/actualizar estados
+        # 🔹 3. Insertar/actualizar estados
         for i, estado in enumerate(estados):
             nombre = estado.get("nombre", "").strip()
             color = estado.get("color", "#1e88e5")
@@ -392,17 +407,18 @@ def guardar_estados_lead():
         
         conn.commit()
         
-        # Emitir evento Socket para actualización en tiempo real
+        # 🔹 4. Emitir evento Socket para actualización en tiempo real
         socketio.emit(
             "configuracion_lead_actualizada",
             {
                 "tipo": "estados",
                 "cliente_id": cliente_id,
-                "timestamp": datetime.now().isoformat()
-            },
+                "timestamp": datetime.now().isoformat(),
+                "leads_movidos": leads_movidos
+            }
         )
         
-        return jsonify({"ok": True}), 200
+        return jsonify({"ok": True, "leads_movidos": leads_movidos}), 200
     except Exception as e:
         conn.rollback()
         print(f"❌ Error en guardar_estados_lead: {str(e)}")
@@ -411,7 +427,6 @@ def guardar_estados_lead():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
 
 @app.route("/leads/estado/eliminar", methods=["POST"])
 def eliminar_estado_lead():
