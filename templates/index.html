@@ -3174,7 +3174,7 @@ async function cargarEstadosLead() {
 }
 
 // ============================================================================
-// RENDERIZAR COLUMNAS DE LEADS DINÁMICAS
+// RENDERIZAR COLUMNAS DE LEADS DINÁMICAS (SIN BOTÓN DE ELIMINAR)
 // ============================================================================
 function renderizarColumnasLeads() {
     const container = document.getElementById('leads-container');
@@ -3206,16 +3206,10 @@ function renderizarColumnasLeads() {
         columna.style.borderLeft = `5px solid ${estado.color}`;
         columna.style.background = `${estado.color}40`; // 40 = 25% opacity
         
+        // ✅ HTML DE LA COLUMNA (SIN BOTÓN DE ELIMINAR)
         columna.innerHTML = `
             <h3 style="color: ${estado.color}; margin:0 0 10px 0;">${estado.nombre}</h3>
             <div class="leads-list"></div>
-            ${!estado.fijo ? `
-                <button onclick="eliminarEstadoLead('${estado.nombre}')" 
-                    style="margin-top:10px;background:#e74c3c;color:white;border:none;
-                           padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;">
-                    🗑️ Eliminar estado
-                </button>
-            ` : ''}
         `;
         
         // Configurar drag & drop
