@@ -3635,10 +3635,11 @@ socket.on("configuracion_lead_actualizada", data => {
     }
 });
 
+// ✅ DESPUÉS (con emoji + color dinámico)
 socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
     
-    // ✅ Usar el estado que viene del backend
+    // ✅ Usar estado del backend con fallback
     const estado = data.estado || "✅ CONTACTO INICIAL";
     
     const leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
@@ -3653,6 +3654,14 @@ socket.on("nuevo_lead", (data) => {
         leadElement.ondragstart = (event) => drag(event);
         leadElement.onclick = () => abrirModalEditar(data.id, data.nombre, data.telefono, data.notas);
         
+        // ✅ Aplicar color dinámico
+        const columna = document.querySelector(`[data-estado="${estado}"]`);
+        if (columna) {
+            const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+            const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
+            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+        }
+        
         leadElement.innerHTML = `
             <div class="lead-content">
                 <strong class="lead-nombre">${data.nombre}</strong>
@@ -3661,14 +3670,6 @@ socket.on("nuevo_lead", (data) => {
                 </p>
             </div>
         `;
-        
-        // Aplicar color dinámico
-        const columna = document.querySelector(`[data-estado="${estado}"]`);
-        if (columna) {
-            const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-            const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
-        }
         
         leadList.appendChild(leadElement);
         setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
