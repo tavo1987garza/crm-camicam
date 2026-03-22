@@ -3179,6 +3179,7 @@ function renderizarListaEstadosLead() {
     cont.appendChild(btnAgregar);
 }
 
+
 // ============================================================================
 // GUARDAR CONFIGURACIÓN DE ESTADOS (CON DETECCIÓN DE CAMBIOS DE NOMBRE)
 // ============================================================================
@@ -3252,12 +3253,12 @@ async function cargarEstadosLead() {
         estadosLeadConfig = await resp.json();
         console.log('🔍 [DEBUG] estadosLeadConfig recibido:', estadosLeadConfig);
         
-        // Si no hay estados, usar defaults
+        
         if (estadosLeadConfig.length === 0) {
             console.log('⚠️ No hay estados configurados, usando defaults');
             estadosLeadConfig = [
-                { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
-                { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
+                { nombre: "✅ CONTACTO INICIAL", color: "#0281f7", orden: 0, fijo: true },
+                { nombre: "⏳ EN PROCESO", color: "#f9aa01", orden: 1, fijo: false }
             ];
         }
         
@@ -3291,8 +3292,8 @@ function renderizarColumnasLeads() {
     if (!estadosLeadConfig || estadosLeadConfig.length === 0) {
         console.warn('⚠️ No hay estados configurados, usando defaults');
         estadosLeadConfig = [
-            { nombre: "Contacto Inicial", color: "#e3f2fd", orden: 1, fijo: true },
-            { nombre: "En proceso", color: "#fff3e0", orden: 2, fijo: true }
+            { nombre: "✅ CONTACTO INICIAL", color: "#0281f7", orden: 0, fijo: true },
+            { nombre: "⏳ EN PROCESO", color: "#f9aa01", orden: 1, fijo: false }
         ];
     }
     
