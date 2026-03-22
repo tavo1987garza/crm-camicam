@@ -3131,31 +3131,44 @@ function renderizarListaEstadosLead() {
     const cont = document.getElementById('lista-estados-lead');
     if (!cont) return;
     
-    cont.innerHTML = estadosLeadTemp.map((estado, idx) => `
-        <div class="panel-card" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;">
-            <!-- ✅ QUITAR disabled del input de nombre (ahora es editable) -->
-            <input type="text" value="${estado.nombre}" 
-                oninput="estadosLeadTemp[${idx}].nombre=this.value"
-                style="flex:2;padding:8px;border:1px solid #ddd;border-radius:4px;">
-            
-            <input type="color" value="${estado.color}" 
-                oninput="estadosLeadTemp[${idx}].color=this.value"
-                style="width:50px;height:40px;border:none;cursor:pointer;">
-            
-            <span style="font-size:12px;color:#7f8c8d;">
-                ${estado.fijo ? '🔒 Fijo (no eliminable)' : ''}
-            </span>
-            
-            ${!estado.fijo ? `
-                <button onclick="estadosLeadTemp.splice(${idx},1);renderizarListaEstadosLead()"
-                    style="background:#e74c3c;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;">
-                    🗑️
-                </button>
-            ` : ''}
-        </div>
-    `).join('');
+    cont.innerHTML = estadosLeadTemp.map((estado, idx) => {
+        // ✅ Estado fijo: nombre disabled, sin botón de eliminar
+        if (estado.nombre === '✅ CONTACTO INICIAL') {
+            return `
+                <div class="panel-card" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;opacity:0.7;">
+                    <input type="text" value="${estado.nombre}" disabled
+                        style="flex:2;padding:8px;border:1px solid #ddd;border-radius:4px;background:#f5f5f5;">
+                    
+                    <input type="color" value="${estado.color}" disabled
+                        style="width:50px;height:40px;border:none;cursor:not-allowed;opacity:0.5;">
+                    
+                    <span style="font-size:12px;color:#7f8c8d;">🔒 Fijo</span>
+                </div>
+            `;
+        }
+        
+        // ✅ Estados personalizables: editables y eliminables
+        return `
+            <div class="panel-card" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;">
+                <input type="text" value="${estado.nombre}" 
+                    oninput="estadosLeadTemp[${idx}].nombre=this.value"
+                    style="flex:2;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                
+                <input type="color" value="${estado.color}" 
+                    oninput="estadosLeadTemp[${idx}].color=this.value"
+                    style="width:50px;height:40px;border:none;cursor:pointer;">
+                
+                ${!estado.fijo ? `
+                    <button onclick="estadosLeadTemp.splice(${idx},1);renderizarListaEstadosLead()"
+                        style="background:#e74c3c;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;">
+                        🗑️
+                    </button>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
     
-    // Agregar botón para agregar estado
+    // Botón para agregar estado personalizado
     const btnAgregar = document.createElement('button');
     btnAgregar.textContent = '➕ Agregar estado';
     btnAgregar.onclick = () => {
@@ -3170,50 +3183,26 @@ function renderizarListaEstadosLead() {
 // GUARDAR CONFIGURACIÓN DE ESTADOS (CON DETECCIÓN DE CAMBIOS DE NOMBRE)
 // ============================================================================
 async function guardarEstadosLeadConfig() {
-    // Validar que haya al menos 2 estados (los fijos)
-    if (estadosLeadTemp.length < 2) {
-        alert('⚠️ Se requieren al menos 2 estados');
+    // ✅ VALIDAR que exista el estado fijo
+    const tieneContactoInicial = estadosLeadTemp.some(e => e.nombre === '✅ CONTACTO INICIAL');
+    if (!tieneContactoInicial) {
+        alert('⚠️ El estado "✅ CONTACTO INICIAL" es requerido y no se puede eliminar');
         return;
     }
     
-    // ✅ DETECTAR estados eliminados
+    // Detectar estados eliminados
     const estadosAnteriores = estadosLeadConfig.map(e => e.nombre);
     const estadosNuevos = estadosLeadTemp.map(e => e.nombre);
     const estadosEliminados = estadosAnteriores.filter(e => !estadosNuevos.includes(e));
     
-    // ✅ DETECTAR cambios de nombre en estados fijos
-    const cambiosNombre = [];
-    estadosLeadConfig.forEach((estadoAnterior, idx) => {
-        if (estadoAnterior.fijo && estadosLeadTemp[idx]) {
-            if (estadoAnterior.nombre !== estadosLeadTemp[idx].nombre) {
-                cambiosNombre.push({
-                    anterior: estadoAnterior.nombre,
-                    nuevo: estadosLeadTemp[idx].nombre
-                });
-            }
-        }
-    });
-    
-    // Si hay cambios importantes, pedir confirmación
-    if (estadosEliminados.length > 0 || cambiosNombre.length > 0) {
-        let mensajeConfirmacion = '⚠️ CAMBIOS DETECTADOS:\n\n';
-        
-        if (cambiosNombre.length > 0) {
-            mensajeConfirmacion += '📝 Nombres cambiados:\n';
-            cambiosNombre.forEach(c => {
-                mensajeConfirmacion += `  • "${c.anterior}" → "${c.nuevo}"\n`;
-            });
-            mensajeConfirmacion += '\n';
-        }
-        
-        if (estadosEliminados.length > 0) {
-            mensajeConfirmacion += `🗑️ Estados eliminados: ${estadosEliminados.join(', ')}\n`;
-            mensajeConfirmacion += 'Los leads en estos estados se moverán al primer estado disponible.\n\n';
-        }
-        
-        mensajeConfirmacion += '¿Continuar?';
-        
-        const confirmacion = confirm(mensajeConfirmacion);
+    // Confirmación si hay eliminaciones
+    if (estadosEliminados.length > 0) {
+        const confirmacion = confirm(
+            `⚠️ Vas a eliminar ${estadosEliminados.length} estado(s):\n` +
+            `${estadosEliminados.join(', ')}\n\n` +
+            `Los leads se moverán a "✅ CONTACTO INICIAL".\n\n` +
+            `¿Continuar?`
+        );
         if (!confirmacion) return;
     }
     
@@ -3230,14 +3219,14 @@ async function guardarEstadosLeadConfig() {
         const data = await resp.json();
         
         if (data.ok) {
-            let mensaje = '✅ Estados actualizados';
-            if (data.leads_movidos && data.leads_movidos > 0) {
-                mensaje += ` (${data.leads_movidos} leads actualizados)`;
+            let msg = '✅ Estados actualizados';
+            if (data.leads_movidos > 0) {
+                msg += ` (${data.leads_movidos} leads actualizados)`;
             }
-            mostrarNotificacionSuave(mensaje, 'success');
+            mostrarNotificacionSuave(msg, 'success');
             setTimeout(() => {
                 cerrarModalEstadosLead();
-                cargarLeads();  // Recargar vista
+                cargarLeads();
             }, 800);
         } else {
             mostrarNotificacionSuave('❌ Error: ' + (data.error || 'desconocido'), 'error');
@@ -3247,7 +3236,6 @@ async function guardarEstadosLeadConfig() {
         mostrarNotificacionSuave('❌ Error de conexión', 'error');
     }
 }
-
 
 // ============================================================================
 // CARGAR ESTADOS DE LEADS DESDE EL BACKEND
@@ -3333,8 +3321,9 @@ function renderizarColumnasLeads() {
         console.log(`✅ Columna creada: ${estado.nombre}`);
     });
     
-    // Agregar formulario en la columna "Contacto Inicial"
-    const columnaInicial = document.querySelector('[data-estado="Contacto Inicial"]');
+
+    // ✅ Agregar formulario SOLO en la columna "✅ CONTACTO INICIAL" (hardcodeado)
+    const columnaInicial = document.querySelector('[data-estado="✅ CONTACTO INICIAL"]');
     if (columnaInicial && !columnaInicial.querySelector('#toggle-form')) {
         const formContainer = document.createElement('div');
         formContainer.className = 'form-container';
@@ -3348,7 +3337,7 @@ function renderizarColumnasLeads() {
             </div>
         `;
         columnaInicial.appendChild(formContainer);
-        console.log('✅ Formulario agregado en "Contacto Inicial"');
+        console.log('✅ Formulario agregado en "✅ CONTACTO INICIAL"');
     }
     
     console.log('✅ Columnas de leads renderizadas:', document.querySelectorAll('.leads-column').length);
@@ -3642,25 +3631,39 @@ function actualizarUltimoMensajeLead(telefono, mensaje) {
 
 socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
-
-    let estado = "Contacto Inicial";
-    let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
-
+    
+    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
+    const estado = "✅ CONTACTO INICIAL";
+    
+    const leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+    
     if (leadList) {
-        let leadElement = document.createElement("div");
+        const leadElement = document.createElement("div");
         leadElement.classList.add("lead", "lead-nuevo");
-        leadElement.setAttribute("data-id", data.id);        // ✅ AGREGA ESTA LÍNEA
+        leadElement.setAttribute("data-id", data.id);
         leadElement.setAttribute("data-telefono", data.telefono);
-
+        leadElement.setAttribute("data-estado-original", estado);
+        leadElement.setAttribute("draggable", "true");
+        leadElement.ondragstart = (event) => drag(event);
+        leadElement.onclick = () => abrirModalEditar(data.id, data.nombre, data.telefono, data.notas);
+        
         leadElement.innerHTML = `
-            <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
+            <div class="lead-content">
                 <strong class="lead-nombre">${data.nombre}</strong>
                 <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${data.telefono}')">
-                    ${data.ultimo_mensaje ? data.ultimo_mensaje : "No hay mensajes recientes"}
+                    ${data.ultimo_mensaje || "No hay mensajes recientes"}
                 </p>
             </div>
         `;
-
+        
+        // ✅ Aplicar color dinámico de la columna
+        const columna = document.querySelector(`[data-estado="${estado}"]`);
+        if (columna) {
+            const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+            const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
+            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+        }
+        
         leadList.appendChild(leadElement);
         setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
     }
@@ -4094,39 +4097,47 @@ function drop(event, nuevoEstado) {
 
         
 
-        function crearLead() {
-            let nombre = document.getElementById("lead-nombre").value.trim();
-            let telefono = document.getElementById("lead-telefono").value.trim();
-            let notas = document.getElementById("lead-notas").value.trim();
-        
-            if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
-                alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
-                return;
-            }
-        
-            fetch("/crear_lead", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nombre, telefono, notas })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert("Error al crear lead: " + data.error);
-                } else {
-                    alert(data.mensaje);
-                    cargarLeads();
-                    document.getElementById("lead-nombre").value = "";
-                    document.getElementById("lead-telefono").value = "";
-                    document.getElementById("lead-notas").value = "";
-                    toggleFormulario();
-                }
-            })
-            .catch(error => {
-                console.error("❌ Error al crear lead:", error);
-                alert("Error al crear lead. Inténtalo de nuevo.");
-            });
+function crearLead() {
+    let nombre = document.getElementById("lead-nombre").value.trim();
+    let telefono = document.getElementById("lead-telefono").value.trim();
+    let notas = document.getElementById("lead-notas").value.trim();
+    
+    if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
+        alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
+        return;
+    }
+    
+    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
+    const estadoInicial = "✅ CONTACTO INICIAL";
+    
+    fetch("/crear_lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            nombre, 
+            telefono, 
+            notas,
+            estado: estadoInicial  // ✅ Enviar estado hardcodeado
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert("Error al crear lead: " + data.error);
+        } else {
+            alert(data.mensaje);
+            cargarLeads();
+            document.getElementById("lead-nombre").value = "";
+            document.getElementById("lead-telefono").value = "";
+            document.getElementById("lead-notas").value = "";
+            toggleFormulario();
         }
+    })
+    .catch(error => {
+        console.error("❌ Error al crear lead:", error);
+        alert("Error al crear lead. Inténtalo de nuevo.");
+    });
+}
 
         function toggleFormulario() {
             let form = document.getElementById("lead-form");

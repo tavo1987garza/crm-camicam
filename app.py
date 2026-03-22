@@ -345,7 +345,7 @@ def obtener_estados_lead():
 
 @app.route("/leads/estados", methods=["POST"])
 def guardar_estados_lead():
-    """Guardar configuración de estados del tenant"""
+    """Guardar configuración de estados del tenant (ENFOQUE SIMPLIFICADO)"""
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 401
@@ -356,9 +356,10 @@ def guardar_estados_lead():
     if not isinstance(estados, list):
         return jsonify({"error": "Formato inválido"}), 400
     
-    # ✅ VALIDAR que existan al menos 2 estados (los fijos, aunque cambien de nombre)
-    if len(estados) < 2:
-        return jsonify({"error": "Se requieren al menos 2 estados"}), 400
+    # ✅ VALIDAR que exista al menos el estado fijo "✅ CONTACTO INICIAL"
+    nombres_estados = [e.get("nombre", "").strip() for e in estados]
+    if "✅ CONTACTO INICIAL" not in nombres_estados:
+        return jsonify({"error": "El estado '✅ CONTACTO INICIAL' es requerido"}), 400
     
     conn = conectar_db()
     if not conn:
@@ -367,38 +368,33 @@ def guardar_estados_lead():
     try:
         cur = conn.cursor()
         
-        # 🔹 1. OBTENER nombres anteriores de estados fijos (para actualizar leads)
-        cur.execute("""
-            SELECT nombre FROM lead_estados_tenant 
-            WHERE cliente_id = %s AND fijo = TRUE
-        """, (cliente_id,))
-        nombres_fijos_anteriores = [row[0] for row in cur.fetchall()]
-        
-        # 🔹 2. MOVER LEADS de estados eliminados a "Contacto Inicial" (o el primer estado fijo)
+        # 🔹 1. MOVER LEADS de estados eliminados a "✅ CONTACTO INICIAL"
         leads_movidos = 0
-        estado_destino = estados[0].get("nombre", "Contacto Inicial") if estados else "Contacto Inicial"
-        
         for estado_eliminado in estados_eliminados:
             cur.execute("""
-                UPDATE leads SET estado = %s
+                UPDATE leads SET estado = '✅ CONTACTO INICIAL'
                 WHERE cliente_id = %s AND estado = %s
-            """, (estado_destino, cliente_id, estado_eliminado))
+            """, (cliente_id, estado_eliminado))
             leads_movidos += cur.rowcount
         
         if leads_movidos > 0:
-            print(f"✅ {leads_movidos} leads movidos a '{estado_destino}'")
+            print(f"✅ {leads_movidos} leads movidos a '✅ CONTACTO INICIAL'")
         
-        # 🔹 3. ELIMINAR estados anteriores (excepto fijos)
+        # 🔹 2. ELIMINAR estados personalizados que ya no existen
         cur.execute("""
             DELETE FROM lead_estados_tenant 
-            WHERE cliente_id = %s AND fijo = FALSE
-        """, (cliente_id,))
+            WHERE cliente_id = %s AND fijo = FALSE AND nombre NOT IN %s
+        """, (cliente_id, tuple(nombres_estados)))
         
-        # 🔹 4. INSERTAR/ACTUALIZAR todos los estados (incluyendo fijos con nombres editados)
+        # 🔹 3. INSERTAR/ACTUALIZAR estados personalizados (NO el fijo)
         for i, estado in enumerate(estados):
             nombre = estado.get("nombre", "").strip()
             color = estado.get("color", "#1e88e5")
             fijo = estado.get("fijo", False)
+            
+            # ⚠️ Saltar el estado fijo (ya existe, no lo tocamos)
+            if nombre == "✅ CONTACTO INICIAL":
+                continue
             
             if nombre:
                 cur.execute("""
@@ -406,26 +402,12 @@ def guardar_estados_lead():
                     (cliente_id, nombre, color, orden, fijo, activo)
                     VALUES (%s, %s, %s, %s, %s, true)
                     ON CONFLICT (cliente_id, nombre) 
-                    DO UPDATE SET color = EXCLUDED.color, orden = EXCLUDED.orden
+                    DO UPDATE SET color = EXCLUDED.color, orden = EXCLUDED.orden, fijo = EXCLUDED.fijo
                 """, (cliente_id, nombre, color, i, fijo))
-                
-                # 🔹 5. Si el nombre de un estado fijo cambió, actualizar leads
-                if fijo and nombre in nombres_fijos_anteriores:
-                    # El nombre es el mismo, no hay que actualizar leads
-                    pass
-                elif fijo and i < len(nombres_fijos_anteriores):
-                    # El nombre cambió, actualizar leads
-                    nombre_anterior = nombres_fijos_anteriores[i]
-                    if nombre_anterior != nombre:
-                        cur.execute("""
-                            UPDATE leads SET estado = %s
-                            WHERE cliente_id = %s AND estado = %s
-                        """, (nombre, cliente_id, nombre_anterior))
-                        print(f"✅ Leads actualizados: '{nombre_anterior}' → '{nombre}'")
         
         conn.commit()
         
-        # 🔹 6. Emitir evento Socket para actualización en tiempo real
+        # 🔹 4. Emitir evento Socket
         socketio.emit(
             "configuracion_lead_actualizada",
             {
@@ -445,7 +427,7 @@ def guardar_estados_lead():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-
+        
 @app.route("/leads/estado/eliminar", methods=["POST"])
 def eliminar_estado_lead():
     """Eliminar un estado personalizado (no fijo)"""
