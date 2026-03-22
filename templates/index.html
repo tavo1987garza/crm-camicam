@@ -3640,9 +3640,6 @@ function actualizarUltimoMensajeLead(telefono, mensaje) {
 }
 
 
-// ============================================================================
-// SOCKET LISTENER: NUEVO LEAD (CON ESTADO DINÁMICO)
-// ============================================================================
 socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
     
@@ -3684,8 +3681,7 @@ socket.on("nuevo_lead", (data) => {
         console.log(`✅ Lead agregado a la columna: ${estado}`);
     } else {
         console.warn(`⚠️ No se encontró columna para estado: ${estado}`);
-        // Fallback: recargar toda la vista
-        cargarLeads();
+        cargarLeads();  // Fallback: recargar toda la vista
     }
 });
 
@@ -4114,10 +4110,6 @@ function drop(event, nuevoEstado) {
         });
 
 
-// ✅ DESPUÉS (obtiene el primer estado fijo dinámicamente)
-// ============================================================================
-// CREAR LEAD (CON ESTADO DINÁMICO)
-// ============================================================================
 function crearLead() {
     let nombre = document.getElementById("lead-nombre").value.trim();
     let telefono = document.getElementById("lead-telefono").value.trim();
@@ -4150,7 +4142,7 @@ function crearLead() {
             alert("Error al crear lead: " + data.error);
         } else {
             alert(data.mensaje);
-            cargarLeads();  // Recargar para mostrar el nuevo lead
+            cargarLeads();
             document.getElementById("lead-nombre").value = "";
             document.getElementById("lead-telefono").value = "";
             document.getElementById("lead-notas").value = "";
