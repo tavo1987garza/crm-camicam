@@ -3209,13 +3209,6 @@ function renderizarColumnasLeads() {
         columna.innerHTML = `
             <h3 style="color: ${estado.color}; margin:0 0 10px 0;">${estado.nombre}</h3>
             <div class="leads-list"></div>
-            ${!estado.fijo ? `
-                <button onclick="eliminarEstadoLead('${estado.nombre}')" 
-                    style="margin-top:10px;background:#e74c3c;color:white;border:none;
-                           padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;">
-                    🗑️ Eliminar estado
-                </button>
-            ` : ''}
         `;
         
         // Configurar drag & drop
