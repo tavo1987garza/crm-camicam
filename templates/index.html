@@ -3640,32 +3640,54 @@ function actualizarUltimoMensajeLead(telefono, mensaje) {
 }
 
 
+// ============================================================================
+// SOCKET LISTENER: NUEVO LEAD (CON ESTADO DINÁMICO)
+// ============================================================================
 socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
-
-    let estado = "Contacto Inicial";
-    let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
-
+    
+    // ✅ Usar el estado que viene del backend (no hardcodeado)
+    const estado = data.estado || "Contacto Inicial";
+    
+    const leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+    
     if (leadList) {
-        let leadElement = document.createElement("div");
+        const leadElement = document.createElement("div");
         leadElement.classList.add("lead", "lead-nuevo");
-        leadElement.setAttribute("data-id", data.id);        // ✅ AGREGA ESTA LÍNEA
+        leadElement.setAttribute("data-id", data.id);
         leadElement.setAttribute("data-telefono", data.telefono);
-
+        leadElement.setAttribute("data-estado-original", estado);
+        leadElement.setAttribute("draggable", "true");
+        leadElement.ondragstart = (event) => drag(event);
+        leadElement.onclick = () => abrirModalEditar(data.id, data.nombre, data.telefono, data.notas);
+        
         leadElement.innerHTML = `
-            <div class="lead-content" onclick="abrirModalEditar('${data.id}', '${data.nombre}', '${data.telefono}', '${data.notas || ""}')">
+            <div class="lead-content">
                 <strong class="lead-nombre">${data.nombre}</strong>
                 <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${data.telefono}')">
                     ${data.ultimo_mensaje ? data.ultimo_mensaje : "No hay mensajes recientes"}
                 </p>
             </div>
         `;
-
+        
+        // ✅ Aplicar color dinámico según la columna
+        const columna = document.querySelector(`[data-estado="${estado}"]`);
+        if (columna) {
+            const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+            const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
+            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+        }
+        
         leadList.appendChild(leadElement);
         setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+        
+        console.log(`✅ Lead agregado a la columna: ${estado}`);
+    } else {
+        console.warn(`⚠️ No se encontró columna para estado: ${estado}`);
+        // Fallback: recargar toda la vista
+        cargarLeads();
     }
 });
-
 
 // ============================================================================
 // LISTENER SOCKET: LEAD ESTADO ACTUALIZADO (CON COLOR DINÁMICO)
@@ -4093,7 +4115,10 @@ function drop(event, nuevoEstado) {
 
 
 // ✅ DESPUÉS (obtiene el primer estado fijo dinámicamente)
-async function crearLead() {
+// ============================================================================
+// CREAR LEAD (CON ESTADO DINÁMICO)
+// ============================================================================
+function crearLead() {
     let nombre = document.getElementById("lead-nombre").value.trim();
     let telefono = document.getElementById("lead-telefono").value.trim();
     let notas = document.getElementById("lead-notas").value.trim();
@@ -4103,9 +4128,11 @@ async function crearLead() {
         return;
     }
     
-    // ✅ Obtener el primer estado fijo desde la configuración cargada
+    // ✅ Obtener el PRIMER estado fijo desde la configuración cargada
     const primerEstado = estadosLeadConfig.find(e => e.fijo && e.orden === 0);
     const estadoInicial = primerEstado ? primerEstado.nombre : 'Contacto Inicial';
+    
+    console.log('📋 Creando lead con estado:', estadoInicial);
     
     fetch("/crear_lead", {
         method: "POST",
@@ -4123,7 +4150,7 @@ async function crearLead() {
             alert("Error al crear lead: " + data.error);
         } else {
             alert(data.mensaje);
-            cargarLeads();
+            cargarLeads();  // Recargar para mostrar el nuevo lead
             document.getElementById("lead-nombre").value = "";
             document.getElementById("lead-telefono").value = "";
             document.getElementById("lead-notas").value = "";

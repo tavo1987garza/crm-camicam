@@ -886,10 +886,24 @@ def crear_lead():
     nombre = datos.get("nombre")
     telefono = datos.get("telefono")
     notas = datos.get("notas", "")
-    estado = datos.get("estado", "Contacto Inicial")  # ✅ Estado dinámico con fallback
+    estado = datos.get("estado")  # ✅ Sin fallback fijo
     
     if not nombre or not telefono or not validar_telefono(telefono):
         return jsonify({"error": "El teléfono debe tener 13 dígitos"}), 400
+    
+    # ✅ Si no se envía estado, obtener el primer estado fijo disponible
+    if not estado:
+        conn = conectar_db()
+        if conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT nombre FROM lead_estados_tenant 
+                WHERE cliente_id = %s AND fijo = TRUE 
+                ORDER BY orden ASC LIMIT 1
+            """, (cliente_id,))
+            row = cur.fetchone()
+            estado = row[0] if row else "Contacto Inicial"
+            liberar_db(conn)
     
     try:
         conn = conectar_db()
@@ -897,6 +911,16 @@ def crear_lead():
             return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
         
         cursor = conn.cursor()
+        
+        # ✅ Validar que el estado existe para este tenant
+        cursor.execute("""
+            SELECT nombre FROM lead_estados_tenant 
+            WHERE cliente_id = %s AND nombre = %s
+        """, (cliente_id, estado))
+        
+        if not cursor.fetchone():
+            return jsonify({"error": f"El estado '{estado}' no existe"}), 400
+        
         cursor.execute("""
             INSERT INTO leads (nombre, telefono, estado, notas, cliente_id)
             VALUES (%s, %s, %s, %s, %s)
@@ -925,7 +949,7 @@ def crear_lead():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-        
+               
 # 📌 Ruta para eliminar un lead
 @app.route("/eliminar_lead", methods=["POST"])
 def eliminar_lead():
