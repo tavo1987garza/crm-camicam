@@ -3364,9 +3364,10 @@ function crearLead() {
             nombre, 
             telefono, 
             notas,
-            estado: estadoInicial  // ✅ Enviar estado hardcodeado
+            estado: "✅ CONTACTO INICIAL"   // ✅ Enviar estado hardcodeado
         })
     })
+
     .then(response => response.json())
     .then(data => {
         if (data.error) {
@@ -3555,10 +3556,9 @@ socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
     
     // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
-    const estado = "✅ CONTACTO INICIAL";
-    
-    const leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
-    
+    let estado = "✅ CONTACTO INICIAL";
+    let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+
     if (leadList) {
         const leadElement = document.createElement("div");
         leadElement.classList.add("lead", "lead-nuevo");
