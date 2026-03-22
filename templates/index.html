@@ -362,13 +362,35 @@
         #kpi-actual.red   { color:#d32f2f; }
         
 
+
+
+
+
+
+
+
+
+
+
+/* ───── Estilos para el Contenedor principal de Leads──── */
 /* ============================================================================
-ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
+ESTILOS UNIFORMES PARA COLUMNAS DE LEADS (ANCHO IGUAL)
 ============================================================================ */
+.leads-container {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-start;
+    align-items: flex-start;
+    overflow-x: auto;
+    padding: 10px;
+}
+
 .leads-column {
-    min-width: 200px;
-    max-width: 250px;
-    flex-grow: 1;
+    /* ✅ ANCHO FIJO Y UNIFORME PARA TODAS LAS COLUMNAS */
+    flex: 0 0 220px;  /* flex-grow: 0, flex-shrink: 0, flex-basis: 220px */
+    min-width: 220px;
+    max-width: 220px;
+    
     padding: 15px;
     border-radius: 10px;
     box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
@@ -377,17 +399,21 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     border: 1px solid #e0e0e0;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;  /* ✅ Importante: padding no afecta el ancho */
 }
 
 .leads-column:hover {
-    transform: scale(1.02);
-    box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.15);
 }
 
 .leads-column h3 {
     margin: 0 0 10px 0;
     font-size: 14px;
     font-weight: 600;
+    white-space: nowrap;  /* ✅ Evita que el título se rompa en múltiples líneas */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .leads-list {
@@ -397,11 +423,10 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
     border-radius: 5px;
     margin-top: 10px;
     box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.1);
-    flex-grow: 1;
+    flex-grow: 1;  /* ✅ Ocupa el espacio disponible */
+    overflow-y: auto;
+    max-height: 500px;  /* ✅ Límite de altura para scroll */
 }
-
-
-
 
 /* Colores dinámicos por estado (se aplican via inline style) */
 [data-estado] {
@@ -411,15 +436,12 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
 
 
 
-/* ───── Estilos para el Contenedor principal de Leads──── */
-       
-.leads-container {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding: 10px;
-    justify-content: center; /* Centra las columnas */
-}
+
+
+
+
+
+
 
 /* 🔹 Estilo de cada Lead. Transparentes inicialmente */
 .lead {
@@ -523,16 +545,32 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
 }
 
 
-/* 🔹 Formulario para agregar lead */
+
+
+
+/* ✅ Form container no debe afectar el ancho de la columna */
 .form-container {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #ddd;
+    width: 100%;  /* ✅ Asegura que no exceda el ancho de la columna */
+    box-sizing: border-box;
     background: white;
     padding: 10px;
     border-radius: 5px;
     box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px dashed #ddd;
 }
+
+
+.form-container button,
+.form-container input,
+.form-container textarea {
+    width: 100%;  /* ✅ Todos los elementos del formulario al 100% del ancho */
+    box-sizing: border-box;
+}
+
+
+
 
 /* 🔹 Inputs estilizados */
 .form-container input {
@@ -995,6 +1033,7 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
                 width: 100%;
             }
         }*/
+
         
         /* 🔹 Media Query para hacer que siempre sea de dos columnas */
 @media (max-width: 1024px) {
@@ -1025,6 +1064,23 @@ ESTILOS PARA COLUMNAS DE LEADS DINÁMICAS
         min-width: 300px;
     }
 }
+
+
+        /* ✅ Responsive: en pantallas pequeñas, permitir que las columnas se ajusten */
+@media (max-width: 768px) {
+    .leads-column {
+        flex: 0 0 180px;
+        min-width: 180px;
+        max-width: 180px;
+    }
+}
+
+
+
+
+
+
+
 
 
 /* =========================================
