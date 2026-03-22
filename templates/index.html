@@ -3198,13 +3198,16 @@ function renderizarListaEstadosLead() {
 }
 
 // ============================================================================
-// DRAG & DROP PARA REORDENAR ESTADOS EN EL MODAL
+// DRAG & DROP PARA REORDENAR ESTADOS EN EL MODAL (CORREGIDO)
 // ============================================================================
 let dragEstadoIdx = null;
 
 function dragStartEstado(event, idx) {
     dragEstadoIdx = idx;
-    event.target.style.opacity = '0.5';
+    const row = event.target.closest('.estado-row');
+    if (row) {
+        row.style.opacity = '0.5';
+    }
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', idx);
 }
@@ -3212,18 +3215,21 @@ function dragStartEstado(event, idx) {
 function dragOverEstado(event) {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-    // Feedback visual
-    event.target.closest('.estado-row')?.style.background = '#e3f2fd';
+    // ✅ Feedback visual - SIN optional chaining en asignación
+    const row = event.target.closest('.estado-row');
+    if (row && !row.classList.contains('fixed')) {
+        row.style.background = '#e3f2fd';
+    }
 }
 
 function dropEstado(event, targetIdx) {
     event.preventDefault();
     
-    // Restaurar estilos
+    // ✅ Restaurar estilos - SIN optional chaining en asignación
     document.querySelectorAll('.estado-row').forEach(row => {
         row.style.background = '';
+        row.style.opacity = '1';
     });
-    event.target.closest('.estado-row')?.style.setProperty('opacity', '1');
     
     if (dragEstadoIdx === null || dragEstadoIdx === targetIdx) return;
     
@@ -3240,10 +3246,11 @@ function dropEstado(event, targetIdx) {
 
 // Limpiar estilos si el drag termina sin drop
 document.addEventListener('dragend', (event) => {
-    if (event.target.classList.contains('estado-row')) {
-        event.target.style.opacity = '1';
-        document.querySelectorAll('.estado-row').forEach(row => {
-            row.style.background = '';
+    const row = event.target.closest('.estado-row');
+    if (row) {
+        row.style.opacity = '1';
+        document.querySelectorAll('.estado-row').forEach(r => {
+            r.style.background = '';
         });
     }
 });
