@@ -3261,7 +3261,7 @@ async function cargarLeads() {
                 const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
                 if (columna) {
                     const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-                    const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
+                    const colorColumna = colorMatch ? colorMatch[0] : '#c7a921';
                     leadElement.style.background = `${colorColumna}40`;
                 }
                 
