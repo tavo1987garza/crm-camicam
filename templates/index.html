@@ -3127,48 +3127,54 @@ function cerrarModalEstadosLead() {
 // ============================================================================
 // RENDERIZAR LISTA DE ESTADOS EN EL MODAL (CON NOMBRES EDITABLES)
 // ============================================================================
+// ============================================================================
+// RENDERIZAR LISTA DE ESTADOS EN EL MODAL (CON DRAG & DROP)
+// ============================================================================
 function renderizarListaEstadosLead() {
     const cont = document.getElementById('lista-estados-lead');
     if (!cont) return;
     
     cont.innerHTML = estadosLeadTemp.map((estado, idx) => {
-        // ✅ Estado fijo: nombre disabled, sin botón de eliminar
-        if (estado.nombre === '✅ CONTACTO INICIAL') {
+        // ✅ Estado FIJO (no draggable)
+        if (estado.fijo || estado.nombre === '✅ CONTACTO INICIAL') {
             return `
-                <div class="panel-card" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;opacity:0.7;">
+                <div class="panel-card estado-row fixed" 
+                    style="margin-bottom:10px;display:flex;gap:10px;align-items:center;opacity:0.7;background:#f5f5f5;">
+                    <span class="drag-handle" style="cursor:not-allowed;opacity:0.3;font-size:18px;">☰</span>
                     <input type="text" value="${estado.nombre}" disabled
-                        style="flex:2;padding:8px;border:1px solid #ddd;border-radius:4px;background:#f5f5f5;">
-                    
+                        style="flex:2;padding:8px;border:1px solid #ddd;border-radius:4px;background:#e0e0e0;">
                     <input type="color" value="${estado.color}" disabled
                         style="width:50px;height:40px;border:none;cursor:not-allowed;opacity:0.5;">
-                    
                     <span style="font-size:12px;color:#7f8c8d;">🔒 Fijo</span>
                 </div>
             `;
         }
         
-        // ✅ Estados personalizables: editables y eliminables
+        // ✅ Estados PERSONALIZADOS (draggable)
         return `
-            <div class="panel-card" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;">
+            <div class="panel-card estado-row draggable" 
+                draggable="true"
+                data-idx="${idx}"
+                ondragstart="dragStartEstado(event, ${idx})"
+                ondragover="dragOverEstado(event)"
+                ondrop="dropEstado(event, ${idx})"
+                style="margin-bottom:10px;display:flex;gap:10px;align-items:center;cursor:grab;transition: background 0.2s;">
+                <span class="drag-handle" style="cursor:grab;font-size:18px;color:#7f8c8d;">☰</span>
                 <input type="text" value="${estado.nombre}" 
                     oninput="estadosLeadTemp[${idx}].nombre=this.value"
                     style="flex:2;padding:8px;border:1px solid #ddd;border-radius:4px;">
-                
                 <input type="color" value="${estado.color}" 
                     oninput="estadosLeadTemp[${idx}].color=this.value"
                     style="width:50px;height:40px;border:none;cursor:pointer;">
-                
-                ${!estado.fijo ? `
-                    <button onclick="estadosLeadTemp.splice(${idx},1);renderizarListaEstadosLead()"
-                        style="background:#e74c3c;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;">
-                        🗑️
-                    </button>
-                ` : ''}
+                <button onclick="estadosLeadTemp.splice(${idx},1);renderizarListaEstadosLead()"
+                    style="background:#e74c3c;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;">
+                    🗑️
+                </button>
             </div>
         `;
     }).join('');
     
-    // Botón para agregar estado personalizado
+    // Agregar botón para agregar estado
     const btnAgregar = document.createElement('button');
     btnAgregar.textContent = '➕ Agregar estado';
     btnAgregar.onclick = () => {
@@ -3179,17 +3185,73 @@ function renderizarListaEstadosLead() {
     cont.appendChild(btnAgregar);
 }
 
+// ============================================================================
+// DRAG & DROP PARA REORDENAR ESTADOS EN EL MODAL
+// ============================================================================
+let dragEstadoIdx = null;
+
+function dragStartEstado(event, idx) {
+    dragEstadoIdx = idx;
+    event.target.style.opacity = '0.5';
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', idx);
+}
+
+function dragOverEstado(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    // Feedback visual
+    event.target.closest('.estado-row')?.style.background = '#e3f2fd';
+}
+
+function dropEstado(event, targetIdx) {
+    event.preventDefault();
+    
+    // Restaurar estilos
+    document.querySelectorAll('.estado-row').forEach(row => {
+        row.style.background = '';
+    });
+    event.target.closest('.estado-row')?.style.setProperty('opacity', '1');
+    
+    if (dragEstadoIdx === null || dragEstadoIdx === targetIdx) return;
+    
+    // Intercambiar posiciones en el array
+    const elementoMovido = estadosLeadTemp[dragEstadoIdx];
+    estadosLeadTemp.splice(dragEstadoIdx, 1);
+    estadosLeadTemp.splice(targetIdx, 0, elementoMovido);
+    
+    // Re-renderizar para mostrar nuevo orden
+    renderizarListaEstadosLead();
+    
+    dragEstadoIdx = null;
+}
+
+// Limpiar estilos si el drag termina sin drop
+document.addEventListener('dragend', (event) => {
+    if (event.target.classList.contains('estado-row')) {
+        event.target.style.opacity = '1';
+        document.querySelectorAll('.estado-row').forEach(row => {
+            row.style.background = '';
+        });
+    }
+});
+
 
 // ============================================================================
-// GUARDAR CONFIGURACIÓN DE ESTADOS (CON DETECCIÓN DE CAMBIOS DE NOMBRE)
+// GUARDAR CONFIGURACIÓN DE ESTADOS (CON ORDEN ACTUALIZADO)
 // ============================================================================
 async function guardarEstadosLeadConfig() {
-    // ✅ VALIDAR que exista el estado fijo
+    // Validar que exista el estado fijo
     const tieneContactoInicial = estadosLeadTemp.some(e => e.nombre === '✅ CONTACTO INICIAL');
     if (!tieneContactoInicial) {
         alert('⚠️ El estado "✅ CONTACTO INICIAL" es requerido y no se puede eliminar');
         return;
     }
+    
+    // Actualizar el orden de cada estado según su posición en el array
+    estadosLeadTemp.forEach((estado, idx) => {
+        estado.orden = idx;
+    });
     
     // Detectar estados eliminados
     const estadosAnteriores = estadosLeadConfig.map(e => e.nombre);
@@ -3253,7 +3315,7 @@ async function cargarEstadosLead() {
         estadosLeadConfig = await resp.json();
         console.log('🔍 [DEBUG] estadosLeadConfig recibido:', estadosLeadConfig);
         
-        
+        // Si no hay estados, usar defaults CON EMOJI
         if (estadosLeadConfig.length === 0) {
             console.log('⚠️ No hay estados configurados, usando defaults');
             estadosLeadConfig = [
@@ -3289,6 +3351,7 @@ function renderizarColumnasLeads() {
     
     console.log('🔍 [DEBUG] estadosLeadConfig:', estadosLeadConfig);
     
+    
     if (!estadosLeadConfig || estadosLeadConfig.length === 0) {
         console.warn('⚠️ No hay estados configurados, usando defaults');
         estadosLeadConfig = [
@@ -3322,7 +3385,6 @@ function renderizarColumnasLeads() {
         console.log(`✅ Columna creada: ${estado.nombre}`);
     });
     
-
     // ✅ Agregar formulario SOLO en la columna "✅ CONTACTO INICIAL" (hardcodeado)
     const columnaInicial = document.querySelector('[data-estado="✅ CONTACTO INICIAL"]');
     if (columnaInicial && !columnaInicial.querySelector('#toggle-form')) {
@@ -3354,6 +3416,7 @@ function crearLead() {
         return;
     }
     
+
     // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
     const estadoInicial = "✅ CONTACTO INICIAL";
     
@@ -3367,6 +3430,7 @@ function crearLead() {
             estado: "✅ CONTACTO INICIAL"   // ✅ Enviar estado hardcodeado
         })
     })
+
 
     .then(response => response.json())
     .then(data => {
@@ -3555,10 +3619,11 @@ socket.on("configuracion_lead_actualizada", data => {
 socket.on("nuevo_lead", (data) => {
     console.log("🆕 Nuevo lead creado automáticamente:", data);
     
-    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
-    let estado = "✅ CONTACTO INICIAL";
-    let leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
-
+    // ✅ Usar el estado que viene del backend
+    const estado = data.estado || "✅ CONTACTO INICIAL";
+    
+    const leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+    
     if (leadList) {
         const leadElement = document.createElement("div");
         leadElement.classList.add("lead", "lead-nuevo");
@@ -3578,7 +3643,7 @@ socket.on("nuevo_lead", (data) => {
             </div>
         `;
         
-        // ✅ Aplicar color dinámico de la columna
+        // Aplicar color dinámico
         const columna = document.querySelector(`[data-estado="${estado}"]`);
         if (columna) {
             const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
