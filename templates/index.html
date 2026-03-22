@@ -3470,17 +3470,20 @@ function crearLead() {
     });
 }
 
+// ============================================================================
+// CARGAR LEADS CON COLUMNAS DINÁMICAS Y COLORES (VERSIÓN INTEGRADA)
+// ============================================================================
 async function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
     
     try {
-        // 1. Primero cargar estados desde BD
+        // 🔹 1. Cargar estados desde BD (con colores y orden)
         await cargarEstadosLead();
         
-        // 2. Renderizar columnas dinámicas
+        // 🔹 2. Renderizar columnas dinámicas con colores personalizados
         renderizarColumnasLeads();
         
-        // 3. Cargar leads desde backend
+        // 🔹 3. Cargar leads desde backend
         const resp = await fetch('/leads');
         if (!resp.ok) throw new Error('Error al cargar leads: ' + resp.status);
         
@@ -3490,9 +3493,8 @@ async function cargarLeads() {
         // Limpiar todas las listas
         document.querySelectorAll('.leads-list').forEach(list => list.innerHTML = '');
         
-        // Distribuir leads en columnas
+        // 🔹 4. Distribuir leads en columnas con color dinámico
         leads.forEach(lead => {
-            // ✅ FALLBACK CON EMOJI
             const estadoLimpio = lead.estado?.trim() || '✅ CONTACTO INICIAL';
             const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
             
@@ -3507,7 +3509,7 @@ async function cargarLeads() {
                 leadElement.ondragstart = (event) => drag(event);
                 leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
                 
-                // ✅ Aplicar color dinámico al lead (sin función extra)
+                // ✅ Aplicar color dinámico según la columna
                 const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
                 if (columna) {
                     const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
@@ -3537,12 +3539,10 @@ async function cargarLeads() {
             resultadosDiv.textContent = `📊 ${leads.length} lead(s) en total`;
         }
         
-        console.log(`✅ ${leads.length} leads cargados y distribuidos`);
-        return true;
+        console.log(`✅ ${leads.length} leads cargados con colores dinámicos`);
         
     } catch (err) {
         console.error('❌ Error al cargar leads:', err);
-        return false;
     }
 }
 
