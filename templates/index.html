@@ -3125,10 +3125,7 @@ function cerrarModalEstadosLead() {
 }
 
 // ============================================================================
-// RENDERIZAR LISTA DE ESTADOS EN EL MODAL (CON NOMBRES EDITABLES)
-// ============================================================================
-// ============================================================================
-// RENDERIZAR LISTA DE ESTADOS EN EL MODAL (CON DRAG & DROP)
+// RENDERIZAR LISTA DE ESTADOS EN EL MODAL (CON DRAG & DROP - VERSIÓN SEGURA)
 // ============================================================================
 function renderizarListaEstadosLead() {
     const cont = document.getElementById('lista-estados-lead');
@@ -3150,14 +3147,10 @@ function renderizarListaEstadosLead() {
             `;
         }
         
-        // ✅ Estados PERSONALIZADOS (draggable)
+        // ✅ Estados PERSONALIZADOS (draggable) - SIN inline handlers
         return `
             <div class="panel-card estado-row draggable" 
-                draggable="true"
                 data-idx="${idx}"
-                ondragstart="dragStartEstado(event, ${idx})"
-                ondragover="dragOverEstado(event)"
-                ondrop="dropEstado(event, ${idx})"
                 style="margin-bottom:10px;display:flex;gap:10px;align-items:center;cursor:grab;transition: background 0.2s;">
                 <span class="drag-handle" style="cursor:grab;font-size:18px;color:#7f8c8d;">☰</span>
                 <input type="text" value="${estado.nombre}" 
@@ -3173,6 +3166,25 @@ function renderizarListaEstadosLead() {
             </div>
         `;
     }).join('');
+    
+    // ✅ Agregar event listeners DESPUÉS de renderizar (más seguro que inline)
+    document.querySelectorAll('.estado-row.draggable').forEach(row => {
+        const idx = parseInt(row.getAttribute('data-idx'));
+        
+        row.setAttribute('draggable', 'true');
+        
+        row.addEventListener('dragstart', (event) => {
+            dragStartEstado(event, idx);
+        });
+        
+        row.addEventListener('dragover', (event) => {
+            dragOverEstado(event);
+        });
+        
+        row.addEventListener('drop', (event) => {
+            dropEstado(event, idx);
+        });
+    });
     
     // Agregar botón para agregar estado
     const btnAgregar = document.createElement('button');
