@@ -3021,6 +3021,35 @@ function getColorWithOpacity(hex, opacity = 0.25) {
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
+// ============================================================================
+// FUNCIÓN PARA EXTRAER COLOR DE COLUMNA (MÁS ROBUSTA)
+// ============================================================================
+function extraerColorDeColumna(columna) {
+    // Intentar 1: Leer de style.borderLeft (inline style)
+    const borderLeft = columna.style.borderLeft;
+    let colorMatch = borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+    if (colorMatch) return colorMatch[0];
+    
+    // Intentar 2: Leer de computed style (puede ser rgb() o hex)
+    const computed = window.getComputedStyle(columna);
+    const borderColor = computed.borderLeftColor;
+    
+    // Si es rgb(), convertir a hex (simplificado)
+    if (borderColor?.startsWith('rgb')) {
+        const rgb = borderColor.match(/\d+/g);
+        if (rgb && rgb.length === 3) {
+            const hex = '#' + rgb.map(x => {
+                const h = parseInt(x).toString(16);
+                return h.length === 1 ? '0' + h : h;
+            }).join('');
+            return hex;
+        }
+    }
+    
+    // Fallback: color por defecto (azul)
+    return '#1e88e5';
+}
+
 function mostrarModalEstadosLead() {
     cargarEstadosLead().then(() => {
         estadosLeadTemp = JSON.parse(JSON.stringify(estadosLeadConfig));
@@ -3260,9 +3289,11 @@ async function cargarLeads() {
                 // Aplicar color dinámico al lead
                 const columna = document.querySelector(`[data-estado="${estadoLimpio}"]`);
                 if (columna) {
-                    const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-                    const colorColumna = colorMatch ? colorMatch[0] : '#c7a921';
-                    leadElement.style.background = `${colorColumna}40`;
+                    // ✅ Usar función robusta para extraer color
+                    const colorColumna = extraerColorDeColumna(columna);
+                    
+                    // Aplicar fondo más claro (25% opacity)
+                    leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
                 }
                 
                 leadElement.innerHTML = `
@@ -3523,33 +3554,44 @@ socket.on("nuevo_lead", (data) => {
 });
 
 
+// ============================================================================
+// LISTENER SOCKET: LEAD ESTADO ACTUALIZADO (CON COLOR DINÁMICO)
+// ============================================================================
 socket.on("lead_estado_actualizado", (data) => {
-  console.log("🔄 lead_estado_actualizado recibido:", data);
-
-  const moveLead = () => {
-    const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
-    if (!leadElement) {
-      // Reintentar en 300ms (por si aún no se renderiza)
-      setTimeout(moveLead, 300);
-      return;
-    }
-
-    const columnaActual = leadElement.closest(".leads-column");
-    if (columnaActual) {
-      const listaActual = columnaActual.querySelector(".leads-list");
-      if (listaActual) listaActual.removeChild(leadElement);
-    }
-
-    const nuevaColumna = document.querySelector(`.leads-column[data-estado="${data.estado_nuevo}"] .leads-list`);
-    if (nuevaColumna) {
-      leadElement.classList.add("lead-mensaje-nuevo");
-      setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
-      nuevaColumna.appendChild(leadElement);
-      console.log("✅ Lead movido a:", data.estado_nuevo);
-    }
-  };
-
-  moveLead();
+    console.log("🔄 lead_estado_actualizado recibido:", data);
+    
+    const moveLead = () => {
+        const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
+        if (!leadElement) {
+            // Reintentar en 300ms (por si aún no se renderiza)
+            setTimeout(moveLead, 300);
+            return;
+        }
+        
+        // Remover de columna actual
+        const columnaActual = leadElement.closest(".leads-column");
+        if (columnaActual) {
+            const listaActual = columnaActual.querySelector(".leads-list");
+            if (listaActual) listaActual.removeChild(leadElement);
+        }
+        
+        // Agregar a nueva columna
+        const nuevaColumna = document.querySelector(`.leads-column[data-estado="${data.estado_nuevo}"] .leads-list`);
+        if (nuevaColumna) {
+            // ✅ APLICAR COLOR DINÁMICO al mover (usando función robusta)
+            const colorColumna = extraerColorDeColumna(nuevaColumna.parentElement);
+            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+            
+            // Animación sutil
+            leadElement.classList.add("lead-mensaje-nuevo");
+            setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
+            
+            nuevaColumna.appendChild(leadElement);
+            console.log("✅ Lead movido a:", data.estado_nuevo, "con color:", colorColumna);
+        }
+    };
+    
+    moveLead();
 });
 
 /*====================================
@@ -3908,16 +3950,13 @@ function drop(event, nuevoEstado) {
     // Encontrar el lead elemento
     const leadElement = document.querySelector(`[data-id='${leadId}']`);
     if (!leadElement) return;
-    
-    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO
-    const style = window.getComputedStyle(columnaDestino);
-    const borderLeft = style.borderLeft;
-    const colorMatch = borderLeft.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-    const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-    
+  
+    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO (función robusta)
+    const colorColumna = extraerColorDeColumna(columnaDestino);
+
     // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro)
-    const colorFondo = getColorWithOpacity(colorColumna, 0.25);
-    leadElement.style.background = colorFondo;
+    leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+
     
     // ✅ Agregar animación sutil
     leadElement.classList.add('moved');
