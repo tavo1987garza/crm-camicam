@@ -3344,12 +3344,48 @@ function renderizarColumnasLeads() {
     console.log('✅ Columnas de leads renderizadas:', document.querySelectorAll('.leads-column').length);
 }
 
-// ============================================================================
-// CARGAR LEADS CON ESTADOS DINÁMICOS (RETORNA PROMISE)
-// ============================================================================
-// ============================================================================
-// CARGAR LEADS CON ESTADOS DINÁMICOS (VERSIÓN CORREGIDA)
-// ============================================================================
+function crearLead() {
+    let nombre = document.getElementById("lead-nombre").value.trim();
+    let telefono = document.getElementById("lead-telefono").value.trim();
+    let notas = document.getElementById("lead-notas").value.trim();
+    
+    if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
+        alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
+        return;
+    }
+    
+    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
+    const estadoInicial = "✅ CONTACTO INICIAL";
+    
+    fetch("/crear_lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            nombre, 
+            telefono, 
+            notas,
+            estado: estadoInicial  // ✅ Enviar estado hardcodeado
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert("Error al crear lead: " + data.error);
+        } else {
+            alert(data.mensaje);
+            cargarLeads();
+            document.getElementById("lead-nombre").value = "";
+            document.getElementById("lead-telefono").value = "";
+            document.getElementById("lead-notas").value = "";
+            toggleFormulario();
+        }
+    })
+    .catch(error => {
+        console.error("❌ Error al crear lead:", error);
+        alert("Error al crear lead. Inténtalo de nuevo.");
+    });
+}
+
 async function cargarLeads() {
     console.log('📋 [DEBUG] cargarLeads() iniciando...');
     
@@ -3425,10 +3461,7 @@ async function cargarLeads() {
         return false;
     }
 }
-  
-// ============================================================================
-// FILTRAR LEADS POR BÚSQUEDA GLOBAL
-// ============================================================================
+
 function filtrarLeads(termino) {
     const leads = document.querySelectorAll('.lead');
     const resultadosDiv = document.getElementById('leads-search-results');
@@ -3496,38 +3529,6 @@ async function eliminarEstadoLead(nombreEstado) {
 }
 
 // ============================================================================
-// NOTIFICACIÓN SUAVE (SIN ALERT BLOQUEANTE)
-// ============================================================================
-function mostrarNotificacionSuave(mensaje, tipo = "success") {
-    let notif = document.getElementById("notificacion-suave");
-    
-    if (!notif) {
-        notif = document.createElement("div");
-        notif.id = "notificacion-suave";
-        notif.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            z-index: 9999;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        `;
-        document.body.appendChild(notif);
-    }
-    
-    notif.style.background = tipo === "success" ? "#43a047" : "#e53935";
-    notif.textContent = mensaje;
-    notif.style.opacity = "1";
-    
-    setTimeout(() => { notif.style.opacity = "0"; }, 2500);
-}
-
-// ============================================================================
 // LISTENER SOCKET PARA ACTUALIZACIÓN DE ESTADOS DE LEADS
 // ============================================================================
 socket.on("configuracion_lead_actualizada", data => {
@@ -3550,8 +3551,129 @@ socket.on("configuracion_lead_actualizada", data => {
     }
 });
 
+socket.on("nuevo_lead", (data) => {
+    console.log("🆕 Nuevo lead creado automáticamente:", data);
+    
+    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
+    const estado = "✅ CONTACTO INICIAL";
+    
+    const leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+    
+    if (leadList) {
+        const leadElement = document.createElement("div");
+        leadElement.classList.add("lead", "lead-nuevo");
+        leadElement.setAttribute("data-id", data.id);
+        leadElement.setAttribute("data-telefono", data.telefono);
+        leadElement.setAttribute("data-estado-original", estado);
+        leadElement.setAttribute("draggable", "true");
+        leadElement.ondragstart = (event) => drag(event);
+        leadElement.onclick = () => abrirModalEditar(data.id, data.nombre, data.telefono, data.notas);
+        
+        leadElement.innerHTML = `
+            <div class="lead-content">
+                <strong class="lead-nombre">${data.nombre}</strong>
+                <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${data.telefono}')">
+                    ${data.ultimo_mensaje || "No hay mensajes recientes"}
+                </p>
+            </div>
+        `;
+        
+        // ✅ Aplicar color dinámico de la columna
+        const columna = document.querySelector(`[data-estado="${estado}"]`);
+        if (columna) {
+            const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
+            const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
+            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+        }
+        
+        leadList.appendChild(leadElement);
+        setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+    }
+});
 
+// ============================================================================
+// LISTENER SOCKET: LEAD ESTADO ACTUALIZADO (CON COLOR DINÁMICO)
+// ============================================================================
+socket.on("lead_estado_actualizado", (data) => {
+    console.log("🔄 lead_estado_actualizado recibido:", data);
+    
+    const moveLead = () => {
+        const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
+        if (!leadElement) {
+            // Reintentar en 300ms (por si aún no se renderiza)
+            setTimeout(moveLead, 300);
+            return;
+        }
+        
+        // Remover de columna actual
+        const columnaActual = leadElement.closest(".leads-column");
+        if (columnaActual) {
+            const listaActual = columnaActual.querySelector(".leads-list");
+            if (listaActual) listaActual.removeChild(leadElement);
+        }
+        
+        // Agregar a nueva columna
+        const nuevaColumna = document.querySelector(`.leads-column[data-estado="${data.estado_nuevo}"] .leads-list`);
+        if (nuevaColumna) {
+            // ✅ APLICAR COLOR DINÁMICO al mover (usando función robusta)
+            const colorColumna = extraerColorDeColumna(nuevaColumna.parentElement);
+            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+            
+            // Animación sutil
+            leadElement.classList.add("lead-mensaje-nuevo");
+            setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
+            
+            nuevaColumna.appendChild(leadElement);
+            console.log("✅ Lead movido a:", data.estado_nuevo, "con color:", colorColumna);
+        }
+    };
+    
+    moveLead();
+});
 
+// 🔹 Evento de arrastre
+function drag(event) {
+            event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
+        }        
+// 🔹 Manejar el evento de soltar
+function drop(event, nuevoEstado) {
+    event.preventDefault();
+    let leadId = event.dataTransfer.getData("text");
+    
+    // Encontrar la columna destino
+    const columnaDestino = document.querySelector(`[data-estado="${nuevoEstado}"]`);
+    if (!columnaDestino) return;
+    
+    // Encontrar el lead elemento
+    const leadElement = document.querySelector(`[data-id='${leadId}']`);
+    if (!leadElement) return;
+  
+    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO (función robusta)
+    const colorColumna = extraerColorDeColumna(columnaDestino);
+
+    // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro)
+    leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+
+    
+    // ✅ Agregar animación sutil
+    leadElement.classList.add('moved');
+    setTimeout(() => leadElement.classList.remove('moved'), 500);
+    
+    // ✅ Enviar actualización al backend
+    fetch("/cambiar_estado_lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: leadId, estado: nuevoEstado })
+    })
+    .then(() => cargarLeads())
+    .catch(error => console.error("Error al cambiar estado del lead:", error));
+}
+
+document.getElementById("leads-container").addEventListener("dragstart", (event) => {
+            if (event.target.classList.contains("lead")) {
+                event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
+            }
+        });
 
 
 
@@ -3597,9 +3719,6 @@ socket.on("nuevo_mensaje", (data) => {
 
   actualizarUltimoMensajeLead(data.remitente, textoParaLista);
 });
-  
-        
-    
 
 // 🔹 Función para mostrar notificaciones (solo para mensajes "recibidos")
 function mostrarNotificacion(mensaje) {
@@ -3612,7 +3731,6 @@ function mostrarNotificacion(mensaje) {
         alerta.style.display = "none";
     }, 5000);
 }
-
 
 // 🔹 Función para actualizar el último mensaje en la sección de leads
 function actualizarUltimoMensajeLead(telefono, mensaje) {
@@ -3634,86 +3752,6 @@ function actualizarUltimoMensajeLead(telefono, mensaje) {
 }
 
 
-socket.on("nuevo_lead", (data) => {
-    console.log("🆕 Nuevo lead creado automáticamente:", data);
-    
-    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
-    const estado = "✅ CONTACTO INICIAL";
-    
-    const leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
-    
-    if (leadList) {
-        const leadElement = document.createElement("div");
-        leadElement.classList.add("lead", "lead-nuevo");
-        leadElement.setAttribute("data-id", data.id);
-        leadElement.setAttribute("data-telefono", data.telefono);
-        leadElement.setAttribute("data-estado-original", estado);
-        leadElement.setAttribute("draggable", "true");
-        leadElement.ondragstart = (event) => drag(event);
-        leadElement.onclick = () => abrirModalEditar(data.id, data.nombre, data.telefono, data.notas);
-        
-        leadElement.innerHTML = `
-            <div class="lead-content">
-                <strong class="lead-nombre">${data.nombre}</strong>
-                <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${data.telefono}')">
-                    ${data.ultimo_mensaje || "No hay mensajes recientes"}
-                </p>
-            </div>
-        `;
-        
-        // ✅ Aplicar color dinámico de la columna
-        const columna = document.querySelector(`[data-estado="${estado}"]`);
-        if (columna) {
-            const colorMatch = columna.style.borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
-            const colorColumna = colorMatch ? colorMatch[0] : '#1e88e5';
-            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
-        }
-        
-        leadList.appendChild(leadElement);
-        setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
-    }
-});
-
-
-// ============================================================================
-// LISTENER SOCKET: LEAD ESTADO ACTUALIZADO (CON COLOR DINÁMICO)
-// ============================================================================
-socket.on("lead_estado_actualizado", (data) => {
-    console.log("🔄 lead_estado_actualizado recibido:", data);
-    
-    const moveLead = () => {
-        const leadElement = document.querySelector(`.lead[data-id="${data.id}"]`);
-        if (!leadElement) {
-            // Reintentar en 300ms (por si aún no se renderiza)
-            setTimeout(moveLead, 300);
-            return;
-        }
-        
-        // Remover de columna actual
-        const columnaActual = leadElement.closest(".leads-column");
-        if (columnaActual) {
-            const listaActual = columnaActual.querySelector(".leads-list");
-            if (listaActual) listaActual.removeChild(leadElement);
-        }
-        
-        // Agregar a nueva columna
-        const nuevaColumna = document.querySelector(`.leads-column[data-estado="${data.estado_nuevo}"] .leads-list`);
-        if (nuevaColumna) {
-            // ✅ APLICAR COLOR DINÁMICO al mover (usando función robusta)
-            const colorColumna = extraerColorDeColumna(nuevaColumna.parentElement);
-            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
-            
-            // Animación sutil
-            leadElement.classList.add("lead-mensaje-nuevo");
-            setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
-            
-            nuevaColumna.appendChild(leadElement);
-            console.log("✅ Lead movido a:", data.estado_nuevo, "con color:", colorColumna);
-        }
-    };
-    
-    moveLead();
-});
 
 /*====================================
 //RESPONDER A LOS MENSAJES UNIFICADO
@@ -3880,7 +3918,6 @@ document.body.addEventListener("click", function () {
     sonidoActivo = true;
 });
 
-
         function toggleNotificaciones() {
             notificacionesActivas = !notificacionesActivas;
             document.getElementById("toggle-notif").textContent = notificacionesActivas ? "🔔 Notificaciones: ON" : "🔕 Notificaciones: OFF";
@@ -4010,8 +4047,6 @@ function crearMensajeChat(mensaje, tipo) {
   return div;
 }
   
-
-        
 /* 🔹 Abrir chat desde lead: corregir consumo de /mensajes_chat */
 function irAChat(telefono) {
   mostrarSeccion("chat", () => {
@@ -4055,94 +4090,9 @@ function irAChat(telefono) {
   });
 }
         
-        // 🔹 Evento de arrastre
-        function drag(event) {
-            event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
-        }
-        // 🔹 Manejar el evento de soltar
-function drop(event, nuevoEstado) {
-    event.preventDefault();
-    let leadId = event.dataTransfer.getData("text");
-    
-    // Encontrar la columna destino
-    const columnaDestino = document.querySelector(`[data-estado="${nuevoEstado}"]`);
-    if (!columnaDestino) return;
-    
-    // Encontrar el lead elemento
-    const leadElement = document.querySelector(`[data-id='${leadId}']`);
-    if (!leadElement) return;
-  
-    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO (función robusta)
-    const colorColumna = extraerColorDeColumna(columnaDestino);
-
-    // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro)
-    leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
-
-    
-    // ✅ Agregar animación sutil
-    leadElement.classList.add('moved');
-    setTimeout(() => leadElement.classList.remove('moved'), 500);
-    
-    // ✅ Enviar actualización al backend
-    fetch("/cambiar_estado_lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: leadId, estado: nuevoEstado })
-    })
-    .then(() => cargarLeads())
-    .catch(error => console.error("Error al cambiar estado del lead:", error));
-}
-
-        document.getElementById("leads-container").addEventListener("dragstart", (event) => {
-            if (event.target.classList.contains("lead")) {
-                event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
-            }
-        });
 
 
         
-
-function crearLead() {
-    let nombre = document.getElementById("lead-nombre").value.trim();
-    let telefono = document.getElementById("lead-telefono").value.trim();
-    let notas = document.getElementById("lead-notas").value.trim();
-    
-    if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
-        alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
-        return;
-    }
-    
-    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
-    const estadoInicial = "✅ CONTACTO INICIAL";
-    
-    fetch("/crear_lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            nombre, 
-            telefono, 
-            notas,
-            estado: estadoInicial  // ✅ Enviar estado hardcodeado
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert("Error al crear lead: " + data.error);
-        } else {
-            alert(data.mensaje);
-            cargarLeads();
-            document.getElementById("lead-nombre").value = "";
-            document.getElementById("lead-telefono").value = "";
-            document.getElementById("lead-notas").value = "";
-            toggleFormulario();
-        }
-    })
-    .catch(error => {
-        console.error("❌ Error al crear lead:", error);
-        alert("Error al crear lead. Inténtalo de nuevo.");
-    });
-}
 
         function toggleFormulario() {
             let form = document.getElementById("lead-form");

@@ -343,6 +343,7 @@ def obtener_estados_lead():
     finally:
         liberar_db(conn)
 
+
 @app.route("/leads/estados", methods=["POST"])
 def guardar_estados_lead():
     """Guardar configuración de estados del tenant (ENFOQUE SIMPLIFICADO)"""
@@ -427,7 +428,8 @@ def guardar_estados_lead():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-        
+
+
 @app.route("/leads/estado/eliminar", methods=["POST"])
 def eliminar_estado_lead():
     """Eliminar un estado personalizado (no fijo)"""
@@ -846,47 +848,40 @@ def obtener_leads():
         return jsonify([])
     finally:
         liberar_db(conn)
- 
+        
 # 📌 Crear un nuevo lead manualmente        
 @app.route("/crear_lead", methods=["POST"])
 def crear_lead():
     print(f"🔍 DEBUG crear_lead - Iniciando solicitud")
-    print(f"🔍 DEBUG crear_lead - Headers: {dict(request.headers)}")
     
     cliente_id = obtener_cliente_id_de_subdominio()
-    print(f"🔍 DEBUG crear_lead - cliente_id obtenido: {cliente_id}")
     
     if not cliente_id:
-        print("❌ ERROR crear_lead - No se obtuvo cliente_id")
         return jsonify({"error": "Cliente no autorizado"}), 404
 
     datos = request.json
-    print(f"🔍 DEBUG crear_lead - Datos recibidos: {datos}")
     nombre = datos.get("nombre")
     telefono = datos.get("telefono")
     notas = datos.get("notas", "")
+    # ✅ RECIBIR estado del frontend con fallback al estado correcto
+    estado = datos.get("estado", "✅ CONTACTO INICIAL")
 
     if not nombre or not telefono or not validar_telefono(telefono):
         return jsonify({"error": "El teléfono debe tener 13 dígitos"}), 400
 
     try:
-        print(f"🔍 DEBUG crear_lead - Intentando conectar a BD")
         conn = conectar_db()
         if not conn:
-            print("❌ ERROR crear_lead - Falló conexión a BD")
             return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
             
-        print(f"🔍 DEBUG crear_lead - Conexión exitosa. Ejecutando INSERT...")
-        
-        
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO leads (nombre, telefono, estado, notas, cliente_id)
-            VALUES (%s, %s, 'Contacto Inicial', %s, %s)
+            VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (telefono, cliente_id) DO UPDATE
             SET notas = EXCLUDED.notas
             RETURNING id
-        """, (nombre, telefono, notas, cliente_id))
+        """, (nombre, telefono, estado, notas, cliente_id))  # ✅ Usar variable estado
 
         lead_id = cursor.fetchone()
         conn.commit()
@@ -896,7 +891,7 @@ def crear_lead():
                 "id": lead_id[0],
                 "nombre": nombre,
                 "telefono": telefono,
-                "estado": "Contacto Inicial",
+                "estado": estado,  # ✅ Enviar el estado correcto al frontend
                 "notas": notas
             }
             socketio.emit("nuevo_lead", nuevo_lead)
@@ -911,7 +906,7 @@ def crear_lead():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-        
+          
 # 📌 Ruta para eliminar un lead
 @app.route("/eliminar_lead", methods=["POST"])
 def eliminar_lead():
