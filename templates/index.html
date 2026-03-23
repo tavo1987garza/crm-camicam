@@ -3495,6 +3495,7 @@ async function cargarLeads() {
         
         // 🔹 4. Distribuir leads en columnas con color dinámico
         leads.forEach(lead => {
+            // ✅ FALLBACK CON EMOJI
             const estadoLimpio = lead.estado?.trim() || '✅ CONTACTO INICIAL';
             const leadList = document.querySelector(`[data-estado="${estadoLimpio}"] .leads-list`);
             
@@ -3628,7 +3629,7 @@ socket.on("configuracion_lead_actualizada", data => {
         // Mostrar notificación con información de leads movidos
         let mensaje = '📋 Estados de lead actualizados';
         if (data.leads_movidos && data.leads_movidos > 0) {
-            mensaje += ` (${data.leads_movidos} leads movidos a "Contacto Inicial")`;
+            mensaje += ` (${data.leads_movidos} leads movidos a "✅ CONTACTO INICIAL")`;
         }
         
         mostrarNotificacionSuave(mensaje, 'success');
