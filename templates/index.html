@@ -3743,18 +3743,16 @@ function drop(event, nuevoEstado) {
     const estadoOriginal = leadElement.getAttribute('data-estado-original');
     const backgroundOriginal = leadElement.style.background;
     
-    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO (función robusta con data-color)
+    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO (usa data-color)
     const colorColumna = extraerColorDeColumna(columnaDestino);
     
-    // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro) - CAMBIO INMEDIATO
+    // ✅ APLICAR COLOR DINÁMICO AL LEAD - CAMBIO INMEDIATO (0ms delay)
     leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+    leadElement.setAttribute('data-estado-original', nuevoEstado);
     
-    // ✅ Agregar animación sutil
+    // ✅ Animación sutil
     leadElement.classList.add('moved');
     setTimeout(() => leadElement.classList.remove('moved'), 500);
-    
-    // ✅ ACTUALIZAR atributo data-estado-original para consistencia
-    leadElement.setAttribute('data-estado-original', nuevoEstado);
     
     // ✅ Enviar actualización al backend
     fetch("/cambiar_estado_lead", {
@@ -3765,22 +3763,22 @@ function drop(event, nuevoEstado) {
     .then(response => response.json())
     .then(data => {
         if (data.error) {
-            // ❌ ROLLBACK: Revertir cambio visual si el backend falló
+            // ❌ ROLLBACK: Revertir si el backend rechazó el cambio
             leadElement.style.background = backgroundOriginal;
             leadElement.setAttribute('data-estado-original', estadoOriginal);
             leadElement.classList.remove('moved');
             alert("⚠️ Error: " + data.error);
-            console.error("Error al cambiar estado:", data.error);
         }
-        // ✅ ÉXITO: NO llamar cargarLeads(), el socket se encarga de sincronizar
-        // El backend emitirá "lead_estado_actualizado" para otros clientes
+        // ✅ ÉXITO: NO llamar cargarLeads()
+        // El socket "lead_estado_actualizado" sincroniza otros clientes
+        // La UI local ya está actualizada visualmente
     })
     .catch(error => {
-        // ❌ ROLLBACK en caso de error de red
+        // ❌ ROLLBACK en error de red
         leadElement.style.background = backgroundOriginal;
         leadElement.setAttribute('data-estado-original', estadoOriginal);
         leadElement.classList.remove('moved');
-        console.error("❌ Error de conexión al cambiar estado:", error);
+        console.error("❌ Error de conexión:", error);
         alert("⚠️ Error de conexión. El lead no se movió.");
     });
 }
