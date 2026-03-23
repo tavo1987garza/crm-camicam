@@ -550,8 +550,208 @@ def cambiar_estado_lead():
         liberar_db(conn)
 
 
+# 📌 Crear un nuevo lead manualmente        
+@app.route("/crear_lead", methods=["POST"])
+def crear_lead():
+    print(f"🔍 DEBUG crear_lead - Iniciando solicitud")
+    
+    cliente_id = obtener_cliente_id_de_subdominio()
+    
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
 
+    datos = request.json
+    nombre = datos.get("nombre")
+    telefono = datos.get("telefono")
+    notas = datos.get("notas", "")
+    # ✅ RECIBIR estado del frontend con fallback al estado correcto
+    estado = datos.get("estado", "✅ CONTACTO INICIAL")
 
+    if not nombre or not telefono or not validar_telefono(telefono):
+        return jsonify({"error": "El teléfono debe tener 13 dígitos"}), 400
+
+    try:
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
+            
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO leads (nombre, telefono, estado, notas, cliente_id)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (telefono, cliente_id) DO UPDATE
+            SET notas = EXCLUDED.notas
+            RETURNING id
+        """, (nombre, telefono, estado, notas, cliente_id))  # ✅ Usar variable estado
+
+        lead_id = cursor.fetchone()
+        conn.commit()
+
+        if lead_id:
+            nuevo_lead = {
+                "id": lead_id[0],
+                "nombre": nombre,
+                "telefono": telefono,
+                "estado": estado,  # ✅ Enviar el estado correcto al frontend
+                "notas": notas
+            }
+            socketio.emit("nuevo_lead", nuevo_lead)
+            return jsonify({"mensaje": "Lead creado correctamente", "lead": nuevo_lead}), 200
+        else:
+            return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
+
+    except Exception as e:
+        print(f"💥 ERROR CRÍTICO crear_lead: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error interno del servidor"}), 500
+    finally:
+        liberar_db(conn)
+          
+
+# 📌 Ruta para obtener Leads 
+@app.route("/leads", methods=["GET"])
+def obtener_leads():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify([])
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify([])
+
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            SELECT l.*, 
+                   (SELECT mensaje FROM mensajes WHERE remitente = l.telefono AND cliente_id = %s ORDER BY fecha DESC LIMIT 1) as ultimo_mensaje
+            FROM leads l
+            WHERE l.cliente_id = %s
+            ORDER BY l.estado
+        """, (cliente_id, cliente_id))
+        leads = cursor.fetchall()
+        return jsonify(leads if leads else [])
+    except Exception as e:
+        print("❌ Error en /leads:", str(e))
+        return jsonify([])
+    finally:
+        liberar_db(conn)
+        
+
+# 📌 Ruta para eliminar un lead
+@app.route("/eliminar_lead", methods=["POST"])
+def eliminar_lead():
+    try:
+        datos = request.json
+        lead_id = datos.get("id")
+        telefono = datos.get("telefono")
+        if not lead_id or not telefono:
+            return jsonify({"error": "Faltan datos"}), 400
+
+        cliente_id = obtener_cliente_id_de_subdominio()
+        if not cliente_id:
+            return jsonify({"error": "Cliente no autorizado"}), 404
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+        cursor = conn.cursor()
+        # 🔹 Eliminar solo si pertenece al cliente actual
+        cursor.execute("DELETE FROM mensajes WHERE remitente = %s AND cliente_id = %s", (telefono, cliente_id))
+        cursor.execute("DELETE FROM leads WHERE id = %s AND cliente_id = %s", (lead_id, cliente_id))
+        conn.commit()
+        conn.close()
+
+        # Notificar al bot
+        try:
+            requests.post(
+                f"{CAMIBOT_API_URL}/limpiar_contexto",
+                json={"telefono": telefono},
+                timeout=5
+            )
+        except Exception as e:
+            app.logger.warning(f"⚠️ No se pudo notificar al bot al eliminar lead {telefono}: {e}")
+
+        socketio.emit("lead_eliminado", {"id": lead_id, "telefono": telefono})
+        return jsonify({"mensaje": "Lead y sus mensajes eliminados correctamente"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/editar_lead', methods=['POST'])
+def editar_lead():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
+    data = request.get_json()
+    lead_id = data.get("id")
+    nuevo_nombre = data.get("nombre").strip() if data.get("nombre") else None
+    nuevo_telefono = data.get("telefono").strip() if data.get("telefono") else None
+    nuevas_notas = data.get("notas").strip() if data.get("notas") else ""
+
+    if not lead_id or not nuevo_telefono:
+        return jsonify({"error": "ID y teléfono son obligatorios"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE leads
+            SET nombre = COALESCE(%s, nombre), 
+                telefono = %s, 
+                notas = %s
+            WHERE id = %s AND cliente_id = %s
+        """, (nuevo_nombre, nuevo_telefono, nuevas_notas, lead_id, cliente_id))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Lead no encontrado"}), 404
+
+        return jsonify({"mensaje": "Lead actualizado correctamente"}), 200
+    except Exception as e:
+        print(f"❌ Error en /editar_lead: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+# 📌 Actualizar estado de mensaje 
+@app.route("/actualizar_estado", methods=["POST"])
+def actualizar_estado():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
+    datos = request.json
+    mensaje_id = datos.get("id")
+    nuevo_estado = datos.get("estado")
+
+    if not mensaje_id or nuevo_estado not in ["Nuevo", "En proceso", "Finalizado"]:
+        return jsonify({"error": "Datos incorrectos"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE mensajes SET estado = %s WHERE id = %s AND cliente_id = %s",
+            (nuevo_estado, mensaje_id, cliente_id)
+        )
+        conn.commit()
+        
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Mensaje no encontrado"}), 404
+            
+        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
+    except Exception as e:
+        print(f"❌ Error en /actualizar_estado: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
 
 
         
@@ -817,171 +1017,6 @@ def enviar_mensaje():
 # 📌 Validación de teléfono (debe tener 13 dígitos)
 def validar_telefono(telefono):
     return len(telefono) == 13 and telefono.startswith("521")
-
-# 📌 Ruta para obtener Leads 
-@app.route("/leads", methods=["GET"])
-def obtener_leads():
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify([])
-
-    conn = conectar_db()
-    if not conn:
-        return jsonify([])
-
-    try:
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("""
-            SELECT l.*, 
-                   (SELECT mensaje FROM mensajes WHERE remitente = l.telefono AND cliente_id = %s ORDER BY fecha DESC LIMIT 1) as ultimo_mensaje
-            FROM leads l
-            WHERE l.cliente_id = %s
-            ORDER BY l.estado
-        """, (cliente_id, cliente_id))
-        leads = cursor.fetchall()
-        return jsonify(leads if leads else [])
-    except Exception as e:
-        print("❌ Error en /leads:", str(e))
-        return jsonify([])
-    finally:
-        liberar_db(conn)
-        
-# 📌 Crear un nuevo lead manualmente        
-@app.route("/crear_lead", methods=["POST"])
-def crear_lead():
-    print(f"🔍 DEBUG crear_lead - Iniciando solicitud")
-    
-    cliente_id = obtener_cliente_id_de_subdominio()
-    
-    if not cliente_id:
-        return jsonify({"error": "Cliente no autorizado"}), 404
-
-    datos = request.json
-    nombre = datos.get("nombre")
-    telefono = datos.get("telefono")
-    notas = datos.get("notas", "")
-    # ✅ RECIBIR estado del frontend con fallback al estado correcto
-    estado = datos.get("estado", "✅ CONTACTO INICIAL")
-
-    if not nombre or not telefono or not validar_telefono(telefono):
-        return jsonify({"error": "El teléfono debe tener 13 dígitos"}), 400
-
-    try:
-        conn = conectar_db()
-        if not conn:
-            return jsonify({"error": "No se pudo conectar a la base de datos."}), 500
-            
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO leads (nombre, telefono, estado, notas, cliente_id)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (telefono, cliente_id) DO UPDATE
-            SET notas = EXCLUDED.notas
-            RETURNING id
-        """, (nombre, telefono, estado, notas, cliente_id))  # ✅ Usar variable estado
-
-        lead_id = cursor.fetchone()
-        conn.commit()
-
-        if lead_id:
-            nuevo_lead = {
-                "id": lead_id[0],
-                "nombre": nombre,
-                "telefono": telefono,
-                "estado": estado,  # ✅ Enviar el estado correcto al frontend
-                "notas": notas
-            }
-            socketio.emit("nuevo_lead", nuevo_lead)
-            return jsonify({"mensaje": "Lead creado correctamente", "lead": nuevo_lead}), 200
-        else:
-            return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
-
-    except Exception as e:
-        print(f"💥 ERROR CRÍTICO crear_lead: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": "Error interno del servidor"}), 500
-    finally:
-        liberar_db(conn)
-          
-# 📌 Ruta para eliminar un lead
-@app.route("/eliminar_lead", methods=["POST"])
-def eliminar_lead():
-    try:
-        datos = request.json
-        lead_id = datos.get("id")
-        telefono = datos.get("telefono")
-        if not lead_id or not telefono:
-            return jsonify({"error": "Faltan datos"}), 400
-
-        cliente_id = obtener_cliente_id_de_subdominio()
-        if not cliente_id:
-            return jsonify({"error": "Cliente no autorizado"}), 404
-
-        conn = conectar_db()
-        if not conn:
-            return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-        cursor = conn.cursor()
-        # 🔹 Eliminar solo si pertenece al cliente actual
-        cursor.execute("DELETE FROM mensajes WHERE remitente = %s AND cliente_id = %s", (telefono, cliente_id))
-        cursor.execute("DELETE FROM leads WHERE id = %s AND cliente_id = %s", (lead_id, cliente_id))
-        conn.commit()
-        conn.close()
-
-        # Notificar al bot
-        try:
-            requests.post(
-                f"{CAMIBOT_API_URL}/limpiar_contexto",
-                json={"telefono": telefono},
-                timeout=5
-            )
-        except Exception as e:
-            app.logger.warning(f"⚠️ No se pudo notificar al bot al eliminar lead {telefono}: {e}")
-
-        socketio.emit("lead_eliminado", {"id": lead_id, "telefono": telefono})
-        return jsonify({"mensaje": "Lead y sus mensajes eliminados correctamente"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-@app.route('/editar_lead', methods=['POST'])
-def editar_lead():
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify({"error": "Cliente no autorizado"}), 404
-
-    data = request.get_json()
-    lead_id = data.get("id")
-    nuevo_nombre = data.get("nombre").strip() if data.get("nombre") else None
-    nuevo_telefono = data.get("telefono").strip() if data.get("telefono") else None
-    nuevas_notas = data.get("notas").strip() if data.get("notas") else ""
-
-    if not lead_id or not nuevo_telefono:
-        return jsonify({"error": "ID y teléfono son obligatorios"}), 400
-
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE leads
-            SET nombre = COALESCE(%s, nombre), 
-                telefono = %s, 
-                notas = %s
-            WHERE id = %s AND cliente_id = %s
-        """, (nuevo_nombre, nuevo_telefono, nuevas_notas, lead_id, cliente_id))
-        conn.commit()
-
-        if cursor.rowcount == 0:
-            return jsonify({"error": "Lead no encontrado"}), 404
-
-        return jsonify({"mensaje": "Lead actualizado correctamente"}), 200
-    except Exception as e:
-        print(f"❌ Error en /editar_lead: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        liberar_db(conn)
             
 # 📌 Obtener mensajes
 @app.route("/mensajes", methods=["GET"])
@@ -1005,41 +1040,6 @@ def obtener_mensajes():
     finally:
         liberar_db(conn)
         
-# 📌 Actualizar estado de mensaje 
-@app.route("/actualizar_estado", methods=["POST"])
-def actualizar_estado():
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify({"error": "Cliente no autorizado"}), 404
-
-    datos = request.json
-    mensaje_id = datos.get("id")
-    nuevo_estado = datos.get("estado")
-
-    if not mensaje_id or nuevo_estado not in ["Nuevo", "En proceso", "Finalizado"]:
-        return jsonify({"error": "Datos incorrectos"}), 400
-
-    conn = conectar_db()
-    if not conn:
-        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE mensajes SET estado = %s WHERE id = %s AND cliente_id = %s",
-            (nuevo_estado, mensaje_id, cliente_id)
-        )
-        conn.commit()
-        
-        if cursor.rowcount == 0:
-            return jsonify({"error": "Mensaje no encontrado"}), 404
-            
-        return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
-    except Exception as e:
-        print(f"❌ Error en /actualizar_estado: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        liberar_db(conn)
         
 #obtener los mensajes de un remitente específico Devuelve los mensajes en el formato esperado por el frontend.
 # Mostrar los mensajes de cada chat

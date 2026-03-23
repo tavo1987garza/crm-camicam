@@ -3087,14 +3087,18 @@ function getColorWithOpacity(hex, opacity = 0.25) {
 // FUNCIÓN PARA EXTRAER COLOR DE COLUMNA (MÁS ROBUSTA)
 // ============================================================================
 function extraerColorDeColumna(columna) {
-    // Intentar 1: Leer de style.borderLeft (inline style)
-    const borderLeft = columna.style.borderLeft;
+    // ✅ PRIORIDAD 1: Leer del atributo data-color (100% confiable)
+    const colorData = columna?.getAttribute('data-color');
+    if (colorData) return colorData;
+    
+    // Intento 2: Leer de style.borderLeft (inline style)
+    const borderLeft = columna?.style?.borderLeft;
     let colorMatch = borderLeft?.match(/#([0-9a-f]{6}|[0-9a-f]{3})/i);
     if (colorMatch) return colorMatch[0];
     
-    // Intentar 2: Leer de computed style (puede ser rgb() o hex)
+    // Intento 3: Leer de computed style (puede ser rgb() o hex)
     const computed = window.getComputedStyle(columna);
-    const borderColor = computed.borderLeftColor;
+    const borderColor = computed?.borderLeftColor;
     
     // Si es rgb(), convertir a hex (simplificado)
     if (borderColor?.startsWith('rgb')) {
@@ -3387,6 +3391,7 @@ function renderizarColumnasLeads() {
         const columna = document.createElement('div');
         columna.className = 'leads-column';
         columna.setAttribute('data-estado', estado.nombre);
+        columna.setAttribute('data-color', estado.color);  // ✅ NUEVO: atributo data-color
         columna.style.borderLeft = `5px solid ${estado.color}`;
         columna.style.background = `${estado.color}40`; // 40 = 25% opacity
         
@@ -3403,6 +3408,7 @@ function renderizarColumnasLeads() {
         container.appendChild(columna);
         console.log(`✅ Columna creada: ${estado.nombre}`);
     });
+
     
     // ✅ Agregar formulario SOLO en la columna "✅ CONTACTO INICIAL" (hardcodeado)
     const columnaInicial = document.querySelector('[data-estado="✅ CONTACTO INICIAL"]');
@@ -3435,29 +3441,26 @@ function crearLead() {
         return;
     }
     
-
-    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL"
+    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL" (no modificable)
     const estadoInicial = "✅ CONTACTO INICIAL";
     
     fetch("/crear_lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            nombre, 
-            telefono, 
+        body: JSON.stringify({
+            nombre,
+            telefono,
             notas,
-            estado: "✅ CONTACTO INICIAL"   // ✅ Enviar estado hardcodeado
+            estado: estadoInicial   // ✅ Hardcodeado intencionalmente
         })
     })
-
-
     .then(response => response.json())
     .then(data => {
         if (data.error) {
             alert("Error al crear lead: " + data.error);
         } else {
             alert(data.mensaje);
-            cargarLeads();
+            cargarLeads();  // ✅ Aquí SÍ es necesario recargar porque es creación nueva
             document.getElementById("lead-nombre").value = "";
             document.getElementById("lead-telefono").value = "";
             document.getElementById("lead-notas").value = "";
@@ -3721,9 +3724,11 @@ socket.on("lead_estado_actualizado", (data) => {
 function drag(event) {
             event.dataTransfer.setData("text", event.target.getAttribute("data-id"));
         }        
-// 🔹 Manejar el evento de soltar
+
+// 🔹 Manejar el evento de soltar (OPTIMIZADO)
 function drop(event, nuevoEstado) {
     event.preventDefault();
+    
     let leadId = event.dataTransfer.getData("text");
     
     // Encontrar la columna destino
@@ -3733,17 +3738,23 @@ function drop(event, nuevoEstado) {
     // Encontrar el lead elemento
     const leadElement = document.querySelector(`[data-id='${leadId}']`);
     if (!leadElement) return;
-  
-    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO (función robusta)
+    
+    // ✅ GUARDAR ESTADO ORIGINAL para rollback si falla
+    const estadoOriginal = leadElement.getAttribute('data-estado-original');
+    const backgroundOriginal = leadElement.style.background;
+    
+    // ✅ EXTRAER COLOR DE LA COLUMNA DESTINO (función robusta con data-color)
     const colorColumna = extraerColorDeColumna(columnaDestino);
-
-    // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro)
+    
+    // ✅ APLICAR COLOR DINÁMICO AL LEAD (fondo más claro) - CAMBIO INMEDIATO
     leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
-
     
     // ✅ Agregar animación sutil
     leadElement.classList.add('moved');
     setTimeout(() => leadElement.classList.remove('moved'), 500);
+    
+    // ✅ ACTUALIZAR atributo data-estado-original para consistencia
+    leadElement.setAttribute('data-estado-original', nuevoEstado);
     
     // ✅ Enviar actualización al backend
     fetch("/cambiar_estado_lead", {
@@ -3751,8 +3762,27 @@ function drop(event, nuevoEstado) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: leadId, estado: nuevoEstado })
     })
-    .then(() => cargarLeads())
-    .catch(error => console.error("Error al cambiar estado del lead:", error));
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            // ❌ ROLLBACK: Revertir cambio visual si el backend falló
+            leadElement.style.background = backgroundOriginal;
+            leadElement.setAttribute('data-estado-original', estadoOriginal);
+            leadElement.classList.remove('moved');
+            alert("⚠️ Error: " + data.error);
+            console.error("Error al cambiar estado:", data.error);
+        }
+        // ✅ ÉXITO: NO llamar cargarLeads(), el socket se encarga de sincronizar
+        // El backend emitirá "lead_estado_actualizado" para otros clientes
+    })
+    .catch(error => {
+        // ❌ ROLLBACK en caso de error de red
+        leadElement.style.background = backgroundOriginal;
+        leadElement.setAttribute('data-estado-original', estadoOriginal);
+        leadElement.classList.remove('moved');
+        console.error("❌ Error de conexión al cambiar estado:", error);
+        alert("⚠️ Error de conexión. El lead no se movió.");
+    });
 }
 
 document.getElementById("leads-container").addEventListener("dragstart", (event) => {
