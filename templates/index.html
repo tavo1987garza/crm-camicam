@@ -3708,9 +3708,6 @@ socket.on("lead_estado_actualizado", (data) => {
             const colorColumna = extraerColorDeColumna(nuevaColumna.parentElement);
             leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
             
-            // Animación sutil
-            leadElement.classList.add("lead-mensaje-nuevo");
-            setTimeout(() => leadElement.classList.remove("lead-mensaje-nuevo"), 3000);
             
             nuevaColumna.appendChild(leadElement);
             console.log("✅ Lead movido a:", data.estado_nuevo, "con color:", colorColumna);
