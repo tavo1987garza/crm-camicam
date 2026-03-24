@@ -3432,45 +3432,172 @@ function renderizarColumnasLeads() {
 }
 
 function crearLead() {
-    let nombre = document.getElementById("lead-nombre").value.trim();
-    let telefono = document.getElementById("lead-telefono").value.trim();
-    let notas = document.getElementById("lead-notas").value.trim();
+    // Obtener y limpiar valores
+    const nombreInput = document.getElementById("lead-nombre");
+    const telefonoInput = document.getElementById("lead-telefono");
+    const notasTextarea = document.getElementById("lead-notas");
     
-    if (!nombre || !telefono || telefono.length !== 13 || !telefono.startsWith("521")) {
-        alert("Por favor, ingresa un número de teléfono válido en formato 521XXXXXXXXXX.");
+    let nombre = nombreInput.value.trim();
+    let telefono = telefonoInput.value.trim();
+    let notas = notasTextarea.value.trim();
+    
+    // ✅ Validaciones mejoradas
+    if (!nombre) {
+        mostrarNotificacionSuave("⚠️ Por favor, ingresa un nombre", "error");
+        nombreInput.focus();
         return;
     }
     
-    // ✅ ESTADO HARDCODEADO - Siempre "✅ CONTACTO INICIAL" (no modificable)
+    if (!telefono) {
+        mostrarNotificacionSuave("⚠️ Por favor, ingresa un teléfono", "error");
+        telefonoInput.focus();
+        return;
+    }
+    
+    // Validar formato de teléfono (más flexible)
+    const telefonoLimpio = telefono.replace(/[^0-9]/g, ''); // Eliminar caracteres no numéricos
+    if (telefonoLimpio.length !== 13 || !telefonoLimpio.startsWith("521")) {
+        mostrarNotificacionSuave(
+            "⚠️ Formato incorrecto. Usa: 521XXXXXXXXXX (ejemplo: 5215512345678)", 
+            "error"
+        );
+        telefonoInput.focus();
+        return;
+    }
+    
+    // ✅ Deshabilitar el botón mientras se procesa (evitar doble envío)
+    const botonAgregar = document.querySelector('#lead-form button');
+    const textoOriginal = botonAgregar.textContent;
+    botonAgregar.textContent = '⏳ Creando...';
+    botonAgregar.disabled = true;
+    
+    // ✅ ESTADO HARDCODEADO (asegurado desde el backend también)
     const estadoInicial = "✅ CONTACTO INICIAL";
+    
+    // Mostrar feedback visual de que se está creando
+    mostrarNotificacionSuave("📝 Creando lead...", "info");
     
     fetch("/crear_lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             nombre,
-            telefono,
+            telefono: telefonoLimpio,  // Usar teléfono limpio
             notas,
-            estado: estadoInicial   // ✅ Hardcodeado intencionalmente
+            estado: estadoInicial
         })
     })
-    .then(response => response.json())
+    .then(async response => {
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || "Error en el servidor");
+        }
+        
+        return data;
+    })
     .then(data => {
-        if (data.error) {
-            alert("Error al crear lead: " + data.error);
-        } else {
-            alert(data.mensaje);
-            cargarLeads();  // ✅ Aquí SÍ es necesario recargar porque es creación nueva
-            document.getElementById("lead-nombre").value = "";
-            document.getElementById("lead-telefono").value = "";
-            document.getElementById("lead-notas").value = "";
+        // ✅ Éxito
+        mostrarNotificacionSuave("✅ Lead creado correctamente", "success");
+        
+        // Limpiar formulario
+        nombreInput.value = "";
+        telefonoInput.value = "";
+        notasTextarea.value = "";
+        
+        // Cerrar formulario si está abierto
+        const formContainer = document.getElementById("lead-form");
+        if (formContainer && !formContainer.classList.contains("hidden")) {
             toggleFormulario();
         }
+        
+        // ✅ En lugar de recargar todos los leads, agregar el nuevo lead dinámicamente
+        agregarLeadAColumna(data.lead);
+        
+        // ✅ Opcional: Enfocar el input de nombre para el siguiente lead
+        setTimeout(() => {
+            if (!formContainer || formContainer.classList.contains("hidden")) {
+                toggleFormulario();
+            }
+            nombreInput.focus();
+        }, 500);
+        
     })
     .catch(error => {
         console.error("❌ Error al crear lead:", error);
-        alert("Error al crear lead. Inténtalo de nuevo.");
+        mostrarNotificacionSuave(
+            error.message || "❌ Error al crear lead. Inténtalo de nuevo.", 
+            "error"
+        );
+    })
+    .finally(() => {
+        // ✅ Restaurar botón
+        botonAgregar.textContent = textoOriginal;
+        botonAgregar.disabled = false;
     });
+}
+
+// ✅ Función auxiliar para agregar lead a la columna sin recargar todo
+function agregarLeadAColumna(lead) {
+    const estado = lead.estado || "✅ CONTACTO INICIAL";
+    const leadList = document.querySelector(`[data-estado="${estado}"] .leads-list`);
+    
+    if (leadList) {
+        // Verificar si el lead ya existe (evitar duplicados)
+        const leadExistente = document.querySelector(`.lead[data-id="${lead.id}"]`);
+        if (leadExistente) {
+            console.warn(`⚠️ Lead ${lead.id} ya existe, no se duplica`);
+            return;
+        }
+        
+        const leadElement = document.createElement("div");
+        leadElement.classList.add("lead", "lead-nuevo");
+        leadElement.setAttribute("data-id", lead.id);
+        leadElement.setAttribute("data-telefono", lead.telefono);
+        leadElement.setAttribute("data-estado-original", estado);
+        leadElement.setAttribute("data-notas", lead.notas || '');
+        leadElement.setAttribute("draggable", "true");
+        leadElement.ondragstart = (event) => drag(event);
+        leadElement.onclick = () => abrirModalEditar(lead.id, lead.nombre, lead.telefono, lead.notas);
+        
+        // ✅ Aplicar color dinámico
+        const columna = document.querySelector(`[data-estado="${estado}"]`);
+        if (columna) {
+            const colorColumna = extraerColorDeColumna(columna);
+            leadElement.style.background = getColorWithOpacity(colorColumna, 0.25);
+        }
+        
+        leadElement.innerHTML = `
+            <div class="lead-content">
+                <strong class="lead-nombre">${escapeHTML(lead.nombre)}</strong>
+                <p class="lead-ultimo-mensaje" onclick="event.stopPropagation(); irAChat('${lead.telefono}')">
+                    ${lead.ultimo_mensaje || "No hay mensajes recientes"}
+                </p>
+            </div>
+        `;
+        
+        // Insertar al inicio de la lista para destacarlo
+        leadList.insertBefore(leadElement, leadList.firstChild);
+        
+        // Animación de entrada
+        setTimeout(() => leadElement.classList.remove("lead-nuevo"), 3000);
+        
+        console.log(`✅ Lead ${lead.id} agregado a columna "${estado}"`);
+    } else {
+        console.warn(`⚠️ No se encontró columna para estado: "${estado}", recargando...`);
+        cargarLeads(); // Fallback: recargar todo si no encuentra la columna
+    }
+}
+
+// ✅ Función de utilidad para escapar HTML y prevenir XSS
+function escapeHTML(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
 // ============================================================================
