@@ -2431,6 +2431,11 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
               🔐 Código de Seguridad
             </button>
 
+            <!-- Botón para Configurar la Meta Mensual de eventos -->
+            <button class="add-button" onclick="mostrarModalMetaMensual()">
+            🎯 Configurar meta mensual
+            </button>
+
             <!-- Botón para Configurar estados de Leads -->
             <button class="add-button" onclick="mostrarModalEstadosLead()">
                 📊 Configurar estados de Leads
@@ -2541,6 +2546,24 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
       <button type="button" class="cancel-btn" onclick="cerrarModalCodigoSeguridad()">Cancelar</button>
     </div>
     <div id="codigo-feedback" class="alert hidden"></div>
+  </div>
+</div>
+
+<!-- Modal: Configurar Meta Mensual -->
+<div id="modal-meta-mensual" class="modal hidden">
+  <div class="modal-content">
+    <button class="close-btn" onclick="cerrarModalMetaMensual()">✖</button>
+    <h2>🎯 Configurar Meta Mensual</h2>
+    <p>Define cuántos eventos esperas contratar este mes.</p>
+    <div class="form-group">
+      <label for="meta-mensual-input">Meta mensual (eventos):</label>
+      <input type="number" id="meta-mensual-input" min="1" max="100" placeholder="Ej. 15" />
+    </div>
+    <div class="modal-buttons">
+      <button class="save-btn" onclick="guardarMetaMensual()">Guardar</button>
+      <button class="cancel-btn" onclick="cerrarModalMetaMensual()">Cancelar</button>
+    </div>
+    <div id="meta-feedback" class="alert hidden"></div>
   </div>
 </div>
 
@@ -3027,6 +3050,69 @@ async function cargarUltimosLeads() {
 }
 
 /* === 5. KPI mensual ============================ */
+// Mostrar modal y cargar meta actual
+async function mostrarModalMetaMensual() {
+  try {
+    const resp = await fetch("/config/meta_mensual");
+    const data = await resp.json();
+    document.getElementById("meta-mensual-input").value = data.meta || 15;
+    document.getElementById("modal-meta-mensual").classList.remove("hidden");
+  } catch (err) {
+    console.error("Error al cargar meta mensual:", err);
+    alert("Error al cargar la meta actual");
+  }
+}
+
+// Cerrar modal
+function cerrarModalMetaMensual() {
+  document.getElementById("modal-meta-mensual").classList.add("hidden");
+  document.getElementById("meta-feedback").classList.add("hidden");
+}
+
+// Guardar meta mensual
+async function guardarMetaMensual() {
+  const input = document.getElementById("meta-mensual-input");
+  const meta = parseInt(input.value);
+  const feedback = document.getElementById("meta-feedback");
+  
+  if (!meta || meta < 1 || meta > 100) {
+    mostrarFeedbackMeta("La meta debe ser un número entre 1 y 100", "error");
+    return;
+  }
+  
+  try {
+    const resp = await fetch("/config/meta_mensual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meta })
+    });
+    
+    if (resp.ok) {
+      mostrarFeedbackMeta("Meta mensual actualizada correctamente", "success");
+      setTimeout(() => {
+        cerrarModalMetaMensual();
+        // Recargar el KPI en el panel si está visible
+        if (document.getElementById("panel").classList.contains("hidden") === false) {
+          cargarKPI();
+        }
+      }, 1500);
+    } else {
+      const error = await resp.json();
+      mostrarFeedbackMeta("Error: " + (error.error || "desconocido"), "error");
+    }
+  } catch (err) {
+    console.error("Error al guardar meta mensual:", err);
+    mostrarFeedbackMeta("Error de conexión", "error");
+  }
+}
+
+function mostrarFeedbackMeta(mensaje, tipo) {
+  const feedback = document.getElementById("meta-feedback");
+  feedback.textContent = mensaje;
+  feedback.className = `alert alert-${tipo}`;
+  feedback.classList.remove("hidden");
+}
+
 async function cargarKPI() {
   const r = await fetch("/reportes/kpi_mes");   // {actual:12, meta:15}
   const k = await r.json();

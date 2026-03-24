@@ -264,6 +264,66 @@ def ultimos_leads():
         current_app.logger.exception("Error en /leads/ultimos")
         return jsonify([]), 200
 
+# 📌 Obtener meta mensual
+@app.route("/config/meta_mensual", methods=["GET"])
+def obtener_meta_mensual():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"meta": 15}), 404
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"meta": 15}), 500
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT valor FROM config 
+            WHERE clave = 'meta_mensual' AND cliente_id = %s
+        """, (cliente_id,))
+        row = cur.fetchone()
+        meta = int(row[0]) if row and row[0].isdigit() else 15
+        return jsonify({"meta": meta}), 200
+    except Exception as e:
+        print(f"❌ Error al obtener meta mensual: {str(e)}")
+        return jsonify({"meta": 15}), 500
+    finally:
+        liberar_db(conn)
+
+# 📌 Guardar meta mensual
+@app.route("/config/meta_mensual", methods=["POST"])
+def guardar_meta_mensual():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+    
+    data = request.json
+    meta = data.get("meta")
+    
+    if not isinstance(meta, int) or meta < 1 or meta > 100:
+        return jsonify({"error": "Meta debe ser un número entre 1 y 100"}), 400
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO config (cliente_id, clave, valor)
+            VALUES (%s, 'meta_mensual', %s)
+            ON CONFLICT (cliente_id, clave)
+            DO UPDATE SET valor = EXCLUDED.valor
+        """, (cliente_id, str(meta)))
+        conn.commit()
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error al guardar meta mensual: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+        
 # 📌 Endpoint para mostrar el KPI ensual (La meta mensual)
 @app.route("/reportes/kpi_mes")
 def kpi_mes():
@@ -752,6 +812,7 @@ def actualizar_estado():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
+
 
 
         
