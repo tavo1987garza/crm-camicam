@@ -3505,11 +3505,8 @@ function crearLead() {
         telefonoInput.value = "";
         notasTextarea.value = "";
         
-        // Cerrar formulario si está abierto
-        const formContainer = document.getElementById("lead-form");
-        if (formContainer && !formContainer.classList.contains("hidden")) {
-            toggleFormulario();
-        }
+          // ✅ SIMPLEMENTE LLAMAR A toggleFormulario() para cerrar
+        toggleFormulario();
         
         // ✅ En lugar de recargar todos los leads, agregar el nuevo lead dinámicamente
         agregarLeadAColumna(data.lead);
