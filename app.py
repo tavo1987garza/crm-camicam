@@ -22,6 +22,8 @@ from flask import (
 )
 from flask_socketio import SocketIO
 
+from flask_cors import CORS
+
 
 
 app = Flask(__name__)
@@ -29,6 +31,24 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = os.getenv('SECRET_KEY')
 
 load_dotenv()
+
+
+# ✅ CORS SIMPLIFICADO - Solo tu dominio principal
+CORS(app, 
+     resources={
+         r"/calendario/checar_fecha": {
+             "origins": [
+                 "https://cami-cam.com",
+                 "https://www.cami-cam.com"
+             ],
+             "supports_credentials": True,
+             "methods": ["GET", "OPTIONS"],
+             "allow_headers": ["Content-Type"]
+         }
+     },
+     supports_credentials=True
+)
+
 
 
 @app.before_request
@@ -168,10 +188,13 @@ def obtener_cliente_id_de_subdominio():
 ##################################
 #----------SECCION PANEL----------
 ##################################   
-
 # 📌 Endpoint para el buscador de fecha
-@app.route("/calendario/checar_fecha")
+@app.route("/calendario/checar_fecha", methods=["GET", "OPTIONS"])
 def checar_fecha():
+    # Manejar preflight OPTIONS
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    
     fecha = request.args.get("fecha")
     if not fecha:
         return jsonify({"error": "Falta parámetro 'fecha'"}), 400
@@ -197,7 +220,6 @@ def checar_fecha():
         return jsonify({"count": 0}), 500
     finally:
         liberar_db(conn)
-        
         
 # 📌 Endpoint para la visualzacion de Próximos eventos   
 @app.route("/calendario/proximos")
