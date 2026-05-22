@@ -2726,7 +2726,160 @@ def guardar_integraciones():
         
 # ============================================================================      
         
+# ============================================================================
+# ENDPOINTS: CONFIGURACIÓN DE CHATBOT MULTI-TENANT
+# ============================================================================
+
+@app.route("/api/bot/config", methods=["GET", "POST"])
+def api_bot_config():
+    """Obtener o actualizar la configuración general del bot del tenant"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    conn = conectar_db()
+    if not conn: return jsonify({"error": "Error de conexión"}), 500
+    
+    try:
+        cur = conn.cursor()
+        if request.method == "GET":
+            cur.execute("""
+                SELECT bot_activo, nombre_bot, mensaje_bienvenida, mensaje_fallback, 
+                       usar_ia, instrucciones_ia, modelo_ia, temperatura_ia, 
+                       handoff_keywords, handoff_email
+                FROM tenant_bot_config WHERE cliente_id = %s
+            """, (cliente_id,))
+            row = cur.fetchone()
+            if row:
+                return jsonify({
+                    "bot_activo": row[0], "nombre_bot": row[1], 
+                    "mensaje_bienvenida": row[2], "mensaje_fallback": row[3],
+                    "usar_ia": row[4], "instrucciones_ia": row[5],
+                    "modelo_ia": row[6], "temperatura_ia": row[7],
+                    "handoff_keywords": row[8] or [], "handoff_email": row[9]
+                })
+            return jsonify({"error": "Config no encontrada"}), 404
+            
+        else:  # POST
+            data = request.json
+            cur.execute("""
+                INSERT INTO tenant_bot_config 
+                (cliente_id, bot_activo, nombre_bot, mensaje_bienvenida, mensaje_fallback, 
+                 usar_ia, instrucciones_ia, modelo_ia, temperatura_ia, handoff_keywords, handoff_email)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (cliente_id) DO UPDATE SET 
+                    bot_activo = EXCLUDED.bot_activo, nombre_bot = EXCLUDED.nombre_bot,
+                    mensaje_bienvenida = EXCLUDED.mensaje_bienvenida, mensaje_fallback = EXCLUDED.mensaje_fallback,
+                    usar_ia = EXCLUDED.usar_ia, instrucciones_ia = EXCLUDED.instrucciones_ia,
+                    modelo_ia = EXCLUDED.modelo_ia, temperatura_ia = EXCLUDED.temperatura_ia,
+                    handoff_keywords = EXCLUDED.handoff_keywords, handoff_email = EXCLUDED.handoff_email,
+                    actualizado_en = CURRENT_TIMESTAMP
+            """, (
+                cliente_id, data.get('bot_activo', False), data.get('nombre_bot'), 
+                data.get('mensaje_bienvenida'), data.get('mensaje_fallback'),
+                data.get('usar_ia', False), data.get('instrucciones_ia'), 
+                data.get('modelo_ia', 'gpt-3.5-turbo'), data.get('temperatura_ia', 0.7),
+                data.get('handoff_keywords', []), data.get('handoff_email')
+            ))
+            conn.commit()
+            return jsonify({"ok": True, "mensaje": "Configuración del bot actualizada"})
+            
+    except Exception as e:
+        app.logger.error(f"❌ Error en api_bot_config: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/api/bot/keywords", methods=["GET", "POST", "DELETE"])
+def api_bot_keywords():
+    """Gestionar respuestas rápidas por palabra clave"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id: return jsonify({"error": "No autorizado"}), 401
+    
+    conn = conectar_db()
+    if not conn: return jsonify({"error": "Error de conexión"}), 500
+    
+    try:
+        cur = conn.cursor()
         
+        if request.method == "GET":
+            cur.execute("""
+                SELECT id, keyword, respuesta, exact_match, activo 
+                FROM bot_keywords WHERE cliente_id = %s ORDER BY keyword ASC
+            """, (cliente_id,))
+            return jsonify([{"id": r[0], "keyword": r[1], "respuesta": r[2], "exact_match": r[3], "activo": r[4]} for r in cur.fetchall()])
+            
+        elif request.method == "POST":
+            data = request.json
+            cur.execute("""
+                INSERT INTO bot_keywords (cliente_id, keyword, respuesta, exact_match, activo)
+                VALUES (%s, %s, %s, %s, TRUE)
+                ON CONFLICT (cliente_id, keyword) DO UPDATE SET 
+                    respuesta = EXCLUDED.respuesta, exact_match = EXCLUDED.exact_match, activo = TRUE, actualizado_en = CURRENT_TIMESTAMP
+            """, (cliente_id, data["keyword"].strip().lower(), data["respuesta"], data.get("exact_match", False)))
+            conn.commit()
+            return jsonify({"ok": True})
+            
+        elif request.method == "DELETE":
+            kw_id = request.args.get("id")
+            cur.execute("DELETE FROM bot_keywords WHERE id = %s AND cliente_id = %s", (kw_id, cliente_id))
+            conn.commit()
+            return jsonify({"ok": True, "eliminadas": cur.rowcount})
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/api/bot/flows", methods=["GET", "POST", "DELETE"])
+def api_bot_flows():
+    """Gestionar flujos de conversación (pasos JSONB)"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id: return jsonify({"error": "No autorizado"}), 401
+    
+    conn = conectar_db()
+    if not conn: return jsonify({"error": "Error de conexión"}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        if request.method == "GET":
+            cur.execute("""
+                SELECT id, nombre, trigger_keyword, trigger_type, pasos, activo, orden 
+                FROM bot_flows WHERE cliente_id = %s ORDER BY orden ASC
+            """, (cliente_id,))
+            return jsonify([{"id": r[0], "nombre": r[1], "trigger_keyword": r[2], 
+                            "trigger_type": r[3], "pasos": r[4], "activo": r[5], "orden": r[6]} 
+                           for r in cur.fetchall()])
+            
+        elif request.method == "POST":
+            data = request.json
+            # psycopg2 convierte dicts Python a JSONB automáticamente
+            cur.execute("""
+                INSERT INTO bot_flows 
+                (cliente_id, nombre, trigger_keyword, trigger_type, pasos, activo, orden)
+                VALUES (%s, %s, %s, %s, %s, TRUE, %s)
+                ON CONFLICT (cliente_id, nombre) DO UPDATE SET 
+                    trigger_keyword = EXCLUDED.trigger_keyword, pasos = EXCLUDED.pasos, 
+                    activo = TRUE, orden = EXCLUDED.orden, actualizado_en = CURRENT_TIMESTAMP
+            """, (cliente_id, data["nombre"], data.get("trigger_keyword"), 
+                  data.get("trigger_type", "keyword"), data["pasos"], data.get("orden", 0)))
+            conn.commit()
+            return jsonify({"ok": True})
+            
+        elif request.method == "DELETE":
+            flow_id = request.args.get("id")
+            cur.execute("DELETE FROM bot_flows WHERE id = %s AND cliente_id = %s", (flow_id, cliente_id))
+            conn.commit()
+            return jsonify({"ok": True, "eliminados": cur.rowcount})
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+# ============================================================================
 
 #Verificar CODIGO DE SEGURIDAD
 @app.route("/verificar_codigo_seguridad", methods=["POST"])
