@@ -1917,6 +1917,141 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
     }
 }
 
+/* ============================================================================
+MEJORAS MODAL CREDENCIALES
+============================================================================= */
+.pwd-toggle {
+  position: absolute;
+  right: 12px;
+  top: 38px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #666;
+  transition: color 0.2s;
+  padding: 4px;
+}
+.pwd-toggle:hover { color: #333; }
+.pwd-toggle:focus { outline: 2px solid #3498db; border-radius: 4px; }
+
+.badge-encrypted {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 13px;
+  cursor: help;
+  opacity: 0.8;
+  position: relative;
+}
+.badge-encrypted:hover { opacity: 1; }
+.badge-encrypted[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 0;
+  top: 120%;
+  background: #2c3e50;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.test-connection-box {
+  margin: 10px 0 20px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #25D366;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.test-connection-box button { font-size: 13px; padding: 6px 12px; }
+
+.alert {
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-top: 12px;
+  font-size: 14px;
+  text-align: center;
+  transition: opacity 0.3s;
+}
+.alert.hidden { display: none; opacity: 0; }
+.alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+.alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #2c3e50; }
+.form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-group input:focus {
+  border-color: #3498db;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+}
+
+
+/* ============================================================================
+ESTILOS: MODAL CHATBOT
+============================================================================= */
+.tab-btn {
+  padding: 8px 16px;
+  border: none;
+  background: #f1f1f1;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.tab-btn:hover { background: #e0e0e0; }
+.tab-btn.active {
+  background: #3498db;
+  color: white;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Lista de items (keywords/flows) */
+.item-card {
+  background: white;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.item-card:hover { border-color: #3498db; }
+.item-actions button {
+  margin-left: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Badge de estado */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-activo { background: #d4edda; color: #155724; }
+.badge-inactivo { background: #f8d7da; color: #721c24; }
+
 
     </style>
 </head>
@@ -2426,6 +2561,11 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
               ⚙️ Configurar Integraciones 
             </button>
 
+            <!-- Botón para Configurar Chatbot -->
+            <button class="add-button" onclick="abrirModalChatbot()">
+            🤖 Configurar Chatbot
+            </button>
+
             <!-- Botón para Código de Seguridad -->
             <button class="add-button" onclick="mostrarModalCodigoSeguridad()">
               🔐 Código de Seguridad
@@ -2466,62 +2606,222 @@ ESTILOS MEJORADOS PARA MODALES DE CONFIGURACIÓN
     <div id="alerta-mensaje" class="notification"></div>  
 
     
-
-<!-- Modal genérico para Configuración de Credenciales -->
+<!-- ============================================================================
+MODAL: CONFIGURACIÓN DE CREDENCIALES DE INTEGRACIÓN (MEJORADO)
+============================================================================= -->
 <div id="modal-config-credentials" class="modal hidden">
-  <div class="modal-content">
+  <div class="modal-content" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
     <button class="close-btn" onclick="cerrarModalConfig()">✖</button>
     <h2>⚙️ Credenciales de Integración</h2>
+    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+      Configura los tokens y URLs para WhatsApp, Meta, IA y automatizaciones.
+      <span class="badge-encrypted" title="🔐 Los tokens sensibles se guardan encriptados en la base de datos">🔐</span>
+    </p>
 
-    <form id="form-config-credentials">
-
+    <form id="form-config-credentials" onsubmit="return false;">
+      <!-- 📱 WHATSAPP -->
+      <h3 style="color: #25D366; margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px;">📱 WhatsApp Business API</h3>
+      <div class="form-group" style="position: relative;">
+        <label for="whatsapp_token">Access Token:</label>
+        <input type="password" id="whatsapp_token" placeholder="••••••••••" style="padding-right: 40px;">
+        <button type="button" onclick="togglePassword('whatsapp_token')" class="pwd-toggle" title="Mostrar/Ocultar">👁️</button>
+      </div>
       <div class="form-group">
-      <label for="whatsapp_token">WhatsApp Access Token:</label>
-      <input type="password" id="whatsapp_token" placeholder="••••••••••" />
-    </div>
-    <div class="form-group">
-      <label for="whatsapp_phone_id">WhatsApp Phone Number ID:</label>
-      <input type="text" id="whatsapp_phone_id" placeholder="Ej. 1234567890" />
-    </div>
-    <div class="form-group">
-      <label for="whatsapp_verify_token">WhatsApp Verify Token:</label>
-      <input type="password" id="whatsapp_verify_token" placeholder="••••••••••" />
-    </div>
-
-    <!-- Agrega aquí campos para Messenger, Instagram, etc. -->
-    <div class="form-group">
-      <label for="fb_page_token">Facebook Page Token:</label>
-      <input type="password" id="fb_page_token" placeholder="••••••••••" />
-    </div>
-    <div class="form-group">
-      <label for="instagram_token">Instagram Access Token:</label>
-      <input type="password" id="instagram_token" placeholder="••••••••••" />
-    </div>
-
-    <!-- Agrega aquí campos para OpenAI -->
-      <div class="form-group">
-        <label for="openai_api_key">OpenAI API Key:</label>
-        <input type="password" id="openai_api_key" placeholder="••••••••••" />
+        <label for="whatsapp_phone_id">Phone Number ID:</label>
+        <input type="text" id="whatsapp_phone_id" placeholder="Ej. 1234567890">
+      </div>
+      <div class="form-group" style="position: relative;">
+        <label for="whatsapp_verify_token">Verify Token (Webhook):</label>
+        <input type="password" id="whatsapp_verify_token" placeholder="••••••••••" style="padding-right: 40px;">
+        <button type="button" onclick="togglePassword('whatsapp_verify_token')" class="pwd-toggle" title="Mostrar/Ocultar">👁️</button>
+      </div>
+      
+      <div class="test-connection-box">
+        <button type="button" class="btn-secondary" onclick="probarConexionWhatsApp()">🧪 Probar conexión</button>
+        <span id="whatsapp-test-result" style="font-size: 13px; font-weight: 500;"></span>
       </div>
 
-      <!-- Agrega aquí campos para n8n -->
-    <div class="form-group">
-      <label for="n8n_url">URL de n8n:</label>
-      <input type="url" id="n8n_url" placeholder="https://tu-n8n.example.com"/>
-    </div>
-    <div class="form-group">
-      <label for="n8n_api_key">API Key de n8n:</label>
-      <input type="password" id="n8n_api_key" placeholder="••••••••••"/>
-    </div>
+      <!-- 📘 META (FACEBOOK & INSTAGRAM) -->
+      <h3 style="color: #1877F2; margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 8px;">📘 Meta (Facebook & Instagram)</h3>
+      <div class="form-group" style="position: relative;">
+        <label for="fb_page_token">Facebook Page Token:</label>
+        <input type="password" id="fb_page_token" placeholder="••••••••••" style="padding-right: 40px;">
+        <button type="button" onclick="togglePassword('fb_page_token')" class="pwd-toggle">👁️</button>
+      </div>
+      <div class="form-group" style="position: relative;">
+        <label for="instagram_token">Instagram Access Token:</label>
+        <input type="password" id="instagram_token" placeholder="••••••••••" style="padding-right: 40px;">
+        <button type="button" onclick="togglePassword('instagram_token')" class="pwd-toggle">👁️</button>
+      </div>
 
-      <div class="modal-buttons">
-        <button type="button" class="save-btn" onclick="guardarCredenciales()">Guardar</button>
+      <!-- 🧠 OPENAI -->
+      <h3 style="color: #10A37F; margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 8px;">🧠 OpenAI (ChatGPT)</h3>
+      <div class="form-group" style="position: relative;">
+        <label for="openai_api_key">API Key:</label>
+        <input type="password" id="openai_api_key" placeholder="sk-••••••••••" style="padding-right: 40px;">
+        <button type="button" onclick="togglePassword('openai_api_key')" class="pwd-toggle">👁️</button>
+      </div>
+
+      <!-- ⚡ N8N -->
+      <h3 style="color: #FF6D5A; margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 8px;">⚡ n8n (Automatización)</h3>
+      <div class="form-group">
+        <label for="n8n_url">URL del Servidor:</label>
+        <input type="url" id="n8n_url" placeholder="https://tu-n8n.example.com">
+      </div>
+      <div class="form-group" style="position: relative;">
+        <label for="n8n_api_key">API Key:</label>
+        <input type="password" id="n8n_api_key" placeholder="••••••••••" style="padding-right: 40px;">
+        <button type="button" onclick="togglePassword('n8n_api_key')" class="pwd-toggle">👁️</button>
+      </div>
+
+      <!-- BOTONES & FEEDBACK -->
+      <div class="modal-buttons" style="margin-top: 25px;">
+        <button type="button" class="save-btn" onclick="guardarCredenciales()">💾 Guardar Credenciales</button>
         <button type="button" class="cancel-btn" onclick="cerrarModalConfig()">Cancelar</button>
       </div>
-      <span id="config-cred-msg" class="hidden"></span>
+      <div id="config-cred-msg" class="alert hidden"></div>
     </form>
   </div>
 </div>
+
+
+<!-- ============================================================================
+MODAL: CONFIGURAR CHATBOT MULTI-TENANT
+============================================================================= -->
+<div id="modal-chatbot" class="modal hidden">
+  <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+    <button class="close-btn" onclick="cerrarModalChatbot()">✖</button>
+    <h2>🤖 Configurar Chatbot</h2>
+    
+    <!-- Pestañas de navegación -->
+    <div style="display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+      <button class="tab-btn active" onclick="cambiarTabChatbot('general')" id="tab-general-btn">⚙️ General</button>
+      <button class="tab-btn" onclick="cambiarTabChatbot('keywords')" id="tab-keywords-btn">⚡ Keywords</button>
+      <button class="tab-btn" onclick="cambiarTabChatbot('flows')" id="tab-flows-btn">🔄 Flujos</button>
+    </div>
+    
+    <!-- Pestaña 1: Configuración General -->
+    <div id="tab-general" class="tab-content">
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="bot-activo"> 
+          <strong>Activar chatbot para este tenant</strong>
+        </label>
+      </div>
+      
+      <div class="form-group">
+        <label>Nombre del asistente:</label>
+        <input type="text" id="bot-nombre" placeholder="Ej. Asistente Cami Cam">
+      </div>
+      
+      <div class="form-group">
+        <label>Mensaje de bienvenida:</label>
+        <textarea id="bot-bienvenida" rows="3" placeholder="👋 ¡Hola! ¿En qué puedo ayudarte?"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label>Mensaje cuando no entiende:</label>
+        <textarea id="bot-fallback" rows="3" placeholder="😅 No entendí tu mensaje..."></textarea>
+      </div>
+      
+      <hr style="margin: 20px 0;">
+      
+      <h4>🧠 Configuración de IA (Opcional)</h4>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="bot-usar-ia"> 
+          Usar IA para respuestas inteligentes
+        </label>
+      </div>
+      
+      <div class="form-group">
+        <label>Instrucciones para la IA:</label>
+        <textarea id="bot-instrucciones-ia" rows="4" placeholder="Eres un asistente experto en photobooth para fiestas de XV años y bodas..."></textarea>
+        <small style="color: #666;">Describe la personalidad, tono y conocimientos del asistente.</small>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button class="save-btn" onclick="guardarConfigBot()">💾 Guardar Configuración</button>
+        <button class="cancel-btn" onclick="cerrarModalChatbot()">Cancelar</button>
+      </div>
+      <div id="bot-config-feedback" class="alert hidden"></div>
+    </div>
+    
+    <!-- Pestaña 2: Keywords (Respuestas Rápidas) -->
+    <div id="tab-keywords" class="tab-content hidden">
+      <p style="color: #666; margin-bottom: 15px;">Define palabras clave y sus respuestas automáticas.</p>
+      
+      <!-- Formulario para agregar nueva keyword -->
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 3fr auto; gap: 10px; align-items: end;">
+          <div>
+            <label style="font-size: 12px;">Keyword:</label>
+            <input type="text" id="new-keyword" placeholder="ej: horario" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-size: 12px;">Respuesta:</label>
+            <input type="text" id="new-respuesta" placeholder="Estamos abiertos de 9am a 9pm" style="width: 100%;">
+          </div>
+          <button onclick="agregarKeyword()" class="btn-primary" style="padding: 10px 15px;">➕ Agregar</button>
+        </div>
+        <label style="font-size: 12px; margin-top: 8px; display: flex; align-items: center; gap: 5px;">
+          <input type="checkbox" id="new-exact-match"> Coincidencia exacta (no contiene)
+        </label>
+      </div>
+      
+      <!-- Lista de keywords existentes -->
+      <div id="lista-keywords" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+    
+    <!-- Pestaña 3: Flujos de Conversación -->
+    <div id="tab-flows" class="tab-content hidden">
+      <p style="color: #666; margin-bottom: 15px;">Crea conversaciones guiadas con múltiples pasos.</p>
+      
+      <!-- Lista de flujos existentes -->
+      <div id="lista-flows" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px;"></div>
+      
+      <!-- Botón para crear nuevo flujo -->
+      <button onclick="abrirEditorFlujo()" class="btn-primary" style="width: 100%;">
+        ➕ Crear Nuevo Flujo
+      </button>
+    </div>
+    
+  </div>
+</div>
+
+<!-- Modal Editor de Flujo (anidado) -->
+<div id="modal-editor-flujo" class="modal hidden">
+  <div class="modal-content" style="max-width: 700px;">
+    <button class="close-btn" onclick="cerrarModalFlujo()">✖</button>
+    <h3>✏️ Editor de Flujo</h3>
+    
+    <div class="form-group">
+      <label>Nombre del flujo:</label>
+      <input type="text" id="flow-nombre" placeholder="Ej. Consultar Precios">
+    </div>
+    
+    <div class="form-group">
+      <label>Palabra clave para activar:</label>
+      <input type="text" id="flow-trigger" placeholder="Ej: precio, costos, tarifa">
+    </div>
+    
+    <div class="form-group">
+      <label>Pasos del flujo (JSON):</label>
+      <textarea id="flow-pasos" rows="8" placeholder='[
+  {"tipo": "mensaje", "texto": "¿Para qué tipo de evento?"},
+  {"tipo": "opciones", "opciones": ["XV años", "Boda", "Corporativo"]}
+]' style="font-family: monospace; font-size: 12px;"></textarea>
+      <small style="color: #666;">Formato JSON: array de objetos con "tipo", "texto", "opciones", etc.</small>
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
+      <button class="save-btn" onclick="guardarFlujo()">Guardar Flujo</button>
+      <button class="cancel-btn" onclick="cerrarModalFlujo()">Cancelar</button>
+    </div>
+    <div id="flow-feedback" class="alert hidden"></div>
+  </div>
+</div>
+
 
 
 
@@ -6771,101 +7071,443 @@ socket.on("configuracion_actualizada", data => {
 // MODAL DE INTEGRACIONES - FUNCIONES ACTUALIZADAS
 // ============================================================================
 
+// ============================================================================
+// MODAL CREDENCIALES - FUNCIONES COMPLETAS
+// ============================================================================
+
 function mostrarModalConfig() {
-    document.getElementById('modal-config-credentials').classList.remove('hidden');
-    cargarCredenciales();  // ✅ Cargar credenciales del tenant actual al abrir
+  document.getElementById('modal-config-credentials').classList.remove('hidden');
+  cargarCredenciales();
 }
 
 function cerrarModalConfig() {
-    document.getElementById('modal-config-credentials').classList.add('hidden');
-    const msg = document.getElementById('config-cred-msg');
-    if (msg) msg.classList.add('hidden');
+  document.getElementById('modal-config-credentials').classList.add('hidden');
+  const msg = document.getElementById('config-cred-msg');
+  if (msg) msg.classList.add('hidden');
+  const waRes = document.getElementById('whatsapp-test-result');
+  if (waRes) waRes.textContent = '';
 }
 
-// Cargar credenciales desde backend (solo muestra placeholders para campos sensibles)
 async function cargarCredenciales() {
-    try {
-        const resp = await fetch('/api/integraciones');
-        if (!resp.ok) throw new Error('Error HTTP ' + resp.status);
-        
-        const data = await resp.json();
-        
-        // ✅ Campos NO sensibles: mostrar valor real
-        document.getElementById('whatsapp_phone_id').value = data.whatsapp_phone_number_id || '';
-        document.getElementById('n8n_url').value = data.n8n_url || '';
-        
-        // ✅ Campos sensibles: dejar vacíos (el usuario debe re-ingresar si quiere cambiar)
-        // Esto es por seguridad: nunca enviamos el token real al frontend
-        document.getElementById('whatsapp_token').value = '';
-        document.getElementById('whatsapp_verify_token').value = '';
-        document.getElementById('fb_page_token').value = '';
-        document.getElementById('instagram_token').value = '';
-        document.getElementById('openai_api_key').value = '';
-        document.getElementById('n8n_api_key').value = '';
-        
-        // Mensaje informativo
-        const msg = document.getElementById('config-cred-msg');
-        if (msg) {
-            if (data.existe) {
-                msg.textContent = '✅ Credenciales configuradas. Ingresa nuevos valores para actualizar.';
-                msg.className = 'alert alert-info';
-            } else {
-                msg.textContent = 'ℹ️ Sin credenciales configuradas. Completa los campos para guardar.';
-                msg.className = 'alert alert-warning';
-            }
-            msg.classList.remove('hidden');
-        }
-        
-    } catch (err) {
-        console.error('❌ Error al cargar credenciales:', err);
-        mostrarNotificacionSuave('❌ Error al cargar credenciales', 'error');
+  try {
+    const resp = await fetch('/api/integraciones');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    // ✅ Campos NO sensibles: mostrar valor real
+    document.getElementById('whatsapp_phone_id').value = data.whatsapp_phone_number_id || '';
+    document.getElementById('n8n_url').value = data.n8n_url || '';
+
+    // 🔐 Campos sensibles: dejar vacíos por seguridad (el usuario debe re-ingresar si quiere cambiar)
+    ['whatsapp_token', 'whatsapp_verify_token', 'fb_page_token', 'instagram_token', 'openai_api_key', 'n8n_api_key']
+      .forEach(id => document.getElementById(id).value = '');
+
+    // 📢 Mensaje de estado
+    if (data.existe) {
+      mostrarFeedbackConfig('✅ Credenciales configuradas. Completa solo los campos que quieras actualizar.', 'info');
+    } else {
+      mostrarFeedbackConfig('ℹ️ Sin credenciales configuradas. Completa los campos y guarda.', 'warning');
     }
+  } catch (err) {
+    console.error('❌ Error cargando credenciales:', err);
+    mostrarNotificacionSuave('❌ Error al cargar credenciales', 'error');
+  }
 }
 
-// Guardar credenciales en backend (solo envía campos que el usuario modificó)
 async function guardarCredenciales() {
-    // Recolectar valores del formulario
-    const datos = {
-        whatsapp_access_token: document.getElementById('whatsapp_token').value,
-        whatsapp_phone_number_id: document.getElementById('whatsapp_phone_id').value,
-        whatsapp_verify_token: document.getElementById('whatsapp_verify_token').value,
-        facebook_page_token: document.getElementById('fb_page_token').value,
-        instagram_access_token: document.getElementById('instagram_token').value,
-        openai_api_key: document.getElementById('openai_api_key').value,
-        n8n_url: document.getElementById('n8n_url').value,
-        n8n_api_key: document.getElementById('n8n_api_key').value,
-    };
-    
-    // Validación mínima: al menos un campo debe tener valor
-    const tieneValores = Object.values(datos).some(v => v && v.trim() !== '');
-    if (!tieneValores) {
-        mostrarNotificacionSuave('⚠️ Ingresa al menos una credencial para guardar', 'warning');
-        return;
+  const datos = {
+    whatsapp_access_token: document.getElementById('whatsapp_token').value.trim(),
+    whatsapp_phone_number_id: document.getElementById('whatsapp_phone_id').value.trim(),
+    whatsapp_verify_token: document.getElementById('whatsapp_verify_token').value.trim(),
+    facebook_page_token: document.getElementById('fb_page_token').value.trim(),
+    instagram_access_token: document.getElementById('instagram_token').value.trim(),
+    openai_api_key: document.getElementById('openai_api_key').value.trim(),
+    n8n_url: document.getElementById('n8n_url').value.trim(),
+    n8n_api_key: document.getElementById('n8n_api_key').value.trim()
+  };
+
+  const tieneValores = Object.values(datos).some(v => v !== '');
+  if (!tieneValores) {
+    mostrarFeedbackConfig('⚠️ Ingresa al menos una credencial para guardar.', 'warning');
+    return;
+  }
+
+  try {
+    const resp = await fetch('/api/integraciones', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos)
+    });
+    const result = await resp.json();
+
+    if (result.ok) {
+      mostrarFeedbackConfig('✅ Credenciales actualizadas correctamente.', 'success');
+      mostrarNotificacionSuave('✅ Credenciales guardadas', 'success');
+      setTimeout(() => cargarCredenciales(), 1500); // Recargar para actualizar estado UI
+    } else {
+      mostrarFeedbackConfig('❌ ' + (result.error || 'Error desconocido'), 'error');
     }
-    
-    try {
-        const resp = await fetch('/api/integraciones', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datos)
-        });
-        
-        const result = await resp.json();
-        
-        if (result.ok) {
-            mostrarNotificacionSuave('✅ Credenciales actualizadas', 'success');
-            // Recargar para actualizar el mensaje informativo
-            cargarCredenciales();
-        } else {
-            mostrarNotificacionSuave('❌ Error: ' + (result.error || 'desconocido'), 'error');
-        }
-    } catch (err) {
-        console.error('❌ Error al guardar credenciales:', err);
-        mostrarNotificacionSuave('❌ Error de conexión', 'error');
+  } catch (err) {
+    console.error('❌ Error guardando:', err);
+    mostrarNotificacionSuave('❌ Error de conexión', 'error');
+  }
+}
+
+// 🔑 Toggle Mostrar/Ocultar Contraseña
+function togglePassword(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isPassword = input.type === 'password';
+  input.type = isPassword ? 'text' : 'password';
+  // Cambiar ícono visualmente
+  const btn = input.parentElement.querySelector('.pwd-toggle');
+  if (btn) btn.textContent = isPassword ? '🙈' : '👁️';
+}
+
+// 🧪 Probar Conexión WhatsApp Business API
+async function probarConexionWhatsApp() {
+  const phoneId = document.getElementById('whatsapp_phone_id').value.trim();
+  const token = document.getElementById('whatsapp_token').value.trim();
+  const resultSpan = document.getElementById('whatsapp-test-result');
+
+  if (!phoneId || !token) {
+    resultSpan.textContent = '⚠️ Ingresa Phone ID y Token primero';
+    resultSpan.style.color = '#f39c12';
+    return;
+  }
+
+  resultSpan.textContent = '🔄 Probando conexión...';
+  resultSpan.style.color = '#666';
+
+  try {
+    const resp = await fetch('/api/integraciones/test-whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number_id: phoneId, access_token: token })
+    });
+    const data = await resp.json();
+
+    if (data.ok) {
+      resultSpan.innerHTML = `✅ ${data.mensaje}`;
+      if (data.verified_name) resultSpan.innerHTML += ` <small>(${data.verified_name})</small>`;
+      if (data.quality_rating) resultSpan.innerHTML += ` <small>• Calidad: ${data.quality_rating}</small>`;
+      resultSpan.style.color = '#27ae60';
+      mostrarNotificacionSuave('✅ Conexión WhatsApp exitosa', 'success');
+    } else {
+      resultSpan.textContent = data.error || '❌ Error en la prueba';
+      resultSpan.style.color = '#e74c3c';
     }
+  } catch (err) {
+    console.error('❌ Error probando WhatsApp:', err);
+    resultSpan.textContent = '❌ Error de red o servidor';
+    resultSpan.style.color = '#e74c3c';
+  }
+}
+
+// 💡 Helper para feedback visual en el modal
+function mostrarFeedbackConfig(msg, tipo) {
+  const el = document.getElementById('config-cred-msg');
+  el.textContent = msg;
+  el.className = `alert alert-${tipo}`;
+  el.classList.remove('hidden');
 }
 
 // ============================================================================
+
+
+
+// ============================================================================
+// MODAL CHATBOT - FUNCIONES
+// ============================================================================
+
+let estadosTabChatbot = { actual: 'general' };
+
+function abrirModalChatbot() {
+  document.getElementById('modal-chatbot').classList.remove('hidden');
+  cargarConfigBot();
+  cargarKeywords();
+  cargarFlows();
+}
+
+function cerrarModalChatbot() {
+  document.getElementById('modal-chatbot').classList.add('hidden');
+  document.getElementById('bot-config-feedback').classList.add('hidden');
+}
+
+function cambiarTabChatbot(tab) {
+  // Actualizar botones
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`tab-${tab}-btn`).classList.add('active');
+  
+  // Mostrar contenido
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+  document.getElementById(`tab-${tab}`).classList.remove('hidden');
+  
+  estadosTabChatbot.actual = tab;
+  
+  // Recargar datos si es necesario
+  if (tab === 'keywords') cargarKeywords();
+  if (tab === 'flows') cargarFlows();
+}
+
+// --- CONFIGURACIÓN GENERAL ---
+
+async function cargarConfigBot() {
+  try {
+    const resp = await fetch('/api/bot/config');
+    if (!resp.ok) throw new Error('Error al cargar config');
+    const data = await resp.json();
+    
+    document.getElementById('bot-activo').checked = data.bot_activo || false;
+    document.getElementById('bot-nombre').value = data.nombre_bot || '';
+    document.getElementById('bot-bienvenida').value = data.mensaje_bienvenida || '';
+    document.getElementById('bot-fallback').value = data.mensaje_fallback || '';
+    document.getElementById('bot-usar-ia').checked = data.usar_ia || false;
+    document.getElementById('bot-instrucciones-ia').value = data.instrucciones_ia || '';
+    
+  } catch (err) {
+    console.error('❌ Error al cargar config del bot:', err);
+  }
+}
+
+async function guardarConfigBot() {
+  const datos = {
+    bot_activo: document.getElementById('bot-activo').checked,
+    nombre_bot: document.getElementById('bot-nombre').value,
+    mensaje_bienvenida: document.getElementById('bot-bienvenida').value,
+    mensaje_fallback: document.getElementById('bot-fallback').value,
+    usar_ia: document.getElementById('bot-usar-ia').checked,
+    instrucciones_ia: document.getElementById('bot-instrucciones-ia').value,
+  };
+  
+  try {
+    const resp = await fetch('/api/bot/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos)
+    });
+    const result = await resp.json();
+    
+    const feedback = document.getElementById('bot-config-feedback');
+    if (result.ok) {
+      feedback.textContent = '✅ Configuración guardada';
+      feedback.className = 'alert alert-success';
+    } else {
+      feedback.textContent = '❌ Error: ' + (result.error || 'desconocido');
+      feedback.className = 'alert alert-error';
+    }
+    feedback.classList.remove('hidden');
+  } catch (err) {
+    console.error('❌ Error al guardar config:', err);
+    mostrarNotificacionSuave('❌ Error de conexión', 'error');
+  }
+}
+
+// --- KEYWORDS ---
+
+async function cargarKeywords() {
+  try {
+    const resp = await fetch('/api/bot/keywords');
+    const keywords = await resp.json();
+    
+    document.getElementById('lista-keywords').innerHTML = keywords.length === 0 
+      ? '<p style="color:#666;text-align:center;padding:20px;">Sin keywords configuradas</p>'
+      : keywords.map(kw => `
+          <div class="item-card">
+            <div>
+              <strong>${kw.keyword}</strong>
+              <p style="margin:5px 0 0 0;color:#666;font-size:14px;">${kw.respuesta}</p>
+              <small class="badge ${kw.activo ? 'badge-activo' : 'badge-inactivo'}">
+                ${kw.activo ? 'Activo' : 'Inactivo'}
+              </small>
+              ${kw.exact_match ? '<small style="margin-left:8px;color:#666;">• Coincidencia exacta</small>' : ''}
+            </div>
+            <div class="item-actions">
+              <button class="btn-secondary" onclick="toggleKeyword(${kw.id}, ${!kw.activo})">
+                ${kw.activo ? 'Desactivar' : 'Activar'}
+              </button>
+              <button class="btn-danger" onclick="eliminarKeyword(${kw.id})">🗑️</button>
+            </div>
+          </div>
+        `).join('');
+  } catch (err) {
+    console.error('❌ Error al cargar keywords:', err);
+  }
+}
+
+async function agregarKeyword() {
+  const keyword = document.getElementById('new-keyword').value.trim().toLowerCase();
+  const respuesta = document.getElementById('new-respuesta').value.trim();
+  const exact_match = document.getElementById('new-exact-match').checked;
+  
+  if (!keyword || !respuesta) {
+    mostrarNotificacionSuave('⚠️ Ingresa keyword y respuesta', 'warning');
+    return;
+  }
+  
+  try {
+    const resp = await fetch('/api/bot/keywords', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword, respuesta, exact_match })
+    });
+    if (resp.ok) {
+      document.getElementById('new-keyword').value = '';
+      document.getElementById('new-respuesta').value = '';
+      document.getElementById('new-exact-match').checked = false;
+      cargarKeywords();
+      mostrarNotificacionSuave('✅ Keyword agregada', 'success');
+    }
+  } catch (err) {
+    console.error('❌ Error al agregar keyword:', err);
+    mostrarNotificacionSuave('❌ Error de conexión', 'error');
+  }
+}
+
+async function eliminarKeyword(id) {
+  if (!confirm('¿Eliminar esta keyword?')) return;
+  try {
+    await fetch(`/api/bot/keywords?id=${id}`, { method: 'DELETE' });
+    cargarKeywords();
+    mostrarNotificacionSuave('✅ Keyword eliminada', 'success');
+  } catch (err) {
+    console.error('❌ Error al eliminar:', err);
+  }
+}
+
+async function toggleKeyword(id, nuevoEstado) {
+  // Para simplificar: eliminamos y recreamos con nuevo estado
+  // En producción: agregar endpoint PATCH para actualizar solo 'activo'
+  const kw = await (await fetch('/api/bot/keywords')).json();
+  const item = kw.find(k => k.id === id);
+  if (!item) return;
+  
+  await fetch(`/api/bot/keywords?id=${id}`, { method: 'DELETE' });
+  await fetch('/api/bot/keywords', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      keyword: item.keyword, 
+      respuesta: item.respuesta, 
+      exact_match: item.exact_match,
+      activo: nuevoEstado 
+    })
+  });
+  cargarKeywords();
+}
+
+// --- FLOWS ---
+
+async function cargarFlows() {
+  try {
+    const resp = await fetch('/api/bot/flows');
+    const flows = await resp.json();
+    
+    document.getElementById('lista-flows').innerHTML = flows.length === 0
+      ? '<p style="color:#666;text-align:center;padding:20px;">Sin flujos configurados</p>'
+      : flows.map(flow => `
+          <div class="item-card">
+            <div>
+              <strong>${flow.nombre}</strong>
+              <p style="margin:5px 0 0 0;color:#666;font-size:14px;">
+                Trigger: "${flow.trigger_keyword}" (${flow.trigger_type})
+              </p>
+              <small class="badge ${flow.activo ? 'badge-activo' : 'badge-inactivo'}">
+                ${flow.activo ? 'Activo' : 'Inactivo'}
+              </small>
+            </div>
+            <div class="item-actions">
+              <button class="btn-secondary" onclick="editarFlujo(${flow.id})">✏️</button>
+              <button class="btn-danger" onclick="eliminarFlujo(${flow.id})">🗑️</button>
+            </div>
+          </div>
+        `).join('');
+  } catch (err) {
+    console.error('❌ Error al cargar flows:', err);
+  }
+}
+
+function abrirEditorFlujo() {
+  document.getElementById('modal-editor-flujo').classList.remove('hidden');
+  document.getElementById('flow-nombre').value = '';
+  document.getElementById('flow-trigger').value = '';
+  document.getElementById('flow-pasos').value = '';
+  document.getElementById('flow-feedback').classList.add('hidden');
+}
+
+function cerrarModalFlujo() {
+  document.getElementById('modal-editor-flujo').classList.add('hidden');
+}
+
+async function guardarFlujo() {
+  const nombre = document.getElementById('flow-nombre').value.trim();
+  const trigger = document.getElementById('flow-trigger').value.trim();
+  const pasosRaw = document.getElementById('flow-pasos').value.trim();
+  
+  if (!nombre || !pasosRaw) {
+    mostrarFeedbackFlujo('⚠️ Nombre y pasos son requeridos', 'warning');
+    return;
+  }
+  
+  let pasos;
+  try {
+    pasos = JSON.parse(pasosRaw);
+    if (!Array.isArray(pasos)) throw new Error('Debe ser un array');
+  } catch (e) {
+    mostrarFeedbackFlujo('❌ JSON inválido en pasos: ' + e.message, 'error');
+    return;
+  }
+  
+  try {
+    const resp = await fetch('/api/bot/flows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, trigger_keyword: trigger, pasos })
+    });
+    const result = await resp.json();
+    
+    if (result.ok) {
+      cerrarModalFlujo();
+      cargarFlows();
+      mostrarNotificacionSuave('✅ Flujo guardado', 'success');
+    } else {
+      mostrarFeedbackFlujo('❌ Error: ' + (result.error || 'desconocido'), 'error');
+    }
+  } catch (err) {
+    console.error('❌ Error al guardar flujo:', err);
+    mostrarFeedbackFlujo('❌ Error de conexión', 'error');
+  }
+}
+
+function mostrarFeedbackFlujo(mensaje, tipo) {
+  const fb = document.getElementById('flow-feedback');
+  fb.textContent = mensaje;
+  fb.className = `alert alert-${tipo}`;
+  fb.classList.remove('hidden');
+}
+
+async function eliminarFlujo(id) {
+  if (!confirm('¿Eliminar este flujo?')) return;
+  try {
+    await fetch(`/api/bot/flows?id=${id}`, { method: 'DELETE' });
+    cargarFlows();
+    mostrarNotificacionSuave('✅ Flujo eliminado', 'success');
+  } catch (err) {
+    console.error('❌ Error al eliminar flujo:', err);
+  }
+}
+
+function editarFlujo(id) {
+  // Para MVP: recargar datos y abrir editor (simplificado)
+  cargarFlows().then(() => {
+    // En producción: fetch del flow específico y llenar el formulario
+    abrirEditorFlujo();
+    mostrarNotificacionSuave('ℹ️ Edición completa en próxima versión', 'info');
+  });
+}
+
+// ============================================================================
+
 
 
   //BOTON DE CODIGO DE SEGURIDAD

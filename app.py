@@ -2723,162 +2723,578 @@ def guardar_integraciones():
         return jsonify({"error": f"Error al guardar credenciales: {str(e)}"}), 500
     finally:
         liberar_db(conn)
+   
+# ============================================================================
+# ENDPOINT: PROBAR CONEXIÓN WHATSAPP BUSINESS API
+# ============================================================================
+@app.route("/api/integraciones/test-whatsapp", methods=["POST"])
+def test_whatsapp_connection():
+    """
+    Prueba de conexión básica con WhatsApp Business API de Meta.
+    Verifica que el token y phone_number_id sean válidos.
+    """
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    datos = request.json
+    if not datos:
+        return jsonify({"error": "No se recibieron datos"}), 400
+    
+    phone_id = datos.get("phone_number_id", "").strip()
+    access_token = datos.get("access_token", "").strip()  # Token nuevo para probar
+    
+    if not phone_id or not access_token:
+        return jsonify({"error": "Phone Number ID y Access Token son requeridos"}), 400
+    
+    try:
+        # Prueba básica: obtener información del número de WhatsApp
+        url = f"https://graph.facebook.com/v18.0/{phone_id}"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
         
+        resp = requests.get(url, headers=headers, timeout=10)
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            return jsonify({
+                "ok": True,
+                "mensaje": f"✅ Conectado: {data.get('name', 'WhatsApp Business')}",
+                "phone_id": phone_id,
+                "verified_name": data.get('verified_name'),
+                "quality_rating": data.get('quality_rating')
+            }), 200
+            
+        elif resp.status_code == 401:
+            return jsonify({"error": "❌ Token inválido o expirado"}), 401
+            
+        elif resp.status_code == 404:
+            return jsonify({"error": f"❌ Phone Number ID no encontrado: {phone_id}"}), 404
+            
+        else:
+            error_detail = resp.text[:200] if resp.text else "Sin detalles"
+            return jsonify({
+                "error": f"❌ HTTP {resp.status_code}: {error_detail}"
+            }), resp.status_code
+            
+    except requests.Timeout:
+        return jsonify({"error": "⏱️ Timeout: no se pudo conectar con Meta en 10s"}), 504
+    except requests.ConnectionError:
+        return jsonify({"error": "🌐 Error de conexión: verifica tu internet"}), 503
+    except Exception as e:
+        app.logger.error(f"❌ Error en test_whatsapp_connection: {str(e)}")
+        return jsonify({"error": f"❌ Error interno: {str(e)[:100]}"}), 500     
 # ============================================================================      
         
 # ============================================================================
 # ENDPOINTS: CONFIGURACIÓN DE CHATBOT MULTI-TENANT
 # ============================================================================
-
 @app.route("/api/bot/config", methods=["GET", "POST"])
 def api_bot_config():
-    """Obtener o actualizar la configuración general del bot del tenant"""
+    """
+    Obtener o actualizar la configuración general del bot del tenant actual.
+    GET: Retorna config actual (enmascarada si es sensible)
+    POST: Guarda/actualiza config con encriptación si aplica
+    """
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 401
     
     conn = conectar_db()
-    if not conn: return jsonify({"error": "Error de conexión"}), 500
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
     
     try:
         cur = conn.cursor()
+        
         if request.method == "GET":
+            # 🔍 Obtener configuración actual del tenant
             cur.execute("""
                 SELECT bot_activo, nombre_bot, mensaje_bienvenida, mensaje_fallback, 
                        usar_ia, instrucciones_ia, modelo_ia, temperatura_ia, 
-                       handoff_keywords, handoff_email
-                FROM tenant_bot_config WHERE cliente_id = %s
+                       handoff_keywords, handoff_email, actualizado_en
+                FROM tenant_bot_config 
+                WHERE cliente_id = %s
             """, (cliente_id,))
+            
             row = cur.fetchone()
+            
             if row:
                 return jsonify({
-                    "bot_activo": row[0], "nombre_bot": row[1], 
-                    "mensaje_bienvenida": row[2], "mensaje_fallback": row[3],
-                    "usar_ia": row[4], "instrucciones_ia": row[5],
-                    "modelo_ia": row[6], "temperatura_ia": row[7],
-                    "handoff_keywords": row[8] or [], "handoff_email": row[9]
-                })
-            return jsonify({"error": "Config no encontrada"}), 404
-            
-        else:  # POST
+                    "bot_activo": row[0] or False,
+                    "nombre_bot": row[1] or "Asistente Virtual",
+                    "mensaje_bienvenida": row[2] or "👋 ¡Hola! ¿En qué puedo ayudarte?",
+                    "mensaje_fallback": row[3] or "😅 No entendí tu mensaje. ¿Puedes reformularlo?",
+                    "usar_ia": row[4] or False,
+                    "instrucciones_ia": row[5],  # Puede ser None
+                    "modelo_ia": row[6] or "gpt-3.5-turbo",
+                    "temperatura_ia": row[7] or 0.7,
+                    "handoff_keywords": row[8] or [],  # Array de texto
+                    "handoff_email": row[9],  # Puede ser None
+                    "actualizado_en": row[10].isoformat() if row[10] else None
+                }), 200
+            else:
+                # No hay config aún → retornar defaults
+                return jsonify({
+                    "bot_activo": False,
+                    "nombre_bot": "Asistente Virtual",
+                    "mensaje_bienvenida": "👋 ¡Hola! ¿En qué puedo ayudarte?",
+                    "mensaje_fallback": "😅 No entendí tu mensaje. ¿Puedes reformularlo?",
+                    "usar_ia": False,
+                    "instrucciones_ia": None,
+                    "modelo_ia": "gpt-3.5-turbo",
+                    "temperatura_ia": 0.7,
+                    "handoff_keywords": [],
+                    "handoff_email": None,
+                    "existe": False
+                }), 200
+                
+        else:  # POST - Guardar/Actualizar configuración
             data = request.json
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+            
+            # Validar campos requeridos mínimos
+            if "nombre_bot" not in data:
+                return jsonify({"error": "El nombre del bot es requerido"}), 400
+            
+            # Preparar valores para BD (manejar arrays y nulls)
+            handoff_keywords = data.get("handoff_keywords")
+            if isinstance(handoff_keywords, list):
+                handoff_keywords = [k.strip() for k in handoff_keywords if k.strip()]
+            elif handoff_keywords and isinstance(handoff_keywords, str):
+                # Si viene como string separado por comas, convertir a lista
+                handoff_keywords = [k.strip() for k in handoff_keywords.split(",") if k.strip()]
+            else:
+                handoff_keywords = []
+            
+            # 🔗 INSERT o UPDATE con ON CONFLICT
             cur.execute("""
                 INSERT INTO tenant_bot_config 
                 (cliente_id, bot_activo, nombre_bot, mensaje_bienvenida, mensaje_fallback, 
                  usar_ia, instrucciones_ia, modelo_ia, temperatura_ia, handoff_keywords, handoff_email)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (cliente_id) DO UPDATE SET 
-                    bot_activo = EXCLUDED.bot_activo, nombre_bot = EXCLUDED.nombre_bot,
-                    mensaje_bienvenida = EXCLUDED.mensaje_bienvenida, mensaje_fallback = EXCLUDED.mensaje_fallback,
-                    usar_ia = EXCLUDED.usar_ia, instrucciones_ia = EXCLUDED.instrucciones_ia,
-                    modelo_ia = EXCLUDED.modelo_ia, temperatura_ia = EXCLUDED.temperatura_ia,
-                    handoff_keywords = EXCLUDED.handoff_keywords, handoff_email = EXCLUDED.handoff_email,
+                    bot_activo = EXCLUDED.bot_activo,
+                    nombre_bot = EXCLUDED.nombre_bot,
+                    mensaje_bienvenida = EXCLUDED.mensaje_bienvenida,
+                    mensaje_fallback = EXCLUDED.mensaje_fallback,
+                    usar_ia = EXCLUDED.usar_ia,
+                    instrucciones_ia = EXCLUDED.instrucciones_ia,
+                    modelo_ia = EXCLUDED.modelo_ia,
+                    temperatura_ia = EXCLUDED.temperatura_ia,
+                    handoff_keywords = EXCLUDED.handoff_keywords,
+                    handoff_email = EXCLUDED.handoff_email,
                     actualizado_en = CURRENT_TIMESTAMP
             """, (
-                cliente_id, data.get('bot_activo', False), data.get('nombre_bot'), 
-                data.get('mensaje_bienvenida'), data.get('mensaje_fallback'),
-                data.get('usar_ia', False), data.get('instrucciones_ia'), 
-                data.get('modelo_ia', 'gpt-3.5-turbo'), data.get('temperatura_ia', 0.7),
-                data.get('handoff_keywords', []), data.get('handoff_email')
+                cliente_id,
+                data.get("bot_activo", False),
+                data.get("nombre_bot", "Asistente Virtual"),
+                data.get("mensaje_bienvenida", "👋 ¡Hola! ¿En qué puedo ayudarte?"),
+                data.get("mensaje_fallback", "😅 No entendí tu mensaje. ¿Puedes reformularlo?"),
+                data.get("usar_ia", False),
+                data.get("instrucciones_ia"),
+                data.get("modelo_ia", "gpt-3.5-turbo"),
+                data.get("temperatura_ia", 0.7),
+                handoff_keywords,
+                data.get("handoff_email")
             ))
+            
             conn.commit()
-            return jsonify({"ok": True, "mensaje": "Configuración del bot actualizada"})
+            
+            # 🔗 EMITIR SOCKET: Config general actualizada (tiempo real)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot",
+                    "subtipo": "config",
+                    "cliente_id": cliente_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "mensaje": "Configuración general actualizada"
+                }, room=f"cliente_{cliente_id}")
+                app.logger.info(f"🔗 Socket emitido: chatbot config actualizada para cliente {cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ No se pudo emitir socket para chatbot config: {e}")
+                # No fallar la petición si el socket falla
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": "✅ Configuración del bot actualizada correctamente",
+                "cliente_id": cliente_id
+            }), 200
             
     except Exception as e:
+        conn.rollback()
         app.logger.error(f"❌ Error en api_bot_config: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error interno: {str(e)[:100]}"}), 500
     finally:
         liberar_db(conn)
-
-
+            
+# ============================================================================
+# ENDPOINT: GESTIÓN DE KEYWORDS (RESPUESTAS RÁPIDAS) POR TENANT
+# ============================================================================
 @app.route("/api/bot/keywords", methods=["GET", "POST", "DELETE"])
 def api_bot_keywords():
-    """Gestionar respuestas rápidas por palabra clave"""
+    """
+    CRUD de respuestas rápidas por palabra clave para el tenant actual.
+    GET: Lista todas las keywords activas/inactivas
+    POST: Crea o actualiza una keyword
+    DELETE: Elimina una keyword por ID
+    """
     cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id: return jsonify({"error": "No autorizado"}), 401
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
     
     conn = conectar_db()
-    if not conn: return jsonify({"error": "Error de conexión"}), 500
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
     
     try:
         cur = conn.cursor()
         
+        # ==================== GET: Listar keywords ====================
         if request.method == "GET":
             cur.execute("""
-                SELECT id, keyword, respuesta, exact_match, activo 
-                FROM bot_keywords WHERE cliente_id = %s ORDER BY keyword ASC
+                SELECT id, keyword, respuesta, exact_match, case_sensitive, 
+                       veces_usada, activo, creado_en, actualizado_en
+                FROM bot_keywords 
+                WHERE cliente_id = %s 
+                ORDER BY keyword ASC
             """, (cliente_id,))
-            return jsonify([{"id": r[0], "keyword": r[1], "respuesta": r[2], "exact_match": r[3], "activo": r[4]} for r in cur.fetchall()])
             
+            keywords = []
+            for row in cur.fetchall():
+                keywords.append({
+                    "id": row[0],
+                    "keyword": row[1],
+                    "respuesta": row[2],
+                    "exact_match": row[3],
+                    "case_sensitive": row[4],
+                    "veces_usada": row[5],
+                    "activo": row[6],
+                    "creado_en": row[7].isoformat() if row[7] else None,
+                    "actualizado_en": row[8].isoformat() if row[8] else None
+                })
+            
+            return jsonify(keywords), 200
+        
+        # ==================== POST: Crear/Actualizar keyword ====================
         elif request.method == "POST":
             data = request.json
-            cur.execute("""
-                INSERT INTO bot_keywords (cliente_id, keyword, respuesta, exact_match, activo)
-                VALUES (%s, %s, %s, %s, TRUE)
-                ON CONFLICT (cliente_id, keyword) DO UPDATE SET 
-                    respuesta = EXCLUDED.respuesta, exact_match = EXCLUDED.exact_match, activo = TRUE, actualizado_en = CURRENT_TIMESTAMP
-            """, (cliente_id, data["keyword"].strip().lower(), data["respuesta"], data.get("exact_match", False)))
-            conn.commit()
-            return jsonify({"ok": True})
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
             
-        elif request.method == "DELETE":
-            kw_id = request.args.get("id")
-            cur.execute("DELETE FROM bot_keywords WHERE id = %s AND cliente_id = %s", (kw_id, cliente_id))
+            keyword = data.get("keyword", "").strip().lower()
+            respuesta = data.get("respuesta", "").strip()
+            
+            if not keyword or not respuesta:
+                return jsonify({"error": "Keyword y respuesta son requeridos"}), 400
+            
+            # Validar longitud máxima
+            if len(keyword) > 100:
+                return jsonify({"error": "La keyword no puede exceder 100 caracteres"}), 400
+            
+            # 🔗 INSERT o UPDATE con ON CONFLICT
+            cur.execute("""
+                INSERT INTO bot_keywords 
+                (cliente_id, keyword, respuesta, exact_match, case_sensitive, activo)
+                VALUES (%s, %s, %s, %s, %s, TRUE)
+                ON CONFLICT (cliente_id, keyword) DO UPDATE SET 
+                    respuesta = EXCLUDED.respuesta,
+                    exact_match = EXCLUDED.exact_match,
+                    case_sensitive = EXCLUDED.case_sensitive,
+                    activo = TRUE,
+                    actualizado_en = CURRENT_TIMESTAMP
+            """, (
+                cliente_id,
+                keyword,
+                respuesta,
+                data.get("exact_match", False),
+                data.get("case_sensitive", False)
+            ))
+            
             conn.commit()
-            return jsonify({"ok": True, "eliminadas": cur.rowcount})
+            
+            # 🔗 EMITIR SOCKET: Keywords actualizadas (tiempo real)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot",
+                    "subtipo": "keywords",
+                    "cliente_id": cliente_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "keyword": keyword,
+                    "accion": "creada_o_actualizada"
+                }, room=f"cliente_{cliente_id}")
+                app.logger.info(f"🔗 Socket emitido: keyword '{keyword}' actualizada para cliente {cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ No se pudo emitir socket para keywords: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": f"✅ Keyword '{keyword}' guardada correctamente",
+                "id": cur.lastrowid if cur.lastrowid else None
+            }), 200
+        
+        # ==================== DELETE: Eliminar keyword ====================
+        elif request.method == "DELETE":
+            keyword_id = request.args.get("id", type=int)
+            
+            if not keyword_id:
+                return jsonify({"error": "ID de keyword es requerido"}), 400
+            
+            # Verificar que la keyword pertenece al tenant antes de eliminar
+            cur.execute("""
+                SELECT keyword FROM bot_keywords 
+                WHERE id = %s AND cliente_id = %s
+            """, (keyword_id, cliente_id))
+            
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "Keyword no encontrada o no pertenece a este tenant"}), 404
+            
+            keyword_eliminada = row[0]
+            
+            cur.execute("""
+                DELETE FROM bot_keywords 
+                WHERE id = %s AND cliente_id = %s
+            """, (keyword_id, cliente_id))
+            
+            conn.commit()
+            
+            # 🔗 EMITIR SOCKET: Keywords actualizadas (tiempo real)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot",
+                    "subtipo": "keywords",
+                    "cliente_id": cliente_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "keyword": keyword_eliminada,
+                    "accion": "eliminada"
+                }, room=f"cliente_{cliente_id}")
+                app.logger.info(f"🔗 Socket emitido: keyword '{keyword_eliminada}' eliminada para cliente {cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ No se pudo emitir socket para keywords: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": f"✅ Keyword '{keyword_eliminada}' eliminada correctamente",
+                "eliminadas": cur.rowcount
+            }), 200
             
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        conn.rollback()
+        app.logger.error(f"❌ Error en api_bot_keywords: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error interno: {str(e)[:100]}"}), 500
     finally:
         liberar_db(conn)
+        
 
-
+# ============================================================================
+# ENDPOINT: GESTIÓN DE FLOWS (FLUJOS DE CONVERSACIÓN) POR TENANT
+# ============================================================================
 @app.route("/api/bot/flows", methods=["GET", "POST", "DELETE"])
 def api_bot_flows():
-    """Gestionar flujos de conversación (pasos JSONB)"""
+    """
+    CRUD de flujos de conversación con pasos JSONB para el tenant actual.
+    GET: Lista todos los flujos activos/inactivos
+    POST: Crea o actualiza un flujo
+    DELETE: Elimina un flujo por ID
+    """
     cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id: return jsonify({"error": "No autorizado"}), 401
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
     
     conn = conectar_db()
-    if not conn: return jsonify({"error": "Error de conexión"}), 500
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
     
     try:
         cur = conn.cursor()
         
+        # ==================== GET: Listar flujos ====================
         if request.method == "GET":
             cur.execute("""
-                SELECT id, nombre, trigger_keyword, trigger_type, pasos, activo, orden 
-                FROM bot_flows WHERE cliente_id = %s ORDER BY orden ASC
+                SELECT id, nombre, descripcion, trigger_keyword, trigger_type, 
+                       pasos, requiere_autenticacion, timeout_segundos, 
+                       max_reintentos, activo, orden, creado_en, actualizado_en
+                FROM bot_flows 
+                WHERE cliente_id = %s 
+                ORDER BY orden ASC, nombre ASC
             """, (cliente_id,))
-            return jsonify([{"id": r[0], "nombre": r[1], "trigger_keyword": r[2], 
-                            "trigger_type": r[3], "pasos": r[4], "activo": r[5], "orden": r[6]} 
-                           for r in cur.fetchall()])
             
+            flows = []
+            for row in cur.fetchall():
+                flows.append({
+                    "id": row[0],
+                    "nombre": row[1],
+                    "descripcion": row[2],
+                    "trigger_keyword": row[3],
+                    "trigger_type": row[4],
+                    "pasos": row[5],  # JSONB se serializa automáticamente a dict/list
+                    "requiere_autenticacion": row[6],
+                    "timeout_segundos": row[7],
+                    "max_reintentos": row[8],
+                    "activo": row[9],
+                    "orden": row[10],
+                    "creado_en": row[11].isoformat() if row[11] else None,
+                    "actualizado_en": row[12].isoformat() if row[12] else None
+                })
+            
+            return jsonify(flows), 200
+        
+        # ==================== POST: Crear/Actualizar flujo ====================
         elif request.method == "POST":
             data = request.json
-            # psycopg2 convierte dicts Python a JSONB automáticamente
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+            
+            nombre = data.get("nombre", "").strip()
+            if not nombre:
+                return jsonify({"error": "El nombre del flujo es requerido"}), 400
+            
+            # Validar y parsear pasos JSON
+            pasos = data.get("pasos")
+            if not pasos:
+                return jsonify({"error": "Los pasos del flujo son requeridos"}), 400
+            
+            # Si viene como string, intentar parsear JSON
+            if isinstance(pasos, str):
+                try:
+                    import json
+                    pasos = json.loads(pasos)
+                except json.JSONDecodeError as e:
+                    return jsonify({"error": f"JSON inválido en pasos: {str(e)}"}), 400
+            
+            if not isinstance(pasos, list):
+                return jsonify({"error": "Los pasos deben ser un array JSON"}), 400
+            
+            # Validar estructura básica de cada paso (opcional pero recomendado)
+            for i, paso in enumerate(pasos):
+                if not isinstance(paso, dict):
+                    return jsonify({"error": f"El paso {i+1} debe ser un objeto JSON"}), 400
+                if "tipo" not in paso:
+                    return jsonify({"error": f"El paso {i+1} debe tener un campo 'tipo'"}), 400
+            
+            # 🔗 INSERT o UPDATE con ON CONFLICT
             cur.execute("""
                 INSERT INTO bot_flows 
-                (cliente_id, nombre, trigger_keyword, trigger_type, pasos, activo, orden)
-                VALUES (%s, %s, %s, %s, %s, TRUE, %s)
+                (cliente_id, nombre, descripcion, trigger_keyword, trigger_type, 
+                 pasos, requiere_autenticacion, timeout_segundos, max_reintentos, activo, orden)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s)
                 ON CONFLICT (cliente_id, nombre) DO UPDATE SET 
-                    trigger_keyword = EXCLUDED.trigger_keyword, pasos = EXCLUDED.pasos, 
-                    activo = TRUE, orden = EXCLUDED.orden, actualizado_en = CURRENT_TIMESTAMP
-            """, (cliente_id, data["nombre"], data.get("trigger_keyword"), 
-                  data.get("trigger_type", "keyword"), data["pasos"], data.get("orden", 0)))
-            conn.commit()
-            return jsonify({"ok": True})
+                    descripcion = EXCLUDED.descripcion,
+                    trigger_keyword = EXCLUDED.trigger_keyword,
+                    trigger_type = EXCLUDED.trigger_type,
+                    pasos = EXCLUDED.pasos,
+                    requiere_autenticacion = EXCLUDED.requiere_autenticacion,
+                    timeout_segundos = EXCLUDED.timeout_segundos,
+                    max_reintentos = EXCLUDED.max_reintentos,
+                    activo = TRUE,
+                    orden = EXCLUDED.orden,
+                    actualizado_en = CURRENT_TIMESTAMP
+            """, (
+                cliente_id,
+                nombre,
+                data.get("descripcion"),
+                data.get("trigger_keyword"),
+                data.get("trigger_type", "keyword"),
+                pasos,  # psycopg2 convierte dict/list Python a JSONB automáticamente
+                data.get("requiere_autenticacion", False),
+                data.get("timeout_segundos", 300),
+                data.get("max_reintentos", 3),
+                data.get("orden", 0)
+            ))
             
-        elif request.method == "DELETE":
-            flow_id = request.args.get("id")
-            cur.execute("DELETE FROM bot_flows WHERE id = %s AND cliente_id = %s", (flow_id, cliente_id))
             conn.commit()
-            return jsonify({"ok": True, "eliminados": cur.rowcount})
+            
+            # 🔗 EMITIR SOCKET: Flows actualizados (tiempo real)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot",
+                    "subtipo": "flows",
+                    "cliente_id": cliente_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "flow_nombre": nombre,
+                    "accion": "creado_o_actualizado"
+                }, room=f"cliente_{cliente_id}")
+                app.logger.info(f"🔗 Socket emitido: flow '{nombre}' actualizado para cliente {cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ No se pudo emitir socket para flows: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": f"✅ Flujo '{nombre}' guardado correctamente",
+                "id": cur.lastrowid if cur.lastrowid else None
+            }), 200
+        
+        # ==================== DELETE: Eliminar flujo ====================
+        elif request.method == "DELETE":
+            flow_id = request.args.get("id", type=int)
+            
+            if not flow_id:
+                return jsonify({"error": "ID de flujo es requerido"}), 400
+            
+            # Verificar que el flujo pertenece al tenant antes de eliminar
+            cur.execute("""
+                SELECT nombre FROM bot_flows 
+                WHERE id = %s AND cliente_id = %s
+            """, (flow_id, cliente_id))
+            
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "Flujo no encontrado o no pertenece a este tenant"}), 404
+            
+            flow_eliminado = row[0]
+            
+            # Eliminar también sesiones activas que usen este flujo (cascada opcional)
+            cur.execute("""
+                UPDATE conversation_sessions 
+                SET flujo_activo_id = NULL, estado_actual = 'idle'
+                WHERE flujo_activo_id = %s AND cliente_id = %s
+            """, (flow_id, cliente_id))
+            
+            cur.execute("""
+                DELETE FROM bot_flows 
+                WHERE id = %s AND cliente_id = %s
+            """, (flow_id, cliente_id))
+            
+            conn.commit()
+            
+            # 🔗 EMITIR SOCKET: Flows actualizados (tiempo real)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot",
+                    "subtipo": "flows",
+                    "cliente_id": cliente_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "flow_nombre": flow_eliminado,
+                    "accion": "eliminado"
+                }, room=f"cliente_{cliente_id}")
+                app.logger.info(f"🔗 Socket emitido: flow '{flow_eliminado}' eliminado para cliente {cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ No se pudo emitir socket para flows: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": f"✅ Flujo '{flow_eliminado}' eliminado correctamente",
+                "eliminados": cur.rowcount
+            }), 200
             
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        conn.rollback()
+        app.logger.error(f"❌ Error en api_bot_flows: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error interno: {str(e)[:100]}"}), 500
     finally:
         liberar_db(conn)
+
+
 # ============================================================================
 
 #Verificar CODIGO DE SEGURIDAD
