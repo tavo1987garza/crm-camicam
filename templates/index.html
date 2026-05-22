@@ -6766,100 +6766,106 @@ socket.on("configuracion_actualizada", data => {
 });
 
 
-//CARGAR LAS CREDENCIALES
-// 1️⃣ Abrir y cargar
+
+// ============================================================================
+// MODAL DE INTEGRACIONES - FUNCIONES ACTUALIZADAS
+// ============================================================================
+
 function mostrarModalConfig() {
-  cargarCredencialesEnModal();
-  document.getElementById("modal-config-credentials").classList.remove("hidden");
+    document.getElementById('modal-config-credentials').classList.remove('hidden');
+    cargarCredenciales();  // ✅ Cargar credenciales del tenant actual al abrir
 }
 
-// 2️⃣ Cerrar
 function cerrarModalConfig() {
-  document.getElementById("modal-config-credentials").classList.add("hidden");
+    document.getElementById('modal-config-credentials').classList.add('hidden');
+    const msg = document.getElementById('config-cred-msg');
+    if (msg) msg.classList.add('hidden');
 }
 
-// 3️⃣ Cargar valores existentes en los inputs
-async function cargarCredencialesEnModal() {
-  try {
-    // Mensajería
-    const resMens = await fetch("/config/mensajeria");
-    const mens = await resMens.json();
-    document.getElementById("whatsapp_token").value       = mens.whatsapp_token     || "";
-    document.getElementById("whatsapp_phone_id").value    = mens.whatsapp_phone_id  || "";
-    document.getElementById("whatsapp_verify_token").value = mens.whatsapp_verify_token || "";
-    document.getElementById("fb_page_token").value        = mens.fb_page_token      || "";
-    document.getElementById("instagram_token").value      = mens.instagram_token    || "";
-
-    // OpenAI
-    const resIa = await fetch("/config/ia");
-    const ia    = await resIa.json();
-    document.getElementById("openai_api_key").value = ia.openai_api_key || "";
-
-    // n8n
-    const resN8 = await fetch("/config/n8n");
-    const n8    = await resN8.json();
-    document.getElementById("n8n_url").value     = n8.n8n_url     || "";
-    document.getElementById("n8n_api_key").value = n8.n8n_api_key || "";
-  } catch (e) {
-    console.error("Error cargando credenciales:", e);
-  }
+// Cargar credenciales desde backend (solo muestra placeholders para campos sensibles)
+async function cargarCredenciales() {
+    try {
+        const resp = await fetch('/api/integraciones');
+        if (!resp.ok) throw new Error('Error HTTP ' + resp.status);
+        
+        const data = await resp.json();
+        
+        // ✅ Campos NO sensibles: mostrar valor real
+        document.getElementById('whatsapp_phone_id').value = data.whatsapp_phone_number_id || '';
+        document.getElementById('n8n_url').value = data.n8n_url || '';
+        
+        // ✅ Campos sensibles: dejar vacíos (el usuario debe re-ingresar si quiere cambiar)
+        // Esto es por seguridad: nunca enviamos el token real al frontend
+        document.getElementById('whatsapp_token').value = '';
+        document.getElementById('whatsapp_verify_token').value = '';
+        document.getElementById('fb_page_token').value = '';
+        document.getElementById('instagram_token').value = '';
+        document.getElementById('openai_api_key').value = '';
+        document.getElementById('n8n_api_key').value = '';
+        
+        // Mensaje informativo
+        const msg = document.getElementById('config-cred-msg');
+        if (msg) {
+            if (data.existe) {
+                msg.textContent = '✅ Credenciales configuradas. Ingresa nuevos valores para actualizar.';
+                msg.className = 'alert alert-info';
+            } else {
+                msg.textContent = 'ℹ️ Sin credenciales configuradas. Completa los campos para guardar.';
+                msg.className = 'alert alert-warning';
+            }
+            msg.classList.remove('hidden');
+        }
+        
+    } catch (err) {
+        console.error('❌ Error al cargar credenciales:', err);
+        mostrarNotificacionSuave('❌ Error al cargar credenciales', 'error');
+    }
 }
 
-// 4️⃣ Guardar todos los bloques de credenciales juntos
+// Guardar credenciales en backend (solo envía campos que el usuario modificó)
 async function guardarCredenciales() {
-  const msgEl = document.getElementById("config-cred-msg");
-  msgEl.className = "hidden";
-
-  // Prepara payloads
-  const mensPayload = {
-    whatsapp_token:       document.getElementById("whatsapp_token").value.trim(),
-    whatsapp_phone_id:    document.getElementById("whatsapp_phone_id").value.trim(),
-    whatsapp_verify_token: document.getElementById("whatsapp_verify_token").value.trim(),
-    fb_page_token:        document.getElementById("fb_page_token").value.trim(),
-    instagram_token:      document.getElementById("instagram_token").value.trim()
-  };
-  const iaPayload = {
-    openai_api_key:       document.getElementById("openai_api_key").value.trim()
-  };
-  const n8nPayload = {
-    n8n_url:              document.getElementById("n8n_url").value.trim(),
-    n8n_api_key:          document.getElementById("n8n_api_key").value.trim()
-  };
-
-  try {
-    // Mensajería
-    let res = await fetch("/config/mensajeria", {
-      method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(mensPayload)
-    });
-    let data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    // IA
-    res = await fetch("/config/ia", {
-      method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(iaPayload)
-    });
-    data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    // n8n
-    res = await fetch("/config/n8n", {
-      method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(n8nPayload)
-    });
-    data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    msgEl.textContent = "Credenciales guardadas ✔";
-    msgEl.className   = "success";
-    setTimeout(cerrarModalConfig, 800);
-  } catch (e) {
-    msgEl.textContent = "Error: " + e.message;
-    msgEl.className   = "error";
-  }
-  msgEl.classList.remove("hidden");
+    // Recolectar valores del formulario
+    const datos = {
+        whatsapp_access_token: document.getElementById('whatsapp_token').value,
+        whatsapp_phone_number_id: document.getElementById('whatsapp_phone_id').value,
+        whatsapp_verify_token: document.getElementById('whatsapp_verify_token').value,
+        facebook_page_token: document.getElementById('fb_page_token').value,
+        instagram_access_token: document.getElementById('instagram_token').value,
+        openai_api_key: document.getElementById('openai_api_key').value,
+        n8n_url: document.getElementById('n8n_url').value,
+        n8n_api_key: document.getElementById('n8n_api_key').value,
+    };
+    
+    // Validación mínima: al menos un campo debe tener valor
+    const tieneValores = Object.values(datos).some(v => v && v.trim() !== '');
+    if (!tieneValores) {
+        mostrarNotificacionSuave('⚠️ Ingresa al menos una credencial para guardar', 'warning');
+        return;
+    }
+    
+    try {
+        const resp = await fetch('/api/integraciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+        });
+        
+        const result = await resp.json();
+        
+        if (result.ok) {
+            mostrarNotificacionSuave('✅ Credenciales actualizadas', 'success');
+            // Recargar para actualizar el mensaje informativo
+            cargarCredenciales();
+        } else {
+            mostrarNotificacionSuave('❌ Error: ' + (result.error || 'desconocido'), 'error');
+        }
+    } catch (err) {
+        console.error('❌ Error al guardar credenciales:', err);
+        mostrarNotificacionSuave('❌ Error de conexión', 'error');
+    }
 }
+
+// ============================================================================
 
 
   //BOTON DE CODIGO DE SEGURIDAD

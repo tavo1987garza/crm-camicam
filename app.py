@@ -2565,61 +2565,166 @@ def config_mensajeria():
     return jsonify({"ok":True})
 
 
-# IA (OpenAI)
-@app.route("/config/ia", methods=["GET","POST"])
-def config_ia():
+
+# ============================================================================
+# ENDPOINTS: GESTIÓN DE CREDENCIALES POR TENANT
+# ============================================================================
+
+@app.route("/api/integraciones", methods=["GET"])
+def obtener_integraciones():
+    """
+    Obtiene credenciales del tenant actual (enmascaradas para seguridad).
+    Solo retorna valores reales para campos NO sensibles (phone_number_id, URLs).
+    """
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
-        return jsonify({"error": "Cliente no autorizado"}), 404
-
-    if request.method == "GET":
-        conn = conectar_db()
-        cur = conn.cursor()
-        cur.execute("SELECT valor FROM config WHERE clave='openai:api_key' AND cliente_id = %s", (cliente_id,))
-        row = cur.fetchone()
-        liberar_db(conn)
-        return jsonify({"openai_api_key": row[0] if row else ""})
+        return jsonify({"error": "No autorizado"}), 401
     
-    key = request.json.get("openai_api_key","")
     conn = conectar_db()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO config(clave,valor,cliente_id)
-        VALUES ('openai:api_key',%s,%s)
-        ON CONFLICT(clave,cliente_id) DO UPDATE SET valor=EXCLUDED.valor
-    """, (key, cliente_id))
-    conn.commit()
-    liberar_db(conn)
-    return jsonify({"ok":True})
-
-
-# n8n
-@app.route("/config/n8n", methods=["GET","POST"])
-def config_n8n():
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify({"error": "Cliente no autorizado"}), 404
-
-    if request.method == "GET":
-        conn = conectar_db()
-        cur = conn.cursor()
-        cur.execute("SELECT clave,valor FROM config WHERE clave LIKE 'n8n:%' AND cliente_id = %s", (cliente_id,))
-        rows = cur.fetchall()
-        liberar_db(conn)
-        return jsonify({k.split(":",1)[1]:v for k,v in rows})
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
     
-    data = request.json or {}
-    conn = conectar_db()
-    cur = conn.cursor()
-    for k,v in data.items():
+    try:
+        cur = conn.cursor()
         cur.execute("""
-            INSERT INTO config(clave,valor,cliente_id)
-            VALUES (%s,%s,%s)
-            ON CONFLICT(clave,cliente_id) DO UPDATE SET valor=EXCLUDED.valor
-        """, (f"n8n:{k}", v, cliente_id))
-    conn.commit()
-    liberar_db(conn)
-    return jsonify({"ok":True})
+            SELECT 
+                whatsapp_access_token,
+                whatsapp_phone_number_id,
+                whatsapp_verify_token,
+                facebook_page_token,
+                instagram_access_token,
+                openai_api_key,
+                n8n_url,
+                n8n_api_key,
+                creado_en,
+                actualizado_en
+            FROM tenant_integraciones
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+        
+        row = cur.fetchone()
+        
+        if row:
+            # ✅ Retornar valores enmascarados para campos sensibles
+            return jsonify({
+                "existe": True,
+                "whatsapp_access_token": "••••••••••" if row[0] else "",
+                "whatsapp_phone_number_id": row[1] or "",
+                "whatsapp_verify_token": "••••••••••" if row[2] else "",
+                "facebook_page_token": "••••••••••" if row[3] else "",
+                "instagram_access_token": "••••••••••" if row[4] else "",
+                "openai_api_key": "••••••••••" if row[5] else "",
+                "n8n_url": row[6] or "",
+                "n8n_api_key": "••••••••••" if row[7] else "",
+                "creado_en": row[8].isoformat() if row[8] else None,
+                "actualizado_en": row[9].isoformat() if row[9] else None
+            }), 200
+        else:
+            # No hay registro aún para este tenant
+            return jsonify({
+                "existe": False,
+                "whatsapp_access_token": "",
+                "whatsapp_phone_number_id": "",
+                "whatsapp_verify_token": "",
+                "facebook_page_token": "",
+                "instagram_access_token": "",
+                "openai_api_key": "",
+                "n8n_url": "",
+                "n8n_api_key": ""
+            }), 200
+            
+    except Exception as e:
+        app.logger.error(f"❌ Error en obtener_integraciones: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error interno del servidor"}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/api/integraciones", methods=["POST"])
+def guardar_integraciones():
+    """
+    Guarda/actualiza credenciales del tenant actual (encriptadas en BD).
+    Solo encripta campos sensibles; phone_number_id y URLs se guardan en texto plano.
+    """
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    datos = request.json
+    if not datos:
+        return jsonify({"error": "No se recibieron datos"}), 400
+    
+    # ✅ Encriptar solo campos sensibles antes de guardar
+    credenciales = {
+        # Sensibles → encriptar
+        "whatsapp_access_token": encriptar_credencial(datos.get("whatsapp_access_token")),
+        "whatsapp_verify_token": encriptar_credencial(datos.get("whatsapp_verify_token")),
+        "facebook_page_token": encriptar_credencial(datos.get("facebook_page_token")),
+        "instagram_access_token": encriptar_credencial(datos.get("instagram_access_token")),
+        "openai_api_key": encriptar_credencial(datos.get("openai_api_key")),
+        "n8n_api_key": encriptar_credencial(datos.get("n8n_api_key")),
+        # No sensibles → guardar en texto plano
+        "whatsapp_phone_number_id": datos.get("whatsapp_phone_number_id", "").strip(),
+        "n8n_url": datos.get("n8n_url", "").strip(),
+    }
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # ✅ INSERT o UPDATE según exista o no el registro para este tenant
+        cur.execute("""
+            INSERT INTO tenant_integraciones 
+            (cliente_id, 
+             whatsapp_access_token, whatsapp_phone_number_id, whatsapp_verify_token,
+             facebook_page_token, instagram_access_token,
+             openai_api_key, n8n_url, n8n_api_key,
+             actualizado_en)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (cliente_id) 
+            DO UPDATE SET 
+                whatsapp_access_token = COALESCE(EXCLUDED.whatsapp_access_token, tenant_integraciones.whatsapp_access_token),
+                whatsapp_phone_number_id = EXCLUDED.whatsapp_phone_number_id,
+                whatsapp_verify_token = COALESCE(EXCLUDED.whatsapp_verify_token, tenant_integraciones.whatsapp_verify_token),
+                facebook_page_token = COALESCE(EXCLUDED.facebook_page_token, tenant_integraciones.facebook_page_token),
+                instagram_access_token = COALESCE(EXCLUDED.instagram_access_token, tenant_integraciones.instagram_access_token),
+                openai_api_key = COALESCE(EXCLUDED.openai_api_key, tenant_integraciones.openai_api_key),
+                n8n_url = EXCLUDED.n8n_url,
+                n8n_api_key = COALESCE(EXCLUDED.n8n_api_key, tenant_integraciones.n8n_api_key),
+                actualizado_en = CURRENT_TIMESTAMP
+        """, (
+            cliente_id,
+            credenciales["whatsapp_access_token"],
+            credenciales["whatsapp_phone_number_id"],
+            credenciales["whatsapp_verify_token"],
+            credenciales["facebook_page_token"],
+            credenciales["instagram_access_token"],
+            credenciales["openai_api_key"],
+            credenciales["n8n_url"],
+            credenciales["n8n_api_key"]
+        ))
+        
+        conn.commit()
+        app.logger.info(f"✅ Credenciales actualizadas para cliente_id={cliente_id}")
+        return jsonify({"ok": True, "mensaje": "Credenciales actualizadas correctamente"}), 200
+        
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"❌ Error en guardar_integraciones: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error al guardar credenciales: {str(e)}"}), 500
+    finally:
+        liberar_db(conn)
+        
+# ============================================================================      
+        
+        
 
 #Verificar CODIGO DE SEGURIDAD
 @app.route("/verificar_codigo_seguridad", methods=["POST"])
