@@ -1,5 +1,6 @@
 import re
 from dotenv import load_dotenv
+load_dotenv()  # ✅ Cargar variables de entorno desde .env
 import os
 import json
 import traceback
@@ -30,7 +31,7 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = os.getenv('SECRET_KEY')
 
-load_dotenv()
+
 
 
 # ✅ CORS SIMPLIFICADO - Solo tu dominio principal
@@ -49,6 +50,48 @@ CORS(app,
      supports_credentials=True
 )
 
+# ============================================================================
+# FUNCIONES DE ENCRIPTACIÓN PARA CREDENCIALES DE TENANTS
+# ============================================================================
+from cryptography.fernet import Fernet
+import os
+
+# 🔑 Clave maestra para encriptar credenciales (cargada desde .env)
+ENCRYPTION_KEY = os.getenv('CREDENTIALS_ENCRYPTION_KEY')
+
+# Validar que la clave exista
+if not ENCRYPTION_KEY:
+    app.logger.error("❌ ERROR: CREDENTIALS_ENCRYPTION_KEY no está definida en .env")
+    raise ValueError("CREDENTIALS_ENCRYPTION_KEY es requerida en .env")
+
+# Inicializar cipher Fernet
+cipher = Fernet(ENCRYPTION_KEY.encode())
+
+def encriptar_credencial(valor):
+    """
+    Encripta una credencial sensible para guardar en BD.
+    Retorna None si el valor está vacío.
+    """
+    if not valor or valor.strip() == "":
+        return None
+    try:
+        return cipher.encrypt(valor.strip().encode()).decode()
+    except Exception as e:
+        app.logger.error(f"❌ Error al encriptar credencial: {str(e)}")
+        return None
+
+def desencriptar_credencial(valor_encriptado):
+    """
+    Desencripta una credencial para usarla (solo en memoria).
+    Retorna None si el valor está vacío o es inválido.
+    """
+    if not valor_encriptado:
+        return None
+    try:
+        return cipher.decrypt(valor_encriptado.encode()).decode()
+    except Exception as e:
+        app.logger.error(f"❌ Error al desencriptar credencial: {str(e)}")
+        return None
 
 
 @app.before_request
