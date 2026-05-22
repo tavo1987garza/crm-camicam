@@ -54,7 +54,7 @@ CORS(app,
 # FUNCIONES DE ENCRIPTACIÓN PARA CREDENCIALES DE TENANTS
 # ============================================================================
 from cryptography.fernet import Fernet
-import os
+
 
 # 🔑 Clave maestra para encriptar credenciales (cargada desde .env)
 ENCRYPTION_KEY = os.getenv('CREDENTIALS_ENCRYPTION_KEY')
@@ -92,6 +92,8 @@ def desencriptar_credencial(valor_encriptado):
     except Exception as e:
         app.logger.error(f"❌ Error al desencriptar credencial: {str(e)}")
         return None
+
+# ============================================================================
 
 
 @app.before_request
