@@ -34,3 +34,5 @@ wsproto==1.2.0
 psycopg2-binary
 boto3==1.37.27
 python-dotenv==1.0.1
+sendgrid==6.11.0
+cryptography==42.0.5
