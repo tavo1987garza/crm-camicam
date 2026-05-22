@@ -3151,7 +3151,17 @@ def procesar_login():
         if not cliente_id:
             return jsonify({"error": "Cliente no encontrado"}), 404
 
-        datos = request.json
+        # ✅ OBTENER DATOS: Intentar JSON primero, luego fallback a form
+        if request.is_json:
+            datos = request.get_json()
+        else:
+            # Fallback: intentar parsear el body manualmente
+            try:
+                import json
+                datos = json.loads(request.data.decode('utf-8'))
+            except:
+                datos = request.form.to_dict()
+        
         email = datos.get("email", "").strip().lower()
         password = datos.get("password", "")
 
