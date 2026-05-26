@@ -2006,8 +2006,22 @@ MEJORAS MODAL CREDENCIALES
 /* ============================================================================
 ESTILOS: MODAL CHATBOT
 ============================================================================= */
-
-
+.tab-btn {
+  padding: 8px 16px;
+  border: none;
+  background: #f1f1f1;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.tab-btn:hover { background: #e0e0e0; }
+.tab-btn.active {
+  background: #3498db;
+  color: white;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
 /* Lista de items (keywords/flows) */
 .item-card {
@@ -2041,33 +2055,6 @@ ESTILOS: MODAL CHATBOT
 /* ============================================================================
 CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
 ============================================================================= */
-.tab-content { 
-  display: none;  /* ✅ Oculta TODAS las pestañas por defecto */
-}
-.tab-content.active { 
-  display: block; /* ✅ Muestra SOLO la pestaña activa */
-}
-
-/* Botones de pestaña */
-.tab-btn {
-  padding: 10px 16px;
-  border: none;
-  background: #f1f1f1;
-  border-radius: 8px 8px 0 0;
-  cursor: pointer;
-  font-weight: 600;
-  color: #666;
-  transition: all 0.2s;
-  border-bottom: 2px solid transparent;
-}
-.tab-btn:hover { background: #e0e0e0; color: #333; }
-.tab-btn.active {
-  background: #fff;
-  color: #3498db;
-  border-bottom-color: #3498db;
-  font-weight: 700;
-}
-
 /* Contenedor de pestañas */
 .tab-nav {
   display: flex;
@@ -2717,16 +2704,16 @@ MODAL: CONFIGURAR CHATBOT MULTI-TENANT
   <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
     <button class="close-btn" onclick="cerrarModalChatbot()">✖</button>
     <h2>🤖 Configurar Chatbot</h2>
-    
-    <!-- Pestañas de navegación -->
-    <div style="display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-      <button class="tab-btn active" onclick="cambiarTabChatbot('general')" id="tab-general-btn">⚙️ General</button>
-      <button class="tab-btn" onclick="cambiarTabChatbot('keywords')" id="tab-keywords-btn">⚡ Keywords</button>
-      <button class="tab-btn" onclick="cambiarTabChatbot('flows')" id="tab-flows-btn">🔄 Flujos</button>
-    </div>
+
+    <!-- Navegación de pestañas -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="cambiarTabChatbot('general')" id="tab-general-btn">⚙️ General</button>
+  <button class="tab-btn" onclick="cambiarTabChatbot('keywords')" id="tab-keywords-btn">⚡ Keywords</button>
+  <button class="tab-btn" onclick="cambiarTabChatbot('flows')" id="tab-flows-btn">🔄 Flujos</button>
+</div>
     
     <!-- Pestaña 1: Configuración General -->
-    <div id="tab-general" class="tab-content">
+    <div id="tab-general" class="tab-content active">
       <div class="form-group">
         <label>
           <input type="checkbox" id="bot-activo"> 
@@ -2773,7 +2760,7 @@ MODAL: CONFIGURAR CHATBOT MULTI-TENANT
     </div>
     
     <!-- Pestaña 2: Keywords (Respuestas Rápidas) -->
-    <div id="tab-keywords" class="tab-content hidden">
+    <div id="tab-keywords" class="tab-content">
       <p style="color: #666; margin-bottom: 15px;">Define palabras clave y sus respuestas automáticas.</p>
       
       <!-- Formulario para agregar nueva keyword -->
@@ -2799,7 +2786,7 @@ MODAL: CONFIGURAR CHATBOT MULTI-TENANT
     </div>
     
     <!-- Pestaña 3: Flujos de Conversación -->
-    <div id="tab-flows" class="tab-content hidden">
+    <div id="tab-flows" class="tab-content">
       <p style="color: #666; margin-bottom: 15px;">Crea conversaciones guiadas con múltiples pasos.</p>
       
       <!-- Lista de flujos existentes -->
@@ -7259,20 +7246,50 @@ function cerrarModalChatbot() {
   document.getElementById('bot-config-feedback').classList.add('hidden');
 }
 
-function cambiarTabChatbot(tab) {
-  // Actualizar botones
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.getElementById(`tab-${tab}-btn`).classList.add('active');
+// ============================================================================
+// FUNCIÓN: CAMBIAR PESTAÑA EN MODAL CHATBOT (CORREGIDA)
+// ============================================================================
+function cambiarTabChatbot(tabName) {
+  console.log('🔄 Cambiando a pestaña:', tabName);
   
-  // Mostrar contenido
-  document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-  document.getElementById(`tab-${tab}`).classList.remove('hidden');
+  // 1. Remover clase 'active' de TODOS los botones
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
   
-  estadosTabChatbot.actual = tab;
+  // 2. Agregar 'active' al botón clickeado
+  const btnActivo = document.getElementById(`tab-${tabName}-btn`);
+  if (btnActivo) {
+    btnActivo.classList.add('active');
+    console.log('✅ Botón activado:', btnActivo.textContent);
+  } else {
+    console.warn('⚠️ Botón no encontrado: tab-' + tabName + '-btn');
+  }
   
-  // Recargar datos si es necesario
-  if (tab === 'keywords') cargarKeywords();
-  if (tab === 'flows') cargarFlows();
+  // 3. Ocultar TODOS los contenidos de pestaña
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+    content.style.display = 'none'; // ✅ Forzar ocultamiento
+  });
+  
+  // 4. Mostrar SOLO el contenido seleccionado
+  const contentActivo = document.getElementById(`tab-${tabName}`);
+  if (contentActivo) {
+    contentActivo.classList.add('active');
+    contentActivo.style.display = 'block'; // ✅ Forzar visualización
+    console.log('✅ Contenido mostrado: tab-' + tabName);
+    
+    // 5. Recargar datos si es necesario
+    if (tabName === 'keywords') {
+      console.log('🔄 Recargando keywords...');
+      cargarKeywords();
+    } else if (tabName === 'flows') {
+      console.log('🔄 Recargando flows...');
+      cargarFlows();
+    }
+  } else {
+    console.error('❌ Contenido no encontrado: tab-' + tabName);
+  }
 }
 
 // --- CONFIGURACIÓN GENERAL ---
