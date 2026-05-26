@@ -3100,7 +3100,7 @@ def api_bot_keywords():
 # ============================================================================
 # ENDPOINT: GESTIÓN DE FLOWS - VERSIÓN CORREGIDA PARA JSONB
 # ============================================================================
-@app.route("/api/bot/flows", methods=["GET", "POST", "DELETE"])
+@app.route("/api/bot/flows", methods=["GET", "POST", "PUT", "DELETE"])
 def api_bot_flows():
     """CRUD de flujos de conversación con pasos JSONB"""
     cliente_id = obtener_cliente_id_de_subdominio()
