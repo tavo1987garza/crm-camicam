@@ -3806,16 +3806,16 @@ def pagina_verificar_registro():
     return render_template("verificar_registro.html")
 
 
+
+
 @app.route("/login")
 def pagina_login():
-    """Página de login para cualquier subdominio"""
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        # Mostrar selector de cliente para subdominios genéricos
-        return render_template("seleccionar_cliente.html")
+    """
+    Página de login para cualquier subdominio.
+    El frontend (JS) detecta el subdominio y renderiza el contenido apropiado.
+    """
+    # ✅ Siempre retornar login.html, el frontend se encarga del resto
     return render_template("login.html")
-
-
 
 @app.route("/login", methods=["POST"])
 def procesar_login():
