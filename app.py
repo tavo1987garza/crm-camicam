@@ -3097,21 +3097,19 @@ def api_bot_keywords():
 # ============================================================================
 # ENDPOINT: GESTIÓN DE FLOWS (FLUJOS DE CONVERSACIÓN) POR TENANT
 # ============================================================================
+# ============================================================================
+# ENDPOINT: GESTIÓN DE FLOWS - VERSIÓN CORREGIDA PARA JSONB
+# ============================================================================
 @app.route("/api/bot/flows", methods=["GET", "POST", "DELETE"])
 def api_bot_flows():
-    """
-    CRUD de flujos de conversación con pasos JSONB para el tenant actual.
-    GET: Lista todos los flujos activos/inactivos
-    POST: Crea o actualiza un flujo
-    DELETE: Elimina un flujo por ID
-    """
+    """CRUD de flujos de conversación con pasos JSONB"""
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
         return jsonify({"error": "No autorizado"}), 401
     
     conn = conectar_db()
     if not conn:
-        return jsonify({"error": "Error de conexión a base de datos"}), 500
+        return jsonify({"error": "Error de conexión"}), 500
     
     try:
         cur = conn.cursor()
@@ -3122,33 +3120,26 @@ def api_bot_flows():
                 SELECT id, nombre, descripcion, trigger_keyword, trigger_type, 
                        pasos, requiere_autenticacion, timeout_segundos, 
                        max_reintentos, activo, orden, creado_en, actualizado_en
-                FROM bot_flows 
-                WHERE cliente_id = %s 
-                ORDER BY orden ASC, nombre ASC
+                FROM bot_flows WHERE cliente_id = %s ORDER BY orden ASC, nombre ASC
             """, (cliente_id,))
             
             flows = []
             for row in cur.fetchall():
                 flows.append({
-                    "id": row[0],
-                    "nombre": row[1],
-                    "descripcion": row[2],
-                    "trigger_keyword": row[3],
-                    "trigger_type": row[4],
-                    "pasos": row[5],  # JSONB se serializa automáticamente a dict/list
-                    "requiere_autenticacion": row[6],
-                    "timeout_segundos": row[7],
-                    "max_reintentos": row[8],
-                    "activo": row[9],
-                    "orden": row[10],
+                    "id": row[0], "nombre": row[1], "descripcion": row[2],
+                    "trigger_keyword": row[3], "trigger_type": row[4],
+                    "pasos": row[5],  # psycopg2 convierte JSONB → dict automáticamente en SELECT
+                    "requiere_autenticacion": row[6], "timeout_segundos": row[7],
+                    "max_reintentos": row[8], "activo": row[9], "orden": row[10],
                     "creado_en": row[11].isoformat() if row[11] else None,
                     "actualizado_en": row[12].isoformat() if row[12] else None
                 })
-            
             return jsonify(flows), 200
         
         # ==================== POST: Crear/Actualizar flujo ====================
         elif request.method == "POST":
+            import json  # ← Agregar al inicio del archivo si no está
+            
             data = request.json
             if not data:
                 return jsonify({"error": "No se recibieron datos"}), 400
@@ -3157,40 +3148,35 @@ def api_bot_flows():
             if not nombre:
                 return jsonify({"error": "El nombre del flujo es requerido"}), 400
             
-            # Validar y parsear pasos JSON
+            # 🔧 VALIDAR Y CONVERTIR pasos a JSON string para PostgreSQL
             pasos = data.get("pasos")
             if not pasos:
                 return jsonify({"error": "Los pasos del flujo son requeridos"}), 400
             
-            # Si viene como string, intentar parsear JSON
-            if isinstance(pasos, str):
+            # Si es dict/list Python, convertir a string JSON
+            if isinstance(pasos, (dict, list)):
+                pasos_json = json.dumps(pasos, ensure_ascii=False)
+            elif isinstance(pasos, str):
+                # Si ya es string, validar que sea JSON válido
                 try:
-                    import json
-                    pasos = json.loads(pasos)
+                    json.loads(pasos)  # Solo validar
+                    pasos_json = pasos
                 except json.JSONDecodeError as e:
                     return jsonify({"error": f"JSON inválido en pasos: {str(e)}"}), 400
+            else:
+                return jsonify({"error": "Los pasos deben ser un objeto o array JSON"}), 400
             
-            if not isinstance(pasos, list):
-                return jsonify({"error": "Los pasos deben ser un array JSON"}), 400
-            
-            # Validar estructura básica de cada paso (opcional pero recomendado)
-            for i, paso in enumerate(pasos):
-                if not isinstance(paso, dict):
-                    return jsonify({"error": f"El paso {i+1} debe ser un objeto JSON"}), 400
-                if "tipo" not in paso:
-                    return jsonify({"error": f"El paso {i+1} debe tener un campo 'tipo'"}), 400
-            
-            # 🔗 INSERT o UPDATE con ON CONFLICT
+            # 🔧 USAR pasos_json (string) en la consulta, NO el dict original
             cur.execute("""
                 INSERT INTO bot_flows 
                 (cliente_id, nombre, descripcion, trigger_keyword, trigger_type, 
                  pasos, requiere_autenticacion, timeout_segundos, max_reintentos, activo, orden)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s)
+                VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, TRUE, %s)
                 ON CONFLICT (cliente_id, nombre) DO UPDATE SET 
                     descripcion = EXCLUDED.descripcion,
                     trigger_keyword = EXCLUDED.trigger_keyword,
                     trigger_type = EXCLUDED.trigger_type,
-                    pasos = EXCLUDED.pasos,
+                    pasos = EXCLUDED.pasos::jsonb,
                     requiere_autenticacion = EXCLUDED.requiere_autenticacion,
                     timeout_segundos = EXCLUDED.timeout_segundos,
                     max_reintentos = EXCLUDED.max_reintentos,
@@ -3198,12 +3184,9 @@ def api_bot_flows():
                     orden = EXCLUDED.orden,
                     actualizado_en = CURRENT_TIMESTAMP
             """, (
-                cliente_id,
-                nombre,
-                data.get("descripcion"),
-                data.get("trigger_keyword"),
-                data.get("trigger_type", "keyword"),
-                pasos,  # psycopg2 convierte dict/list Python a JSONB automáticamente
+                cliente_id, nombre, data.get("descripcion"),
+                data.get("trigger_keyword"), data.get("trigger_type", "keyword"),
+                pasos_json,  # ← String JSON, NO dict
                 data.get("requiere_autenticacion", False),
                 data.get("timeout_segundos", 300),
                 data.get("max_reintentos", 3),
@@ -3212,19 +3195,15 @@ def api_bot_flows():
             
             conn.commit()
             
-            # 🔗 EMITIR SOCKET: Flows actualizados (tiempo real)
+            # 🔗 Socket emit (igual que antes)
             try:
                 socketio.emit("configuracion_actualizada", {
-                    "tipo": "chatbot",
-                    "subtipo": "flows",
-                    "cliente_id": cliente_id,
-                    "timestamp": datetime.now().isoformat(),
-                    "flow_nombre": nombre,
-                    "accion": "creado_o_actualizado"
+                    "tipo": "chatbot", "subtipo": "flows",
+                    "cliente_id": cliente_id, "timestamp": datetime.now().isoformat(),
+                    "flow_nombre": nombre, "accion": "creado_o_actualizado"
                 }, room=f"cliente_{cliente_id}")
-                app.logger.info(f"🔗 Socket emitido: flow '{nombre}' actualizado para cliente {cliente_id}")
             except Exception as e:
-                app.logger.warning(f"⚠️ No se pudo emitir socket para flows: {e}")
+                app.logger.warning(f"⚠️ Socket emit falló: {e}")
             
             return jsonify({
                 "ok": True, 
@@ -3235,65 +3214,36 @@ def api_bot_flows():
         # ==================== DELETE: Eliminar flujo ====================
         elif request.method == "DELETE":
             flow_id = request.args.get("id", type=int)
-            
             if not flow_id:
                 return jsonify({"error": "ID de flujo es requerido"}), 400
             
-            # Verificar que el flujo pertenece al tenant antes de eliminar
-            cur.execute("""
-                SELECT nombre FROM bot_flows 
-                WHERE id = %s AND cliente_id = %s
-            """, (flow_id, cliente_id))
-            
+            cur.execute("SELECT nombre FROM bot_flows WHERE id = %s AND cliente_id = %s", (flow_id, cliente_id))
             row = cur.fetchone()
             if not row:
-                return jsonify({"error": "Flujo no encontrado o no pertenece a este tenant"}), 404
+                return jsonify({"error": "Flujo no encontrado"}), 404
             
-            flow_eliminado = row[0]
-            
-            # Eliminar también sesiones activas que usen este flujo (cascada opcional)
-            cur.execute("""
-                UPDATE conversation_sessions 
-                SET flujo_activo_id = NULL, estado_actual = 'idle'
-                WHERE flujo_activo_id = %s AND cliente_id = %s
-            """, (flow_id, cliente_id))
-            
-            cur.execute("""
-                DELETE FROM bot_flows 
-                WHERE id = %s AND cliente_id = %s
-            """, (flow_id, cliente_id))
-            
+            flow_nombre = row[0]
+            cur.execute("DELETE FROM bot_flows WHERE id = %s AND cliente_id = %s", (flow_id, cliente_id))
             conn.commit()
             
-            # 🔗 EMITIR SOCKET: Flows actualizados (tiempo real)
+            # 🔗 Socket emit para delete
             try:
                 socketio.emit("configuracion_actualizada", {
-                    "tipo": "chatbot",
-                    "subtipo": "flows",
-                    "cliente_id": cliente_id,
-                    "timestamp": datetime.now().isoformat(),
-                    "flow_nombre": flow_eliminado,
-                    "accion": "eliminado"
+                    "tipo": "chatbot", "subtipo": "flows",
+                    "cliente_id": cliente_id, "timestamp": datetime.now().isoformat(),
+                    "flow_nombre": flow_nombre, "accion": "eliminado"
                 }, room=f"cliente_{cliente_id}")
-                app.logger.info(f"🔗 Socket emitido: flow '{flow_eliminado}' eliminado para cliente {cliente_id}")
             except Exception as e:
-                app.logger.warning(f"⚠️ No se pudo emitir socket para flows: {e}")
+                app.logger.warning(f"⚠️ Socket emit falló: {e}")
             
-            return jsonify({
-                "ok": True, 
-                "mensaje": f"✅ Flujo '{flow_eliminado}' eliminado correctamente",
-                "eliminados": cur.rowcount
-            }), 200
+            return jsonify({"ok": True, "mensaje": f"✅ Flujo eliminado", "eliminados": cur.rowcount}), 200
             
     except Exception as e:
         conn.rollback()
         app.logger.error(f"❌ Error en api_bot_flows: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": f"Error interno: {str(e)[:100]}"}), 500
     finally:
         liberar_db(conn)
-
 
 # ============================================================================
 
