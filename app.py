@@ -3238,6 +3238,81 @@ def api_bot_flows():
             
             return jsonify({"ok": True, "mensaje": f"✅ Flujo eliminado", "eliminados": cur.rowcount}), 200
             
+            
+                    # ==================== PUT: Actualizar flujo existente ====================
+        elif request.method == "PUT":
+            import json
+            
+            flow_id = request.args.get("id", type=int)
+            if not flow_id:
+                return jsonify({"error": "ID de flujo es requerido para actualizar"}), 400
+            
+            data = request.json
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+            
+            # Validar que el flujo existe y pertenece al tenant
+            cur.execute("SELECT nombre FROM bot_flows WHERE id = %s AND cliente_id = %s", (flow_id, cliente_id))
+            if not cur.fetchone():
+                return jsonify({"error": "Flujo no encontrado o no autorizado"}), 404
+            
+            # Procesar pasos JSON (igual que en POST)
+            pasos = data.get("pasos")
+            if isinstance(pasos, (dict, list)):
+                pasos_json = json.dumps(pasos, ensure_ascii=False)
+            elif isinstance(pasos, str):
+                try:
+                    json.loads(pasos)
+                    pasos_json = pasos
+                except json.JSONDecodeError as e:
+                    return jsonify({"error": f"JSON inválido: {str(e)}"}), 400
+            else:
+                return jsonify({"error": "Los pasos deben ser JSON válido"}), 400
+            
+            # UPDATE explícito
+            cur.execute("""
+                UPDATE bot_flows SET 
+                    nombre = %s,
+                    descripcion = %s,
+                    trigger_keyword = %s,
+                    trigger_type = %s,
+                    pasos = %s::jsonb,
+                    requiere_autenticacion = %s,
+                    timeout_segundos = %s,
+                    max_reintentos = %s,
+                    orden = %s,
+                    actualizado_en = CURRENT_TIMESTAMP
+                WHERE id = %s AND cliente_id = %s
+            """, (
+                data.get("nombre"), data.get("descripcion"),
+                data.get("trigger_keyword"), data.get("trigger_type", "keyword"),
+                pasos_json,
+                data.get("requiere_autenticacion", False),
+                data.get("timeout_segundos", 300),
+                data.get("max_reintentos", 3),
+                data.get("orden", 0),
+                flow_id, cliente_id
+            ))
+            
+            conn.commit()
+            
+            # 🔗 Socket emit
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot", "subtipo": "flows",
+                    "cliente_id": cliente_id, "timestamp": datetime.now().isoformat(),
+                    "flow_nombre": data.get("nombre"), "accion": "actualizado"
+                }, room=f"cliente_{cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ Socket emit falló: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": "✅ Flujo actualizado correctamente",
+                "id": flow_id
+            }), 200
+            
+            
     except Exception as e:
         conn.rollback()
         app.logger.error(f"❌ Error en api_bot_flows: {str(e)}")

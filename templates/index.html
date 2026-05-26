@@ -2806,6 +2806,8 @@ MODAL: CONFIGURAR CHATBOT MULTI-TENANT
   <div class="modal-content" style="max-width: 700px;">
     <button class="close-btn" onclick="cerrarModalFlujo()">✖</button>
     <h3>✏️ Editor de Flujo</h3>
+    <!-- Campo oculto para saber si estamos editando o creando -->
+    <input type="hidden" id="flow-id-editando">
     
     <div class="form-group">
       <label>Nombre del flujo:</label>
@@ -7481,43 +7483,76 @@ function cerrarModalFlujo() {
   document.getElementById('modal-editor-flujo').classList.add('hidden');
 }
 
+// ============================================================================
+// FUNCIÓN: GUARDAR FLUJO (CREATE O UPDATE) - CORREGIDA
+// ============================================================================
 async function guardarFlujo() {
+  const flowId = document.getElementById('flow-id-editando').value;
   const nombre = document.getElementById('flow-nombre').value.trim();
   const trigger = document.getElementById('flow-trigger').value.trim();
   const pasosRaw = document.getElementById('flow-pasos').value.trim();
   
+  // Validaciones básicas
   if (!nombre || !pasosRaw) {
     mostrarFeedbackFlujo('⚠️ Nombre y pasos son requeridos', 'warning');
     return;
   }
   
+  // Parsear y validar JSON de pasos
   let pasos;
   try {
     pasos = JSON.parse(pasosRaw);
-    if (!Array.isArray(pasos)) throw new Error('Debe ser un array');
+    if (!Array.isArray(pasos)) throw new Error('Debe ser un array JSON');
   } catch (e) {
     mostrarFeedbackFlujo('❌ JSON inválido en pasos: ' + e.message, 'error');
     return;
   }
   
+  // Validar estructura mínima de cada paso
+  for (let i = 0; i < pasos.length; i++) {
+    if (!pasos[i] || typeof pasos[i] !== 'object') {
+      mostrarFeedbackFlujo(`❌ El paso ${i+1} debe ser un objeto JSON`, 'error');
+      return;
+    }
+    if (!pasos[i].tipo) {
+      mostrarFeedbackFlujo(`❌ El paso ${i+1} debe tener un campo "tipo"`, 'error');
+      return;
+    }
+  }
+  
   try {
-    const resp = await fetch('/api/bot/flows', {
-      method: 'POST',
+    // Determinar método: POST para crear, PUT para actualizar
+    const method = flowId ? 'PUT' : 'POST';
+    const url = flowId ? `/api/bot/flows?id=${flowId}` : '/api/bot/flows';
+    
+    const resp = await fetch(url, {
+      method: method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, trigger_keyword: trigger, pasos })
+      body: JSON.stringify({ 
+        nombre, 
+        trigger_keyword: trigger, 
+        pasos,
+        orden: flowId ? undefined : 0  // Solo asignar orden en creación
+      })
     });
+    
     const result = await resp.json();
     
     if (result.ok) {
+      // Cerrar modal y recargar lista
       cerrarModalFlujo();
       cargarFlows();
-      mostrarNotificacionSuave('✅ Flujo guardado', 'success');
+      
+      // Mensaje contextual
+      const accion = flowId ? 'actualizado' : 'creado';
+      mostrarNotificacionSuave(`✅ Flujo ${accion} correctamente`, 'success');
     } else {
       mostrarFeedbackFlujo('❌ Error: ' + (result.error || 'desconocido'), 'error');
     }
+    
   } catch (err) {
     console.error('❌ Error al guardar flujo:', err);
-    mostrarFeedbackFlujo('❌ Error de conexión', 'error');
+    mostrarFeedbackFlujo('❌ Error de conexión con el servidor', 'error');
   }
 }
 
@@ -7539,13 +7574,45 @@ async function eliminarFlujo(id) {
   }
 }
 
-function editarFlujo(id) {
-  // Para MVP: recargar datos y abrir editor (simplificado)
-  cargarFlows().then(() => {
-    // En producción: fetch del flow específico y llenar el formulario
-    abrirEditorFlujo();
-    mostrarNotificacionSuave('ℹ️ Edición completa en próxima versión', 'info');
-  });
+// ============================================================================
+// FUNCIÓN: EDITAR FLUJO EXISTENTE (CORREGIDA)
+// ============================================================================
+async function editarFlujo(flowId) {
+  console.log('✏️ Editando flujo ID:', flowId);
+  
+  try {
+    // 1. Obtener lista actualizada de flows
+    const resp = await fetch('/api/bot/flows');
+    if (!resp.ok) throw new Error('Error al cargar flows');
+    
+    const flows = await resp.json();
+    
+    // 2. Buscar el flow específico por ID
+    const flow = flows.find(f => f.id === flowId);
+    if (!flow) {
+      mostrarNotificacionSuave('❌ Flujo no encontrado', 'error');
+      return;
+    }
+    
+    // 3. Llenar el formulario con los datos existentes
+    document.getElementById('flow-id-editando').value = flow.id;
+    document.getElementById('flow-nombre').value = flow.nombre || '';
+    document.getElementById('flow-trigger').value = flow.trigger_keyword || '';
+    
+    // Formatear pasos JSON para que sea legible en el textarea
+    const pasosPretty = JSON.stringify(flow.pasos || [], null, 2);
+    document.getElementById('flow-pasos').value = pasosPretty;
+    
+    // 4. Abrir el modal editor
+    document.getElementById('modal-editor-flujo').classList.remove('hidden');
+    document.getElementById('flow-feedback').classList.add('hidden');
+    
+    console.log('✅ Datos cargados para edición:', flow.nombre);
+    
+  } catch (err) {
+    console.error('❌ Error al cargar flujo para editar:', err);
+    mostrarNotificacionSuave('❌ Error al cargar datos del flujo', 'error');
+  }
 }
 
 // ============================================================================
