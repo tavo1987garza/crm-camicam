@@ -2784,9 +2784,9 @@ def test_whatsapp_connection():
         return jsonify({"error": "🌐 Error de conexión: verifica tu internet"}), 503
     except Exception as e:
         app.logger.error(f"❌ Error en test_whatsapp_connection: {str(e)}")
-        return jsonify({"error": f"❌ Error interno: {str(e)[:100]}"}), 500     
-# ============================================================================      
+        return jsonify({"error": f"❌ Error interno: {str(e)[:100]}"}), 500      
         
+
 # ============================================================================
 # WEBHOOK META: WHATSAPP / FACEBOOK / INSTAGRAM (MULTI-TENANT)
 # ============================================================================
@@ -2803,7 +2803,6 @@ def webhook_meta():
         token = request.args.get("hub.verify_token")
         challenge = request.args.get("hub.challenge")
         
-        # Verificar token (puedes guardarlo en .env como META_VERIFY_TOKEN)
         VERIFY_TOKEN = os.getenv("META_WEBHOOK_VERIFY_TOKEN", "mi_token_secreto_123")
         
         if mode == "subscribe" and token == VERIFY_TOKEN:
@@ -2818,7 +2817,7 @@ def webhook_meta():
         if not payload:
             return jsonify({"error": "Payload vacío"}), 400
 
-        # Meta envía actualizaciones de estado + mensajes. Filtramos solo mensajes.
+        # Filtrar solo eventos de WhatsApp o Facebook con mensajes
         if "object" not in payload or payload.get("object") not in ["whatsapp", "page"]:
             return jsonify({"ok": True}), 200
 
@@ -2835,125 +2834,144 @@ def webhook_meta():
                 phone_number_id = value.get("metadata", {}).get("phone_number_id")
                 external_user_id = messages[0].get("from")
                 msg_type = messages[0].get("type")
-                msg_text = messages[0].get("text", {}).get("body", "") if msg_type == "text" else "[tipo no texto]"
+                msg_text = ""
+                
+                if msg_type == "text":
+                    msg_text = messages[0].get("text", {}).get("body", "")
+                elif msg_type == "interactive":
+                    # Soporte para botones y listas
+                    msg_text = (messages[0].get("interactive", {}).get("button_reply", {}).get("id") or
+                               messages[0].get("interactive", {}).get("list_reply", {}).get("id") or
+                               "[interactive]")
+                else:
+                    msg_text = f"[{msg_type}]"
 
                 if not phone_number_id or not external_user_id:
                     continue
 
-                # 🔍 1. IDENTIFICAR TENANT POR phone_number_id
+                # 🔍 1. IDENTIFICAR TENANT POR phone_number_id (CORREGIDO)
                 conn = conectar_db()
-                if not conn: continue
-                
+                if not conn: 
+                    app.logger.error("❌ No se pudo conectar a la BD")
+                    continue
+
                 cur = conn.cursor()
                 cur.execute("""
-                    SELECT cliente_id, bot_activo, usar_ia, instrucciones_ia, modelo_ia, temperatura_ia, 
-                           mensaje_fallback, handoff_keywords, handoff_email
+                    SELECT 
+                        tbc.cliente_id,
+                        tbc.bot_activo, 
+                        tbc.usar_ia, 
+                        tbc.instrucciones_ia, 
+                        tbc.modelo_ia, 
+                        tbc.temperatura_ia, 
+                        tbc.mensaje_fallback, 
+                        tbc.handoff_keywords, 
+                        tbc.handoff_email,
+                        ti.whatsapp_access_token
                     FROM tenant_bot_config tbc
                     JOIN tenant_integraciones ti ON tbc.cliente_id = ti.cliente_id
                     WHERE ti.whatsapp_phone_number_id = %s
                 """, (phone_number_id,))
-                
+
                 tenant = cur.fetchone()
                 if not tenant:
                     app.logger.warning(f"⚠️ phone_number_id {phone_number_id} no registrado")
                     liberar_db(conn)
                     continue
 
-                cliente_id, bot_activo, usar_ia, instrucciones_ia, modelo_ia, temp_ia, fallback, handoff_kws, handoff_email = tenant
+                # Desempaquetar 10 valores
+                (tbc_cliente_id, bot_activo, usar_ia, instrucciones_ia, modelo_ia, 
+                 temp_ia, fallback, handoff_kws, handoff_email, access_token_enc) = tenant
                 
                 if not bot_activo:
                     liberar_db(conn)
-                    continue  # Bot desactivado para este tenant
+                    continue
 
                 # 📝 2. REGISTRAR MENSAJE ENTRANTE
                 cur.execute("""
                     INSERT INTO conversation_logs 
                     (cliente_id, external_user_id, platform, direccion, mensaje_texto, mensaje_tipo, creado_en)
                     VALUES (%s, %s, 'whatsapp', 'incoming', %s, %s, CURRENT_TIMESTAMP)
-                """, (cliente_id, external_user_id, msg_text, msg_type))
+                """, (tbc_cliente_id, external_user_id, msg_text, msg_type))
                 conn.commit()
 
                 # 🤖 3. MOTOR DE RESPUESTAS
                 respuesta_bot = None
                 procesado_por = "fallback"
 
-                # 3a. Verificar handoff (palabras clave que activan humano)
-                if handoff_kws and any(kw.lower() in msg_text.lower() for kw in handoff_kws):
+                # 3a. Handoff a humano
+                if handoff_kws and any(kw.lower() in msg_text.lower() for kw in (handoff_kws or [])):
                     respuesta_bot = "👤 Entendido. Un asesor humano te contactará pronto. Gracias por tu paciencia."
                     procesado_por = "handoff"
-                    # Aquí podrías emitir socket/email al admin del tenant
 
-                # 3b. Buscar keyword match
+                # 3b. Keyword match
                 if not respuesta_bot:
                     cur.execute("""
                         SELECT respuesta FROM bot_keywords 
                         WHERE cliente_id = %s AND activo = TRUE 
-                        AND (LOWER(keyword) = %s OR LOWER(keyword) LIKE %s)
+                        AND (LOWER(keyword) = %s OR %s LIKE CONCAT('%', LOWER(keyword), '%'))
                         ORDER BY exact_match DESC LIMIT 1
-                    """, (cliente_id, msg_text.lower(), f"%{msg_text.lower()}%"))
+                    """, (tbc_cliente_id, msg_text.lower(), msg_text.lower()))
                     kw_row = cur.fetchone()
                     if kw_row:
                         respuesta_bot = kw_row[0]
                         procesado_por = "keyword"
 
-                # 3c. Fallback o IA
+                # 3c. Fallback o IA (placeholder)
                 if not respuesta_bot:
                     if usar_ia and instrucciones_ia:
-                        try:
-                            # Placeholder para OpenAI (descomentar cuando tengas API key configurada)
-                            # from openai import OpenAI
-                            # client = OpenAI(api_key=desencriptar_credencial(ti.openai_api_key))
-                            # response = client.chat.completions.create(...)
-                            # respuesta_bot = response.choices[0].message.content
-                            respuesta_bot = None  # IA pendiente de implementación
-                            procesado_por = "ia"
-                        except Exception as e:
-                            app.logger.error(f"❌ Error IA: {e}")
-                            respuesta_bot = fallback or "😅 No pude procesar tu mensaje. Intenta con otra palabra."
+                        # TODO: Implementar llamada real a OpenAI
+                        respuesta_bot = fallback or "😅 Estoy aprendiendo. Intenta con 'horario' o 'precio'."
+                        procesado_por = "ia"
                     else:
                         respuesta_bot = fallback or "😅 No entendí tu mensaje. ¿Puedes reformularlo?"
+                        procesado_por = "fallback"
 
-                # 📤 4. ENVIAR RESPUESTA VÍA META API
-                if respuesta_bot:
-                    access_token = desencriptar_credencial(
-                        cur.execute("SELECT whatsapp_access_token FROM tenant_integraciones WHERE cliente_id = %s", (cliente_id,)).fetchone()[0]
-                    )
-                    
-                    if access_token:
-                        url = f"https://graph.facebook.com/v18.0/{phone_number_id}/messages"
-                        headers = {
-                            "Authorization": f"Bearer {access_token}",
-                            "Content-Type": "application/json"
-                        }
-                        payload_reply = {
-                            "messaging_product": "whatsapp",
-                            "to": external_user_id,
-                            "type": "text",
-                            "text": {"body": respuesta_bot}
-                        }
-                        resp = requests.post(url, json=payload_reply, headers=headers, timeout=10)
-                        if resp.status_code not in (200, 201):
-                            app.logger.error(f"❌ Meta API Error: {resp.status_code} - {resp.text}")
-                    else:
-                        app.logger.warning("⚠️ Access Token no configurado o desencriptado")
+                # 📤 4. ENVIAR RESPUESTA VÍA META API (solo una vez, con token desencriptado)
+                if respuesta_bot and access_token_enc:
+                    try:
+                        access_token = desencriptar_credencial(access_token_enc)
+                        
+                        if access_token:
+                            url = f"https://graph.facebook.com/v18.0/{phone_number_id}/messages"
+                            headers = {
+                                "Authorization": f"Bearer {access_token}",
+                                "Content-Type": "application/json"
+                            }
+                            payload_reply = {
+                                "messaging_product": "whatsapp",
+                                "to": external_user_id,
+                                "type": "text",
+                                "text": {"body": respuesta_bot}
+                            }
+                            resp = requests.post(url, json=payload_reply, headers=headers, timeout=10)
+                            
+                            if resp.status_code in (200, 201):
+                                app.logger.info(f"📤 Respuesta enviada a {external_user_id}")
+                            else:
+                                app.logger.error(f"❌ Meta API Error {resp.status_code}: {resp.text[:200]}")
+                        else:
+                            app.logger.warning("⚠️ No se pudo desencriptar el access token")
+                    except Exception as e:
+                        app.logger.error(f"❌ Error al enviar respuesta: {e}")
 
                 # 📝 5. REGISTRAR RESPUESTA SALIENTE
                 cur.execute("""
                     INSERT INTO conversation_logs 
                     (cliente_id, external_user_id, platform, direccion, mensaje_texto, procesado_por, creado_en)
                     VALUES (%s, %s, 'whatsapp', 'outgoing', %s, %s, CURRENT_TIMESTAMP)
-                """, (cliente_id, external_user_id, respuesta_bot, procesado_por))
+                """, (tbc_cliente_id, external_user_id, respuesta_bot, procesado_por))
                 conn.commit()
 
                 # 🔗 6. SOCKET: ACTUALIZAR CHAT EN TIEMPO REAL
                 try:
                     socketio.emit("nuevo_mensaje_chat", {
-                        "cliente_id": cliente_id,
+                        "cliente_id": tbc_cliente_id,
                         "external_user_id": external_user_id,
                         "texto": respuesta_bot,
                         "direccion": "outgoing",
                         "timestamp": datetime.now().isoformat()
-                    }, room=f"cliente_{cliente_id}")
+                    }, room=f"cliente_{tbc_cliente_id}")
                 except Exception as e:
                     app.logger.warning(f"⚠️ Socket emit falló: {e}")
 
@@ -2966,7 +2984,6 @@ def webhook_meta():
         import traceback
         traceback.print_exc()
         return jsonify({"error": "Error interno"}), 500
-    
     
 # ============================================================================
 # ENDPOINTS: CONFIGURACIÓN DE CHATBOT MULTI-TENANT
