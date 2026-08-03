@@ -1,7 +1,7 @@
 import re
 from dotenv import load_dotenv
-load_dotenv()  # ✅ Cargar variables de entorno desde .env
 import os
+load_dotenv()
 import json
 import traceback
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -150,18 +150,29 @@ if not DATABASE_URL:
     app.logger.critical("Falta configurar DATABASE_URL en las variables de entorno")
     raise RuntimeError("Falta configurar DATABASE_URL")
 
+
+
 # 📌 Inicializar el pool de conexiones
+
+
 try:
+    # 🔍 Detectar automáticamente si estamos en local o en producción
+    es_local = "localhost" in DATABASE_URL or "127.0.0.1" in DATABASE_URL
+    
+    # Si es local, desactiva SSL. Si es producción (DigitalOcean/Heroku), exígelo.
+    modo_ssl = "disable" if es_local else "require"
+
     db_pool = pool.SimpleConnectionPool(
         minconn=1,
         maxconn=10,
         dsn=DATABASE_URL,
-        sslmode="require"
+        sslmode=modo_ssl  # <--- Ahora es dinámico e inteligente
     )
-    app.logger.info("Pool de conexiones a la base de datos iniciado con éxito")
+    app.logger.info(f"Pool de conexiones iniciado con éxito (SSL: {modo_ssl})")
 except Exception as e:
     app.logger.error(f"Error al inicializar el pool de conexiones: {e}")
     db_pool = None
+
 
 def conectar_db():
     """Obtiene una conexión del pool."""
