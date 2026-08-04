@@ -4791,23 +4791,25 @@ function irAChat(telefono) {
         
        
 
+
 function abrirModalEditar(id, nombre, telefono, notas) {
   document.getElementById("edit-lead-id").value = id;
   document.getElementById("edit-lead-nombre").value = nombre;
   document.getElementById("edit-lead-telefono").value = telefono;
   document.getElementById("edit-lead-notas").value = notas || "";
 
-  // Guarda los valores originales en el modal para comparación
   let modal = document.getElementById("edit-lead-modal");
   modal.dataset.originalNombre = nombre;
   modal.dataset.originalNotas = notas || "";
 
-  // Muestra el modal (en este ejemplo, cambiamos la propiedad display)
+  // ✅ QUITAR la clase 'hidden' para vencer al !important
+  modal.classList.remove("hidden");
   modal.style.display = "flex";
 }
 
         
        
+
 
 function cerrarModal() {
   let modal = document.getElementById("edit-lead-modal");
@@ -4823,6 +4825,8 @@ function cerrarModal() {
     guardarEdicionLead();
   }
   
+  // ✅ AGREGAR de vuelta la clase 'hidden' al cerrar
+  modal.classList.add("hidden");
   modal.style.display = "none";
 }
 
