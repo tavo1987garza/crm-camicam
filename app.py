@@ -2449,6 +2449,114 @@ def admin_downgrade_tenant(tenant_id):
     liberar_db(conn)
     return redirect(url_for('admin_tenants'))
 
+#Ruta para el boton de CREAR NUEVO TENANT
+@app.route("/admin/crear_tenant", methods=["POST"])
+@admin_required
+def admin_crear_tenant():
+    """Crea un nuevo tenant directamente desde el panel de administración"""
+    try:
+        datos = request.json
+        nombre = datos.get("nombre", "").strip()
+        subdominio = datos.get("subdominio", "").strip().lower()
+        email = datos.get("email", "").strip().lower()
+        plan = datos.get("plan", "basico")
+        
+        # Validaciones básicas
+        if not nombre or not subdominio or not email:
+            return jsonify({"error": "Todos los campos son requeridos"}), 400
+        
+        # Usamos tu función existente de validación
+        if not validar_subdominio(subdominio):
+            return jsonify({"error": "Subdominio inválido o reservado"}), 400
+            
+        if plan not in ['basico', 'premium']:
+            return jsonify({"error": "Plan inválido"}), 400
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión a la base de datos"}), 500
+
+        try:
+            cur = conn.cursor()
+            
+            # 1. Verificar si el subdominio ya existe
+            cur.execute("SELECT id FROM clientes WHERE subdominio = %s", (subdominio,))
+            if cur.fetchone():
+                return jsonify({"error": "Este subdominio ya está en uso"}), 400
+                
+            # 2. Verificar si el email ya está registrado
+            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if cur.fetchone():
+                return jsonify({"error": "Este email ya está registrado"}), 400
+
+            # Contraseña por defecto para tenants creados por el admin
+            default_password = "#Mishi2023"
+            password_hash = generate_password_hash(default_password, method='pbkdf2:sha256', salt_length=8)
+
+            # 3. Crear el cliente (tenant)
+            # Como lo crea un admin, lo marcamos como email_verificado = true automáticamente
+            query_cliente = """
+                INSERT INTO clientes (
+                    nombre, subdominio, plan, activo, 
+                    email_verificado, email_admin
+                )
+                VALUES (%(nombre)s, %(subdominio)s, %(plan)s, %(activo)s, 
+                        %(email_verificado)s, %(email_admin)s)
+                RETURNING id
+            """
+            params_cliente = {
+                'nombre': nombre,
+                'subdominio': subdominio,
+                'plan': plan,
+                'activo': True,
+                'email_verificado': True, # ✅ Verificado automáticamente
+                'email_admin': email
+            }
+            cur.execute(query_cliente, params_cliente)
+            cliente_id = cur.fetchone()[0]
+
+            # 4. Crear el usuario administrador para este nuevo tenant
+            query_usuario = """
+                INSERT INTO users (email, password_hash, cliente_id, activo)
+                VALUES (%(email)s, %(password_hash)s, %(cliente_id)s, %(activo)s)
+                RETURNING id
+            """
+            params_usuario = {
+                'email': email,
+                'password_hash': password_hash,
+                'cliente_id': cliente_id,
+                'activo': True
+            }
+            cur.execute(query_usuario, params_usuario)
+            user_id = cur.fetchone()[0]
+
+            # 5. Asignar rol 'admin' al nuevo usuario
+            cur.execute("""
+                INSERT INTO user_roles (user_id, role_id)
+                SELECT %(user_id)s, id FROM roles WHERE name = 'admin'
+            """, {'user_id': user_id})
+            
+            conn.commit()
+            
+            return jsonify({
+                "mensaje": f"Tenant '{nombre}' creado exitosamente. Contraseña inicial: {default_password}",
+                "subdominio": subdominio
+            }), 200
+            
+        except Exception as e:
+            conn.rollback()
+            print(f"❌ Error en admin_crear_tenant: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": "Error al crear el cliente en la base de datos"}), 500
+        finally:
+            liberar_db(conn)
+            
+    except Exception as e:
+        print(f"💥 ERROR CRÍTICO EN CREAR TENANT: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error interno del servidor"}), 500
 
  
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -4051,17 +4159,15 @@ def pagina_login():
 def procesar_login():
     """
     Procesa el login y valida que el usuario pertenezca al cliente actual.
+    En modo local (localhost), permite entrar a cualquier tenant para pruebas.
     """
     try:
         cliente_id = obtener_cliente_id_de_subdominio()
-        if not cliente_id:
-            return jsonify({"error": "Cliente no encontrado"}), 404
-
+        
         # ✅ OBTENER DATOS: Intentar JSON primero, luego fallback a form
         if request.is_json:
             datos = request.get_json()
         else:
-            # Fallback: intentar parsear el body manualmente
             try:
                 import json
                 datos = json.loads(request.data.decode('utf-8'))
@@ -4080,13 +4186,28 @@ def procesar_login():
 
         try:
             cur = conn.cursor()
-            cur.execute("""
-                SELECT id, password_hash 
-                FROM users 
-                WHERE email = %s AND cliente_id = %s AND activo = true
-            """, (email, cliente_id))
             
-            user = cur.fetchone()
+            # 🚀 MODO LOCAL: Si estamos en localhost, buscar por email sin importar el subdominio
+            if 'localhost' in request.host or '127.0.0.1' in request.host:
+                cur.execute("""
+                    SELECT id, password_hash, cliente_id 
+                    FROM users 
+                    WHERE email = %s AND activo = true
+                """, (email,))
+                user = cur.fetchone()
+                if user:
+                    # Usar el cliente_id REAL del usuario para la sesión
+                    cliente_id = user[2] 
+            else:
+                # 🌐 MODO PRODUCCIÓN: Validar estrictamente que pertenezca al subdominio
+                if not cliente_id:
+                    return jsonify({"error": "Cliente no encontrado"}), 404
+                cur.execute("""
+                    SELECT id, password_hash, cliente_id 
+                    FROM users 
+                    WHERE email = %s AND cliente_id = %s AND activo = true
+                """, (email, cliente_id))
+                user = cur.fetchone()
             
             if not user or not check_password_hash(user[1], password):
                 return jsonify({"error": "Credenciales inválidas"}), 401
