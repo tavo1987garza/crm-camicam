@@ -527,58 +527,106 @@ body {
 
 /* ───── Estilos para el Contenedor principal de Leads──── */
 /* ============================================================================
-ESTILOS UNIFORMES PARA COLUMNAS DE LEADS (ANCHO IGUAL)
-============================================================================ */
+   ESTILOS MODERNOS PARA LA SECCIÓN DE LEADS
+   ============================================================================ */
+
+/* Contenedor principal con efecto de tarjeta (igual que Panel y Configuración) */
+#leads {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+#leads h1 {
+    font-size: 24px;
+    color: #2c3e50;
+    margin: 0 0 20px 0;
+}
+
+/* Buscador de leads mejorado */
+#buscador-leads {
+    padding: 12px 16px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: #f8f9fa;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#buscador-leads:focus {
+    outline: none;
+    border-color: #1e88e5;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+}
+
+#leads-search-results {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #7f8c8d;
+}
+
+/* ============================================================================
+   ESTILOS UNIFORMES PARA COLUMNAS DE LEADS (KANBAN)
+   ============================================================================ */
 .leads-container {
     display: flex;
-    gap: 15px;
+    gap: 20px;
     justify-content: flex-start;
     align-items: flex-start;
     overflow-x: auto;
-    padding: 10px;
+    padding: 10px 0;
+    margin-top: 15px;
 }
 
 .leads-column {
-    /* ✅ ANCHO FIJO Y UNIFORME PARA TODAS LAS COLUMNAS */
-    flex: 0 0 220px;  /* flex-grow: 0, flex-shrink: 0, flex-basis: 220px */
-    min-width: 220px;
-    max-width: 220px;
-    
-    padding: 15px;
+    flex: 0 0 240px;
+    min-width: 240px;
+    max-width: 240px;
+    padding: 18px;
     border-radius: 10px;
-    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     text-align: center;
     transition: all 0.3s ease-in-out;
     border: 1px solid #e0e0e0;
     display: flex;
     flex-direction: column;
-    box-sizing: border-box;  /* ✅ Importante: padding no afecta el ancho */
+    box-sizing: border-box;
+    background: #f8f9fa;
 }
 
 .leads-column:hover {
     transform: translateY(-2px);
-    box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .leads-column h3 {
-    margin: 0 0 10px 0;
+    margin: 0 0 12px 0;
     font-size: 14px;
     font-weight: 600;
-    white-space: nowrap;  /* ✅ Evita que el título se rompa en múltiples líneas */
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: #2c3e50;
 }
 
+/* Lista de leads dentro de cada columna */
 .leads-list {
-    min-height: 100px;
-    padding: 10px;
-    background: white;
-    border-radius: 5px;
+    min-height: 120px;
+    padding: 12px;
+    background: #ffffff;
+    border-radius: 8px;
     margin-top: 10px;
-    box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.1);
-    flex-grow: 1;  /* ✅ Ocupa el espacio disponible */
+    box-shadow: inset 0px 1px 3px rgba(0, 0, 0, 0.05);
+    flex-grow: 1;
     overflow-y: auto;
-    max-height: 500px;  /* ✅ Límite de altura para scroll */
+    max-height: 500px;
 }
 
 /* Colores dinámicos por estado (se aplican via inline style) */
@@ -586,37 +634,63 @@ ESTILOS UNIFORMES PARA COLUMNAS DE LEADS (ANCHO IGUAL)
     transition: background 0.3s, border-left 0.3s;
 }
 
-
-
-
-
-/* 🔹 Estilo de cada Lead. Transparentes inicialmente */
+/* ============================================================================
+   ESTILOS PARA TARJETAS INDIVIDUALES DE LEADS
+   ============================================================================ */
 .lead {
-    background: transparent;
-    padding: 8px;
-    margin: 5px 0;
-    border-radius: 5px;
-    font-size: 16px;
+    background: #ffffff;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 8px;
+    font-size: 14px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
     text-align: center;
     cursor: pointer;
-    /* ✅ REMOVER transition: all - causa conflictos con cambio de color */
-    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-    border: 1px solid #e0e0e0;
+    transition: all 0.2s ease;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-
-/* 🔹 Efecto al pasar el cursor sobre un Lead */
 .lead:hover {
-    background: #f5f5f5; /* 🔹 Fondo gris claro */
-    transform: translateY(-2px); /* 🔹 Levantar ligeramente el lead */
-    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1); /* 🔹 Sombra sutil */
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(30, 136, 229, 0.15);
+    border-color: #1e88e5;
 }
 
-/* Animación sutil cuando un lead cambia de columna */
+.lead-content {
+    text-align: center;
+    width: 100%;
+}
+
+.lead-nombre {
+    font-size: 15px;
+    font-weight: 600;
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.lead-ultimo-mensaje {
+    font-size: 12px;
+    color: #7f8c8d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.lead-ultimo-mensaje:hover {
+    color: #1e88e5;
+    text-decoration: underline;
+}
+
+/* Animación cuando un lead se mueve */
 .lead.moved {
     animation: highlight-lead 0.5s ease;
 }
@@ -626,178 +700,121 @@ ESTILOS UNIFORMES PARA COLUMNAS DE LEADS (ANCHO IGUAL)
     100% { box-shadow: 0 0 0 12px rgba(30, 136, 229, 0); }
 }
 
-
-/* 🔹 Estilo cuando se arrastra un lead */
+/* Estado cuando se arrastra un lead */
 .lead.dragging {
-    opacity: 0.5; /* 🔹 Hacer el lead semi-transparente */
-    transform: scale(0.95); /* 🔹 Reducir ligeramente el tamaño */
+    opacity: 0.5;
+    transform: scale(0.95);
 }
 
-/* 🔹 Estilo cuando una columna está lista para recibir un lead */
-.leads-column.dragover {
-    background: #d3f9d8; /* 🔹 Color de fondo cuando se arrastra un lead */
-    border: 2px dashed #4CAF50; /* 🔹 Borde punteado */
-    transition: all 0.3s ease-in-out; /* 🔹 Transición suave */
-}
-
-/* 🔹 Botón de eliminar dentro del lead */
-.lead button {
-    background: transparent;
-    border: none;
-    color: #d32f2f;
-    cursor: pointer;
-    font-size: 18px;
-    transition: color 0.2s ease-in-out;
-}
-
-.lead button:hover {
-    color: red;
-}
-
-
+/* Lead con mensaje nuevo */
 .lead-mensaje-nuevo {
-    background: #c8e6c9 !important; /* Verde claro */
+    background: #d4edda !important;
     transition: background 0.5s ease-in-out;
 }
 
 .lead-mensaje-nuevo:hover {
-    background: #a5d6a7 !important; /* Un poco más oscuro al pasar el mouse */
+    background: #c3e6cb !important;
 }
 
-.lead-content {
-    text-align: center;
+/* Columna lista para recibir un lead */
+.leads-column.dragover {
+    background: #e3f2fd;
+    border: 2px dashed #1e88e5;
 }
 
-.lead-nombre {
-    font-size: 16px;
-    font-weight: bold;
-    color: #333;
-    text-align: center;
-}
-
-
-.lead-ultimo-mensaje {
-    font-size: 14px;
-    color: #666;
-    overflow: hidden; /* 🔹 Oculta el texto que se desborda */
-    text-overflow: ellipsis; /* 🔹 Muestra "..." si el texto es demasiado largo */
-    white-space: nowrap; /* 🔹 Evita que el texto se divida en varias líneas */
-    max-width: 100px; /* 🔹 Limita el ancho del mensaje */
-    cursor: pointer; /* 🔹 Cambia el cursor a pointer */
-    transition: color 0.2s ease-in-out; /* 🔹 Transición suave para el color */
-}
-
-/* 🔹 Efecto al pasar el cursor sobre el último mensaje */
-.lead-ultimo-mensaje:hover {
-    color: #1e88e5; /* 🔹 Cambia el color al pasar el cursor */
-    text-decoration: underline; /* 🔹 Subraya el texto */
-}
-
-
-
-
-
-/* ✅ Form container no debe afectar el ancho de la columna */
+/* ============================================================================
+   ESTILOS PARA FORMULARIO DE AGREGAR LEAD
+   ============================================================================ */
 .form-container {
     margin-top: 15px;
     padding-top: 15px;
-    border-top: 1px dashed #ddd;
-    width: 100%;  /* ✅ Asegura que no exceda el ancho de la columna */
+    border-top: 1px dashed #dee2e6;
+    width: 100%;
     box-sizing: border-box;
-    background: white;
-    padding: 10px;
-    border-radius: 5px;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-
-.form-container button,
-.form-container input,
+.form-container input[type="text"],
 .form-container textarea {
-    width: 100%;  /* ✅ Todos los elementos del formulario al 100% del ancho */
-    box-sizing: border-box;
-}
-
-
-
-
-/* 🔹 Inputs estilizados */
-.form-container input {
-    width: 90%;
-    padding: 8px;
-    margin: 5px 0;
-    border-radius: 5px;
-    border: 1px solid #ddd;
+    width: 100%;
+    padding: 10px;
+    margin: 6px 0;
+    border-radius: 6px;
+    border: 1px solid #ced4da;
     outline: none;
-    transition: border 0.3s ease-in-out;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+    font-size: 14px;
 }
 
-.form-container input:focus {
-    border: 1px solid #1e88e5;
+.form-container input[type="text"]:focus,
+.form-container textarea:focus {
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
 }
 
-/* 🔹 Botón para agregar lead */
+.form-container textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
 .form-container button {
     width: 100%;
-    padding: 8px;
+    padding: 10px;
     background: #1e88e5;
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
-    transition: background 0.3s ease-in-out;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    margin-top: 8px;
 }
 
 .form-container button:hover {
     background: #1565c0;
+    transform: translateY(-1px);
 }
 
-        .leads-column.dragover {
-            background: #d3f9d8; /* Color de fondo cuando se arrastra un lead */
-        }
-
-        
-        #lead-form input[type="text"],
-#lead-form textarea {
-    width: 100%;             /* Ocupa el ancho completo del contenedor */
-    padding: 10px;           /* Espaciado interno */
-    margin: 10px 0;          /* Separación vertical entre campos */
-    border: 1px solid #ccc;  /* Borde suave */
-    border-radius: 4px;      /* Bordes redondeados */
-    font-size: 14px;         /* Tamaño de fuente */
-    transition: border-color 0.3s ease;
-    box-sizing: border-box;  /* Incluye padding y borde en el ancho */
-}
-
-#lead-form input[type="text"]:focus,
-#lead-form textarea:focus {
-    border-color: #1e88e5;   /* Resalta el borde cuando el campo está activo */
-    outline: none;
-}
-
-#lead-form textarea {
-    resize: vertical;        /* Permite ajustar la altura verticalmente */
-    min-height: 80px;         /* Altura mínima del textarea */
-}
-
-
-        /* 🔹 Estilizar el botón de agregar */
 #toggle-form {
     width: 100%;
-    padding: 8px;
+    padding: 10px;
     background: #1e88e5;
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
-    transition: background 0.3s ease-in-out;
+    font-weight: 600;
+    transition: all 0.2s ease;
 }
 
 #toggle-form:hover {
     background: #1565c0;
+    transform: translateY(-1px);
 }
+
+/* ============================================================================
+   RESPONSIVE PARA LEADS
+   ============================================================================ */
+@media (max-width: 768px) {
+    #leads {
+        padding: 20px;
+    }
+    .leads-column {
+        flex: 0 0 200px;
+        min-width: 200px;
+        max-width: 200px;
+    }
+}
+
+
+
+
 
 
 /* Modal styles */
