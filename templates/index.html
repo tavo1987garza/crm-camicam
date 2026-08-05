@@ -249,116 +249,272 @@ body {
     color: #7f8c8d;
 }
 
-/* ───── Estilos para la seccion de PANEL──── */
-        /* Tarjeta genérica del panel */
-        .panel-card {
-          background:#f8f9fa;
-          padding:15px 20px;
-          border-radius:8px;
-          display:flex;
-          flex-direction:column;
-          gap:10px;
-        }
-        
-        /* Logo */
-        #logo-box {
-          align-self:center;
-          margin-bottom:10px;
-        }
-        #logo-img {
-          max-height:90px;
-          object-fit:contain;
-        }
-        
-        /* Buscador de fechas */
-        .fecha-search {
-          display:flex;
-          gap:10px;
-        }
-        #buscar-fecha-input {
-          flex:1;
-          padding:8px 12px;
-          border:2px solid #ced4da;
-          border-radius:6px;
-        }
-        #buscar-fecha-btn {
-          background:#1e88e5;
-          color:#fff;
-          border:none;
-          border-radius:6px;
-          padding:8px 16px;
-          cursor:pointer;
-          font-weight:600;
-          transition:background .25s;
-        }
-        #buscar-fecha-btn:hover { background:#1565c0; }
-        
-        /* Alertas */
-        .alert {
-          margin-top:8px;
-          padding:10px 14px;
-          border-radius:6px;
-          font-weight:600;
-        }
-        .alert.disponible   { background:#e8f5e9; color:#2e7d32; }
-        .alert.registrado   { background:#fff8e1; color:#ff9800; }
-        .alert.no-disp      { background:#ffebee; color:#d32f2f; }
-        .hidden { display:none; }
-        
-        /* Post-it */
-        .postits {
-          display:flex;
-          flex-wrap:wrap;
-          gap:12px;
-        }
-        .postit {
-          width:160px;
-          min-height:120px;
-          background:#fffde7;
-          border:1px solid #f4e19e;
-          border-radius:6px;
-          box-shadow:0 1px 4px rgba(0,0,0,.1);
-          padding:12px;
-          position:relative;
-          cursor:pointer;
-          transition:transform .15s;
-        }
-        .postit:hover { transform:rotate(-1deg) scale(1.02); }
-        .postit:before {
-          content:"📌";
-          position:absolute;
-          top:-10px;
-          left:8px;
-          font-size:22px;
-          transform:rotate(-12deg);
-        }
-        /* Resumen de servicios en postist */
-        .serv-list {
-          margin: 6px 0 0 0;
-          padding-left: 18px;
-          font-size: 0.9rem;
-          line-height: 1.3;
-        }
-        .serv-list li {
-          list-style: disc outside;
-        }
-        
-        
-        
-        /* KPI */
-        .kpi {
-          align-items:center;
-          text-align:center;
-        }
-        .kpi-value {
-          font-size:38px;
-          font-weight:700;
-          color:#1e88e5;
-        }
-        #kpi-actual.green { color:#43a047; }
-        #kpi-actual.red   { color:#d32f2f; }
-        
 
+
+/* ============================================================================
+   ESTILOS MODERNOS PARA EL PANEL (DASHBOARD)
+   ============================================================================ */
+
+.dashboard-header {
+    margin-bottom: 25px;
+}
+.dashboard-header h1 {
+    font-size: 24px;
+    color: #2c3e50;
+    margin: 0 0 5px 0;
+}
+.dashboard-subtitle {
+    color: #7f8c8d;
+    margin: 0;
+    font-size: 15px;
+}
+
+/* ── Grid Principal del Dashboard ── */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    align-items: start;
+}
+
+/* Hace que la tarjeta de eventos ocupe todo el ancho en pantallas grandes */
+.events-card.full-width {
+    grid-column: 1 / -1;
+}
+
+/* ── Tarjeta Genérica (Base de todo el dashboard) ── */
+.dash-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.dash-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(30, 136, 229, 0.08);
+    border-color: #1e88e5;
+}
+
+.dash-card h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── 1. Tarjeta de Logo ── */
+.logo-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 140px;
+}
+#logo-box {
+    text-align: center;
+}
+#logo-img {
+    max-height: 80px;
+    max-width: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+/* ── 2. Tarjeta KPI ── */
+.kpi-card {
+    text-align: center;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+.kpi-value {
+    font-size: 42px;
+    font-weight: 800;
+    color: #1e88e5;
+    margin: 10px 0;
+    letter-spacing: -1px;
+}
+.kpi-separator {
+    color: #bdc3c7;
+    font-weight: 400;
+    margin: 0 5px;
+}
+#kpi-actual.green { color: #27ae60; }
+#kpi-actual.red { color: #e74c3c; }
+#kpi-sub {
+    display: block;
+    color: #7f8c8d;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* ── 3. Tarjeta de Búsqueda ── */
+.fecha-search {
+    display: flex;
+    gap: 10px;
+}
+#buscar-fecha-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #2c3e50;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+#buscar-fecha-input:focus {
+    outline: none;
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+}
+#buscar-fecha-btn {
+    background: #1e88e5;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+#buscar-fecha-btn:hover { 
+    background: #1565c0; 
+    transform: translateY(-1px);
+}
+
+/* ── 4. Lista de Leads (Limpia y moderna) ── */
+.clean-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.clean-list li {
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f3f5;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: #495057;
+    transition: background 0.2s;
+}
+.clean-list li:last-child {
+    border-bottom: none;
+}
+.clean-list li::before {
+    content: "👤";
+    font-size: 16px;
+}
+.clean-list li:hover {
+    background: #f8f9fa;
+    margin: 0 -10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-radius: 6px;
+}
+
+/* ── 5. Post-its Modernizados (Event Cards) ── */
+.postits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 15px;
+}
+
+/* Reemplazamos el estilo amarillo antiguo por una tarjeta elegante */
+.postit {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-left: 4px solid #1e88e5; /* El JS puede cambiar este color dinámicamente */
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+.postit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+    border-color: #1e88e5;
+}
+
+/* Pin moderno en lugar del emoji antiguo */
+.postit::before {
+    content: "📌";
+    position: absolute;
+    top: -8px;
+    right: 12px;
+    font-size: 18px;
+    background: #fff;
+    border-radius: 50%;
+    padding: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.postit h4 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.postit p {
+    margin: 0;
+    font-size: 13px;
+    color: #7f8c8d;
+    line-height: 1.4;
+}
+
+.serv-list {
+    margin: 10px 0 0 0;
+    padding-left: 16px;
+    font-size: 12px;
+    color: #495057;
+    line-height: 1.4;
+}
+.serv-list li {
+    list-style: disc outside;
+    padding: 0;
+    border: none;
+}
+.serv-list li::before { content: none; }
+
+/* ── Alertas (Mantenemos tus colores pero con mejor forma) ── */
+.alert {
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.alert.disponible { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.alert.registrado  { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+.alert.no-disp     { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+/* ── Responsive para móviles ── */
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    .events-card.full-width {
+        grid-column: auto;
+    }
+    .fecha-search {
+        flex-direction: column;
+    }
+    #buscar-fecha-btn {
+        width: 100%;
+    }
+}
 
 
 
@@ -2303,46 +2459,64 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
 </div>
 
 
-         <div id="panel" class="seccion">
+         
+
+<div id="panel" class="seccion hidden">
+    <div class="dashboard-header">
+        <h1>👋 Panel de Control</h1>
+        <p class="dashboard-subtitle">Resumen rápido de tu negocio y próximas actividades.</p>
+    </div>
+
+    <div class="dashboard-grid">
         
-            <!-- 1. Logo de la empresa -->
+        <!-- 1. Logo de la empresa -->
+        <div class="dash-card logo-card">
             <div id="logo-box">
-              <img id="logo-img" alt="Logo" />
-            </div>
-        
-            <!-- 2. Buscador de fechas -->
-            <div id="buscador-fechas" class="panel-card">
-              <h2>🔎 Buscar fecha</h2>
-        
-              <div class="fecha-search">
-                <input type="date" id="buscar-fecha-input" />
-                <button id="buscar-fecha-btn">Consultar</button>
-              </div>
-        
-              <div id="buscar-fecha-alert" class="alert hidden"></div>
-            </div>
-        
-            <!-- 3. Próximos 3 eventos -->
-            <div id="proximos-eventos" class="panel-card">
-              <h2>📌 Próximos eventos</h2>
-              <div id="postits-container" class="postits"></div>
-            </div>
-        
-            <!-- 4. Últimos 3 leads -->
-            <div id="ultimos-leads" class="panel-card">
-              <h2>🆕 Contacto inicial</h2>
-              <ul id="lista-leads"></ul>
-            </div>
-        
-            <!-- 5. KPI mensual -->
-            <div id="kpi-mes" class="panel-card kpi">
-              <h2>📊 Meta mensual</h2>
-              <div class="kpi-value">
-                <span id="kpi-actual">0</span> / <span id="kpi-meta">15</span>
-              </div>
-              <small id="kpi-sub">Eventos contratados este mes</small>
+                <img id="logo-img" alt="Logo de la empresa" />
             </div>
         </div>
+
+        <!-- 2. KPI Mensual (Lo movimos arriba para mayor impacto visual) -->
+        <div class="dash-card kpi-card">
+            <h2>📊 Meta Mensual</h2>
+            <div class="kpi-value">
+                <span id="kpi-actual">0</span> 
+                <span class="kpi-separator">/</span> 
+                <span id="kpi-meta">15</span>
+            </div>
+            <small id="kpi-sub">Eventos contratados este mes</small>
+        </div>
+
+        <!-- 3. Buscador de fechas -->
+        <div class="dash-card search-card">
+            <h2>🔎 Consultar Disponibilidad</h2>
+            <div class="fecha-search">
+                <input type="date" id="buscar-fecha-input" />
+                <button id="buscar-fecha-btn">Consultar</button>
+            </div>
+            <div id="buscar-fecha-alert" class="alert hidden"></div>
+        </div>
+
+        <!-- 4. Últimos leads -->
+        <div class="dash-card leads-card">
+            <h2>🆕 Últimos Contactos</h2>
+            <ul id="lista-leads" class="clean-list">
+                <!-- Se llena dinámicamente con JS -->
+            </ul>
+        </div>
+
+        <!-- 5. Próximos eventos (Post-its modernizados) -->
+        <div class="dash-card events-card full-width">
+            <h2>📌 Próximos Eventos</h2>
+            <div id="postits-container" class="postits-grid">
+                <!-- Se llena dinámicamente con JS -->
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
         
 
       
