@@ -21,6 +21,124 @@
     box-sizing: border-box;
 }
 
+/* Secciones sin tarjeta contenedora - solo padding y ancho máximo */
+#panel,
+#configuracion,
+#leads,
+#calendario,
+#reportes,
+#gastos,
+#cuenta {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* En móvil, reducir el padding */
+@media (max-width: 768px) {
+    #panel,
+    #configuracion,
+    #leads,
+    #calendario,
+    #reportes,
+    #gastos,
+    #cuenta {
+        padding: 12px;
+    }
+}
+
+
+/* ============================================================================
+   HEADER MODERNO DEL PANEL
+   ============================================================================ */
+.dashboard-header-modern {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f0f2f5;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.header-text {
+    flex: 1;
+    min-width: 200px;
+}
+
+.header-text h1 {
+    font-size: 28px;
+    color: #2c3e50;
+    margin: 0 0 8px 0;
+    font-weight: 700;
+}
+
+.welcome-text {
+    font-size: 16px;
+    color: #495057;
+    margin: 0 0 6px 0;
+}
+
+.welcome-text strong {
+    color: #1e88e5;
+    font-weight: 700;
+}
+
+.current-date {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin: 0;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.current-date::before {
+    content: "📅";
+    font-size: 16px;
+}
+
+.header-logo {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#logo-img {
+    max-height: 80px;
+    max-width: 180px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+/* Responsive para móvil */
+@media (max-width: 768px) {
+    .header-top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .header-logo {
+        align-self: center;
+        margin-top: 10px;
+    }
+    .header-text h1 {
+        font-size: 22px;
+    }
+    .welcome-text {
+        font-size: 14px;
+    }
+}
+
+
+
 
 body {
     font-family: Arial, sans-serif;
@@ -543,17 +661,6 @@ body {
 /* ============================================================================
    ESTILOS MODERNOS PARA LA SECCIÓN DE LEADS
    ============================================================================ */
-
-/* Contenedor principal con efecto de tarjeta (igual que Panel y Configuración) */
-#leads {
-    background: #ffffff;
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
-    padding: 30px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-    max-width: 1400px;
-    margin: 0 auto;
-}
 
 #leads h1 {
     font-size: 24px;
@@ -1266,15 +1373,6 @@ body {
 /* =========================================
    ESTILOS PARA LA SECCIÓN DE CALENDARIO
    ========================================= */
-#panel,
-#calendario,
-#reportes,
-#gastos {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
 
 /* Fechas ocupadas */
 #lista-fechas-ocupadas {  
@@ -1831,18 +1929,6 @@ th {
 /* ============================================================================
    ESTILOS MODERNOS PARA LA SECCIÓN DE CONFIGURACIÓN
    ============================================================================ */
-
-/* Contenedor principal con efecto de tarjeta */
-#configuracion {
-    background: #ffffff;
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
-    padding: 30px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
 .config-subtitle {
     color: #7f8c8d;
     margin-bottom: 25px;
@@ -2494,34 +2580,26 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
 
 
          
-
 <div id="panel" class="seccion hidden">
-    <div class="dashboard-header">
-        <h1>👋 Panel de Control</h1>
-        <p class="dashboard-subtitle">Resumen rápido de tu negocio y próximas actividades.</p>
+    
+    <!-- HEADER: Título + Logo + Bienvenida + Fecha -->
+    <div class="dashboard-header-modern">
+        <div class="header-top">
+            <div class="header-text">
+                <h1>👋 Panel de Control</h1>
+                <p class="welcome-text">Bienvenido, <strong id="tenant-nombre">Cami Cam</strong></p>
+                <p class="current-date" id="current-date">Cargando fecha...</p>
+            </div>
+            <div class="header-logo">
+                <img id="logo-img" alt="Logo" />
+            </div>
+        </div>
     </div>
 
+    <!-- GRID DE TARJETAS EN EL ORDEN SOLICITADO -->
     <div class="dashboard-grid">
         
-        <!-- 1. Logo de la empresa -->
-        <div class="dash-card logo-card">
-            <div id="logo-box">
-                <img id="logo-img" alt="Logo de la empresa" />
-            </div>
-        </div>
-
-        <!-- 2. KPI Mensual (Lo movimos arriba para mayor impacto visual) -->
-        <div class="dash-card kpi-card">
-            <h2>📊 Meta Mensual</h2>
-            <div class="kpi-value">
-                <span id="kpi-actual">0</span> 
-                <span class="kpi-separator">/</span> 
-                <span id="kpi-meta">15</span>
-            </div>
-            <small id="kpi-sub">Eventos contratados este mes</small>
-        </div>
-
-        <!-- 3. Buscador de fechas -->
+        <!-- 1. Consultar Disponibilidad -->
         <div class="dash-card search-card">
             <h2>🔎 Consultar Disponibilidad</h2>
             <div class="fecha-search">
@@ -2531,7 +2609,15 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
             <div id="buscar-fecha-alert" class="alert hidden"></div>
         </div>
 
-        <!-- 4. Últimos leads -->
+        <!-- 2. Próximos Eventos -->
+        <div class="dash-card events-card">
+            <h2>📌 Próximos Eventos</h2>
+            <div id="postits-container" class="postits-grid">
+                <!-- Se llena dinámicamente con JS -->
+            </div>
+        </div>
+
+        <!-- 3. Últimos Contactos -->
         <div class="dash-card leads-card">
             <h2>🆕 Últimos Contactos</h2>
             <ul id="lista-leads" class="clean-list">
@@ -2539,12 +2625,15 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
             </ul>
         </div>
 
-        <!-- 5. Próximos eventos (Post-its modernizados) -->
-        <div class="dash-card events-card full-width">
-            <h2>📌 Próximos Eventos</h2>
-            <div id="postits-container" class="postits-grid">
-                <!-- Se llena dinámicamente con JS -->
+        <!-- 4. Meta Mensual -->
+        <div class="dash-card kpi-card">
+            <h2>📊 Meta Mensual</h2>
+            <div class="kpi-value">
+                <span id="kpi-actual">0</span> 
+                <span class="kpi-separator">/</span> 
+                <span id="kpi-meta">15</span>
             </div>
+            <small id="kpi-sub">Eventos contratados este mes</small>
         </div>
 
     </div>
@@ -3633,183 +3722,269 @@ function mostrarSeccion(seccionId, callback = null) {
 
         let sonidoActivo = true; 
 
-
 /***********************
 ========================
-    SECCION DE PANEL
+    SECCIÓN DE PANEL
 ========================
 ************************/
-/* === Inicializar Panel y Buscador de Fechas === */
-async function initPanel() { 
-  // 1) Carga datos
-  await Promise.all([
-    cargarLogo(),
-    cargarProximosEventos(),
-    cargarUltimosLeads(),
-    cargarKPI()
-  ]);
 
-  // 2) Ahora sí engancha el buscador de fechas
-  const btnBuscar = document.getElementById("buscar-fecha-btn");
-  if (btnBuscar) {
-    btnBuscar.onclick = async () => {
-      const iso = document.getElementById("buscar-fecha-input").value;
-      if (!iso) return;
-      const r   = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
-      const res = await r.json();
-      const alerta = document.getElementById("buscar-fecha-alert");
-      const dateLargo = formatoFechaLargo(iso);
+// Variable global para cachear los servicios del tenant y no pedirlos a la BD cada vez
+let tenantServicesMap = {};
 
-      alerta.className = "alert";
-      if (res.count === 0) {
-        alerta.textContent = `${dateLargo} está DISPONIBLE`;
-        alerta.classList.add("disponible");
-      } else if (res.count === 1) {
-        alerta.textContent = `Tenemos un evento REGISTRADO para ${dateLargo}`;
-        alerta.classList.add("registrado");
-      } else {
-        alerta.textContent = `${dateLargo} NO ESTÁ DISPONIBLE`;
-        alerta.classList.add("no-disp");
-      }
-      alerta.classList.remove("hidden");
-    };
-  }
-
-  // 3) (Opcional) Si hay más botones en Panel, engánchalos aquí
-}
-
-
-/* === 3. Próximos 5 eventos con servicios ==== */
-async function cargarProximosEventos() {
-  const r   = await fetch("/calendario/proximos?limite=5");
-  if (!r.ok) {
-    console.error("Error al obtener próximos eventos:", await r.text());
-    return;
-  }
-  const arr = await r.json();
-  const cont = document.getElementById("postits-container");
-  if (!cont) return;
-  cont.innerHTML = "";
-
-  arr.forEach(ev => {
-    const div = document.createElement("div");
-    div.className = "postit";
-
-    // Construir resumen de servicios
-    const s = ev.servicios || {};
-    const items = [];
-    if (s.cabinaFotos)             items.push("Cabina de Fotos");
-    if (s.cabina360)               items.push("Cabina 360");
-    if (s.caritoDeShotsSinAlcohol) items.push("Shots sin alcohol");
-    if (s.caritoDeShotsConAlcohol) items.push("Shots con alcohol");
-    if (s.lluviaDeMariposas)       items.push("Lluvia de Mariposas");
-    if (s.lluviaMetalica)          items.push("Lluvia Metálica");
-    if (s.nieblaDePiso)            items.push("Niebla de Piso");
-    if (s.scrapbook)               items.push("Scrapbook");
-    if (s.audioGuestBook)          items.push("Audio Guest Book");
-    if (s.letrasGigantes > 0)      items.push(`${s.letrasGigantes} Letras Gigantes`);
-    if (s.chisperos > 0)           items.push(`${s.chisperos} Chisperos`);
-
-    const serviciosHTML = items.length
-      ? `<ul class="serv-list">${items.map(x=>`<li>${x}</li>`).join("")}</ul>`
-      : `<em>— sin servicios —</em>`;
-
-    div.innerHTML = `
-      <strong>${formatoFechaLargo(ev.fecha)}</strong><br>
-      ${ev.titulo || ""}<br>
-      ${serviciosHTML}
-    `;
-
-    div.onclick = () => abrirModalFecha(ev.id);
-    cont.appendChild(div);
-  });
-}
-
-/* === 4. Últimos 3 leads ======================== */
-async function cargarUltimosLeads() {
-  const r   = await fetch("/leads/ultimos?limite=3");
-  const obj = await r.json();        // [{nombre, telefono}, …]
-  const ul  = document.getElementById("lista-leads");
-  ul.innerHTML = obj.map(ld => `<li>${ld.nombre} — ${ld.telefono}</li>`).join("");
-}
-
-/* === 5. KPI mensual ============================ */
-// Mostrar modal y cargar meta actual
-async function mostrarModalMetaMensual() {
-  try {
-    const resp = await fetch("/config/meta_mensual");
-    const data = await resp.json();
-    document.getElementById("meta-mensual-input").value = data.meta || 15;
-    document.getElementById("modal-meta-mensual").classList.remove("hidden");
-  } catch (err) {
-    console.error("Error al cargar meta mensual:", err);
-    alert("Error al cargar la meta actual");
-  }
-}
-
-// Cerrar modal
-function cerrarModalMetaMensual() {
-  document.getElementById("modal-meta-mensual").classList.add("hidden");
-  document.getElementById("meta-feedback").classList.add("hidden");
-}
-
-// Guardar meta mensual
-async function guardarMetaMensual() {
-  const input = document.getElementById("meta-mensual-input");
-  const meta = parseInt(input.value);
-  const feedback = document.getElementById("meta-feedback");
-  
-  if (!meta || meta < 1 || meta > 100) {
-    mostrarFeedbackMeta("La meta debe ser un número entre 1 y 100", "error");
-    return;
-  }
-  
-  try {
-    const resp = await fetch("/config/meta_mensual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ meta })
-    });
-    
-    if (resp.ok) {
-      mostrarFeedbackMeta("Meta mensual actualizada correctamente", "success");
-      setTimeout(() => {
-        cerrarModalMetaMensual();
-        // Recargar el KPI en el panel si está visible
-        if (document.getElementById("panel").classList.contains("hidden") === false) {
-          cargarKPI();
-        }
-      }, 1500);
-    } else {
-      const error = await resp.json();
-      mostrarFeedbackMeta("Error: " + (error.error || "desconocido"), "error");
+/* ============================================================================
+   1. ACTUALIZAR INFO DEL HEADER (FECHA Y NOMBRE DEL TENANT)
+   ============================================================================ */
+async function actualizarInfoPanel() {
+    // 1. Mostrar fecha actual en formato: "Miércoles 5/Agosto/2026"
+    const fechaElemento = document.getElementById('current-date');
+    if (fechaElemento) {
+        const ahora = new Date();
+        const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        
+        const diaSemana = dias[ahora.getDay()];
+        const dia = ahora.getDate();
+        const mes = meses[ahora.getMonth()];
+        const anio = ahora.getFullYear();
+        
+        fechaElemento.textContent = `${diaSemana} ${dia}/${mes}/${anio}`;
     }
-  } catch (err) {
-    console.error("Error al guardar meta mensual:", err);
-    mostrarFeedbackMeta("Error de conexión", "error");
-  }
+    
+    // 2. Mostrar nombre del tenant dinámicamente
+    try {
+        const resp = await fetch('/api/cliente_actual');
+        const data = await resp.json();
+        if (data.nombre) {
+            const nombreElemento = document.getElementById('tenant-nombre');
+            if (nombreElemento) {
+                nombreElemento.textContent = data.nombre;
+            }
+        }
+    } catch (error) {
+        console.error('Error al cargar nombre del tenant:', error);
+    }
 }
 
-function mostrarFeedbackMeta(mensaje, tipo) {
-  const feedback = document.getElementById("meta-feedback");
-  feedback.textContent = mensaje;
-  feedback.className = `alert alert-${tipo}`;
-  feedback.classList.remove("hidden");
+/* ============================================================================
+   2. OBTENER SERVICIOS DEL TENANT (Para mapear claves a nombres reales)
+   ============================================================================ */
+async function obtenerServiciosDelTenant() {
+    // Si ya los cargamos, usar la caché
+    if (Object.keys(tenantServicesMap).length > 0) {
+        return tenantServicesMap;
+    }
+    
+    try {
+        const resp = await fetch('/servicios');
+        if (!resp.ok) throw new Error("Error al cargar servicios");
+        const servicios = await resp.json();
+        
+        // Crear un diccionario: { "cabina_360": "Cabina 360", "niebla": "Niebla de Piso" }
+        servicios.forEach(s => {
+            tenantServicesMap[s.clave] = s.nombre;
+        });
+    } catch (err) {
+        console.error("⚠️ No se pudieron cargar los servicios del tenant:", err);
+    }
+    return tenantServicesMap;
+}
+
+/* ============================================================================
+   3. INICIALIZAR PANEL COMPLETO
+   ============================================================================ */
+async function initPanel() { 
+    // 1) Actualizar header (Fecha y Nombre del Tenant)
+    await actualizarInfoPanel();
+
+    // 2) Cargar datos del dashboard
+    await Promise.all([
+        cargarLogo(),
+        cargarProximosEventos(),
+        cargarUltimosLeads(),
+        cargarKPI()
+    ]);
+
+    // 3) Enganchar el buscador de fechas
+    const btnBuscar = document.getElementById("buscar-fecha-btn");
+    if (btnBuscar) {
+        btnBuscar.onclick = async () => {
+            const iso = document.getElementById("buscar-fecha-input").value;
+            if (!iso) return;
+            
+            const r = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
+            const res = await r.json();
+            const alerta = document.getElementById("buscar-fecha-alert");
+            const dateLargo = formatoFechaLargo(iso);
+
+            alerta.className = "alert";
+            if (res.count === 0) {
+                alerta.textContent = `✅ ${dateLargo} está DISPONIBLE`;
+                alerta.classList.add("disponible");
+            } else if (res.count === 1) {
+                alerta.textContent = `⚠️ Tenemos 1 evento REGISTRADO para ${dateLargo}`;
+                alerta.classList.add("registrado");
+            } else {
+                alerta.textContent = `❌ ${dateLargo} NO ESTÁ DISPONIBLE (${res.count} eventos)`;
+                alerta.classList.add("no-disp");
+            }
+            alerta.classList.remove("hidden");
+        };
+    }
+}
+
+/* ============================================================================
+   4. PRÓXIMOS EVENTOS (DINÁMICO MULTITENANT)
+   ============================================================================ */
+async function cargarProximosEventos() {
+    // Asegurarnos de tener el mapa de servicios de ESTE tenant
+    const serviciosMap = await obtenerServiciosDelTenant();
+
+    const r = await fetch("/calendario/proximos?limite=5");
+    if (!r.ok) {
+        console.error("Error al obtener próximos eventos:", await r.text());
+        return;
+    }
+    
+    const arr = await r.json();
+    const cont = document.getElementById("postits-container");
+    if (!cont) return;
+    cont.innerHTML = "";
+
+    arr.forEach(ev => {
+        const div = document.createElement("div");
+        div.className = "postit";
+
+        const s = ev.servicios || {};
+        const items = [];
+
+        // 🚀 LÓGICA MULTITENANT: Recorrer los servicios del evento y buscar su nombre real
+        for (const [clave, valor] of Object.entries(s)) {
+            // Si el valor es mayor a 0 (para cantidades) o true (para checkboxes)
+            if (valor > 0 || valor === true) {
+                // Buscar el nombre en el mapa, o usar la clave como fallback si no existe
+                const nombreReal = serviciosMap[clave] || clave.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                
+                // Si es una cantidad > 1, mostrar "2 x Nombre del Servicio"
+                const textoMostrar = (typeof valor === 'number' && valor > 1) 
+                    ? `${valor} x ${nombreReal}` 
+                    : nombreReal;
+                    
+                items.push(textoMostrar);
+            }
+        }
+
+        const serviciosHTML = items.length
+            ? `<ul class="serv-list">${items.map(x => `<li>${x}</li>`).join("")}</ul>`
+            : `<em style="color:#999; font-size:12px;">Sin servicios adicionales</em>`;
+
+        div.innerHTML = `
+            <strong style="color:#1e88e5;">${formatoFechaLargo(ev.fecha)}</strong><br>
+            ${ev.titulo ? `<span style="font-weight:600; color:#2c3e50; font-size:14px;">${ev.titulo}</span><br>` : ""}
+            ${serviciosHTML}
+        `;
+
+        div.onclick = () => abrirModalFecha(ev.id);
+        cont.appendChild(div);
+    });
+}
+
+/* ============================================================================
+   5. ÚLTIMOS CONTACTOS Y KPI
+   ============================================================================ */
+async function cargarUltimosLeads() {
+    try {
+        const r = await fetch("/leads/ultimos?limite=3");
+        const obj = await r.json();
+        const ul = document.getElementById("lista-leads");
+        if (ul && obj.length > 0) {
+            ul.innerHTML = obj.map(ld => `<li>${ld.nombre} <span style="color:#7f8c8d; font-size:12px;">(${ld.telefono})</span></li>`).join("");
+        } else if (ul) {
+            ul.innerHTML = "<li style='color:#999; font-style:italic;'>No hay contactos recientes</li>";
+        }
+    } catch (err) {
+        console.error("Error al cargar últimos leads:", err);
+    }
 }
 
 async function cargarKPI() {
-  const r = await fetch("/reportes/kpi_mes");   // {actual:12, meta:15}
-  const k = await r.json();
-  document.getElementById("kpi-actual").textContent = k.actual;
-  document.getElementById("kpi-meta").textContent   = k.meta;
-  const actualEl = document.getElementById("kpi-actual");
-  actualEl.className = k.actual >= k.meta ? "green" : "red";
+    try {
+        const r = await fetch("/reportes/kpi_mes");
+        const k = await r.json();
+        document.getElementById("kpi-actual").textContent = k.actual || 0;
+        document.getElementById("kpi-meta").textContent = k.meta || 15;
+        
+        const actualEl = document.getElementById("kpi-actual");
+        actualEl.className = (k.actual >= k.meta) ? "green" : "red";
+    } catch (err) {
+        console.error("Error al cargar KPI:", err);
+    }
+}
+
+/* ============================================================================
+   6. GESTIÓN DE META MENSUAL
+   ============================================================================ */
+async function mostrarModalMetaMensual() {
+    try {
+        const resp = await fetch("/config/meta_mensual");
+        const data = await resp.json();
+        document.getElementById("meta-mensual-input").value = data.meta || 15;
+        document.getElementById("modal-meta-mensual").classList.remove("hidden");
+    } catch (err) {
+        console.error("Error al cargar meta mensual:", err);
+        alert("Error al cargar la meta actual");
+    }
+}
+
+function cerrarModalMetaMensual() {
+    document.getElementById("modal-meta-mensual").classList.add("hidden");
+    document.getElementById("meta-feedback").classList.add("hidden");
+}
+
+async function guardarMetaMensual() {
+    const input = document.getElementById("meta-mensual-input");
+    const meta = parseInt(input.value);
+    
+    if (!meta || meta < 1 || meta > 100) {
+        mostrarFeedbackMeta("La meta debe ser un número entre 1 y 100", "error");
+        return;
+    }
+    
+    try {
+        const resp = await fetch("/config/meta_mensual", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ meta })
+        });
+        
+        if (resp.ok) {
+            mostrarFeedbackMeta("✅ Meta mensual actualizada", "success");
+            setTimeout(() => {
+                cerrarModalMetaMensual();
+                if (!document.getElementById("panel").classList.contains("hidden")) {
+                    cargarKPI(); // Recargar el KPI visualmente
+                }
+            }, 1000);
+        } else {
+            const error = await resp.json();
+            mostrarFeedbackMeta("Error: " + (error.error || "desconocido"), "error");
+        }
+    } catch (err) {
+        console.error("Error al guardar meta mensual:", err);
+        mostrarFeedbackMeta("Error de conexión", "error");
+    }
+}
+
+function mostrarFeedbackMeta(mensaje, tipo) {
+    const feedback = document.getElementById("meta-feedback");
+    feedback.textContent = mensaje;
+    feedback.className = `alert alert-${tipo}`;
+    feedback.classList.remove("hidden");
 }
 
 /* Llama initPanel() cuando se muestra la sección Panel */
-mostrarSeccion("panel", initPanel);
-
-
+// (Asegúrate de que esta línea esté al final de tu archivo o donde manejes la navegación)
+// mostrarSeccion("panel", initPanel);
 
 
 /***********************
