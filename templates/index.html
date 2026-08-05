@@ -1801,10 +1801,15 @@ th {
    ESTILOS MODERNOS PARA LA SECCIÓN DE CONFIGURACIÓN
    ============================================================================ */
 
+/* Contenedor principal con efecto de tarjeta */
 #configuracion {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
     max-width: 1200px;
     margin: 0 auto;
-    padding: 10px;
 }
 
 .config-subtitle {
@@ -1823,7 +1828,7 @@ th {
     border-bottom: 2px solid #f0f2f5;
 }
 
-/* Barra de acciones rápidas (Sonido / Notificaciones) */
+/* Barra de acciones rápidas */
 .quick-actions-bar {
     display: flex;
     gap: 15px;
@@ -1876,17 +1881,15 @@ th {
     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
-/* Efecto Hover elegante en la tarjeta */
 .settings-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 16px rgba(30, 136, 229, 0.1); /* Sombra con tinte azul */
+    box-shadow: 0 8px 16px rgba(30, 136, 229, 0.1);
     border-color: #1e88e5;
 }
 
-/* Icono de la tarjeta */
 .settings-icon {
     font-size: 26px;
-    background: #f0f7ff; /* Azul muy suave de fondo */
+    background: #f0f7ff;
     width: 50px;
     height: 50px;
     display: flex;
@@ -1899,10 +1902,8 @@ th {
 
 .settings-card:hover .settings-icon {
     background: #1e88e5;
-    /* Truco para invertir el color del emoji a blanco si se desea, o dejarlo así */
 }
 
-/* Información de la tarjeta */
 .settings-info h3 {
     margin: 0 0 6px 0;
     font-size: 16px;
@@ -1922,13 +1923,15 @@ th {
     line-height: 1.4;
 }
 
-/* Ajuste responsive para móviles */
 @media (max-width: 600px) {
     .settings-grid {
-        grid-template-columns: 1fr; /* Una sola columna en celular */
+        grid-template-columns: 1fr;
     }
     .settings-card {
         padding: 18px;
+    }
+    #configuracion {
+        padding: 20px;
     }
 }
 
