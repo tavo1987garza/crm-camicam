@@ -13,23 +13,20 @@
             display: flex;
             height: 100vh;
         }
-        .sidebar {
-            width: 250px;
-            background: #333;
-            color: white;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-        /* 🔹 Estilos del Sidebar */
+/* 🔹 Estilos del Sidebar (UNIFICADO Y CORREGIDO) */
 .sidebar {
-    width: 60px;
+    width: 60px; /* Si quieres que se vea el texto, cambia esto a 250px */
     background: #333;
-    padding: 10px;
+    color: white;
+    padding: 20px 10px;
     display: flex;
     flex-direction: column;
-    transition: width 0.3s ease-in-out; /* 🔹 Transición suave al colapsar/expandir */
     align-items: center;
+    
+    /* 🚀 LA CLAVE: Esto fuerza al fondo gris a llegar hasta el final de la pantalla */
+    height: 100vh; 
+    
+    transition: width 0.3s ease-in-out;
 }
 
 /* 🔹 Botones del Sidebar */
