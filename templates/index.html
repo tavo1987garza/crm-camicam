@@ -7,34 +7,33 @@
 
     <title>CRM Eventa</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            display: flex;
-            height: 100vh;
-        }
        
-        
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    
+    /* 🚀 CLAVE: Evita que el contenido empuje al sidebar */
+    overflow: hidden;
+}
 
-/* 🔹 Estilos del Sidebar (UNIFICADO Y CORREGIDO) */
 .sidebar {
-    width: 60px; /* Si quieres que se lea el texto, cambia esto a 220px */
+    width: 60px;
     background: #333;
     color: white;
-    padding: 15px 10px; /* Padding vertical reducido */
+    padding: 15px 10px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    
-    /* 🚀 CLAVE 1: Asegura que cubra toda la pantalla */
-    min-height: 100vh; 
-    
-    /* 🚀 CLAVE 2: Si los botones no caben, permite scroll DENTRO del sidebar */
-    /* Así el fondo gris siempre estará detrás de todos los botones */
-    overflow-y: auto; 
-    
+    min-height: 100vh;
+    overflow-y: auto;
     transition: width 0.3s ease-in-out;
+    
+    /* 🚀 CLAVE: El sidebar NUNCA se puede encoger */
+    flex-shrink: 0;
 }
+
 
 /* Ocultar la barra de scroll para que se vea más limpio (opcional) */
 .sidebar::-webkit-scrollbar {
