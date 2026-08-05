@@ -3805,19 +3805,27 @@ async function initPanel() {
         cargarKPI()
     ]);
 
-    // 3) Enganchar el buscador de fechas
+    // 3) Enganchar el buscador de fechas con AUTO-OCULTAMIENTO
     const btnBuscar = document.getElementById("buscar-fecha-btn");
+    let alertTimeout = null; // Variable para controlar el temporizador
+
     if (btnBuscar) {
         btnBuscar.onclick = async () => {
             const iso = document.getElementById("buscar-fecha-input").value;
             if (!iso) return;
             
+            const alerta = document.getElementById("buscar-fecha-alert");
+            
+            // 🚀 PASO A: Limpiar cualquier alerta anterior inmediatamente
+            if (alertTimeout) clearTimeout(alertTimeout);
+            alerta.className = "alert hidden"; // Resetea a estado base (oculto y sin colores)
+
+            // 🚀 PASO B: Hacer la petición al servidor
             const r = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
             const res = await r.json();
-            const alerta = document.getElementById("buscar-fecha-alert");
             const dateLargo = formatoFechaLargo(iso);
 
-            alerta.className = "alert";
+            // 🚀 PASO C: Mostrar el nuevo resultado con el color correcto
             if (res.count === 0) {
                 alerta.textContent = `✅ ${dateLargo} está DISPONIBLE`;
                 alerta.classList.add("disponible");
@@ -3829,6 +3837,11 @@ async function initPanel() {
                 alerta.classList.add("no-disp");
             }
             alerta.classList.remove("hidden");
+
+            // 🚀 PASO D: Programar el auto-ocultamiento a los 4 segundos
+            alertTimeout = setTimeout(() => {
+                alerta.classList.add("hidden");
+            }, 4000); // 4000 milisegundos = 4 segundos
         };
     }
 }
