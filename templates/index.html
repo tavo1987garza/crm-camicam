@@ -5258,7 +5258,6 @@ function volverAVistaMeses() {
   AGREGAR NUEVO AÑO
 ========================
 ************************/
-
 function mostrarFormularioAnio() {
   const anioDefault = new Date().getFullYear();
   document.getElementById("anio-input").value = anioDefault;
@@ -5268,12 +5267,22 @@ function mostrarFormularioAnio() {
   const autoColor = coloresBorde[idx % coloresBorde.length];
   document.getElementById("color-input").value = autoColor;
 
-  document.getElementById("add-anio-modal").style.display = "flex";
+  // ✅ QUITAR la clase 'hidden' para vencer al !important del CSS
+  const modal = document.getElementById("add-anio-modal");
+  if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+  }
 }
 
 
 function cerrarAddAnioModal() {
-    document.getElementById('add-anio-modal').style.display = 'none';
+    // ✅ AGREGAR de vuelta la clase 'hidden' al cerrar
+    const modal = document.getElementById('add-anio-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
 }
 
 
