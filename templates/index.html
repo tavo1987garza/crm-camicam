@@ -18,88 +18,86 @@
 
 /* 🔹 Estilos del Sidebar (UNIFICADO Y CORREGIDO) */
 .sidebar {
-    width: 60px; /* Si quieres que se vea el texto, cambia esto a 250px */
+    width: 60px; /* Si quieres que se lea el texto, cambia esto a 220px */
     background: #333;
     color: white;
-    padding: 20px 10px;
+    padding: 15px 10px; /* Padding vertical reducido */
     display: flex;
     flex-direction: column;
     align-items: center;
     
-    /* 🚀 LA CLAVE: Esto fuerza al fondo gris a llegar hasta el final de la pantalla */
-    height: 100vh; 
+    /* 🚀 CLAVE 1: Asegura que cubra toda la pantalla */
+    min-height: 100vh; 
+    
+    /* 🚀 CLAVE 2: Si los botones no caben, permite scroll DENTRO del sidebar */
+    /* Así el fondo gris siempre estará detrás de todos los botones */
+    overflow-y: auto; 
     
     transition: width 0.3s ease-in-out;
 }
 
-/* 🔹 Botones del Sidebar */
+/* Ocultar la barra de scroll para que se vea más limpio (opcional) */
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+/* 🔹 Botones del Sidebar (COMPACTOS) */
 .sidebar-btn {
     text-align: left;
-    gap: 10px; /* 🔹 Espacio entre icono y texto */
+    gap: 4px; /* Menos espacio entre icono y texto */
     background: transparent;
     border: none;
-    margin: 5px 0;
-    padding: 10px;
+    margin: 2px 0; /* Margen vertical reducido */
+    padding: 8px; /* Padding reducido */
     cursor: pointer;
     width: 100%;
     display: flex;
-    flex-direction: column; /* Apilar icono y texto verticalmente */
+    flex-direction: column; 
     align-items: center;
     transition: background 0.2s ease-in-out;
 }
-  
 
 .sidebar-btn:hover {
     background: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-btn.active {
-    background: #1e88e5; /* 🔹 Resaltar la sección activa */
+    background: transparent; 
 }
 
-
-.sidebar-btn.active i,
-.sidebar-btn.active span {
-    color: #fff;
-}
-
-/* 🔹 Iconos modernos */
+/* 🔹 Iconos modernos (ligeramente más pequeños) */
 .sidebar-btn i {
-    font-size: 24px; /* Icono más grande */
-    margin-bottom: 5px;
-    color: #aaa; /* Color gris para apariencia monocromática */
+    font-size: 20px; /* Reducido de 24px a 20px */
+    margin-bottom: 2px;
+    color: #aaa; 
     transition: transform 0.2s ease-in-out, background 0.2s, color 0.2s;
 }
     
-/* Efecto hover: agrandar el icono */
 .sidebar-btn:hover i {
-    transform: scale(1.5);
+    transform: scale(1.2); /* Hover un poco menos exagerado */
 }
 
 /* Texto debajo del icono */
 .sidebar-btn span {
-    font-size: 12px;
-    color: #aaa; /* Color gris por defecto */
+    font-size: 11px; /* Reducido de 12px a 11px */
+    color: #aaa; 
     transition: color 0.2s;
 }
 
-/* Efecto hover: resalta ligeramente el fondo */
-.sidebar-btn:hover {
-    background: transparent; /* Quita el cuadrado gris completo */
+.sidebar-btn:hover span {
+    color: #fff;
 }
 
-/* Estado activo: fondo de color y icono/texto en blanco */
-.sidebar-btn.active {
-    background: transparent; /* Quita el cuadrado azul completo */
-}
-
-
-
+/* Estado activo */
 .sidebar-btn.active i {
     background: #1e88e5;
     color: #fff;
     border-radius: 50%;
-    padding: 10px; /* Ajusta el padding según el tamaño del icono para lograr el círculo deseado */
+    padding: 8px; /* Ajustado al nuevo tamaño del icono */
 }
 
 .sidebar-btn.active span {
