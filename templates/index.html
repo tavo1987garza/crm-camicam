@@ -5591,6 +5591,27 @@ function guardarEdicionLead() {
 
 
 // ============================================================================
+// MOSTRAR/OCULTAR FORMULARIO DE AGREGAR LEAD
+// ============================================================================
+function toggleFormulario() {
+    const form = document.getElementById("lead-form");
+    const button = document.getElementById("toggle-form");
+    
+    if (!form || !button) {
+        console.error("❌ No se encontró el formulario de lead o el botón toggle");
+        return;
+    }
+
+    if (form.classList.contains("hidden")) {
+        form.classList.remove("hidden");
+        button.innerHTML = '<i class="fas fa-times"></i> Cerrar';
+    } else {
+        form.classList.add("hidden");
+        button.innerHTML = '<i class="fas fa-plus"></i> Agregar Lead';
+    }
+}
+
+// ============================================================================
 // ELIMINAR LEAD DESDE EL MODAL
 // ============================================================================
 function eliminarLeadDesdeModal() {
