@@ -5613,7 +5613,7 @@ async function cargarMensajesChat(remitente) {
         if (!response.ok) throw new Error("Error al cargar mensajes");
         
         const data = await response.json();
-        const chatBox = document.getElementById("chat-messages-area");
+        const chatBox = document.getElementById("chat-messages");
         chatBox.innerHTML = ""; // Limpiar
         
         (data.mensajes || []).forEach(msg => {
@@ -5782,7 +5782,7 @@ socket.on("nuevo_mensaje", (data) => {
 
     // 2. Si el chat está abierto, agregar el mensaje al DOM
     if (chatActivoRemitente === data.remitente) {
-        const chatBox = document.getElementById("chat-messages-area");
+        const chatBox = document.getElementById("chat-messages");
         const divMensaje = crearMensajeChat(data.mensaje, tipoMensaje, data.fecha);
         chatBox.appendChild(divMensaje);
         chatBox.scrollTop = chatBox.scrollHeight;
