@@ -1505,214 +1505,429 @@ body {
 
 
 
+/* ============================================================================
+   ESTILOS MODERNOS PARA LA SECCIÓN DE CALENDARIO
+   ============================================================================ */
 
-/* =========================================
-   ESTILOS PARA LA SECCIÓN DE CALENDARIO
-   ========================================= */
-
-/* Fechas ocupadas */
-#lista-fechas-ocupadas {  
-    list-style: none;
-    padding: 0;
-    margin: 20px 0;
-}
-
-#lista-fechas-ocupadas li {
-    background: #f8f9fa;
-    padding: 12px 15px;
-    margin-bottom: 8px;
-    border-radius: 6px;
+/* Header del calendario */
+.calendario-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    /* border-left: 4px solid #1e88e5; */
-    transition: all 0.2s ease;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f2f5;
 }
 
-#lista-fechas-ocupadas li:hover {
-    background: #e9ecef;
-    transform: translateX(5px);
+.calendario-header h2 {
+    font-size: 20px;
+    color: #2c3e50;
+    margin: 0;
+    font-weight: 600;
 }
 
-#lista-fechas-ocupadas button {
-    padding: 5px 10px;
-    margin-left: 10px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+.anio-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Botones de navegación y acción */
+.back-button, .add-button {
+    padding: 8px 16px;
+    border-radius: 8px;
     font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
     transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
-#lista-fechas-ocupadas button:first-of-type {
+.back-button {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #ced4da;
+}
+.back-button:hover {
+    background: #e9ecef;
+}
+
+.add-button {
     background: #1e88e5;
     color: white;
 }
-
-#lista-fechas-ocupadas button:last-of-type {
-    background: #dc3545;
-    color: white;
+.add-button:hover {
+    background: #1565c0;
+    transform: translateY(-1px);
 }
 
-#lista-fechas-ocupadas button:hover {
-    opacity: 0.9;
-    transform: scale(1.05);
+/* Grid de Años y Meses */
+.anios-grid, #lista-meses {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+    margin-top: 15px;
 }
 
-/* Formulario para agregar fechas */
-#calendario label {
+/* Tarjetas de Año y Mes (Diseño unificado) */
+.anio-card, .mes-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-left: 5px solid #1e88e5; /* JS lo sobrescribe con el color dinámico */
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.anio-card:hover, .mes-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(30, 136, 229, 0.12);
+    border-color: #1e88e5;
+}
+
+.anio-card h3, .mes-card h3 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.event-count {
+    display: inline-block;
+    background: #f0f7ff;
+    color: #1e88e5;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Acciones de año (color y eliminar) */
+.year-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #f0f2f5;
+    align-items: center;
+}
+
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    background: #ffffff;
+    color: #495057;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+.icon-btn:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+}
+.icon-btn.delete-btn:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* Lista de Fechas Ocupadas (Eventos del mes) */
+#lista-fechas-ocupadas {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#lista-fechas-ocupadas li {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-left: 4px solid #1e88e5; /* JS lo sobrescribe */
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+#lista-fechas-ocupadas li:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+    border-color: #1e88e5;
+}
+
+/* Evento próximo destacado */
+#lista-fechas-ocupadas li.next-event {
+    background: #f0f7ff;
+    border-color: #1e88e5;
+    font-weight: 600;
+}
+
+.fecha-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.fecha-fecha {
+    color: #1e88e5;
+    font-weight: 700;
+    font-size: 14px;
+    min-width: 130px;
+}
+
+.dot-sep {
+    color: #ced4da;
+    font-weight: 300;
+}
+
+.fecha-titulo {
+    color: #2c3e50;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+#lista-fechas-ocupadas li i {
+    color: #adb5bd;
+    transition: color 0.2s;
+}
+#lista-fechas-ocupadas li:hover i {
+    color: #1e88e5;
+}
+
+/* Mensaje cuando no hay datos */
+.no-data {
+    text-align: center;
+    color: #7f8c8d;
+    padding: 40px;
+    font-style: italic;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+/* ============================================================================
+   ESTILOS PARA MODALES DEL CALENDARIO (Consistentes con el resto del CRM)
+   ============================================================================ */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.modal.hidden {
+    display: none !important;
+}
+
+.modal-content {
+    background-color: #ffffff;
+    padding: 28px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 550px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.modal-content h2 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.close-btn {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #7f8c8d;
+    transition: color 0.2s;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+.close-btn:hover {
+    background: #f0f2f5;
+    color: #2c3e50;
+}
+
+/* Formularios dentro de modales */
+.modal-content label {
     display: block;
-    margin: 15px 0 5px;
+    margin-bottom: 6px;
+    font-size: 13px;
     font-weight: 600;
     color: #495057;
 }
 
-#calendario input[type="date"],
-#calendario input[type="text"],
-#calendario input[type="number"],
-#calendario select,
-#calendario textarea {
+.modal-content input[type="text"],
+.modal-content input[type="number"],
+.modal-content input[type="date"],
+.modal-content input[type="time"],
+.modal-content select,
+.modal-content textarea {
     width: 100%;
-    padding: 10px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
     border: 1px solid #ced4da;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 14px;
-    transition: border-color 0.3s;
+    transition: all 0.2s;
+    box-sizing: border-box;
+    background: #ffffff;
 }
 
-#calendario input[type="date"]:focus,
-#calendario input[type="text"]:focus,
-#calendario input[type="number"]:focus,
-#calendario select:focus,
-#calendario textarea:focus {
-    border-color: #1e88e5;
+.modal-content input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus {
     outline: none;
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
 }
 
-/* Checkboxes de servicios */
-#calendario h3 {
-    margin: 20px 0 10px;
-    color: #495057;
+/* Grid de servicios en modal */
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 15px 0 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
 }
 
-.service-checkbox {
+.service-item {
     display: flex;
     align-items: center;
-    margin-bottom: 8px;
+    gap: 8px;
+    padding: 8px;
+    background: #ffffff;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
 }
 
-.service-checkbox input[type="checkbox"] {
-    margin-right: 10px;
-    width: 18px;
-    height: 18px;
+.service-item input[type="checkbox"] {
+    transform: scale(1.2);
     accent-color: #1e88e5;
 }
 
-.service-checkbox label {
+.service-item input[type="number"] {
+    width: 70px;
+    padding: 6px;
     margin: 0;
-    font-weight: normal;
-    cursor: pointer;
+    text-align: center;
 }
 
-/* Botón para agregar fecha */
-#calendario > button {
+/* Botones del modal */
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #f0f2f5;
+}
+
+.modal-buttons .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.modal-buttons .save-btn {
     background: #1e88e5;
     color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    margin-top: 20px;
-    width: 100%;
-    transition: background 0.3s;
 }
-
-#calendario > button:hover {
+.modal-buttons .save-btn:hover {
     background: #1565c0;
 }
 
-.anios-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-  }
-  
-  .anio-card {
+.modal-buttons .cancel-btn {
     background: #f8f9fa;
-    padding: 15px;
-    border-radius: 6px;
-    cursor: pointer;
-    min-width: 120px;
-    text-align: center;
-    transition: background 0.2s ease;
-  }
-  
-  .anio-card:hover {
+    color: #495057;
+    border: 1px solid #ced4da;
+}
+.modal-buttons .cancel-btn:hover {
     background: #e9ecef;
-  }
-  
-  /* ───── CONTENEDOR de tarjetas-mes ──── */
-#lista-meses {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 columnas iguales */
-  gap: 15px;                              /* mismo espacio que años */
 }
 
-/* ───── TARJETA de mes (mismo look que .anio-card) ──── */
-.mes-card {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 6px;
-  text-align: center;
-  cursor: pointer;
-  border-left: 4px solid #1e88e5;         /* JS lo sobrescribe */
-  transition: background 0.2s ease;
+.modal-buttons .delete-btn {
+    background: #ffffff;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+.modal-buttons .delete-btn:hover {
+    background: #e74c3c;
+    color: white;
 }
 
-.mes-card:hover {
-  background: #e9ecef;
-}
-
-/* ───── Icono de cambiar color de los border-left──── */
-.year-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 25px;
-  align-items: center;
-}
-
-/* (Si prefieres sombra como antes, vuelve a añadir box-shadow) */
-
-/* ───── FORMATO EN LA LISTA DE FECHA Y TITULO: Jue. 01 de Mayo  •  XV RENATA──── */
-.fecha-info  {
-  display: flex;
-  align-items: center;
-  gap: 6px;                 /* espacio entre elementos */
-}
-
-.dot-sep     {
-  font-weight: 700;         /* punto grueso */
-  color: #6c757d;           /* gris medio */
-}
-
-.fecha-fecha {
-  color: #6c757d;           /* fecha en gris suave */
-  font-size: 0.9rem;
-}
-
-.fecha-titulo {
-  font-weight: 700;         /* título destacado */
-  color: #212529;           /* casi negro */
+/* Responsive para móvil */
+@media (max-width: 768px) {
+    .calendario-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    .anio-header {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .anios-grid, #lista-meses {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .fecha-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .modal-content {
+        width: 95%;
+        padding: 20px;
+    }
 }
 
 
-
-/* Si quieres que el next event tenga además un fondo o cambio extra, puedes hacerlo así: */
-/*#lista-fechas-ocupadas li.next-event {*/
-  /*  background-color: rgba(0, 0, 0, 0.1)!important; /* Por ejemplo, un fondo ligeramente oscuro */
-    /* Mantendrás el border-left que ya se asigna dinámicamente */
-    /*}*/
 
 
 /* =========================================
@@ -2902,162 +3117,153 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
             </div>
         </div>
 
+
+        
     
 
+
         <div id="calendario" class="seccion hidden">
-            <h1>📅 Calendario</h1>
-            
-            <!-- Vista de Años -->
-            <div id="vista-anios">
-              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>Años</h2>
-                <button onclick="mostrarFormularioAnio()" class="add-button">➕ Agregar Año</button>
-              </div>
-              <div id="lista-anios" class="anios-grid"></div>
-            </div>
-          
-            
-            <!-- Vista de Eventos para un Año (inicialmente oculta) -->
-            <div id="vista-eventos-anio" class="hidden">
-              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div class="anio-header" style="display: flex; align-items: center; gap: 10px;">
-                  <button onclick="volverAVistaMeses()" class="back-button">← Meses</button>
-                  <h2 id="anio-actual"></h2>
-                </div>
-                
-              </div>
-              <ul id="lista-fechas-ocupadas"></ul>
-            </div>
-            
-            <div id="vista-meses" class="hidden">
-              <div class="calendario-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <button onclick="volverAVistaAnios()">← Años</button>
-                <button onclick="mostrarFormularioFecha()" class="add-button">➕ Agregar Fecha</button>
-                </div>  
-              <h2 id="meses-titulo"></h2>
-              <div id="lista-meses" class="card-container"></div>
-              <!-- Acciones de año (eliminar / cambiar color) -->
-              <div id="year-actions" class="year-actions hidden">
-              <!-- 🗑️ Eliminar año -->
-                <button id="btn-borrar-anio" class="icon-btn delete-btn" title="Eliminar año">
-                <i class="fas fa-trash-alt"></i>
+    
+    <!-- Vista de Años -->
+    <div id="vista-anios">
+        <div class="calendario-header">
+            <h2>📅 Años con Eventos</h2>
+            <button onclick="mostrarFormularioAnio()" class="add-button">
+                <i class="fas fa-plus"></i> Agregar Año
+            </button>
+        </div>
+        <div id="lista-anios" class="anios-grid"></div>
+    </div>
+  
+    <!-- Vista de Meses de un Año -->
+    <div id="vista-meses" class="hidden">
+        <div class="calendario-header">
+            <div class="anio-header">
+                <button onclick="volverAVistaAnios()" class="back-button">
+                    <i class="fas fa-arrow-left"></i> Volver a Años
                 </button>
-
-              <!-- 🎨 Cambiar color -->
-              <label for="year-color-picker" class="icon-btn" title="Cambiar color">
-              <i class="fas fa-fill-drip"></i>
-               </label>
-               <input type="color" id="year-color-picker" class="hidden" />
-              </div>
+                <h2 id="meses-titulo"></h2>
             </div>
+            <button onclick="mostrarFormularioFecha()" class="add-button">
+                <i class="fas fa-plus"></i> Agregar Fecha
+            </button>
+        </div>  
+        <div id="lista-meses"></div>
         
-            <!-- Modal para Agregar Año -->
-            <div id="add-anio-modal" class="modal hidden">
-              <div class="modal-content">
-                <button class="close-btn" onclick="cerrarAddAnioModal()">✖</button>
-                <h2>➕ Agregar Nuevo Año</h2>
+        <!-- Acciones de año (eliminar / cambiar color) -->
+        <div id="year-actions" class="year-actions hidden">
+            <button id="btn-borrar-anio" class="icon-btn delete-btn" title="Eliminar año completo">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            <label for="year-color-picker" class="icon-btn" title="Cambiar color del año" style="cursor: pointer;">
+                <i class="fas fa-fill-drip"></i>
+            </label>
+            <input type="color" id="year-color-picker" class="hidden" />
+        </div>
+    </div>
 
-                <!-- Año-->
-                <label for="anio-input">Año:</label>
-                <input type="number" 
-                       id="anio-input" 
-                       min="2000" 
-                       max="2100" 
-                       class="modal-input" />
-                       
-                <!-- Color-->
-                <label for="color-input">Asignar un color:</label>
-                <input type="color" 
-                       id="color-input" 
-                       value="#1e88e5"
-                       class="modal-input" />
-
-                <!--Botones-->
-                <div class="modal-buttons">
-                  <button onclick="agregarAnio()" class="save-btn">Guardar</button>
-                  <button onclick="cerrarAddAnioModal()" class="cancel-btn">Cancelar</button>
-                </div>
-              </div>
+    <!-- Vista de Eventos de un Mes -->
+    <div id="vista-eventos-anio" class="hidden">
+        <div class="calendario-header">
+            <div class="anio-header">
+                <button onclick="volverAVistaMeses()" class="back-button">
+                    <i class="fas fa-arrow-left"></i> Volver a Meses
+                </button>
+                <h2 id="anio-actual"></h2>
             </div>
+        </div>
+        <ul id="lista-fechas-ocupadas"></ul>
+    </div>
 
-
-            <!-- Modal para Agregar Fecha -->
-            <div id="add-fecha-modal" class="modal hidden">
-              <div class="modal-content">
-                <button class="close-btn" onclick="cerrarAddFechaModal()">✖</button>
-                <h2>➕ Agregar Nueva Fecha</h2>
-                
-                <!-- Campos FIJOS (siempre presentes) -->
-                <label for="fecha-input">Fecha:</label>
-                <input type="date" id="fecha-input" />
-                
-                <label for="lead-select">Asignar a Lead (opcional):</label>
-                <select id="lead-select">
-                  <option value="">-- Sin Lead --</option>
-                </select>
-                
-                <label for="titulo-input">Título del evento:</label>
-                <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
-                
-                <!-- Contenedor DINÁMICO para campos personalizados -->
-                <div id="contenedor-campos-personalizados"></div>
-
-                <label for="notas-textarea">Notas:</label>
-                <textarea id="notas-textarea" rows="3" placeholder="Observaciones..."></textarea>
-                
-                <label for="ticket-input">Ticket de venta ($):</label>
-                <input type="text" id="ticket-input" placeholder="0" />
-                
-                <!-- Servicios FIJOS (por ahora) -->
-                <h3>Servicios Contratados</h3>
-                <div class="services-grid" id="servicios-fijos">
-                  <!-- Se generará dinámicamente desde /servicios -->
-                </div>
-                
-                <div class="modal-buttons">
-                  <button onclick="agregarFechaManual()" class="save-btn">Guardar</button>
-                  <button onclick="cerrarAddFechaModal()" class="cancel-btn">Cancelar</button>
-                </div>
-              </div>
+    <!-- Modal para Agregar Año -->
+    <div id="add-anio-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn" onclick="cerrarAddAnioModal()">✖</button>
+            <h2>➕ Agregar Nuevo Año</h2>
+            <label for="anio-input">Año:</label>
+            <input type="number" id="anio-input" min="2000" max="2100" />
+            <label for="color-input">Color identificativo:</label>
+            <input type="color" id="color-input" value="#1e88e5" style="height: 45px; padding: 5px;" />
+            <div class="modal-buttons">
+                <button onclick="agregarAnio()" class="save-btn">Guardar</button>
+                <button onclick="cerrarAddAnioModal()" class="cancel-btn">Cancelar</button>
             </div>
-          </div>
+        </div>
+    </div>
 
+    <!-- Modal para Agregar Fecha -->
+    <div id="add-fecha-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn" onclick="cerrarAddFechaModal()">✖</button>
+            <h2>➕ Agregar Nueva Fecha</h2>
+            
+            <label for="fecha-input">Fecha:</label>
+            <input type="date" id="fecha-input" />
+            
+            <label for="lead-select">Asignar a Lead (opcional):</label>
+            <select id="lead-select">
+                <option value="">-- Sin Lead --</option>
+            </select>
+            
+            <label for="titulo-input">Título del evento:</label>
+            <input type="text" id="titulo-input" placeholder="Ej. Boda de Daniel" />
+            
+            <div id="contenedor-campos-personalizados"></div>
 
-        <!-- MODAL para EDITAR Fechas Ocupadas -->
-        <div id="edit-fecha-modal" class="modal hidden">
-          <div class="modal-content">
+            <label for="notas-textarea">Notas:</label>
+            <textarea id="notas-textarea" rows="3" placeholder="Observaciones..."></textarea>
+            
+            <label for="ticket-input">Ticket de venta ($):</label>
+            <input type="text" id="ticket-input" placeholder="0" />
+            
+            <h3 style="font-size: 15px; margin-top: 20px; color: #2c3e50;">Servicios Contratados</h3>
+            <div class="services-grid" id="servicios-fijos"></div>
+            
+            <div class="modal-buttons">
+                <button onclick="agregarFechaManual()" class="save-btn">Guardar Evento</button>
+                <button onclick="cerrarAddFechaModal()" class="cancel-btn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Editar Fecha Ocupada -->
+    <div id="edit-fecha-modal" class="modal hidden">
+        <div class="modal-content">
             <button class="close-btn" onclick="cerrarModalFecha()">✖</button>
             <h2>✏️ Editar Fecha Ocupada</h2>
             
-            <!-- id de la fila -->
             <input type="hidden" id="edit-fecha-id">
             
-            <!-- Campos FIJOS -->
             <label>Fecha:</label>
-            <input type="date" id="edit-fecha-input" disabled />
+            <input type="date" id="edit-fecha-input" disabled style="background: #f8f9fa; color: #7f8c8d;" />
             
             <label>Título:</label>
             <input type="text" id="edit-fecha-titulo" class="auto-save-input"/>
             
-            <!-- Campos personalizados DINÁMICOS -->
             <div id="edit-contenedor-campos-personalizados"></div>
 
             <label>Notas:</label>
-            <textarea id="edit-fecha-notas" class="auto-save-input"></textarea>
+            <textarea id="edit-fecha-notas" rows="3" class="auto-save-input"></textarea>
             
             <label>Ticket:</label>
             <input type="text" id="edit-fecha-ticket" class="auto-save-input" placeholder="0" />
             
-            <!-- Servicios DINÁMICOS -->
-            <h3>Servicios</h3>
-            <div id="edit-servicios-fijos"></div>
+            <h3 style="font-size: 15px; margin-top: 20px; color: #2c3e50;">Servicios</h3>
+            <div id="edit-servicios-fijos" class="services-grid"></div>
             
             <div class="modal-buttons">
-              <button class="delete-btn" onclick="eliminarFechaDesdeModal()">🗑️</button>
+                <button class="delete-btn" onclick="eliminarFechaDesdeModal()">
+                    <i class="fas fa-trash-alt"></i> Eliminar
+                </button>
+                <button class="cancel-btn" onclick="cerrarModalFecha()">Cerrar</button>
             </div>
-          </div>
         </div>
-            
+    </div>
+</div>
+
+
+
+
 
         <div id="reportes" class="seccion hidden">
             <h1>📈 Reportes</h1>
