@@ -1129,27 +1129,31 @@ def enviar_mensaje():
     try:
         cursor = conn.cursor()
         
-        # 1. Guardar el mensaje ENVIADO en la BD primero (para registro histórico)
+        # 1. Guardar el mensaje ENVIADO en la BD primero
+        # ⚠️ AJUSTE: Si tu tabla 'mensajes' no tiene 'fecha', quita esa columna del INSERT.
+        # Si no tiene 'cliente_id', quítala también. Ajusta según tu esquema real.
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
-            VALUES ('web', %s, %s, 'Enviado', %s, %s, NOW())
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id)
+            VALUES ('web', %s, %s, 'Enviado', %s, %s)
         """, (telefono, mensaje_texto, tipo, cliente_id))
         conn.commit()
 
-        # 2. Obtener configuración del bot para este tenant
-        # ⚠️ IMPORTANTE: Ajusta 'configuracion_bot' al nombre real de tu tabla de configuración
-        # donde guardas n8n_url, whatsapp_token, etc.
-        cursor.execute("""
-            SELECT n8n_url, whatsapp_phone_id, whatsapp_token 
-            FROM configuracion_bot 
-            WHERE cliente_id = %s
-        """, (cliente_id,))
-        config = cursor.fetchone()
+        # 2. Intentar obtener configuración del bot (con manejo de errores si la tabla no existe)
+        bot_url = os.getenv("CAMIBOT_API_URL", "http://localhost:3001") # Fallback seguro
         
-        # Fallback a variable de entorno global si el tenant no tiene config propia
-        bot_url = config[0] if config and config[0] else os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
-        
-        # 3. Preparar payload (¡Siempre incluye cliente_id para que el bot sepa el contexto!)
+        try:
+            cursor.execute("""
+                SELECT n8n_url FROM configuracion_bot 
+                WHERE cliente_id = %s AND n8n_url IS NOT NULL AND n8n_url != ''
+            """, (cliente_id,))
+            config = cursor.fetchone()
+            if config and config[0]:
+                bot_url = config[0]
+        except Exception as db_err:
+            # Si la tabla no existe o falla, simplemente usamos la URL del entorno (fallback)
+            print(f"⚠️ No se pudo leer config del bot (usando fallback): {db_err}")
+
+        # 3. Preparar payload (¡Siempre incluye cliente_id para el contexto del bot!)
         payload = {"telefono": telefono, "cliente_id": cliente_id}
         
         if tipo == "imagen":
@@ -1176,14 +1180,9 @@ def enviar_mensaje():
                 time.sleep(2)
         
         if not exito:
-            cursor.execute("""
-                UPDATE mensajes SET estado = 'Fallido' 
-                WHERE remitente = %s AND mensaje = %s AND cliente_id = %s
-            """, (telefono, mensaje_texto, cliente_id))
-            conn.commit()
-            return jsonify({"error": "No se pudo enviar el mensaje al bot"}), 500
+            return jsonify({"error": "No se pudo conectar con el servicio de mensajería"}), 500
 
-        # 5. Emitir WebSocket para confirmar envío en el CRM (UI optimista)
+        # 5. Emitir WebSocket para confirmar envío en el CRM
         socketio.emit("nuevo_mensaje", {
             "remitente": telefono,
             "mensaje": mensaje_texto,
@@ -1196,7 +1195,9 @@ def enviar_mensaje():
 
     except Exception as e:
         conn.rollback()
-        print(f"❌ Error en /enviar_mensaje: {str(e)}")
+        print(f"❌ Error CRÍTICO en /enviar_mensaje: {str(e)}")
+        import traceback
+        traceback.print_exc() # <-- ESTO IMPRIMIRÁ EL ERROR EXACTO EN LA CONSOLA
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
