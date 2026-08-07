@@ -5506,6 +5506,110 @@ function abrirModalEditar(id, nombre, telefono, notas) {
     modal.style.display = "flex";
 }
 
+
+// ============================================================================
+// CERRAR MODAL DE EDICIÓN DE LEADS (CON AUTO-GUARDADO SI HUBO CAMBIOS)
+// ============================================================================
+function cerrarModal() {
+    const modal = document.getElementById("edit-lead-modal");
+    if (!modal) {
+        console.error("❌ No se encontró el modal 'edit-lead-modal'");
+        return;
+    }
+    
+    // Obtener valores originales
+    const originalNombre = modal.dataset.originalNombre || "";
+    const originalNotas = modal.dataset.originalNotas || "";
+    
+    // Obtener valores actuales
+    const currentNombre = document.getElementById("edit-lead-nombre").value.trim();
+    const currentNotas = document.getElementById("edit-lead-notas").value.trim();
+    
+    // Si se detecta algún cambio, guardar automáticamente
+    if (currentNombre !== originalNombre || currentNotas !== originalNotas) {
+        guardarEdicionLead();
+    }
+    
+    // Cerrar el modal
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+}
+
+
+// ============================================================================
+// GUARDAR EDICIÓN DE LEAD
+// ============================================================================
+function guardarEdicionLead() {
+    const id = document.getElementById("edit-lead-id").value;
+    const nombre = document.getElementById("edit-lead-nombre").value.trim();
+    const telefono = document.getElementById("edit-lead-telefono").value.trim();
+    const notas = document.getElementById("edit-lead-notas").value.trim();
+
+    if (!nombre) {
+        alert("⚠️ El nombre del lead no puede estar vacío");
+        return;
+    }
+
+    fetch("/editar_lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, nombre, telefono, notas })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert("❌ Error: " + data.error);
+        } else {
+            // Mostrar notificación suave
+            mostrarNotificacionSuave("✅ Lead actualizado correctamente", "success");
+            // Recargar la lista de leads
+            cargarLeads();
+        }
+    })
+    .catch(error => {
+        console.error("❌ Error al actualizar lead:", error);
+        alert("Error de conexión al guardar");
+    });
+}
+
+
+// ============================================================================
+// ELIMINAR LEAD DESDE EL MODAL
+// ============================================================================
+function eliminarLeadDesdeModal() {
+    const leadId = document.getElementById("edit-lead-id").value;
+    const telefono = document.getElementById("edit-lead-telefono").value;
+    
+    if (!leadId) {
+        alert("❌ Error: No se pudo identificar el lead");
+        return;
+    }
+
+    if (!confirm("⚠️ ¿Seguro que quieres eliminar este lead y todos sus mensajes?\n\nEsta acción no se puede deshacer.")) {
+        return;
+    }
+
+    fetch("/eliminar_lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: leadId, telefono: telefono })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert("❌ Error: " + data.error);
+        } else {
+            mostrarNotificacionSuave("🗑️ Lead eliminado", "success");
+            cargarLeads();
+            cargarChat(); // También actualizar la lista de chats
+            cerrarModal(); // Cerrar el modal
+        }
+    })
+    .catch(error => {
+        console.error("❌ Error al eliminar lead:", error);
+        alert("Error de conexión al eliminar");
+    });
+}
     
        
 
