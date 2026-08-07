@@ -2953,7 +2953,9 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
                     <i class="fas fa-save"></i> Actualizar Logo
                 </button>
             </div>
+            <div id="logo-feedback" class="alert hidden" style="margin-top: 12px;"></div>
         </div>
+
 
         <!-- 2. Tarjeta: Información del Negocio -->
         <div class="account-card">
@@ -4037,13 +4039,12 @@ async function guardarInformacionNegocio() {
     }
 }
 
-// Actualizar logo
 async function actualizarLogo() {
     const fileInput = document.getElementById('logo-upload');
     const file = fileInput ? fileInput.files[0] : null;
     
     if (!file) {
-        alert('Por favor selecciona una imagen primero');
+        mostrarFeedbackLogo('⚠️ Por favor selecciona una imagen primero', 'error');
         return;
     }
 
@@ -4064,15 +4065,15 @@ async function actualizarLogo() {
 
         if (response.ok) {
             await cargarLogo();
-            if (fileInput) fileInput.value = ''; // Limpiar input
-            mostrarFeedback('✅ Logo actualizado correctamente', 'success');
+            if (fileInput) fileInput.value = '';
+            mostrarFeedbackLogo('✅ Logo actualizado correctamente', 'success');
         } else {
             const error = await response.json();
-            alert('Error: ' + (error.error || 'No se pudo actualizar el logo'));
+            mostrarFeedbackLogo('Error: ' + (error.error || 'No se pudo actualizar'), 'error');
         }
     } catch (error) {
         console.error('Error al actualizar logo:', error);
-        alert('Error de conexión');
+        mostrarFeedbackLogo('Error de conexión', 'error');
     } finally {
         const btnGuardar = document.getElementById('btn-guardar-logo');
         if (btnGuardar) {
@@ -4081,6 +4082,22 @@ async function actualizarLogo() {
         }
     }
 }
+
+function mostrarFeedbackLogo(mensaje, tipo) {
+    const feedback = document.getElementById('logo-feedback');
+    if (feedback) {
+        feedback.textContent = mensaje;
+        feedback.className = `alert alert-${tipo}`;
+        feedback.classList.remove('hidden');
+        
+        if (tipo === 'success') {
+            setTimeout(() => {
+                feedback.classList.add('hidden');
+            }, 4000);
+        }
+    }
+}
+
 
 // Cambiar contraseña
 async function cambiarPassword() {
