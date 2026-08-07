@@ -1116,7 +1116,7 @@ def enviar_mensaje():
     datos = request.json
     telefono = datos.get("telefono")
     tipo = datos.get("tipo", "texto")
-    mensaje_texto = datos.get("mensaje") # Puede ser texto o URL de imagen/video
+    mensaje_texto = datos.get("mensaje")
     caption = datos.get("caption", "")
 
     if not telefono:
@@ -1129,32 +1129,36 @@ def enviar_mensaje():
     try:
         cursor = conn.cursor()
         
-        # 1. Guardar el mensaje ENVIADO en la BD primero
-        # ⚠️ AJUSTE: Si tu tabla 'mensajes' no tiene 'fecha', quita esa columna del INSERT.
-        # Si no tiene 'cliente_id', quítala también. Ajusta según tu esquema real.
+        # 1. Guardar el mensaje ENVIADO en la BD
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id)
-            VALUES ('web', %s, %s, 'Enviado', %s, %s)
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
+            VALUES ('web', %s, %s, 'Enviado', %s, %s, NOW())
         """, (telefono, mensaje_texto, tipo, cliente_id))
         conn.commit()
 
-        # 2. Intentar obtener configuración del bot (con manejo de errores si la tabla no existe)
-        bot_url = os.getenv("CAMIBOT_API_URL", "http://localhost:3001") # Fallback seguro
+        # 2. 🚀 OBTENER CREDENCIALES DEL TENANT (¡NOMBRES CORREGIDOS!)
+        cursor.execute("""
+            SELECT whatsapp_access_token, whatsapp_phone_number_id, n8n_url 
+            FROM tenant_integraciones 
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+        config = cursor.fetchone()
         
-        try:
-            cursor.execute("""
-                SELECT n8n_url FROM configuracion_bot 
-                WHERE cliente_id = %s AND n8n_url IS NOT NULL AND n8n_url != ''
-            """, (cliente_id,))
-            config = cursor.fetchone()
-            if config and config[0]:
-                bot_url = config[0]
-        except Exception as db_err:
-            # Si la tabla no existe o falla, simplemente usamos la URL del entorno (fallback)
-            print(f"⚠️ No se pudo leer config del bot (usando fallback): {db_err}")
+        # Fallback a variables de entorno globales si el tenant no tiene config
+        token = config[0] if config and config[0] else os.getenv("WHATSAPP_TOKEN_GLOBAL")
+        phone_id = config[1] if config and config[1] else os.getenv("WHATSAPP_PHONE_ID_GLOBAL")
+        bot_url = config[2] if config and config[2] else os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
 
-        # 3. Preparar payload (¡Siempre incluye cliente_id para el contexto del bot!)
-        payload = {"telefono": telefono, "cliente_id": cliente_id}
+        if not token or not phone_id:
+            return jsonify({"error": "Faltan credenciales de WhatsApp configuradas para este negocio. Ve a Configuración → Integraciones."}), 400
+
+        # 3. Preparar payload PARA CAMIBOT (incluyendo las credenciales del tenant)
+        payload = {
+            "telefono": telefono,
+            "cliente_id": cliente_id,
+            "whatsapp_token": token,           # <--- CamiBot usará esto
+            "whatsapp_phone_id": phone_id      # <--- CamiBot usará esto
+        }
         
         if tipo == "imagen":
             payload.update({"imageUrl": mensaje_texto, "caption": caption, "tipo": "imagen"})
@@ -1166,7 +1170,7 @@ def enviar_mensaje():
             payload.update({"mensaje": mensaje_texto, "tipo": "texto"})
             endpoint = f"{bot_url.rstrip('/')}/enviar_mensaje"
 
-        # 4. Enviar al bot con reintentos
+        # 4. Enviar a CamiBot con reintentos
         max_intentos = 3
         exito = False
         for intento in range(max_intentos):
@@ -1180,6 +1184,11 @@ def enviar_mensaje():
                 time.sleep(2)
         
         if not exito:
+            cursor.execute("""
+                UPDATE mensajes SET estado = 'Fallido' 
+                WHERE remitente = %s AND mensaje = %s AND cliente_id = %s
+            """, (telefono, mensaje_texto, cliente_id))
+            conn.commit()
             return jsonify({"error": "No se pudo conectar con el servicio de mensajería"}), 500
 
         # 5. Emitir WebSocket para confirmar envío en el CRM
@@ -1197,7 +1206,7 @@ def enviar_mensaje():
         conn.rollback()
         print(f"❌ Error CRÍTICO en /enviar_mensaje: {str(e)}")
         import traceback
-        traceback.print_exc() # <-- ESTO IMPRIMIRÁ EL ERROR EXACTO EN LA CONSOLA
+        traceback.print_exc()
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
