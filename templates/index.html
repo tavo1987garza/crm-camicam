@@ -3805,27 +3805,39 @@ async function initPanel() {
         cargarKPI()
     ]);
 
-    // 3) Enganchar el buscador de fechas con AUTO-OCULTAMIENTO
+    // 3) Enganchar el buscador de fechas con VALIDACIÓN y AUTO-LIMPIEZA
     const btnBuscar = document.getElementById("buscar-fecha-btn");
-    let alertTimeout = null; // Variable para controlar el temporizador
+    const inputFecha = document.getElementById("buscar-fecha-input"); // 🌟 Referencia al input
+    let alertTimeout = null; 
 
     if (btnBuscar) {
         btnBuscar.onclick = async () => {
-            const iso = document.getElementById("buscar-fecha-input").value;
-            if (!iso) return;
-            
+            const iso = inputFecha.value;
             const alerta = document.getElementById("buscar-fecha-alert");
             
-            // 🚀 PASO A: Limpiar cualquier alerta anterior inmediatamente
+            // 🚀 PASO A: Limpiar cualquier estado anterior inmediatamente
             if (alertTimeout) clearTimeout(alertTimeout);
-            alerta.className = "alert hidden"; // Resetea a estado base (oculto y sin colores)
+            alerta.className = "alert hidden"; 
 
-            // 🚀 PASO B: Hacer la petición al servidor
+            // 🚀 PASO B: VALIDAR que el usuario haya seleccionado una fecha
+            if (!iso) {
+                alerta.textContent = "⚠️ Por favor, selecciona una fecha primero";
+                alerta.classList.add("registrado"); // Usamos el color amarillo de advertencia
+                alerta.classList.remove("hidden");
+                
+                // Auto-ocultar esta advertencia a los 3 segundos
+                alertTimeout = setTimeout(() => {
+                    alerta.classList.add("hidden");
+                }, 3000);
+                return; // 🛑 Detenemos la ejecución aquí, no hacemos la petición al servidor
+            }
+            
+            // 🚀 PASO C: Hacer la petición al servidor (ahora sí, tenemos fecha válida)
             const r = await fetch(`/calendario/checar_fecha?fecha=${iso}`);
             const res = await r.json();
             const dateLargo = formatoFechaLargo(iso);
 
-            // 🚀 PASO C: Mostrar el nuevo resultado con el color correcto
+            // 🚀 PASO D: Mostrar el resultado con el color correcto
             if (res.count === 0) {
                 alerta.textContent = `✅ ${dateLargo} está DISPONIBLE`;
                 alerta.classList.add("disponible");
@@ -3838,13 +3850,13 @@ async function initPanel() {
             }
             alerta.classList.remove("hidden");
 
-            // 🚀 PASO D: Programar el auto-ocultamiento a los 4 segundos
+            // 🚀 PASO E: Programar el auto-ocultamiento Y LIMPIAR EL INPUT
             alertTimeout = setTimeout(() => {
                 alerta.classList.add("hidden");
-            }, 4000); // 4000 milisegundos = 4 segundos
+                inputFecha.value = ""; // 🌟 AQUÍ ESTÁ LA MAGIA: Reseteamos el selector de fecha
+            }, 4000); 
         };
     }
-}
 
 /* ============================================================================
    4. PRÓXIMOS EVENTOS (DINÁMICO MULTITENANT)
