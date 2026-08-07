@@ -49,6 +49,288 @@
     }
 }
 
+/* ============================================================================
+   ESTILOS MODERNOS PARA LA SECCIÓN DE CUENTA
+   ============================================================================ */
+
+.account-header {
+    margin-bottom: 25px;
+}
+.account-header h1 {
+    font-size: 24px;
+    color: #2c3e50;
+    margin: 0 0 5px 0;
+}
+.account-subtitle {
+    color: #7f8c8d;
+    margin: 0;
+    font-size: 15px;
+}
+
+/* Grid de 2 columnas en desktop, 1 en móvil */
+.account-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+}
+
+/* Tarjetas de cuenta */
+.account-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+}
+
+.account-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.account-card h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f2f5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Zona de peligro (Logout) */
+.danger-zone {
+    border-color: #f5c6cb;
+    background: #fff5f5;
+}
+.danger-zone h2 {
+    color: #c0392b;
+    border-bottom-color: #f5c6cb;
+}
+
+/* Lista de información */
+.info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+.info-label {
+    color: #7f8c8d;
+    font-weight: 500;
+}
+.info-value {
+    color: #2c3e50;
+    font-weight: 600;
+    text-align: right;
+}
+.badge-plan {
+    background: #e3f2fd;
+    color: #1e88e5;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.info-link {
+    color: #1e88e5;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+.info-link:hover {
+    color: #1565c0;
+    text-decoration: underline;
+}
+
+/* Logo Preview */
+.logo-preview-container {
+    background: #f8f9fa;
+    border: 1px dashed #ced4da;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 15px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.logo-preview {
+    max-height: 80px;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+/* Inputs modernos */
+.form-group {
+    margin-bottom: 16px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+}
+.form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+.form-group input:focus {
+    outline: none;
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+}
+
+/* Input con icono (para el ojo de contraseña) */
+.input-with-icon {
+    position: relative;
+}
+.input-with-icon input {
+    padding-right: 40px; /* Espacio para el ojo */
+}
+.pwd-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #7f8c8d;
+    padding: 4px;
+    transition: color 0.2s;
+}
+.pwd-toggle:hover {
+    color: #1e88e5;
+}
+
+/* Botones */
+.btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.btn-primary {
+    background-color: #1e88e5;
+    color: white;
+}
+.btn-primary:hover {
+    background-color: #1565c0;
+    transform: translateY(-1px);
+}
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid #ced4da;
+    color: #495057;
+}
+.btn-outline:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+}
+.btn-danger {
+    background-color: #ffffff;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+.btn-danger:hover {
+    background-color: #e74c3c;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Alertas */
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.alert-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Modal (reutilizando y mejorando el existente) */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal.hidden {
+    display: none !important;
+}
+.modal-content {
+    background-color: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 450px;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+.close-btn {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #7f8c8d;
+    transition: color 0.2s;
+}
+.close-btn:hover {
+    color: #2c3e50;
+}
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .account-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 
 /* ============================================================================
    HEADER MODERNO DEL PANEL
@@ -235,153 +517,7 @@ body {
     color: #fff;
 }
 
-       
-/* ───── Estilos para la seccion de CUENTA──── */
-.cuenta-info p {
-    margin: 8px 0;
-    font-size: 14px;
-}
-
-.cuenta-info strong {
-    color: #2c3e50;
-}
-
-.cuenta-info small {
-    color: #7f8c8d;
-    display: block;
-    margin-top: 8px;
-}
-
-.btn-danger {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.btn-danger:hover {
-    background-color: #c0392b;
-}
-
-/* Asegurar que los panel-card tengan el mismo estilo */
-.panel-card {
-    background: white;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.panel-card h2 {
-    margin: 0 0 12px 0;
-    color: #2c3e50;
-    font-size: 16px;
-}
-
-/* Estilos para formularios en cuenta */
-.form-group {
-    margin: 8px 0;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 4px;
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.form-group input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-.btn {
-    padding: 10px 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    transition: background-color 0.3s;
-}
-
-.btn-primary {
-    background-color: #3498db;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #2980b9;
-}
-
-.btn-danger {
-    background-color: #e74c3c;
-    color: white;
-}
-
-.btn-danger:hover {
-    background-color: #c0392b;
-}
-
-.alert {
-    padding: 10px;
-    border-radius: 4px;
-    margin: 8px 0;
-}
-
-.alert-success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.alert-error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.hidden {
-    display: none;
-}
-
-/* Modal styles */
-.modal {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background-color: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    position: relative;
-}
-
-.close-btn {
-    position: absolute;
-    right: 15px;
-    top: 10px;
-    font-size: 24px;
-    cursor: pointer;
-    color: #7f8c8d;
-}
-
-
+  
 
 /* ============================================================================
    ESTILOS MODERNOS PARA EL PANEL (DASHBOARD)
@@ -2512,72 +2648,120 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
     
     <div class="content">
 
-         <div id="cuenta" class="seccion hidden">
-    <h1>👤 Cuenta</h1>
-    
-    <!-- Información del Negocio -->
-    <div class="panel-card">
-        <h2>🏢 Información del Negocio</h2>
-        <div class="cuenta-info">
-            <p><strong>Nombre:</strong> <span id="cuenta-negocio">Cargando...</span></p>
-            <p><strong>Plan:</strong> <span id="cuenta-plan">-</span></p>
-            <p><strong>Subdominio:</strong> <span id="cuenta-subdominio">-</span></p>
-            <p><small>Tu CRM: <a id="cuenta-url" href="#" target="_blank">-</a></small></p>
-        </div>
+<div id="cuenta" class="seccion hidden">
+    <div class="account-header">
+        <h1>👤 Mi Cuenta</h1>
+        <p class="account-subtitle">Administra la información, el branding y la seguridad de tu espacio de trabajo.</p>
+    </div>
+
+    <div class="account-grid">
         
-        <button id="btn-editar-negocio" class="btn btn-primary" style="margin-top: 12px;">
-            <i class="fas fa-edit"></i> Editar Información
-        </button>
-    </div>
-
-    <!-- Logo del Negocio -->
-    <div class="panel-card">
-        <h2>Logo de la empresa</h2>
-        <div id="logo-preview" style="text-align: center; margin: 12px 0;">
-            <img id="logo-cuenta-img" src="/static/logo/default.png" alt="Logo" style="max-height: 80px; max-width: 200px;">
-        </div>
-        <input type="file" id="logo-upload">
-        <button id="btn-guardar-logo">Actualizar Logo</button>
-    </div>
-
-    <!-- Cambiar Contraseña -->
-    <div class="panel-card">
-        <h2>🔑 Cambiar Contraseña</h2>
-        <div class="form-group" style="margin: 8px 0;">
-            <input type="password" id="password-actual" placeholder="Contraseña actual" style="width: 100%; padding: 8px; margin: 4px 0;">
-            <input type="password" id="password-nueva" placeholder="Nueva contraseña" style="width: 100%; padding: 8px; margin: 4px 0;">
-            <input type="password" id="password-confirmar" placeholder="Confirmar contraseña" style="width: 100%; padding: 8px; margin: 4px 0;">
-        </div>
-        <button id="btn-cambiar-password" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
-            <i class="fas fa-key"></i> Cambiar Contraseña
-        </button>
-        <div id="password-feedback" class="alert hidden" style="margin-top: 8px;"></div>
-    </div>
-
-    <!-- Cerrar Sesión -->
-    <div class="panel-card">
-        <h2>🔐 Seguridad</h2>
-        <button id="btn-logout" class="btn btn-danger" style="width: 100%; padding: 12px; margin-top: 10px;">
-            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-        </button>
-    </div>
-
-    <!-- Modal para editar información del negocio -->
-    <div id="modal-editar-negocio" class="modal hidden">
-        <div class="modal-content" style="max-width: 500px;">
-            <span class="close-btn" onclick="cerrarModalEditarNegocio()">✖</span>
-            <h2>Editar Información del Negocio</h2>
-            <div class="form-group">
-                <label>Nombre del Negocio</label>
-                <input type="text" id="negocio-nombre-edit" style="width: 100%; padding: 10px; margin: 8px 0;">
+        <!-- 1. Tarjeta: Perfil y Logo -->
+        <div class="account-card">
+            <h2>🏢 Identidad Visual</h2>
+            <div class="logo-preview-container">
+                <img id="logo-cuenta-img" src="/static/logo/default.png" alt="Logo de la empresa" class="logo-preview">
             </div>
-            <button onclick="guardarInformacionNegocio()" class="btn btn-primary" style="width: 100%;">
-                Guardar Cambios
+            <div class="file-upload-wrapper">
+                <input type="file" id="logo-upload" accept="image/*" hidden>
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('logo-upload').click()">
+                    <i class="fas fa-cloud-upload-alt"></i> Seleccionar nuevo logo
+                </button>
+                <button id="btn-guardar-logo" class="btn btn-primary" style="margin-top: 10px; width: 100%;">
+                    <i class="fas fa-save"></i> Actualizar Logo
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Tarjeta: Información del Negocio -->
+        <div class="account-card">
+            <h2>📋 Información del Negocio</h2>
+            <div class="info-list">
+                <div class="info-item">
+                    <span class="info-label">Nombre:</span>
+                    <span class="info-value" id="cuenta-negocio">Cargando...</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Plan actual:</span>
+                    <span class="info-value badge-plan" id="cuenta-plan">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Subdominio:</span>
+                    <span class="info-value" id="cuenta-subdominio">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Tu CRM:</span>
+                    <a id="cuenta-url" href="#" target="_blank" class="info-link">-</a>
+                </div>
+            </div>
+            <button id="btn-editar-negocio" class="btn btn-primary" style="margin-top: 20px; width: 100%;">
+                <i class="fas fa-edit"></i> Editar Información
             </button>
+        </div>
+
+        <!-- 3. Tarjeta: Cambiar Contraseña -->
+        <div class="account-card">
+            <h2>🔑 Cambiar Contraseña</h2>
+            <div class="form-group">
+                <label>Contraseña actual</label>
+                <div class="input-with-icon">
+                    <input type="password" id="password-actual" placeholder="••••••••">
+                    <button type="button" class="pwd-toggle" onclick="togglePassword('password-actual')">👁️</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Nueva contraseña</label>
+                <div class="input-with-icon">
+                    <input type="password" id="password-nueva" placeholder="Mínimo 6 caracteres">
+                    <button type="button" class="pwd-toggle" onclick="togglePassword('password-nueva')">👁️</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Confirmar nueva contraseña</label>
+                <div class="input-with-icon">
+                    <input type="password" id="password-confirmar" placeholder="Repite la nueva contraseña">
+                    <button type="button" class="pwd-toggle" onclick="togglePassword('password-confirmar')">👁️</button>
+                </div>
+            </div>
+            <button id="btn-cambiar-password" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                <i class="fas fa-key"></i> Actualizar Contraseña
+            </button>
+            <div id="password-feedback" class="alert hidden" style="margin-top: 12px;"></div>
+        </div>
+
+        <!-- 4. Tarjeta: Seguridad y Sesión -->
+        <div class="account-card danger-zone">
+            <h2>🔐 Zona de Peligro</h2>
+            <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 15px;">
+                Al cerrar sesión, deberás volver a autenticarte para acceder a tu panel.
+            </p>
+            <button id="btn-logout" class="btn btn-danger" style="width: 100%;">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión de forma segura
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Modal para editar información del negocio (CORREGIDO) -->
+    <div id="modal-editar-negocio" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn" onclick="cerrarModalEditarNegocio()">✖</button>
+            <h2>✏️ Editar Información del Negocio</h2>
+            <div class="form-group">
+                <label for="negocio-nombre-edit">Nombre del Negocio</label>
+                <input type="text" id="negocio-nombre-edit" placeholder="Ej. Cami Cam Photobooth">
+            </div>
+            <div class="modal-buttons" style="margin-top: 20px;">
+                <button onclick="guardarInformacionNegocio()" class="btn btn-primary" style="flex: 1;">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+                <button onclick="cerrarModalEditarNegocio()" class="btn btn-outline" style="flex: 1; margin-left: 10px;">
+                    Cancelar
+                </button>
+            </div>
         </div>
     </div>
 </div>
-
 
          
 <div id="panel" class="seccion hidden">
@@ -3393,15 +3577,48 @@ MODAL: CONFIGURAR CHATBOT MULTI-TENANT
 
     <script> 
 
+
 // ============================================================================
 // VARIABLES GLOBALES PARA CONTROL DE ACTUALIZACIÓN EN TIEMPO REAL
 // ============================================================================
 let serviciosConfigActualizados = false;  // Bandera para saber si hubo cambios
 let camposEventoActualizados = false;     // Bandera para campos personalizados
 
-        /* === 0. Cargar información de la cuenta ================= */
-// Variables para almacenar datos temporales
+// Variables para almacenar datos temporales de la cuenta
 let datosCuenta = null;
+
+/* ============================================================================
+   1. FUNCIONES DE UTILIDAD (Ojo de contraseña, Feedback, etc.)
+   ============================================================================ */
+
+// Mostrar/Ocultar contraseña
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.type = input.type === "password" ? "text" : "password";
+    }
+}
+
+// Mostrar mensajes de feedback (éxito/error)
+function mostrarFeedback(mensaje, tipo) {
+    const feedback = document.getElementById('password-feedback');
+    if (feedback) {
+        feedback.textContent = mensaje;
+        feedback.className = `alert alert-${tipo}`;
+        feedback.classList.remove('hidden');
+        
+        // Auto-ocultar después de 4 segundos si es éxito
+        if (tipo === 'success') {
+            setTimeout(() => {
+                feedback.classList.add('hidden');
+            }, 4000);
+        }
+    }
+}
+
+/* ============================================================================
+   2. GESTIÓN DE LA CUENTA (Info, Logo, Contraseña, Logout)
+   ============================================================================ */
 
 // Cargar información de la cuenta
 async function cargarInfoCuenta() {
@@ -3410,48 +3627,55 @@ async function cargarInfoCuenta() {
         if (response.ok) {
             const data = await response.json();
             datosCuenta = data;
-            document.getElementById('cuenta-negocio').textContent = data.nombre;
-            document.getElementById('cuenta-plan').textContent = 
-                data.plan === 'premium' ? 'Premium' : 'Básico';
-            document.getElementById('cuenta-subdominio').textContent = data.subdominio;
+            
+            // Actualizar DOM con verificación de existencia
+            const elNegocio = document.getElementById('cuenta-negocio');
+            if (elNegocio) elNegocio.textContent = data.nombre;
+            
+            const elPlan = document.getElementById('cuenta-plan');
+            if (elPlan) elPlan.textContent = data.plan === 'premium' ? 'Premium' : 'Básico';
+            
+            const elSubdominio = document.getElementById('cuenta-subdominio');
+            if (elSubdominio) elSubdominio.textContent = data.subdominio;
             
             const url = `https://${data.subdominio}.eventa.com.mx`;
-            document.getElementById('cuenta-url').textContent = url;
-            document.getElementById('cuenta-url').href = url;
+            const elUrl = document.getElementById('cuenta-url');
+            if (elUrl) {
+                elUrl.textContent = url;
+                elUrl.href = url;
+            }
             
             // Cargar logo actual
-            cargarLogo();
+            await cargarLogo();
         }
     } catch (error) {
         console.error('Error al cargar info de la cuenta:', error);
     }
 }
 
-
-function handleLogout() {
-    if (confirm('¿Seguro que quieres cerrar sesión?')) {
-        fetch('/logout', { method: 'POST' })
-            .then(() => window.location.href = '/login')
-            .catch(error => console.error('Error al cerrar sesión:', error));
-    }
-} 
-
 // Abrir modal de edición
 function abrirModalEditarNegocio() {
     if (datosCuenta) {
-        document.getElementById('negocio-nombre-edit').value = datosCuenta.nombre;
-        document.getElementById('modal-editar-negocio').classList.remove('hidden');
+        const inputNombre = document.getElementById('negocio-nombre-edit');
+        if (inputNombre) {
+            inputNombre.value = datosCuenta.nombre;
+        }
+        const modal = document.getElementById('modal-editar-negocio');
+        if (modal) modal.classList.remove('hidden');
     }
 }
 
 // Cerrar modal de edición
 function cerrarModalEditarNegocio() {
-    document.getElementById('modal-editar-negocio').classList.add('hidden');
+    const modal = document.getElementById('modal-editar-negocio');
+    if (modal) modal.classList.add('hidden');
 }
 
 // Guardar información del negocio
 async function guardarInformacionNegocio() {
-    const nuevoNombre = document.getElementById('negocio-nombre-edit').value.trim();
+    const inputNombre = document.getElementById('negocio-nombre-edit');
+    const nuevoNombre = inputNombre ? inputNombre.value.trim() : '';
+    
     if (!nuevoNombre) {
         alert('El nombre del negocio no puede estar vacío');
         return;
@@ -3466,9 +3690,15 @@ async function guardarInformacionNegocio() {
 
         if (response.ok) {
             datosCuenta.nombre = nuevoNombre;
-            document.getElementById('cuenta-negocio').textContent = nuevoNombre;
+            const elNegocio = document.getElementById('cuenta-negocio');
+            if (elNegocio) elNegocio.textContent = nuevoNombre;
+            
+            // Actualizar también el nombre en el Panel si existe
+            const tenantNombrePanel = document.getElementById('tenant-nombre');
+            if (tenantNombrePanel) tenantNombrePanel.textContent = nuevoNombre;
+            
             cerrarModalEditarNegocio();
-            alert('Información actualizada correctamente');
+            mostrarFeedback('✅ Información actualizada correctamente', 'success');
         } else {
             const error = await response.json();
             alert('Error: ' + (error.error || 'No se pudo actualizar'));
@@ -3482,10 +3712,10 @@ async function guardarInformacionNegocio() {
 // Actualizar logo
 async function actualizarLogo() {
     const fileInput = document.getElementById('logo-upload');
-    const file = fileInput.files[0];
+    const file = fileInput ? fileInput.files[0] : null;
     
     if (!file) {
-        alert('Por favor selecciona una imagen');
+        alert('Por favor selecciona una imagen primero');
         return;
     }
 
@@ -3493,6 +3723,12 @@ async function actualizarLogo() {
     formData.append('logo', file);
 
     try {
+        const btnGuardar = document.getElementById('btn-guardar-logo');
+        if (btnGuardar) {
+            btnGuardar.disabled = true;
+            btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        }
+
         const response = await fetch('/config/logo', {
             method: 'POST',
             body: formData
@@ -3500,8 +3736,8 @@ async function actualizarLogo() {
 
         if (response.ok) {
             await cargarLogo();
-            fileInput.value = ''; // Limpiar input
-            alert('Logo actualizado correctamente');
+            if (fileInput) fileInput.value = ''; // Limpiar input
+            mostrarFeedback('✅ Logo actualizado correctamente', 'success');
         } else {
             const error = await response.json();
             alert('Error: ' + (error.error || 'No se pudo actualizar el logo'));
@@ -3509,35 +3745,48 @@ async function actualizarLogo() {
     } catch (error) {
         console.error('Error al actualizar logo:', error);
         alert('Error de conexión');
+    } finally {
+        const btnGuardar = document.getElementById('btn-guardar-logo');
+        if (btnGuardar) {
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-save"></i> Actualizar Logo';
+        }
     }
 }
 
 // Cambiar contraseña
 async function cambiarPassword() {
-    const passwordActual = document.getElementById('password-actual').value;
-    const passwordNueva = document.getElementById('password-nueva').value;
-    const passwordConfirmar = document.getElementById('password-confirmar').value;
+    const passwordActual = document.getElementById('password-actual')?.value || '';
+    const passwordNueva = document.getElementById('password-nueva')?.value || '';
+    const passwordConfirmar = document.getElementById('password-confirmar')?.value || '';
     
+    // Limpiar feedback previo
     const feedback = document.getElementById('password-feedback');
-    feedback.classList.add('hidden');
+    if (feedback) feedback.classList.add('hidden');
 
     // Validaciones
     if (!passwordActual || !passwordNueva || !passwordConfirmar) {
-        mostrarFeedback('Todos los campos son requeridos', 'error');
+        mostrarFeedback('⚠️ Todos los campos son requeridos', 'error');
         return;
     }
 
     if (passwordNueva !== passwordConfirmar) {
-        mostrarFeedback('Las contraseñas nuevas no coinciden', 'error');
+        mostrarFeedback('⚠️ Las contraseñas nuevas no coinciden', 'error');
         return;
     }
 
     if (passwordNueva.length < 6) {
-        mostrarFeedback('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+        mostrarFeedback('⚠️ La nueva contraseña debe tener al menos 6 caracteres', 'error');
         return;
     }
 
     try {
+        const btnCambiar = document.getElementById('btn-cambiar-password');
+        if (btnCambiar) {
+            btnCambiar.disabled = true;
+            btnCambiar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+        }
+
         const response = await fetch('/api/cambiar_password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3548,11 +3797,11 @@ async function cambiarPassword() {
         });
 
         if (response.ok) {
-            mostrarFeedback('Contraseña actualizada correctamente', 'success');
+            mostrarFeedback('✅ Contraseña actualizada correctamente', 'success');
             // Limpiar campos
-            document.getElementById('password-actual').value = '';
-            document.getElementById('password-nueva').value = '';
-            document.getElementById('password-confirmar').value = '';
+            if (document.getElementById('password-actual')) document.getElementById('password-actual').value = '';
+            if (document.getElementById('password-nueva')) document.getElementById('password-nueva').value = '';
+            if (document.getElementById('password-confirmar')) document.getElementById('password-confirmar').value = '';
         } else {
             const error = await response.json();
             mostrarFeedback(error.error || 'Error al cambiar contraseña', 'error');
@@ -3560,44 +3809,75 @@ async function cambiarPassword() {
     } catch (error) {
         console.error('Error al cambiar contraseña:', error);
         mostrarFeedback('Error de conexión', 'error');
+    } finally {
+        const btnCambiar = document.getElementById('btn-cambiar-password');
+        if (btnCambiar) {
+            btnCambiar.disabled = false;
+            btnCambiar.innerHTML = '<i class="fas fa-key"></i> Actualizar Contraseña';
+        }
     }
 }
 
-function mostrarFeedback(mensaje, tipo) {
-    const feedback = document.getElementById('password-feedback');
-    feedback.textContent = mensaje;
-    feedback.className = `alert alert-${tipo}`;
-    feedback.classList.remove('hidden');
+// Cerrar sesión
+function handleLogout() {
+    if (confirm('¿Seguro que quieres cerrar sesión?')) {
+        fetch('/logout', { method: 'POST' })
+            .then(() => {
+                window.location.href = '/login';
+            })
+            .catch(error => {
+                console.error('Error al cerrar sesión:', error);
+                alert('Error al cerrar sesión');
+            });
+    }
 }
 
+/* ============================================================================
+   3. INICIALIZACIÓN Y EVENT LISTENERS
+   ============================================================================ */
 
-// Inicializar la sección de cuenta
+// Función auxiliar para previsualizar el logo
+function previsualizarLogo(event) {
+    const file = event.target.files[0];
+    const logoPreview = document.getElementById("logo-cuenta-img");
+    
+    if (file && logoPreview) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            logoPreview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
 function initCuenta() {
     cargarInfoCuenta();
     
+    // Previsualización del logo al seleccionar un archivo
+    const logoInput = document.getElementById("logo-upload");
+    if (logoInput) {
+        // Remover listener previo si existe para evitar duplicados
+        logoInput.removeEventListener("change", previsualizarLogo);
+        logoInput.addEventListener("change", previsualizarLogo);
+    }
+
     // Event listeners con verificación de existencia
     const btnEditarNegocio = document.getElementById('btn-editar-negocio');
     const btnGuardarLogo = document.getElementById('btn-guardar-logo');
     const btnCambiarPassword = document.getElementById('btn-cambiar-password');
     const btnLogout = document.getElementById('btn-logout');
     
-    if (btnEditarNegocio) {
-        btnEditarNegocio.addEventListener('click', abrirModalEditarNegocio);
-    }
-    if (btnGuardarLogo) {
-        btnGuardarLogo.addEventListener('click', actualizarLogo);
-    }
-    if (btnCambiarPassword) {
-        btnCambiarPassword.addEventListener('click', cambiarPassword);
-    }
-    if (btnLogout) {
-        btnLogout.addEventListener('click', handleLogout);
-    }
+    if (btnEditarNegocio) btnEditarNegocio.addEventListener('click', abrirModalEditarNegocio);
+    if (btnGuardarLogo) btnGuardarLogo.addEventListener('click', actualizarLogo);
+    if (btnCambiarPassword) btnCambiarPassword.addEventListener('click', cambiarPassword);
+    if (btnLogout) btnLogout.addEventListener('click', handleLogout);
 }
 
-      /* === 1. Carga logo en el Panel ================= */
+/* ============================================================================
+   4. FUNCIONES GLOBALES (Logo, Navegación, WebSockets)
+   ============================================================================ */
 
-/* === FUNCIÓN GLOBAL UNIFICADA PARA CARGAR LOGO EN TODAS LAS SECCIONES === */
+// FUNCIÓN GLOBAL UNIFICADA PARA CARGAR LOGO EN TODAS LAS SECCIONES
 async function cargarLogo() {
     try {
         const response = await fetch('/config/logo');
@@ -3612,9 +3892,7 @@ async function cargarLogo() {
             ];
             
             logoElements.forEach(img => {
-                if (img) {
-                    img.src = logoUrl;
-                }
+                if (img) img.src = logoUrl;
             });
         }
     } catch (error) {
@@ -3625,27 +3903,12 @@ async function cargarLogo() {
             document.getElementById('logo-cuenta-img')
         ];
         logoElements.forEach(img => {
-            if (img) {
-                img.src = '/static/logo/default.png';
-            }
+            if (img) img.src = '/static/logo/default.png';
         });
     }
 }
 
-
-
-// DOMContentLoaded sólo para inits globales
-document.addEventListener("DOMContentLoaded", () => {
-  cargarLogo();
-  // estado del sidebar
-  if (localStorage.getItem("sidebarCollapsed")==="true") {
-    document.querySelector(".sidebar")?.classList.add("collapsed");
-  }
-});
-
-// ============================================================================
 // FUNCIÓN PARA MOSTRAR SECCIÓN (CON REFRESCO INTELIGENTE)
-// ============================================================================
 function mostrarSeccion(seccionId, callback = null) {
     // 1. Ocultar todas las secciones
     document.querySelectorAll('.seccion').forEach(el => {
@@ -3671,7 +3934,7 @@ function mostrarSeccion(seccionId, callback = null) {
         case 'panel':
             initPanel();
             break;
-            case 'leads':
+        case 'leads':
             cargarLeads();
             break;
         case 'calendario':
@@ -3686,13 +3949,11 @@ function mostrarSeccion(seccionId, callback = null) {
             initConfiguracion();
             break;
         case 'reportes':
-            // ✅ VERIFICAR SI HUBO ACTUALIZACIÓN DE SERVICIOS
             if (serviciosConfigActualizados || camposEventoActualizados) {
                 console.log("🔄 Detectados cambios en configuración, refrescando...");
                 serviciosConfigActualizados = false;
                 camposEventoActualizados = false;
                 
-                // Si hay un reporte cargado, refrescarlo
                 const anioInput = document.getElementById("reporte-anio-anual");
                 if (anioInput && anioInput.value) {
                     verReporteServiciosAnual(parseInt(anioInput.value));
@@ -3702,25 +3963,37 @@ function mostrarSeccion(seccionId, callback = null) {
     }
     
     // 5. Ejecutar callback si existe
-    if (callback) {
-        callback();
-    }
+    if (callback) callback();
 }
 
-                
-/*==============================================================
-// 🔹CON ESTO CONECTAMOS CON WEBSOCKET Actualizacion en Tiempo Real
-===============================================================*/
-        let socket = io.connect(window.location.origin);
-        socket.on("connect", () => {
-            console.log("✅ Conectado a WebSockets.");
-        });
-        
-        socket.on("connect_error", (error) => {
-            console.error("❌ Error en la conexión WebSocket:", error);
-        });
+// ============================================================================
+// INICIALIZACIÓN GLOBAL AL CARGAR EL DOM
+// ============================================================================
+document.addEventListener("DOMContentLoaded", () => {
+    cargarLogo();
+    
+    // Estado del sidebar (si aplica)
+    if (localStorage.getItem("sidebarCollapsed") === "true") {
+        document.querySelector(".sidebar")?.classList.add("collapsed");
+    }
+});
 
-        let sonidoActivo = true; 
+// ============================================================================
+// WEBSOCKET: Actualización en Tiempo Real
+// ============================================================================
+let socket = io.connect(window.location.origin);
+
+socket.on("connect", () => {
+    console.log("✅ Conectado a WebSockets.");
+});
+
+socket.on("connect_error", (error) => {
+    console.error("❌ Error en la conexión WebSocket:", error);
+});
+
+let sonidoActivo = true;
+
+
 
 /***********************
 ========================
