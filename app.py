@@ -1219,25 +1219,27 @@ def upload_imagen_chat():
     if file.filename == '':
         return jsonify({"error": "Nombre de archivo vacío"}), 400
 
-    # Opción A: Guardar localmente (Recomendado para empezar)
-    # Asegúrate de que la carpeta 'static/uploads' exista en tu proyecto
-    uploads_dir = os.path.join('static', 'uploads')
-    os.makedirs(uploads_dir, exist_ok=True)
-    
-    # Generar nombre único para evitar colisiones entre tenants
-    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
-    filename = f"cliente_{cliente_id}_{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.join(uploads_dir, filename)
-    
-    file.save(filepath)
-    
-    # Devolver la URL pública relativa
-    url = f"/static/uploads/{filename}"
-    return jsonify({"url": url}), 200
-    
-    # Opción B: Si usas AWS S3, reemplaza lo anterior con tu lógica de boto3,
-    # usando el cliente_id para determinar el bucket o prefijo de carpeta.
-
+    try:
+        # Crear carpeta si no existe
+        uploads_dir = os.path.join('static', 'uploads')
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        # Generar nombre único con cliente_id
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
+        filename = f"cliente_{cliente_id}_{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(uploads_dir, filename)
+        
+        file.save(filepath)
+        
+        # Devolver la URL pública
+        url = f"/static/uploads/{filename}"
+        return jsonify({"url": url}), 200
+        
+    except Exception as e:
+        print(f"❌ Error en upload_imagen_chat: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error al subir imagen"}), 500
 
 # ============================================================================
 # 4. OBTENER MENSAJES (LISTA DE CHATS Y DETALLE)
