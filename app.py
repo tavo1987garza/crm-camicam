@@ -687,6 +687,12 @@ def cambiar_estado_lead():
     finally:
         liberar_db(conn)
 
+# 📌 Validación de teléfono (debe tener 13 dígitos y empezar con 521 para México)
+def validar_telefono(telefono):
+    # Limpiamos espacios o guiones por si acaso
+    telefono_limpio = str(telefono).replace(" ", "").replace("-", "")
+    return len(telefono_limpio) == 13 and telefono_limpio.startswith("521")
+
 
 # 📌 Crear un nuevo lead manualmente        
 @app.route("/crear_lead", methods=["POST"])
