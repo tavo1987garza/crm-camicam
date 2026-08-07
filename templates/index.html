@@ -1074,433 +1074,328 @@ body {
 
 
 
-/* Modal styles */
-.modal {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    display: flex;  /* ← Default para modales activos */
-    align-items: center;
-    justify-content: center;
-}
 
-.modal.hidden {
-    display: none !important;  /* ← Cuando tiene clase hidden, se oculta */
-}
+/* ============================================================================
+   ESTILOS MODERNOS PARA LA SECCIÓN DE CHAT (Estilo WhatsApp Web)
+   ============================================================================ */
 
-
-.modal-content {
-    position: relative;
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 350px;
-    max-height: 80vh;
-    overflow-y: auto;
-    text-align: center;
-}
-
-
-/* 🔹 Botón de cerrar modal dentro del lead */
-.close-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: transparent;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #aaa;
-    transition: color 0.2s ease;
-}
-
-.close-btn:hover {
-    color: #000;
-}
-
-
-
-.modal-buttons {
+.chat-app-container {
     display: flex;
-    justify-content: flex-start;
-    margin-top: 10px;
+    height: calc(100vh - 100px); /* Ajusta según el alto de tu navbar/sidebar */
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e9ecef;
 }
 
-
-
-.delete-btn:hover {
-    background: #b71c1c;
-}
-
-.save-btn {
-    background: #1e88e5;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background 0.3s ease-in-out;
-}
-
-.save-btn:hover {
-    background: #1565c0;
-}
-
-/* Estilos para los inputs y textarea dentro del modal */
-.modal-content input[type="text"],
-.modal-content textarea {
-    width: 100%;            /* Ocupa el ancho completo del contenedor */
-    padding: 10px;          /* Espaciado interno para mayor comodidad */
-    margin: 10px 0;         /* Separación vertical entre elementos */
-    border: 1px solid #ccc; /* Borde suave */
-    border-radius: 4px;     /* Bordes redondeados */
-    font-size: 14px;
-    transition: border-color 0.3s ease;
-    box-sizing: border-box; /* Incluye padding y border en el cálculo del ancho */
-}
-
-/* Cambio de color en foco */
-.modal-content input[type="text"]:focus,
-.modal-content textarea:focus {
-    border-color: #1e88e5; /* Azul para destacar el campo activo */
-    outline: none;
-}
-
-/* Para el textarea, permitir redimensionamiento vertical y definir altura mínima */
-.modal-content textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-
-
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: red;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            display: none;
-        }
-
-
-        .chat-container {
-            display: flex;
-            height: 80vh;
-        }
-        .chat-list {
-            width: 30%;
-            background: #f1f1f1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-        .chat-box {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            border-left: 1px solid #ccc;
-            padding: 10px;
-        }
-        .chat-messages {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 10px;
-            border-bottom: 1px solid #ccc;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .mensaje {
-            max-width: 70%;
-            padding: 10px;
-            border-radius: 10px;
-            margin: 5px;
-            word-wrap: break-word;
-            display: inline-block;
-        }
-        
-        .mensaje-enviado {
-            background: #dcf8c6; /* Verde claro de WhatsApp */
-            align-self: flex-end;
-            text-align: right;
-        }
-        
-        .mensaje-recibido {
-            background: #ffffff; /* Blanco */
-            border: 1px solid #ddd;
-            align-self: flex-start;
-            text-align: left;
-        }
-        
-        .chat-input {
-            display: flex;
-        }
-        .chat-input input {
-            flex-grow: 1;
-            padding: 10px;
-        }
-        .chat-input button {
-            padding: 10px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-
-      
-        /* 🔹 Contenedor general */
-        .chat-container {
-            display: flex;
-            gap: 20px;
-            width: 100%;
-            height: 80vh;
-            justify-content: center;
-        }
-        
-        
-        /* 🔹 Contenedor de la lista de chats */
-.chat-list {
-    width: 350px;
-    background: #f1f1f1;
-    border-radius: 10px;
-    padding: 10px;
-    overflow-y: auto;
+/* ── Panel Izquierdo: Sidebar ── */
+.chat-sidebar {
+    width: 380px;
+    background: #ffffff;
+    border-right: 1px solid #e9ecef;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex-shrink: 0;
 }
 
-/* 🔹 Estilos del título "Chats" */
-.chat-list h1 {
-    text-align: center;
+.chat-sidebar-header {
+    padding: 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.chat-sidebar-header h2 {
+    margin: 0 0 15px 0;
     font-size: 18px;
-    margin-bottom: 10px;
-    color: #075e54;
+    color: #2c3e50;
+    font-weight: 600;
 }
 
-/* 🔹 Tarjeta de chat individual */
+#chat-search-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+#chat-search-input:focus {
+    outline: none;
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+}
+
+.chat-list-scrollable {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+/* Tarjeta de chat individual en la lista */
 .chat-item {
     display: flex;
     align-items: center;
-    padding: 10px;
-    background: white;
-    border-radius: 8px;
+    padding: 12px;
+    background: #ffffff;
+    border-radius: 10px;
     cursor: pointer;
-    margin-bottom: 5px;
-    transition: background 0.3s ease-in-out;
-    position: relative;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
 }
 
-/* 🔹 Resaltar el chat seleccionado */
+.chat-item:hover {
+    background: #f8f9fa;
+    border-color: #e9ecef;
+}
+
 .chat-item.selected {
-    background: #d4f8c6;
+    background: #f0f7ff;
+    border-color: #1e88e5;
 }
 
-/* 🔹 Imagen de perfil del chat */
 .chat-item img {
-    width: 45px;
-    height: 45px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    margin-right: 10px;
+    margin-right: 14px;
+    object-fit: cover;
+    background: #e9ecef;
 }
 
-/* 🔹 Contenedor de la info del chat */
 .chat-info {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    overflow: hidden; /* Para que el text-overflow funcione */
 }
 
-/* 🔹 Nombre del contacto */
 .chat-name {
-    font-size: 16px;
-    font-weight: bold;
-    color: #333;
+    font-size: 15px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
 }
 
-/* 🔹 Último mensaje (pequeño y gris) */
 .chat-last-message {
-    font-size: 14px;
-    color: #777;
+    font-size: 13px;
+    color: #7f8c8d;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 180px;
 }
 
-/* 🔹 Hora del último mensaje (arriba a la derecha) */
 .chat-time {
-    font-size: 12px;
-    color: #888;
+    font-size: 11px;
+    color: #adb5bd;
     position: absolute;
-    right: 10px;
-    top: 10px;
+    right: 15px;
+    top: 15px;
 }
 
-
-
-        
-        /* 🔹 Contenedor del teléfono */
-        .phone {
-            width: 360px;
-            height: 600px;
-            background: #fff;
-            border-radius: 30px;
-            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border: 8px solid #000;
-            position: relative;
-        }
-        
-        /* 🔹 Barra superior (nombre y estado del chat) */
-        .phone-header {
-            background: #075e54;
-            color: white;
-            padding: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        
-        .phone-header .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .phone-header img {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-        }
-        
-        /* 🔹 Mensajes */
-        .chat-messages {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 10px;
-            background: #efe7dd;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        /* 🔹 Mensaje ENVIADO (alineado a la derecha) */
-        .mensaje {
-            max-width: 70%;
-            padding: 10px;
-            border-radius: 15px;
-            margin: 5px;
-            word-wrap: break-word;
-            font-size: 14px;
-            position: relative;
-        }
-        
-        .mensaje-enviado {
-            background: #dcf8c6;
-            align-self: flex-end;
-        }
-        
-        .mensaje-recibido {
-            background: white;
-            border: 1px solid #ddd;
-            align-self: flex-start;
-        }
-
-        
-        /* 🔹 Input de chat */
-        .chat-input {
-            display: flex;
-            padding: 10px;
-            background: white;
-            border-top: 1px solid #ccc;
-        }
-        
-        .chat-input input {
-            flex-grow: 1;
-            padding: 10px;
-            border: none;
-            outline: none;
-            border-radius: 20px;
-            background: #f1f1f1;
-        }
-        
-        .chat-input button {
-            padding: 10px;
-            background: #25d366;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 20px;
-            margin-left: 5px;
-        }
-        
-        /* 🔹 Responsive 
-        @media (max-width: 768px) {
-            .chat-container {
-                flex-direction: column;
-                align-items: center;
-            }
-            .chat-list {
-                width: 100%;
-            }
-        }*/
-
-        
-        /* 🔹 Media Query para hacer que siempre sea de dos columnas */
-@media (max-width: 1024px) {
-    
-
-    .chat-list {
-        width: 40%; /* 🔹 Se ajusta en pantallas más pequeñas */
-        min-width: 250px;
-    }
-
-    .phone {
-        width: 55%; /* 🔹 Se mantiene al lado derecho */
-        min-width: 320px;
-    }
+/* ── Panel Derecho: Área Principal ── */
+.chat-main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background: #efe7dd; /* Color de fondo clásico tipo WhatsApp */
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+'); /* Patrón sutil opcional */
+    position: relative;
 }
 
-/* 🔹 Para pantallas aún más pequeñas */
+/* Estado vacío (cuando no hay chat seleccionado) */
+.chat-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #7f8c8d;
+    text-align: center;
+    padding: 40px;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.chat-empty-state h3 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+/* Header del chat activo */
+.chat-main-header {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e9ecef;
+    flex-shrink: 0;
+}
+
+.chat-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chat-user-info img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+.chat-user-info .chat-name {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 2px;
+}
+
+.chat-status {
+    font-size: 12px;
+    color: #25d366; /* Verde "en línea" */
+    font-weight: 500;
+}
+
+/* Área de mensajes */
+.chat-messages-area {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Burbujas de mensaje */
+.mensaje {
+    max-width: 65%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    position: relative;
+    word-wrap: break-word;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.mensaje img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-top: 5px;
+}
+
+.mensaje-recibido {
+    background: #ffffff;
+    align-self: flex-start;
+    border-top-left-radius: 4px;
+    color: #2c3e50;
+}
+
+.mensaje-enviado {
+    background: #d9fdd3; /* Verde WhatsApp moderno */
+    align-self: flex-end;
+    border-top-right-radius: 4px;
+    color: #2c3e50;
+}
+
+.mensaje-tiempo {
+    display: block;
+    font-size: 10px;
+    color: #888;
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* Área de input */
+.chat-input-area {
+    background: #f0f2f5;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.chat-attach-btn {
+    background: none;
+    border: none;
+    color: #54656f;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.chat-attach-btn:hover {
+    background: #e0e4e8;
+}
+
+#mensaje-input {
+    flex-grow: 1;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    background: #ffffff;
+}
+
+#mensaje-input:focus {
+    box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.2);
+}
+
+.chat-send-btn {
+    background: #1e88e5;
+    color: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s;
+}
+
+.chat-send-btn:hover {
+    background: #1565c0;
+    transform: scale(1.05);
+}
+
+.chat-send-btn:disabled {
+    background: #ced4da;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-   
-
-    .chat-list {
-        width: 45%;
-        min-width: 220px;
+    .chat-app-container {
+        flex-direction: column;
+        height: calc(100vh - 60px);
     }
-
-    .phone {
-        width: 50%;
-        min-width: 300px;
+    .chat-sidebar {
+        width: 100%;
+        height: 40%;
+        border-right: none;
+        border-bottom: 1px solid #e9ecef;
     }
-}
-
-
-        /* ✅ Responsive: en pantallas pequeñas, permitir que las columnas se ajusten */
-@media (max-width: 768px) {
-    .leads-column {
-        flex: 0 0 180px;
-        min-width: 180px;
-        max-width: 180px;
+    .chat-main {
+        height: 60%;
     }
 }
-
-
-
-
 
 
 
@@ -3150,7 +3045,12 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
     </div>
 </div>
 
-         
+
+
+
+<!-- ============================================================================
+     SECCIÓN DE PANEL
+     ============================================================================ -->         
 <div id="panel" class="seccion hidden">
     
     <!-- HEADER: Título + Logo + Bienvenida + Fecha -->
@@ -3213,7 +3113,11 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
 
         
 
-      
+
+
+<!-- ============================================================================
+     SECCIÓN DE LEADS
+     ============================================================================ -->      
         <div id="leads" class="seccion hidden">
             <h1>📩 Leads</h1>
             
@@ -3249,53 +3153,89 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
         </div>
 
 
-        <div id="chat" class="seccion hidden">            
-            <div class="chat-container">
-                <!-- 🔹 Lista de conversaciones -->
-                <div class="chat-list" id="chat-list">
-                    <h1>💬 Chats</h1>
-                    <div id="lista-chats"></div>
-                </div>
+
+
+
+
+<!-- ============================================================================
+     SECCIÓN DE CHAT
+     ============================================================================ -->
+        <div id="chat" class="seccion hidden">
+    <div class="chat-app-container">
         
-                <!-- 🔹 Teléfono con chat -->
-                <div class="phone">
-                    <!-- 🔹 Barra superior (nombre y estado del chat) -->
-                    <div class="phone-header">
-                        <div class="user-info">
-                            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User">
-                            <span id="chat-usuario">Selecciona un chat</span>
-                        </div>
-                        <div class="icons">
-                            <span>📶</span>
-                            <span>🔋</span>
-                        </div>
-                    </div>
-        
-                    <!-- 🔹 Chat -->
-                    <div class="chat-messages" id="chat-messages"></div>
-        
-                    <!-- 🔹 Input para enviar mensajes -->
-                    <div class="chat-input">
-                        <!-- Botón para adjuntar imagen -->
-                        <button id="adjuntar-imagen-btn" onclick="document.getElementById('imagen-input').click(); return false;">
-                        <i class="fas fa-paperclip"></i>
-                        </button>
-                        <!-- Input file oculto -->
-                        <input type="file" id="imagen-input" accept="image/*" style="display: none;">
-                        <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..." disabled>
-                        <button onclick="enviarMensaje()" disabled>📤</button>
-                    </div>
-                </div>
+        <!-- PANEL IZQUIERDO: Lista de Chats -->
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header">
+                <h2>💬 Chats Activos</h2>
+                <input type="text" id="chat-search-input" placeholder="🔍 Buscar contacto..." oninput="filtrarChats(this.value)">
+            </div>
+            <div id="lista-chats" class="chat-list-scrollable">
+                <!-- Se llena dinámicamente con JS. Ejemplo de estado vacío: -->
+                <div class="empty-state-chat">Cargando conversaciones...</div>
             </div>
         </div>
 
+        <!-- PANEL DERECHO: Ventana de Chat Activa -->
+        <div class="chat-main">
+            
+            <!-- Estado vacío cuando no hay chat seleccionado -->
+            <div id="chat-empty-state" class="chat-empty-state">
+                <div class="empty-icon">💬</div>
+                <h3>Tu espacio de mensajería</h3>
+                <p>Selecciona una conversación de la izquierda para comenzar a chatear o revisar las respuestas de tu bot.</p>
+            </div>
+
+            <!-- Interfaz de Chat Activo (oculta hasta seleccionar un chat) -->
+            <div id="chat-active-interface" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
+                
+                <!-- Header del Chat -->
+                <div class="chat-main-header">
+                    <div class="chat-user-info">
+                        <img id="chat-avatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Avatar">
+                        <div>
+                            <span id="chat-usuario-nombre" class="chat-name">Nombre del Contacto</span>
+                            <span id="chat-usuario-status" class="chat-status">En línea</span>
+                        </div>
+                    </div>
+                    <div class="chat-header-actions">
+                        <button class="icon-btn" title="Ver perfil del lead" onclick="verPerfilLeadDesdeChat()">
+                            <i class="fas fa-user"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Área de Mensajes -->
+                <div class="chat-messages-area" id="chat-messages">
+                    <!-- Los mensajes se inyectan aquí con JS -->
+                </div>
+
+                <!-- Área de Input -->
+                <div class="chat-input-area">
+                    <button class="chat-attach-btn" onclick="document.getElementById('imagen-input').click()" title="Adjuntar imagen">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <input type="file" id="imagen-input" accept="image/*" style="display: none;" onchange="previsualizarYEnviarImagen(this)">
+                    
+                    <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..." autocomplete="off">
+                    
+                    <button class="chat-send-btn" onclick="enviarMensaje()" id="btn-enviar-mensaje" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
 
 
 
 
-    
 
 
+<!-- ============================================================================
+     SECCIÓN DE CALENDARIO
+     ============================================================================ -->
         <div id="calendario" class="seccion hidden">
     
     <!-- Vista de Años -->
@@ -3552,6 +3492,13 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
           
 
 
+
+
+
+  
+<!-- ============================================================================
+     SECCIÓN DE CONFIGURACIÓN
+     ============================================================================ -->
        <div id="configuracion" class="seccion hidden">
     <h1>⚙️ Configuración</h1>
     <p class="config-subtitle">Administra las preferencias, integraciones y personalización de tu CRM.</p>
