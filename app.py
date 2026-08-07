@@ -26,6 +26,7 @@ from flask_cors import CORS
 
 
 
+
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = os.getenv('SECRET_KEY')
@@ -1023,7 +1024,15 @@ def obtener_lead_id():
     finally:
         liberar_db(conn)
 
-# 📌 Endpoint para recibir mensajes desde WhatsApp
+
+
+
+#'''''''''''''''''''''''''''''''''''''''''''''''
+#------------SECION DE CHAT---------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+# ============================================================================
+# 1. RECIBIR MENSAJES DESDE WHATSAPP (BOT -> CRM)
+# ============================================================================
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -1031,13 +1040,13 @@ def recibir_mensaje():
         return jsonify({"error": "Cliente no autorizado"}), 404
 
     datos = request.json
-    plataforma = datos.get("plataforma")
+    plataforma = datos.get("plataforma", "whatsapp")
     remitente = str(datos.get("remitente", ""))
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")
+    tipo = datos.get("tipo", "recibido")
 
-    if not plataforma or not remitente or mensaje is None:
-        return jsonify({"error": "Faltan datos"}), 400
+    if not remitente or mensaje is None:
+        return jsonify({"error": "Faltan datos (remitente o mensaje)"}), 400
 
     tipos_validos = {"enviado", "recibido", "recibido_imagen", "enviado_imagen", "recibido_video", "enviado_video"}
     if tipo not in tipos_validos:
@@ -1050,113 +1059,188 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # Verificar si el lead ya existe PARA ESTE CLIENTE
+        # 1. Verificar si el lead ya existe PARA ESTE CLIENTE
         cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s AND cliente_id = %s", (remitente, cliente_id))
         lead = cursor.fetchone()
-        lead_id = None
-        lead_creado = False
-
+        
         if not lead:
-            nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
+            nombre_por_defecto = f"Lead {remitente[-4:]}"
             cursor.execute("""
                 INSERT INTO leads (nombre, telefono, estado, cliente_id)
-                VALUES (%s, %s, 'Contacto Inicial', %s)
+                VALUES (%s, %s, '✅ CONTACTO INICIAL', %s)
                 ON CONFLICT (telefono, cliente_id) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente, cliente_id))
             row = cursor.fetchone()
-            if row:
-                lead_id = row[0]
-                lead_creado = True
+            lead_id = row[0] if row else None
         else:
             lead_id = lead[0]
+            # Opcional: Actualizar estado a "En Proceso" si estaba en Contacto Inicial
+            # cursor.execute("UPDATE leads SET estado = '⏳ EN PROCESO' WHERE id = %s AND estado = '✅ CONTACTO INICIAL'", (lead_id,))
 
-        # Guardar el mensaje con cliente_id
+        # 2. Guardar el mensaje en la BD
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id)
-            VALUES (%s, %s, %s, 'Nuevo', %s, %s)
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
+            VALUES (%s, %s, %s, 'Nuevo', %s, %s, NOW())
         """, (plataforma, remitente, mensaje, tipo, cliente_id))
         conn.commit()
 
-        # ... resto del código para eventos y emisión WebSocket ...
+        # 3. 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
+        socketio.emit("nuevo_mensaje", {
+            "remitente": remitente,
+            "mensaje": mensaje,
+            "tipo": tipo,
+            "fecha": datetime.now().isoformat(),
+            "cliente_id": cliente_id
+        })
 
         return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
 
     except Exception as e:
+        conn.rollback()
         print(f"❌ Error en /recibir_mensaje: {str(e)}")
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-             
-# 📌 Enviar respuesta a Camibot con reintento automático
-CAMIBOT_API_URL = os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
 
+
+# ============================================================================
+# 2. ENVIAR MENSAJES DESDE EL CRM (CRM -> BOT/WHATSAPP)
+# ============================================================================
 @app.route("/enviar_mensaje", methods=["POST"])
 def enviar_mensaje():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     datos = request.json
     telefono = datos.get("telefono")
     tipo = datos.get("tipo", "texto")
-    url_imagen = datos.get("url")
-    url_video = datos.get("url_video")
+    mensaje_texto = datos.get("mensaje") # Puede ser texto o URL de imagen/video
     caption = datos.get("caption", "")
-    mensaje_texto = datos.get("mensaje")
 
     if not telefono:
         return jsonify({"error": "Número de teléfono es obligatorio"}), 400
 
-    # Imagen
-    if tipo == "imagen":
-        if not url_imagen:
-            return jsonify({"error": "Falta la URL de la imagen"}), 400
-        payload = {"telefono": telefono, "imageUrl": url_imagen, "caption": caption}
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        
+        # 1. Guardar el mensaje ENVIADO en la BD primero (para registro histórico)
+        cursor.execute("""
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
+            VALUES ('web', %s, %s, 'Enviado', %s, %s, NOW())
+        """, (telefono, mensaje_texto, tipo, cliente_id))
+        conn.commit()
+
+        # 2. Obtener configuración del bot para este tenant
+        # ⚠️ IMPORTANTE: Ajusta 'configuracion_bot' al nombre real de tu tabla de configuración
+        # donde guardas n8n_url, whatsapp_token, etc.
+        cursor.execute("""
+            SELECT n8n_url, whatsapp_phone_id, whatsapp_token 
+            FROM configuracion_bot 
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+        config = cursor.fetchone()
+        
+        # Fallback a variable de entorno global si el tenant no tiene config propia
+        bot_url = config[0] if config and config[0] else os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
+        
+        # 3. Preparar payload (¡Siempre incluye cliente_id para que el bot sepa el contexto!)
+        payload = {"telefono": telefono, "cliente_id": cliente_id}
+        
+        if tipo == "imagen":
+            payload.update({"imageUrl": mensaje_texto, "caption": caption, "tipo": "imagen"})
+            endpoint = f"{bot_url.rstrip('/')}/enviar_imagen"
+        elif tipo == "video":
+            payload.update({"videoUrl": mensaje_texto, "caption": caption, "tipo": "video"})
+            endpoint = f"{bot_url.rstrip('/')}/enviar_video"
+        else:
+            payload.update({"mensaje": mensaje_texto, "tipo": "texto"})
+            endpoint = f"{bot_url.rstrip('/')}/enviar_mensaje"
+
+        # 4. Enviar al bot con reintentos
         max_intentos = 3
+        exito = False
         for intento in range(max_intentos):
             try:
-                r = requests.post(f"{CAMIBOT_API_URL}/enviar_imagen", json=payload, timeout=5)
+                r = requests.post(endpoint, json=payload, timeout=10)
                 if r.status_code == 200:
+                    exito = True
                     break
             except requests.exceptions.RequestException as e:
-                print(f"⚠️ Intento {intento + 1} fallido (imagen): {str(e)}")
+                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
                 time.sleep(2)
-        return jsonify({"mensaje": "Imagen enviada correctamente"}), 200
+        
+        if not exito:
+            cursor.execute("""
+                UPDATE mensajes SET estado = 'Fallido' 
+                WHERE remitente = %s AND mensaje = %s AND cliente_id = %s
+            """, (telefono, mensaje_texto, cliente_id))
+            conn.commit()
+            return jsonify({"error": "No se pudo enviar el mensaje al bot"}), 500
 
-    # ⬇️ Video
-    if tipo == "video":
-        if not url_video:
-            return jsonify({"error": "Falta la URL del video"}), 400
-        payload = {"telefono": telefono, "videoUrl": url_video, "caption": caption}
-        max_intentos = 3
-        for intento in range(max_intentos):
-            try:
-                r = requests.post(f"{CAMIBOT_API_URL}/enviar_video", json=payload, timeout=5)
-                if r.status_code == 200:
-                    break
-            except requests.exceptions.RequestException as e:
-                print(f"⚠️ Intento {intento + 1} fallido (video): {str(e)}")
-                time.sleep(2)
-        return jsonify({"mensaje": "Video enviado correctamente"}), 200
+        # 5. Emitir WebSocket para confirmar envío en el CRM (UI optimista)
+        socketio.emit("nuevo_mensaje", {
+            "remitente": telefono,
+            "mensaje": mensaje_texto,
+            "tipo": f"enviado{f'_{tipo}' if tipo != 'texto' else ''}",
+            "fecha": datetime.now().isoformat(),
+            "cliente_id": cliente_id
+        })
 
-    # Texto
-    if not mensaje_texto:
-        return jsonify({"error": "Falta el 'mensaje' de texto"}), 400
+        return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
-    payload = {"telefono": telefono, "mensaje": mensaje_texto}
-    max_intentos = 3
-    for intento in range(max_intentos):
-        try:
-            r = requests.post(f"{CAMIBOT_API_URL}/enviar_mensaje", json=payload, timeout=5)
-            if r.status_code == 200:
-                break
-        except requests.exceptions.RequestException as e:
-            print(f"⚠️ Intento {intento + 1} fallido (texto): {str(e)}")
-            time.sleep(2)
-    return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error en /enviar_mensaje: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+    finally:
+        liberar_db(conn)
 
-# 📌 Validación de teléfono (debe tener 13 dígitos)
-def validar_telefono(telefono):
-    return len(telefono) == 13 and telefono.startswith("521")
-            
-# 📌 Obtener mensajes
+
+# ============================================================================
+# 3. SUBIDA DE IMÁGENES DESDE EL CRM (Multi-tenant)
+# ============================================================================
+@app.route("/api/chat/upload_imagen", methods=["POST"])
+def upload_imagen_chat():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
+    if 'imagen' not in request.files:
+        return jsonify({"error": "No se encontró el archivo"}), 400
+    
+    file = request.files['imagen']
+    if file.filename == '':
+        return jsonify({"error": "Nombre de archivo vacío"}), 400
+
+    # Opción A: Guardar localmente (Recomendado para empezar)
+    # Asegúrate de que la carpeta 'static/uploads' exista en tu proyecto
+    uploads_dir = os.path.join('static', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+    
+    # Generar nombre único para evitar colisiones entre tenants
+    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
+    filename = f"cliente_{cliente_id}_{uuid.uuid4().hex}.{ext}"
+    filepath = os.path.join(uploads_dir, filename)
+    
+    file.save(filepath)
+    
+    # Devolver la URL pública relativa
+    url = f"/static/uploads/{filename}"
+    return jsonify({"url": url}), 200
+    
+    # Opción B: Si usas AWS S3, reemplaza lo anterior con tu lógica de boto3,
+    # usando el cliente_id para determinar el bucket o prefijo de carpeta.
+
+
+# ============================================================================
+# 4. OBTENER MENSAJES (LISTA DE CHATS Y DETALLE)
+# ============================================================================
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -1169,7 +1253,13 @@ def obtener_mensajes():
 
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM mensajes WHERE cliente_id = %s ORDER BY fecha DESC", (cliente_id,))
+        # Obtenemos los últimos mensajes para armar la lista de chats
+        cursor.execute("""
+            SELECT DISTINCT ON (remitente) remitente, mensaje, tipo, fecha 
+            FROM mensajes 
+            WHERE cliente_id = %s 
+            ORDER BY remitente, fecha DESC
+        """, (cliente_id,))
         mensajes = cursor.fetchall()
         return jsonify(mensajes)
     except Exception as e:
@@ -1177,10 +1267,8 @@ def obtener_mensajes():
         return jsonify([])
     finally:
         liberar_db(conn)
-        
-        
-#obtener los mensajes de un remitente específico Devuelve los mensajes en el formato esperado por el frontend.
-# Mostrar los mensajes de cada chat
+
+
 @app.route("/mensajes_chat", methods=["GET"])
 def obtener_mensajes_chat():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -1197,12 +1285,16 @@ def obtener_mensajes_chat():
 
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Obtener nombre del lead
         cursor.execute("SELECT nombre FROM leads WHERE telefono = %s AND cliente_id = %s", (remitente, cliente_id))
         lead = cursor.fetchone()
         nombre_lead = lead["nombre"] if lead else remitente
 
+        # Obtener historial de mensajes ordenado cronológicamente
         cursor.execute("""
-            SELECT * FROM mensajes 
+            SELECT id, mensaje, tipo, fecha 
+            FROM mensajes 
             WHERE remitente = %s AND cliente_id = %s 
             ORDER BY fecha ASC
         """, (remitente, cliente_id))
@@ -1213,16 +1305,14 @@ def obtener_mensajes_chat():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-        
-        
     
-    
+
+
+
     
 #'''''''''''''''''''''''''''''''''''''''''''''''
 #------------SECION DE CALENDARIO---------------
-#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-    
-    
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,    
 # 📌 Obtener Años con Eventos (Nuevo)
 @app.route("/calendario/anios", methods=["GET"])
 def obtener_anios_calendario():
