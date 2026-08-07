@@ -3432,7 +3432,8 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
 
 
 
-
+          
+          
 <!-- ============================================================================
      SECCIÓN DE REPORTES
      ============================================================================ -->
@@ -3471,104 +3472,76 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
 </div>
 
 
-
-
-
-
-
-<!-- ============================================================================
-     SECCIÓN DE GASTOS
-     ============================================================================ -->
-<div id="gastos" class="seccion hidden">
-    <div class="gastos-header">
-        <div class="gastos-header-text">
+          <div id="gastos" class="seccion hidden">
             <h1>💸 Gastos</h1>
-            <p class="gastos-subtitle">Organiza y registra tus gastos por categorías para un mejor control.</p>
-        </div>
-        <button id="btn-nueva-etiqueta" class="btn btn-primary" onclick="abrirModalNuevaEtiqueta()">
-            <i class="fas fa-plus"></i> Nueva Etiqueta
-        </button>
-    </div>
-    
-    <!-- Grid de Etiquetas (Categorías) -->
-    <div id="lista-etiquetas" class="etiquetas-grid">
-        <!-- Se llena dinámicamente con JS -->
-    </div>
-</div>
-
-<!-- ============================================================================
-     MODAL: Crear Nueva Etiqueta
-     ============================================================================ -->
+          
+            <!-- Botón/ícono para agregar nueva etiqueta -->
+            <button id="btn-nueva-etiqueta" onclick="abrirModalNuevaEtiqueta()">
+              ➕ Nueva Etiqueta
+            </button>
+          
+            <!-- Contenedor donde se listarán las etiquetas existentes -->
+            <div id="lista-etiquetas" class="etiquetas-container"></div>
+          </div>
+ 
+          <!-- MODAL para Crear Etiqueta -->
 <div id="modal-nueva-etiqueta" class="modal hidden">
     <div class="modal-content">
-        <button class="close-btn" onclick="cerrarModalNuevaEtiqueta()">✖</button>
-        <h2>🏷️ Crear Nueva Etiqueta</h2>
-        <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 14px;">
-            Las etiquetas te ayudan a categorizar tus gastos (Ej: Marketing, Insumos, Nómina).
-        </p>
-        <div class="form-group">
-            <label for="nueva-etiqueta-input">Nombre de la etiqueta:</label>
-            <input type="text" id="nueva-etiqueta-input" placeholder="Ej. Publicidad en redes" />
-        </div>
-        <div class="modal-buttons">
-            <button class="save-btn" onclick="agregarNuevaEtiqueta()">Crear Etiqueta</button>
-            <button class="cancel-btn" onclick="cerrarModalNuevaEtiqueta()">Cancelar</button>
-        </div>
+      <span class="close-btn" onclick="cerrarModalNuevaEtiqueta()">✖</span>
+      <h2>Crear Nueva Etiqueta</h2>
+  
+      <input type="text" id="nueva-etiqueta-input" placeholder="Nombre de la etiqueta" />
+      <button onclick="agregarNuevaEtiqueta()">Crear Etiqueta</button>
     </div>
-</div>
+  </div>
 
-<!-- ============================================================================
-     MODAL: Ver/Editar Etiqueta Existente
-     ============================================================================ -->
+  <!-- Modal para ver/editar una etiqueta existente -->
 <div id="modal-etiqueta" class="modal hidden">
-    <div class="modal-content modal-content-lg">
-        <button class="close-btn" onclick="cerrarModalEtiqueta()">✖</button>
-        
-        <!-- Header con título y acciones -->
-        <div class="etiqueta-modal-header">
-            <h2>
-                <span id="etiqueta-nombre">Etiqueta</span>
-            </h2>
-            <div class="etiqueta-actions">
-                <label for="picker-etiqueta-color" class="icon-btn" title="Cambiar color">
-                    <i class="fas fa-fill-drip"></i>
-                </label>
-                <input type="color" id="picker-etiqueta-color" class="hidden" />
-                <button class="icon-btn delete-btn" onclick="eliminarEtiquetaCompleta()" title="Eliminar etiqueta">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </div>
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarModalEtiqueta()">✖</span>
+      
+      <!-- Encabezado con título de la etiqueta y botón/basura para borrarla -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>
+          <span id="etiqueta-nombre"></span>
+        </h2>
+           
+      </div>
+      
+      <!-- Aquí se listarán los gastos de esta etiqueta -->
+      <div id="modal-etiqueta-contenido"></div>
+  
+      <!-- Botón para agregar gasto a la etiqueta -->
+      <button onclick="toggleFormularioAgregarGastoEtiqueta()">
+        ➕ Agregar gasto a esta etiqueta
+      </button>
+  
+      <!-- Formulario oculto para añadir gasto -->
+      <div id="form-agregar-gasto-etiqueta" class="hidden">
+        <div class="form-group">
+          <label for="gasto-etiqueta-monto">Monto:</label>
+          <input type="text" id="gasto-etiqueta-monto" placeholder="$0" />
         </div>
-        
-        <!-- Lista de gastos de esta etiqueta -->
-        <div id="modal-etiqueta-contenido" class="gastos-lista">
-            <!-- Se llena dinámicamente con JS -->
+        <div class="form-group">
+          <label for="gasto-etiqueta-descripcion">Descripción:</label>
+          <input type="text" id="gasto-etiqueta-descripcion" placeholder="Descripción del gasto" />
         </div>
-        
-        <!-- Botón para agregar gasto -->
-        <button class="btn btn-primary" onclick="toggleFormularioAgregarGastoEtiqueta()" style="width: 100%; margin-top: 20px;">
-            <i class="fas fa-plus"></i> Agregar Gasto a esta Etiqueta
+        <button onclick="agregarGastoPorEtiqueta()">
+          Registrar Gasto
         </button>
-        
-        <!-- Formulario oculto para añadir gasto -->
-        <div id="form-agregar-gasto-etiqueta" class="form-gasto-wrapper hidden">
-            <div class="form-group">
-                <label for="gasto-etiqueta-monto">Monto:</label>
-                <input type="text" id="gasto-etiqueta-monto" placeholder="$0" />
-            </div>
-            <div class="form-group">
-                <label for="gasto-etiqueta-descripcion">Descripción:</label>
-                <input type="text" id="gasto-etiqueta-descripcion" placeholder="Descripción del gasto" />
-            </div>
-            <button class="btn btn-primary" onclick="agregarGastoPorEtiqueta()" style="width: 100%;">
-                <i class="fas fa-save"></i> Registrar Gasto
-            </button>
-        </div>
+      </div>
+
+
+       <div class="modal-buttons" style="display:flex; gap:12px;">
+        <!-- Icono para borrar la etiqueta completa --> 
+        <button class="delete-btn" onclick="eliminarEtiquetaCompleta()">🗑️</button>
+         <!-- Icono para cambiar el color del border-left de la etiqueta  -->
+        <label for="picker-etiqueta-color" class="icon-btn" title="Cambiar color">
+          <i class="fas fa-fill-drip"></i></label>
+        <input type="color" id="picker-etiqueta-color" class="hidden" />
+      </div>
     </div>
-</div>
-
-
-
+  </div>
           
 
 
