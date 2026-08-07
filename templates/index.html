@@ -5482,7 +5482,29 @@ document.getElementById("leads-container").addEventListener("dragstart", (event)
             }
         });
 
+// ============================================================================
+// ABRIR MODAL DE EDICIÓN DE LEADS
+// ============================================================================
+function abrirModalEditar(id, nombre, telefono, notas) {
+    const modal = document.getElementById("edit-lead-modal");
+    if (!modal) {
+        console.error("❌ No se encontró el modal 'edit-lead-modal'");
+        return;
+    }
 
+    document.getElementById("edit-lead-id").value = id;
+    document.getElementById("edit-lead-nombre").value = nombre;
+    document.getElementById("edit-lead-telefono").value = telefono;
+    document.getElementById("edit-lead-notas").value = notas || "";
+
+    // Guardar valores originales para detectar cambios al cerrar
+    modal.dataset.originalNombre = nombre;
+    modal.dataset.originalNotas = notas || "";
+
+    // Mostrar el modal
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+}
 
     
        
