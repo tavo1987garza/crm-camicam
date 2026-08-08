@@ -1142,22 +1142,29 @@ def enviar_mensaje():
         """, (telefono, mensaje_texto, tipo, cliente_id))
         conn.commit()
 
-        # 2. 🚀 OBTENER CREDENCIALES DEL TENANT (¡NOMBRES CORREGIDOS!)
 
-        # ✅ AHORA (usando bot_url)
+         # 2. 🚀 OBTENER CREDENCIALES DEL TENANT
         cursor.execute("""
             SELECT whatsapp_access_token, whatsapp_phone_number_id, bot_url 
             FROM tenant_integraciones 
             WHERE cliente_id = %s
         """, (cliente_id,))
         config = cursor.fetchone()
-
-        token = config[0] if config and config[0] else os.getenv("WHATSAPP_TOKEN_GLOBAL")
+        
+        # Desencriptar el token si existe en la BD
+        token_encriptado = config[0] if config and config[0] else None
+        if token_encriptado:
+            token = desencriptar_credencial(token_encriptado)
+        else:
+            # Fallback a variable global si no hay nada en la BD
+            token = os.getenv("WHATSAPP_TOKEN_GLOBAL")
+            
         phone_id = config[1] if config and config[1] else os.getenv("WHATSAPP_PHONE_ID_GLOBAL")
         bot_url = config[2] if config and config[2] else os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
 
         if not token or not phone_id:
             return jsonify({"error": "Faltan credenciales de WhatsApp configuradas para este negocio. Ve a Configuración → Integraciones."}), 400
+
 
         # 3. Preparar payload PARA CAMIBOT (incluyendo las credenciales del tenant)
         payload = {
