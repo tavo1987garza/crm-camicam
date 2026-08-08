@@ -1143,14 +1143,15 @@ def enviar_mensaje():
         conn.commit()
 
         # 2. 🚀 OBTENER CREDENCIALES DEL TENANT (¡NOMBRES CORREGIDOS!)
+
+        # ✅ AHORA (usando bot_url)
         cursor.execute("""
-            SELECT whatsapp_access_token, whatsapp_phone_number_id, n8n_url 
+            SELECT whatsapp_access_token, whatsapp_phone_number_id, bot_url 
             FROM tenant_integraciones 
             WHERE cliente_id = %s
         """, (cliente_id,))
         config = cursor.fetchone()
-        
-        # Fallback a variables de entorno globales si el tenant no tiene config
+
         token = config[0] if config and config[0] else os.getenv("WHATSAPP_TOKEN_GLOBAL")
         phone_id = config[1] if config and config[1] else os.getenv("WHATSAPP_PHONE_ID_GLOBAL")
         bot_url = config[2] if config and config[2] else os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
