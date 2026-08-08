@@ -2826,6 +2826,26 @@ MEJORAS MODAL CREDENCIALES
   box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
 }
 
+/* Transición suave para el botón */
+.save-btn {
+    transition: all 0.3s ease;
+}
+
+/* Estado: Cambios sin guardar (Azul Brillante) */
+.save-btn.btn-dirty {
+    background-color: #2563eb !important; /* Azul vibrante */
+    color: white !important;
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.4);
+    cursor: pointer;
+}
+
+/* Estado: Guardado (Azul Tenue) */
+.save-btn.btn-clean {
+    background-color: #93c5fd !important; /* Azul claro/tenue */
+    color: #1e3a8a !important;
+    box-shadow: none;
+    cursor: default;
+}
 
 /* ============================================================================
 ESTILOS: MODAL CHATBOT
@@ -8317,6 +8337,37 @@ async function cargarCredenciales() {
   }
 }
 
+
+
+// 1. Detectar cambios en cualquier input del formulario
+document.addEventListener('DOMContentLoaded', () => {
+    const inputs = document.querySelectorAll('#form-config-credentials input');
+    inputs.forEach(input => {
+        input.addEventListener('input', marcarComoNoGuardado);
+    });
+    // Inicializar como "guardado" al cargar
+    marcarComoGuardado(); 
+});
+
+function marcarComoNoGuardado() {
+    const btn = document.querySelector('.save-btn');
+    if (btn) {
+        btn.classList.remove('btn-clean');
+        btn.classList.add('btn-dirty');
+        btn.innerHTML = '💾 Guardar Cambios';
+    }
+}
+
+function marcarComoGuardado() {
+    const btn = document.querySelector('.save-btn');
+    if (btn) {
+        btn.classList.remove('btn-dirty');
+        btn.classList.add('btn-clean');
+        btn.innerHTML = '✅ Cambios Guardados';
+    }
+}
+
+// 2. Tu función de guardar actualizada
 async function guardarCredenciales() {
   const datos = {
     whatsapp_access_token: document.getElementById('whatsapp_token').value.trim(),
@@ -8336,6 +8387,12 @@ async function guardarCredenciales() {
   }
 
   try {
+    // Mostrar estado de "Guardando..."
+    const btn = document.querySelector('.save-btn');
+    const textoOriginal = btn.innerHTML;
+    btn.innerHTML = '⏳ Guardando...';
+    btn.disabled = true;
+
     const resp = await fetch('/api/integraciones', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -8344,15 +8401,23 @@ async function guardarCredenciales() {
     const result = await resp.json();
 
     if (result.ok) {
-      mostrarFeedbackConfig('✅ Credenciales actualizadas correctamente.', 'success');
+      mostrarFeedbackConfig('✅ Credenciales actualizadas y encriptadas correctamente.', 'success');
       mostrarNotificacionSuave('✅ Credenciales guardadas', 'success');
-      setTimeout(() => cargarCredenciales(), 1500); // Recargar para actualizar estado UI
+      
+      // Activar el estado visual de "Guardado"
+      marcarComoGuardado();
+      
+      setTimeout(() => cargarCredenciales(), 1000);
     } else {
       mostrarFeedbackConfig('❌ ' + (result.error || 'Error desconocido'), 'error');
+      btn.innerHTML = textoOriginal; // Revertir en caso de error
+      btn.disabled = false;
     }
   } catch (err) {
     console.error('❌ Error guardando:', err);
     mostrarNotificacionSuave('❌ Error de conexión', 'error');
+    btn.innerHTML = textoOriginal;
+    btn.disabled = false;
   }
 }
 
