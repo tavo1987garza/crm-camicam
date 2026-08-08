@@ -5021,6 +5021,7 @@ function renderizarColumnasLeads() {
 }
 
 function crearLead() {
+     let formContainer = document.getElementById("form-container"); 
     // Obtener y limpiar valores
     const nombreInput = document.getElementById("lead-nombre");
     const telefonoInput = document.getElementById("lead-telefono");
@@ -5121,6 +5122,10 @@ function crearLead() {
         botonAgregar.textContent = textoOriginal;
         botonAgregar.disabled = false;
     });
+
+      if (formContainer) {
+        formContainer.classList.add("hidden");
+    }
 }
 
 // ✅ Función auxiliar para agregar lead a la columna sin recargar todo
