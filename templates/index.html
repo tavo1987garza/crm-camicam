@@ -4572,6 +4572,9 @@ function mostrarSeccion(seccionId, callback = null) {
         case 'leads':
             cargarLeads();
             break;
+        case 'flujos':
+            cargarFlujos();
+            break;
         case 'calendario':
             initCalendario();
             cargarLeadsEnSelect();
@@ -4594,10 +4597,6 @@ function mostrarSeccion(seccionId, callback = null) {
                     verReporteServiciosAnual(parseInt(anioInput.value));
                 }
             }
-            break;
-        // ✅ NUEVO: Agregar este caso para la sección de Flujos
-        case 'flujos':
-            cargarFlujos();
             break;
     }
     
