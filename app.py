@@ -1158,7 +1158,7 @@ def recibir_mensaje():
                         resultado = cursor.fetchone()
                         
                         # Solo aceptamos si la similitud es mayor al 60%
-                        if resultado and resultado[2] > 0.6:
+                        if resultado and resultado[2] > 0.5:
                             keyword_id_usada = resultado[0]
                             bot_response = resultado[1]
                             nivel_match = f"SIMILITUD ({resultado[2]:.0%})"
