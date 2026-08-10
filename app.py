@@ -1065,7 +1065,6 @@ def recibir_mensaje():
     if tipo not in tipos_validos:
         tipo = "recibido"
 
-
     conn = conectar_db()
     if not conn:
         return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
@@ -1089,17 +1088,76 @@ def recibir_mensaje():
             lead_id = row[0] if row else None
         else:
             lead_id = lead[0]
-            # Opcional: Actualizar estado a "En Proceso" si estaba en Contacto Inicial
-            # cursor.execute("UPDATE leads SET estado = '⏳ EN PROCESO' WHERE id = %s AND estado = '✅ CONTACTO INICIAL'", (lead_id,))
 
         # 2. Guardar el mensaje en la BD
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
             VALUES (%s, %s, %s, 'Nuevo', %s, %s, NOW())
         """, (plataforma, remitente, mensaje, tipo, cliente_id))
+
+        # ========================================================================
+        #  3. LÓGICA DE RESPUESTA AUTOMÁTICA (EL CEREBRO DEL BOT)
+        # ========================================================================
+        bot_response = None
+        keyword_id_usada = None
+        
+        # Solo buscamos keywords si es un mensaje de texto recibido
+        if tipo == "recibido" and mensaje and mensaje.strip():
+            try:
+                mensaje_limpio = mensaje.strip()
+                
+                # 🎯 Intento 1: Coincidencia EXACTA (prioridad alta)
+                cursor.execute("""
+                    SELECT id, respuesta 
+                    FROM bot_keywords 
+                    WHERE cliente_id = %s 
+                      AND activo = true
+                      AND (
+                          (exact_match = true AND LOWER(keyword) = LOWER(%s))
+                          OR 
+                          (exact_match = false AND LOWER(keyword) = LOWER(%s))
+                      )
+                    ORDER BY exact_match DESC
+                    LIMIT 1
+                """, (cliente_id, mensaje_limpio, mensaje_limpio))
+                
+                resultado = cursor.fetchone()
+                
+                # 🎯 Intento 2: Si no hay exacta, buscar coincidencia PARCIAL
+                if not resultado:
+                    cursor.execute("""
+                        SELECT id, respuesta 
+                        FROM bot_keywords 
+                        WHERE cliente_id = %s 
+                          AND activo = true
+                          AND exact_match = false
+                          AND LOWER(keyword) LIKE %s
+                        ORDER BY LENGTH(keyword) DESC
+                        LIMIT 1
+                    """, (cliente_id, f"%{mensaje_limpio.lower()}%"))
+                    resultado = cursor.fetchone()
+                
+                # Si encontramos una keyword, la preparamos y actualizamos sus stats
+                if resultado:
+                    keyword_id_usada = resultado[0]
+                    bot_response = resultado[1]
+                    print(f" [AUTO-RESPUESTA] Keyword #{keyword_id_usada} encontrada para {remitente}")
+                    
+                    # 📊 Actualizar estadísticas de uso
+                    cursor.execute("""
+                        UPDATE bot_keywords 
+                        SET veces_usada = COALESCE(veces_usada, 0) + 1,
+                            ultima_usada_en = NOW()
+                        WHERE id = %s
+                    """, (keyword_id_usada,))
+                    
+            except Exception as e:
+                print(f"⚠️ Error buscando keywords en BD: {e}")
+
+        # Guardamos todos los cambios (mensaje + stats de keyword)
         conn.commit()
 
-        # 3. 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
+        # 4. 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
         socketio.emit("nuevo_mensaje", {
             "remitente": remitente,
             "mensaje": mensaje,
@@ -1108,7 +1166,11 @@ def recibir_mensaje():
             "cliente_id": cliente_id
         })
 
-        return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
+        # 5. Devolver la respuesta al Bot (si existe, el Bot la enviará por WhatsApp)
+        return jsonify({
+            "mensaje": "Mensaje recibido y almacenado",
+            "bot_response": bot_response  # <--- ¡ESTO ES LO QUE EL BOT ESTÁ ESPERANDO!
+        }), 200
 
     except Exception as e:
         conn.rollback()
@@ -1116,7 +1178,6 @@ def recibir_mensaje():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-
 
 # ============================================================================
 # 2. ENVIAR MENSAJES DESDE EL CRM (CRM -> BOT/WHATSAPP)
