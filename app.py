@@ -1142,6 +1142,8 @@ def recibir_mensaje():
                         bot_response = resultado[1]
                         nivel_match = "CONTENIDO"
                     else:
+
+
                         # 🎯 NIVEL 3: Coincidencia por SIMILITUD (para typos)
                         cursor.execute("""
                             SELECT id, respuesta, similarity(unaccent(LOWER(keyword)), unaccent(LOWER(%s))) as sim
@@ -1154,7 +1156,10 @@ def recibir_mensaje():
                         
                         resultado = cursor.fetchone()
                         
-                        # Solo aceptamos si la similitud es mayor al 60%
+                        # 🔍 DEBUG: Ver qué devuelve la consulta
+                        print(f" DEBUG Nivel 3 - mensaje: '{mensaje_limpio}', resultado: {resultado}")
+                        
+                        # Solo aceptamos si la similitud es mayor al 30%
                         if resultado and resultado[2] > 0.3:
                             keyword_id_usada = resultado[0]
                             bot_response = resultado[1]
