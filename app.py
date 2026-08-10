@@ -1206,13 +1206,13 @@ def enviar_mensaje():
             return jsonify({"error": "No se pudo conectar con el servicio de mensajería"}), 500
 
         # 5. Emitir WebSocket para confirmar envío en el CRM
-        socketio.emit("nuevo_mensaje", {
-            "remitente": telefono,
-            "mensaje": mensaje_texto,
-            "tipo": f"enviado{f'_{tipo}' if tipo != 'texto' else ''}",
-            "fecha": datetime.now().isoformat(),
-            "cliente_id": cliente_id
-        })
+        #socketio.emit("nuevo_mensaje", {
+         #   "remitente": telefono,
+          #  "mensaje": mensaje_texto,
+           # "tipo": f"enviado{f'_{tipo}' if tipo != 'texto' else ''}",
+            #"fecha": datetime.now().isoformat(),
+            #"cliente_id": cliente_id
+        #})
 
         return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
