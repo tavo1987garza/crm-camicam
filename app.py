@@ -1041,8 +1041,12 @@ def obtener_lead_id():
 # ============================================================================
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
+    # 🔥 LATIDO: Esto debe aparecer en los logs SIEMPRE que el bot llama al CRM
+    print(f"🔥 [CRM] ¡Petición recibida en /recibir_mensaje! Payload: {request.json}")
+    
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
+        print("⚠️ [CRM] Cliente no autorizado (subdominio no reconocido)")
         return jsonify({"error": "Cliente no autorizado"}), 404
 
     datos = request.json
@@ -1050,7 +1054,9 @@ def recibir_mensaje():
     remitente = str(datos.get("remitente", ""))
     mensaje = datos.get("mensaje")
     tipo = datos.get("tipo", "recibido")
-
+    
+    print(f"📝 [CRM] Datos procesados -> Remitente: {remitente}, Mensaje: '{mensaje}', Tipo: '{tipo}'")
+    
     if not remitente or mensaje is None:
         return jsonify({"error": "Faltan datos (remitente o mensaje)"}), 400
 
