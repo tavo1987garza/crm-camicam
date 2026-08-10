@@ -1225,6 +1225,8 @@ def enviar_mensaje():
     finally:
         liberar_db(conn)
 
+        print(f"🔍 URL de imagen a enviar: {mensaje_texto}")
+
 
 # ============================================================================
 # 3. SUBIDA DE IMÁGENES DESDE EL CRM (Multi-tenant)
