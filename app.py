@@ -1148,7 +1148,8 @@ def recibir_mensaje():
                         bot_response = resultado[1]
                         nivel_match = "CONTENIDO"
                     else:
-
+                        print(f"🔍 [DEBUG] Llegando al Nivel 3 con mensaje: '{mensaje_limpio}'", flush=True)
+                      
 
                         # 🎯 NIVEL 3: Coincidencia por SIMILITUD (para typos)
                         cursor.execute("""
@@ -1181,9 +1182,13 @@ def recibir_mensaje():
                             ultima_usada_en = NOW()
                         WHERE id = %s
                     """, (keyword_id_usada,))
-                    
+
             except Exception as e:
-                print(f"⚠️ Error buscando keywords en BD: {e}")
+                import sys
+                print(f"⚠️ Error buscando keywords en BD: {e}", flush=True)
+                print(f"️ Traceback:", flush=True)
+                import traceback
+                traceback.print_exc(file=sys.stdout)
 
         # ✅ 3.5. Guardamos todos los cambios (mensaje + stats de keyword)
         conn.commit()
