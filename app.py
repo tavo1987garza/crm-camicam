@@ -1101,92 +1101,167 @@ def recibir_mensaje():
             VALUES (%s, %s, %s, 'Nuevo', %s, %s, NOW())
         """, (plataforma, remitente, mensaje, tipo, cliente_id))
 
+      
         # ========================================================================
-        # 🧠 3. LÓGICA DE RESPUESTA AUTOMÁTICA (3 NIVELES DE INTELIGENCIA)
+        # 🧠 3. LÓGICA DE RESPUESTA AUTOMÁTICA (FLUJOS + KEYWORDS)
         # ========================================================================
         bot_response = None
         keyword_id_usada = None
         nivel_match = None
         
-        # Solo buscamos keywords si es un mensaje de texto recibido
         if tipo == "recibido" and mensaje and mensaje.strip():
             try:
                 mensaje_limpio = mensaje.strip()
                 
-                #  NIVEL 1: Coincidencia EXACTA (ignorando acentos y mayúsculas)
+                # ==========================================
+                # PRIORIDAD 1: ¿El usuario está en un FLUJO activo?
+                # ==========================================
                 cursor.execute("""
-                    SELECT id, respuesta 
-                    FROM bot_keywords 
-                    WHERE cliente_id = %s 
-                      AND activo = true
-                      AND unaccent(LOWER(keyword)) = unaccent(LOWER(%s))
-                    LIMIT 1
-                """, (cliente_id, mensaje_limpio))
+                    SELECT id, flujo_activo_id, paso_actual, contexto 
+                    FROM conversation_sessions 
+                    WHERE cliente_id = %s AND external_user_id = %s AND platform = 'whatsapp' AND estado_actual != 'idle'
+                """, (cliente_id, remitente))
+                sesion = cursor.fetchone()
                 
-                resultado = cursor.fetchone()
-                
-                if resultado:
-                    keyword_id_usada = resultado[0]
-                    bot_response = resultado[1]
-                    nivel_match = "EXACTO"
-                else:
-                    # 🎯 NIVEL 2: La keyword está CONTENIDA en el mensaje
-                    cursor.execute("""
-                        SELECT id, respuesta, similarity(unaccent(LOWER(keyword)), unaccent(LOWER(%s))) as sim 
-                        FROM bot_keywords 
-                        WHERE cliente_id = %s 
-                          AND activo = true
-                        ORDER BY sim DESC
-                        LIMIT 1
-                    """, (mensaje_limpio, cliente_id))
+                if sesion:
+                    sesion_id, flujo_id, paso_actual, contexto = sesion
+                    contexto_dict = contexto if isinstance(contexto, dict) else {}
                     
+                    # Obtener el flujo activo
+                    cursor.execute("SELECT nombre, pasos FROM bot_flows WHERE id = %s AND activo = true", (flujo_id,))
+                    flujo = cursor.fetchone()
+                    
+                    if flujo:
+                        nombre_flujo, pasos_json = flujo
+                        pasos = pasos_json if isinstance(pasos_json, list) else []
+                        
+                        # 1. Guardar la respuesta del usuario en el contexto (si el paso anterior lo pedía)
+                        if paso_actual > 0 and paso_actual <= len(pasos):
+                            paso_anterior = pasos[paso_actual - 1]
+                            if paso_anterior.get("tipo") == "opciones" and "campo" in paso_anterior:
+                                contexto_dict[paso_anterior["campo"]] = mensaje_limpio
+                        
+                        # 2. Obtener el siguiente paso
+                        if paso_actual < len(pasos):
+                            siguiente_paso = pasos[paso_actual]
+                            bot_response = siguiente_paso.get("texto")
+                            nivel_match = f"FLUJO: {nombre_flujo} (Paso {paso_actual + 1})"
+                            
+                            # 3. Actualizar la sesión
+                            cursor.execute("""
+                                UPDATE conversation_sessions 
+                                SET paso_actual = %s, contexto = %s, ultimo_input_en = NOW()
+                                WHERE id = %s
+                            """, (paso_actual + 1, json.dumps(contexto_dict), sesion_id))
+                            
+                            # 4. Si era el último paso, cerrar la sesión
+                            if paso_actual == len(pasos) - 1:
+                                cursor.execute("""
+                                    UPDATE conversation_sessions 
+                                    SET estado_actual = 'idle', flujo_activo_id = NULL, paso_actual = 0
+                                    WHERE id = %s
+                                """, (sesion_id,))
+                        else:
+                            # Flujo terminado inesperadamente, reiniciar
+                            cursor.execute("""
+                                UPDATE conversation_sessions 
+                                SET estado_actual = 'idle', flujo_activo_id = NULL, paso_actual = 0
+                                WHERE id = %s
+                            """, (sesion_id,))
+
+                # ==========================================
+                # PRIORIDAD 2: ¿El mensaje DISPARA un nuevo flujo?
+                # ==========================================
+                if not bot_response:
+                    cursor.execute("""
+                        SELECT id, pasos FROM bot_flows 
+                        WHERE cliente_id = %s AND activo = true 
+                          AND unaccent(LOWER(trigger_keyword)) = unaccent(LOWER(%s))
+                        LIMIT 1
+                    """, (cliente_id, mensaje_limpio))
+                    
+                    flujo_trigger = cursor.fetchone()
+                    if flujo_trigger:
+                        flujo_id, pasos_json = flujo_trigger
+                        pasos = pasos_json if isinstance(pasos_json, list) else []
+                        
+                        if pasos:
+                            primer_paso = pasos[0]
+                            bot_response = primer_paso.get("texto")
+                            nivel_match = f"FLUJO INICIADO: {mensaje_limpio}"
+                            
+                            # Crear o actualizar sesión
+                            cursor.execute("""
+                                INSERT INTO conversation_sessions 
+                                (cliente_id, external_user_id, platform, estado_actual, flujo_activo_id, paso_actual, contexto, ultimo_input_en)
+                                VALUES (%s, %s, 'whatsapp', 'active', %s, 1, '{}'::jsonb, NOW())
+                                ON CONFLICT (cliente_id, external_user_id, platform) 
+                                DO UPDATE SET 
+                                    estado_actual = 'active',
+                                    flujo_activo_id = EXCLUDED.flujo_activo_id,
+                                    paso_actual = EXCLUDED.paso_actual,
+                                    contexto = EXCLUDED.contexto,
+                                    ultimo_input_en = NOW()
+                            """, (cliente_id, remitente, flujo_id))
+
+                # ==========================================
+                # PRIORIDAD 3: Lógica de KEYWORDS (La que ya funciona)
+                # ==========================================
+                if not bot_response:
+                    # NIVEL 1: Exacto
+                    cursor.execute("""
+                        SELECT id, respuesta FROM bot_keywords 
+                        WHERE cliente_id = %s AND activo = true
+                          AND unaccent(LOWER(keyword)) = unaccent(LOWER(%s))
+                        LIMIT 1
+                    """, (cliente_id, mensaje_limpio))
                     resultado = cursor.fetchone()
                     
                     if resultado:
-                        keyword_id_usada = resultado[0]
-                        bot_response = resultado[1]
-                        nivel_match = "CONTENIDO"
+                        keyword_id_usada, bot_response = resultado
+                        nivel_match = "KEYWORD: EXACTO"
                     else:
-                        print(f"🔍 [DEBUG] Llegando al Nivel 3 con mensaje: '{mensaje_limpio}'", flush=True)
-                      
-
-                        # 🎯 NIVEL 3: Coincidencia por SIMILITUD (para typos)
+                        # NIVEL 2: Contenido
                         cursor.execute("""
-                            SELECT id, respuesta, similarity(unaccent(LOWER(keyword)), unaccent(LOWER(%s))) as sim
-                            FROM bot_keywords 
-                            WHERE cliente_id = %s 
-                              AND activo = true
-                            ORDER BY sim DESC
-                            LIMIT 1
+                            SELECT id, respuesta FROM bot_keywords 
+                            WHERE cliente_id = %s AND activo = true
+                              AND unaccent(LOWER(%s)) LIKE CONCAT('%%', unaccent(LOWER(keyword)), '%%')
+                            ORDER BY LENGTH(keyword) DESC LIMIT 1
                         """, (cliente_id, mensaje_limpio))
-                        
                         resultado = cursor.fetchone()
                         
-                        # 🔍 DEBUG: Ver qué devuelve la consulta
-                        print(f" DEBUG Nivel 3 - mensaje: '{mensaje_limpio}', resultado: {resultado}")
-                        
-                        # Solo aceptamos si la similitud es mayor al 30%
-                        if resultado and resultado[2] > 0.3:
-                            keyword_id_usada = resultado[0]
-                            bot_response = resultado[1]
-                            nivel_match = f"SIMILITUD ({resultado[2]:.0%})"
+                        if resultado:
+                            keyword_id_usada, bot_response = resultado
+                            nivel_match = "KEYWORD: CONTENIDO"
+                        else:
+                            # NIVEL 3: Similitud
+                            cursor.execute("""
+                                SELECT id, respuesta, similarity(unaccent(LOWER(keyword)), unaccent(LOWER(%s))) as sim
+                                FROM bot_keywords WHERE cliente_id = %s AND activo = true
+                                ORDER BY sim DESC LIMIT 1
+                            """, (cliente_id, mensaje_limpio))
+                            resultado = cursor.fetchone()
+                            
+                            if resultado and resultado[2] > 0.3:
+                                keyword_id_usada, bot_response, sim = resultado
+                                nivel_match = f"KEYWORD: SIMILITUD ({sim:.0%})"
                 
-                # Si encontramos una keyword, actualizamos sus estadísticas
-                if resultado and keyword_id_usada:
-                    print(f"🤖 [AUTO-RESPUESTA - {nivel_match}] Keyword #{keyword_id_usada} para {remitente}: '{bot_response}'")
-                    
+                # ==========================================
+                # ACTUALIZAR ESTADÍSTICAS (Solo si fue keyword)
+                # ==========================================
+                if keyword_id_usada:
                     cursor.execute("""
                         UPDATE bot_keywords 
-                        SET veces_usada = COALESCE(veces_usada, 0) + 1,
-                            ultima_usada_en = NOW()
+                        SET veces_usada = COALESCE(veces_usada, 0) + 1, ultima_usada_en = NOW()
                         WHERE id = %s
                     """, (keyword_id_usada,))
+                
+                if nivel_match:
+                    print(f"🤖 [AUTO-RESPUESTA - {nivel_match}] Para {remitente}: '{bot_response}'")
 
             except Exception as e:
-                import sys
-                print(f"⚠️ Error buscando keywords en BD: {e}", flush=True)
-                print(f"️ Traceback:", flush=True)
-                import traceback
+                import sys, traceback
+                print(f"⚠️ Error buscando respuestas en BD: {e}", flush=True)
                 traceback.print_exc(file=sys.stdout)
 
         # ✅ 3.5. Guardamos todos los cambios (mensaje + stats de keyword)
