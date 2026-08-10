@@ -1205,15 +1205,6 @@ def enviar_mensaje():
             conn.commit()
             return jsonify({"error": "No se pudo conectar con el servicio de mensajería"}), 500
 
-        # 5. Emitir WebSocket para confirmar envío en el CRM
-        #socketio.emit("nuevo_mensaje", {
-         #   "remitente": telefono,
-          #  "mensaje": mensaje_texto,
-           # "tipo": f"enviado{f'_{tipo}' if tipo != 'texto' else ''}",
-            #"fecha": datetime.now().isoformat(),
-            #"cliente_id": cliente_id
-        #})
-
         return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
     except Exception as e:
@@ -1225,11 +1216,9 @@ def enviar_mensaje():
     finally:
         liberar_db(conn)
 
-        print(f"🔍 URL de imagen a enviar: {mensaje_texto}")
-
 
 # ============================================================================
-# 3. SUBIDA DE IMÁGENES DESDE EL CRM (Multi-tenant)
+# 3. SUBIDA DE IMÁGENES DESDE EL CRM (Multi-tenant Dinámico)
 # ============================================================================
 @app.route("/api/chat/upload_imagen", methods=["POST"])
 def upload_imagen_chat():
@@ -1256,9 +1245,12 @@ def upload_imagen_chat():
         
         file.save(filepath)
         
-        # Devolver la URL pública
-        url = f"/static/uploads/{filename}"
-        return jsonify({"url": url}), 200
+        # ✅ SOLUCIÓN MULTI-TENANT: Obtener el dominio dinámicamente
+        # request.host_url devuelve algo como "https://camicam.eventa.com.mx/"
+        dominio_base = request.host_url.rstrip('/')
+        url_publica = f"{dominio_base}/static/uploads/{filename}"
+        
+        return jsonify({"url": url_publica}), 200
         
     except Exception as e:
         print(f"❌ Error en upload_imagen_chat: {str(e)}")
@@ -1266,6 +1258,7 @@ def upload_imagen_chat():
         traceback.print_exc()
         return jsonify({"error": "Error al subir imagen"}), 500
 
+    
 # ============================================================================
 # 4. OBTENER MENSAJES (LISTA DE CHATS Y DETALLE)
 # ============================================================================
