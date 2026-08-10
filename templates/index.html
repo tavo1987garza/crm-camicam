@@ -3233,11 +3233,12 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
 
                 <!-- Área de Input -->
                 <div class="chat-input-area">
-                    <button class="chat-attach-btn" onclick="document.getElementById('imagen-input').click()" title="Adjuntar imagen">
+                    <button class="chat-attach-btn" onclick="document.getElementById('archivo-input').click()" title="Adjuntar imagen o video">
                         <i class="fas fa-paperclip"></i>
                     </button>
-                    <input type="file" id="imagen-input" accept="image/*" style="display: none;" onchange="previsualizarYEnviarImagen(this)">
-                    
+                    <input type="file" id="archivo-input" accept="image/*,video/*" style="display: none;" onchange="previsualizarYEnviarArchivo(this)">
+
+
                     <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..." autocomplete="off">
                     
                     <button class="chat-send-btn" onclick="enviarMensaje()" id="btn-enviar-mensaje" disabled>
@@ -5901,46 +5902,58 @@ function enviarMensaje() {
 }
 
 // Manejo de imagen adjunta
-async function previsualizarYEnviarImagen(inputElement) {
+// Manejo de archivos adjuntos (Imágenes Y Videos)
+async function previsualizarYEnviarArchivo(inputElement) {
     const file = inputElement.files[0];
     if (!file || !chatActivoRemitente) return;
   
+    // 🧠 DETECTAR AUTOMÁTICAMENTE SI ES VIDEO O IMAGEN
+    const esVideo = file.type.startsWith('video/');
+    const tipoEnvio = esVideo ? "video" : "imagen";
+    const caption = esVideo ? "🎥 Video enviado desde el CRM" : "📷 Foto enviada desde el CRM";
+  
     const formData = new FormData();
-    formData.append("imagen", file);
+    // Mantenemos 'imagen' como nombre del campo porque así lo espera tu backend de upload
+    formData.append("imagen", file); 
   
     try {
-        // ⚠️ IMPORTANTE MULTI-TENANT: 
-        // Cambia esta URL por un endpoint relativo de TU propio backend (ej: "/api/chat/upload_imagen")
-        // para que el backend sepa a qué tenant pertenece y use sus propias credenciales de S3/Bot.
-        // NO uses URLs hardcodeadas de Heroku en un sistema multi-tenant.
         const uploadURL = "/api/chat/upload_imagen"; 
         
+        // Mostrar indicador de carga (opcional pero recomendado)
+        const btnEnviar = document.getElementById("btn-enviar-mensaje");
+        btnEnviar.disabled = true;
+        btnEnviar.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
         const uploadResp = await fetch(uploadURL, { method: "POST", body: formData });
-        if (!uploadResp.ok) throw new Error("Error al subir imagen");
+        if (!uploadResp.ok) throw new Error("Error al subir archivo al servidor");
         
         const uploadData = await uploadResp.json();
-        const imagenUrl = uploadData.url;
+        const archivoUrl = uploadData.url;
         
+        // 🚀 ENVIAR AL BACKEND CON EL TIPO CORRECTO
         const sendResp = await fetch("/enviar_mensaje", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 telefono: chatActivoRemitente, 
-                mensaje: imagenUrl, 
-                tipo: "imagen",
-                caption: "Foto enviada desde el CRM" 
+                mensaje: archivoUrl, 
+                tipo: tipoEnvio,       // <--- AQUÍ LA MAGIA: "video" o "imagen"
+                caption: caption       // <--- Y EL TEXTO CORRECTO
             })
         });
         
         const sendData = await sendResp.json();
         if (sendData.error) {
-            alert("Error al enviar imagen: " + sendData.error);
+            alert("Error al enviar archivo: " + sendData.error);
         }
     } catch (error) {
-        console.error("Error subiendo/enviando imagen:", error);
-        alert("No se pudo enviar la imagen. Verifica la configuración del bot.");
+        console.error("❌ Error subiendo/enviando archivo:", error);
+        alert("No se pudo enviar el archivo. Verifica tu conexión o la configuración del bot.");
     } finally {
         inputElement.value = ""; // Limpiar input
+        const btnEnviar = document.getElementById("btn-enviar-mensaje");
+        btnEnviar.disabled = false;
+        btnEnviar.innerHTML = '<i class="fas fa-paper-plane"></i>'; // Restaurar ícono
     }
 }
 
