@@ -1602,6 +1602,8 @@ def guardar_flujo():
         return jsonify({"error": "No autorizado"}), 401
     
     datos = request.json
+    print(f"🔍 [DEBUG FLUJOS] Datos recibidos: {datos}") # HUILLA 3
+    
     flujo_id = datos.get("id")
     nombre = datos.get("nombre", "").strip()
     trigger_keyword = datos.get("trigger_keyword", "").strip()
@@ -1639,11 +1641,15 @@ def guardar_flujo():
         
         flujo_id_result = cursor.fetchone()[0]
         conn.commit()
+        print(f"✅ [DEBUG FLUJOS] Flujo guardado con ID: {flujo_id_result}") # HUILLA 4
         
         return jsonify({"ok": True, "id": flujo_id_result}), 200
+        
     except Exception as e:
         conn.rollback()
-        print(f"❌ Error en /flujos POST: {str(e)}")
+        print(f"❌ [DEBUG FLUJOS] Error en base de datos: {str(e)}") # HUILLA 5 (¡ESTA ES LA CLAVE!)
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
