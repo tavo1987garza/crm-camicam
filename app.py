@@ -1095,55 +1095,78 @@ def recibir_mensaje():
             VALUES (%s, %s, %s, 'Nuevo', %s, %s, NOW())
         """, (plataforma, remitente, mensaje, tipo, cliente_id))
 
-        # ========================================================================
-        #  3. LÓGICA DE RESPUESTA AUTOMÁTICA (EL CEREBRO DEL BOT)
+             # ========================================================================
+        # 🧠 3. LÓGICA DE RESPUESTA AUTOMÁTICA (3 NIVELES DE INTELIGENCIA)
         # ========================================================================
         bot_response = None
         keyword_id_usada = None
+        nivel_match = None
         
         # Solo buscamos keywords si es un mensaje de texto recibido
         if tipo == "recibido" and mensaje and mensaje.strip():
             try:
                 mensaje_limpio = mensaje.strip()
                 
-                # 🎯 Intento 1: Coincidencia EXACTA (prioridad alta)
+                # 🎯 NIVEL 1: Coincidencia EXACTA (ignorando acentos y mayúsculas)
+                # Ej: "horario" == "Horario" == "horário"
                 cursor.execute("""
                     SELECT id, respuesta 
                     FROM bot_keywords 
                     WHERE cliente_id = %s 
                       AND activo = true
-                      AND (
-                          (exact_match = true AND LOWER(keyword) = LOWER(%s))
-                          OR 
-                          (exact_match = false AND LOWER(keyword) = LOWER(%s))
-                      )
-                    ORDER BY exact_match DESC
+                      AND unaccent(LOWER(keyword)) = unaccent(LOWER(%s))
                     LIMIT 1
-                """, (cliente_id, mensaje_limpio, mensaje_limpio))
+                """, (cliente_id, mensaje_limpio))
                 
                 resultado = cursor.fetchone()
                 
-                # 🎯 Intento 2: Si no hay exacta, buscar coincidencia PARCIAL
-                if not resultado:
+                if resultado:
+                    keyword_id_usada = resultado[0]
+                    bot_response = resultado[1]
+                    nivel_match = "EXACTO"
+                else:
+                    # 🎯 NIVEL 2: La keyword está CONTENIDA en el mensaje
+                    # Ej: mensaje="cual es el horario?" contiene keyword="horario"
                     cursor.execute("""
                         SELECT id, respuesta 
                         FROM bot_keywords 
                         WHERE cliente_id = %s 
                           AND activo = true
-                          AND exact_match = false
-                          AND LOWER(keyword) LIKE %s
+                          AND unaccent(LOWER(%s)) LIKE CONCAT('%%', unaccent(LOWER(keyword)), '%%')
                         ORDER BY LENGTH(keyword) DESC
                         LIMIT 1
-                    """, (cliente_id, f"%{mensaje_limpio.lower()}%"))
-                    resultado = cursor.fetchone()
-                
-                # Si encontramos una keyword, la preparamos y actualizamos sus stats
-                if resultado:
-                    keyword_id_usada = resultado[0]
-                    bot_response = resultado[1]
-                    print(f" [AUTO-RESPUESTA] Keyword #{keyword_id_usada} encontrada para {remitente}")
+                    """, (cliente_id, mensaje_limpio))
                     
-                    # 📊 Actualizar estadísticas de uso
+                    resultado = cursor.fetchone()
+                    
+                    if resultado:
+                        keyword_id_usada = resultado[0]
+                        bot_response = resultado[1]
+                        nivel_match = "CONTENIDO"
+                    else:
+                        #  NIVEL 3: Coincidencia por SIMILITUD (para typos)
+                        # Ej: "ubicacion" ~ "ubicación" ~ "ubicasion" (similitud > 0.6)
+                        cursor.execute("""
+                            SELECT id, respuesta, similarity(unaccent(LOWER(keyword)), unaccent(LOWER(%s))) as sim
+                            FROM bot_keywords 
+                            WHERE cliente_id = %s 
+                              AND activo = true
+                            ORDER BY sim DESC
+                            LIMIT 1
+                        """, (cliente_id, mensaje_limpio))
+                        
+                        resultado = cursor.fetchone()
+                        
+                        # Solo aceptamos si la similitud es mayor al 60%
+                        if resultado and resultado[2] > 0.6:
+                            keyword_id_usada = resultado[0]
+                            bot_response = resultado[1]
+                            nivel_match = f"SIMILITUD ({resultado[2]:.0%})"
+                
+                # Si encontramos una keyword, actualizamos sus estadísticas
+                if resultado and keyword_id_usada:
+                    print(f"🤖 [AUTO-RESPUESTA - {nivel_match}] Keyword #{keyword_id_usada} para {remitente}: '{bot_response}'")
+                    
                     cursor.execute("""
                         UPDATE bot_keywords 
                         SET veces_usada = COALESCE(veces_usada, 0) + 1,
@@ -1153,6 +1176,8 @@ def recibir_mensaje():
                     
             except Exception as e:
                 print(f"⚠️ Error buscando keywords en BD: {e}")
+                import traceback
+                traceback.print_exc()
 
         # Guardamos todos los cambios (mensaje + stats de keyword)
         conn.commit()
