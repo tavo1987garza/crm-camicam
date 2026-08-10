@@ -1132,14 +1132,13 @@ def recibir_mensaje():
                 else:
                     # 🎯 NIVEL 2: La keyword está CONTENIDA en el mensaje
                     cursor.execute("""
-                        SELECT id, respuesta 
+                        SELECT id, respuesta, similarity(unaccent(LOWER(keyword)), unaccent(LOWER(%s))) as sim 
                         FROM bot_keywords 
                         WHERE cliente_id = %s 
                           AND activo = true
-                          AND unaccent(LOWER(%s)) LIKE CONCAT('%%', unaccent(LOWER(keyword)), '%%')
-                        ORDER BY LENGTH(keyword) DESC
+                        ORDER BY sim DESC
                         LIMIT 1
-                    """, (cliente_id, mensaje_limpio))
+                    """, (mensaje_limpio, cliente_id))
                     
                     resultado = cursor.fetchone()
                     
