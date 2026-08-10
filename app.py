@@ -1284,7 +1284,7 @@ def recibir_mensaje():
 
         # ✅ 3.5. Guardamos todos los cambios (mensaje + stats de keyword/flujo)
         conn.commit()
-        
+
 
         # 4. 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
         socketio.emit("nuevo_mensaje", {
@@ -1526,6 +1526,158 @@ def obtener_mensajes_chat():
     finally:
         liberar_db(conn)
     
+
+
+
+    
+#''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#------------SECION DE FLUJOS (CONSTRUCTOR VISUAL)---------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, 
+
+@app.route("/flujos", methods=["GET"])
+def obtener_flujos():
+    """Obtener todos los flujos del tenant"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify([]), 401
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify([]), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            SELECT id, nombre, trigger_keyword, pasos, activo, creado_en
+            FROM bot_flows
+            WHERE cliente_id = %s
+            ORDER BY orden ASC, creado_en DESC
+        """, (cliente_id,))
+        
+        flujos = cursor.fetchall()
+        return jsonify(flujos), 200
+    except Exception as e:
+        print(f"❌ Error en /flujos GET: {str(e)}")
+        return jsonify([]), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/flujos/<int:flujo_id>", methods=["GET"])
+def obtener_flujo(flujo_id):
+    """Obtener un flujo específico"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            SELECT id, nombre, trigger_keyword, pasos, activo
+            FROM bot_flows
+            WHERE id = %s AND cliente_id = %s
+        """, (flujo_id, cliente_id))
+        
+        flujo = cursor.fetchone()
+        if not flujo:
+            return jsonify({"error": "Flujo no encontrado"}), 404
+        
+        return jsonify(flujo), 200
+    except Exception as e:
+        print(f"❌ Error en /flujos/{flujo_id} GET: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/flujos", methods=["POST"])
+def guardar_flujo():
+    """Crear o actualizar un flujo"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    datos = request.json
+    flujo_id = datos.get("id")
+    nombre = datos.get("nombre", "").strip()
+    trigger_keyword = datos.get("trigger_keyword", "").strip()
+    pasos = datos.get("pasos", [])
+    activo = datos.get("activo", True)
+    
+    if not nombre or not trigger_keyword:
+        return jsonify({"error": "Nombre y palabra clave son obligatorios"}), 400
+    
+    if not isinstance(pasos, list) or len(pasos) == 0:
+        return jsonify({"error": "El flujo debe tener al menos un paso"}), 400
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        if flujo_id:
+            # Actualizar flujo existente
+            cursor.execute("""
+                UPDATE bot_flows
+                SET nombre = %s, trigger_keyword = %s, pasos = %s::jsonb, activo = %s, actualizado_en = NOW()
+                WHERE id = %s AND cliente_id = %s
+                RETURNING id
+            """, (nombre, trigger_keyword, json.dumps(pasos), activo, flujo_id, cliente_id))
+        else:
+            # Crear nuevo flujo
+            cursor.execute("""
+                INSERT INTO bot_flows (cliente_id, nombre, trigger_keyword, pasos, activo, orden)
+                VALUES (%s, %s, %s, %s::jsonb, %s, (SELECT COALESCE(MAX(orden), 0) + 1 FROM bot_flows WHERE cliente_id = %s))
+                RETURNING id
+            """, (cliente_id, nombre, trigger_keyword, json.dumps(pasos), activo, cliente_id))
+        
+        flujo_id_result = cursor.fetchone()[0]
+        conn.commit()
+        
+        return jsonify({"ok": True, "id": flujo_id_result}), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error en /flujos POST: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/flujos/<int:flujo_id>", methods=["DELETE"])
+def eliminar_flujo(flujo_id):
+    """Eliminar un flujo"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM bot_flows
+            WHERE id = %s AND cliente_id = %s
+        """, (flujo_id, cliente_id))
+        
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Flujo no encontrado"}), 404
+        
+        conn.commit()
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error en /flujos/{flujo_id} DELETE: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        liberar_db(conn)
 
 
 

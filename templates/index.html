@@ -1401,6 +1401,190 @@ body {
 
 
 /* ============================================================================
+   ESTILOS MODERNOS PARA LA SECCIÓN DE CONSTRUCTOR DE FLUJOS
+   ============================================================================ */
+.paso-card {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.paso-card:hover {
+    border-color: #3498db;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+}
+
+.paso-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.paso-numero {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.paso-tipo-selector {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.paso-tipo-selector select {
+    padding: 8px 12px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-eliminar-paso {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-eliminar-paso:hover {
+    background: #c0392b;
+}
+
+.paso-contenido {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.paso-contenido label {
+    font-weight: bold;
+    color: #555;
+    font-size: 13px;
+}
+
+.paso-contenido input[type="text"],
+.paso-contenido textarea {
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.paso-contenido textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.opciones-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.opcion-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.opcion-item input {
+    flex: 1;
+    padding: 8px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+}
+
+.btn-agregar-opcion,
+.btn-eliminar-opcion {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.btn-eliminar-opcion {
+    background: #e74c3c;
+}
+
+.flujo-card {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.flujo-card:hover {
+    border-color: #25D366;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.2);
+    transform: translateY(-2px);
+}
+
+.flujo-card h3 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+}
+
+.flujo-card .flujo-info {
+    color: #7f8c8d;
+    font-size: 13px;
+    margin-bottom: 15px;
+}
+
+.flujo-card .flujo-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.flujo-card button {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.btn-editar {
+    background: #3498db;
+    color: white;
+}
+
+.btn-eliminar {
+    background: #e74c3c;
+    color: white;
+}
+
+.flujo-activo {
+    border-color: #25D366 !important;
+    background: #f0fff4;
+}
+
+.flujo-inactivo {
+    opacity: 0.6;
+    border-color: #95a5a6 !important;
+}
+
+
+/* ============================================================================
    ESTILOS MODERNOS PARA LA SECCIÓN DE CALENDARIO
    ============================================================================ */
 
@@ -3255,6 +3439,76 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
 
 
 
+<!-- ============================================================================
+     SECCIÓN DE FLUJOS (CONSTRUCTOR VISUAL)
+     ============================================================================ -->
+<div id="flujos" class="seccion hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h1>🤖 Flujos Conversacionales</h1>
+        <button onclick="abrirModalNuevoFlujo()" style="background: #25D366; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;">
+            ➕ Nuevo Flujo
+        </button>
+    </div>
+
+    <!-- Lista de Flujos Existentes -->
+    <div id="lista-flujos" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+        <!-- Se llena dinámicamente con JavaScript -->
+        <div style="grid-column: 1/-1; text-align: center; color: #7f8c8d; padding: 40px;">
+            Cargando flujos...
+        </div>
+    </div>
+
+    <!-- Modal Constructor de Flujos -->
+    <div id="modal-flujo" class="modal hidden" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+        <div style="background: white; max-width: 800px; margin: 50px auto; border-radius: 12px; padding: 30px; position: relative;">
+            <button onclick="cerrarModalFlujo()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c8d;">✖</button>
+            
+            <h2 id="modal-flujo-titulo">🛠️ Constructor de Flujo</h2>
+            
+            <!-- Configuración General -->
+            <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h3 style="margin-top: 0; color: #2c3e50;">⚙️ Configuración General</h3>
+                <input type="hidden" id="flujo-id">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre del Flujo:</label>
+                    <input type="text" id="flujo-nombre" placeholder="Ej: Cotización Express" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Palabra Clave para Iniciar:</label>
+                    <input type="text" id="flujo-trigger" placeholder="Ej: tarifa, precio, cotizar" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    <small style="color: #7f8c8d;">El usuario debe escribir exactamente esta palabra para activar el flujo</small>
+                </div>
+            </div>
+
+            <!-- Lista de Pasos -->
+            <div style="margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #2c3e50;">📋 Pasos del Flujo</h3>
+                    <button onclick="agregarPaso()" style="background: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                        ➕ Agregar Paso
+                    </button>
+                </div>
+                
+                <div id="pasos-container">
+                    <!-- Los pasos se agregan dinámicamente aquí -->
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #eee; padding-top: 20px;">
+                <button onclick="cerrarModalFlujo()" style="background: #95a5a6; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    Cancelar
+                </button>
+                <button onclick="guardarFlujo()" style="background: #25D366; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">
+                    💾 Guardar Flujo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <!-- ============================================================================
      SECCIÓN DE CALENDARIO
@@ -4325,6 +4579,10 @@ function mostrarSeccion(seccionId, callback = null) {
                     verReporteServiciosAnual(parseInt(anioInput.value));
                 }
             }
+            break;
+        // ✅ NUEVO: Agregar este caso para la sección de Flujos
+        case 'flujos':
+            cargarFlujos();
             break;
     }
     
@@ -6073,6 +6331,374 @@ function mostrarNotificacionSuave(mensaje, tipo = "info") {
 document.body.addEventListener("click", () => { window.sonidoActivo = true; }, { once: true });
 
 
+
+
+// ============================================================================
+// SECCION DE CONSTRUCTOR DE FLUJOS VISUALES
+// ============================================================================
+
+let pasosTemp = []; // Almacena los pasos temporalmente
+let flujoEditandoId = null; // ID del flujo que se está editando
+
+// ============================================================================
+// ABRIR MODAL PARA NUEVO FLUJO
+// ============================================================================
+function abrirModalNuevoFlujo() {
+    flujoEditandoId = null;
+    pasosTemp = [];
+    
+    document.getElementById('flujo-id').value = '';
+    document.getElementById('flujo-nombre').value = '';
+    document.getElementById('flujo-trigger').value = '';
+    document.getElementById('modal-flujo-titulo').textContent = '🛠️ Crear Nuevo Flujo';
+    
+    renderizarPasos();
+    
+    const modal = document.getElementById('modal-flujo');
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+}
+
+// ============================================================================
+// CERRAR MODAL
+// ============================================================================
+function cerrarModalFlujo() {
+    const modal = document.getElementById('modal-flujo');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
+// ============================================================================
+// AGREGAR NUEVO PASO
+// ============================================================================
+function agregarPaso() {
+    pasosTemp.push({
+        tipo: 'mensaje',
+        texto: '',
+        campo: '',
+        opciones: []
+    });
+    renderizarPasos();
+}
+
+// ============================================================================
+// ELIMINAR PASO
+// ============================================================================
+function eliminarPaso(index) {
+    if (confirm('¿Seguro que quieres eliminar este paso?')) {
+        pasosTemp.splice(index, 1);
+        renderizarPasos();
+    }
+}
+
+// ============================================================================
+// ACTUALIZAR TIPO DE PASO
+// ============================================================================
+function actualizarTipoPaso(index, nuevoTipo) {
+    pasosTemp[index].tipo = nuevoTipo;
+    
+    // Limpiar campos según el tipo
+    if (nuevoTipo === 'mensaje') {
+        pasosTemp[index].campo = '';
+        pasosTemp[index].opciones = [];
+    } else if (nuevoTipo === 'opciones') {
+        pasosTemp[index].texto = '';
+        if (pasosTemp[index].opciones.length === 0) {
+            pasosTemp[index].opciones = ['', '', '']; // 3 opciones por defecto
+        }
+    } else if (nuevoTipo === 'pregunta') {
+        pasosTemp[index].opciones = [];
+    }
+    
+    renderizarPasos();
+}
+
+// ============================================================================
+// AGREGAR OPCIÓN A UN PASO
+// ============================================================================
+function agregarOpcion(pasoIndex) {
+    pasosTemp[pasoIndex].opciones.push('');
+    renderizarPasos();
+}
+
+// ============================================================================
+// ELIMINAR OPCIÓN
+// ============================================================================
+function eliminarOpcion(pasoIndex, opcionIndex) {
+    pasosTemp[pasoIndex].opciones.splice(opcionIndex, 1);
+    renderizarPasos();
+}
+
+// ============================================================================
+// RENDERIZAR PASOS EN EL MODAL
+// ============================================================================
+function renderizarPasos() {
+    const container = document.getElementById('pasos-container');
+    
+    if (pasosTemp.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #7f8c8d; padding: 30px;">No hay pasos aún. Haz clic en " Agregar Paso" para comenzar.</div>';
+        return;
+    }
+    
+    container.innerHTML = pasosTemp.map((paso, index) => {
+        let contenidoHTML = '';
+        
+        // Selector de tipo
+        const tipoSelector = `
+            <div class="paso-header">
+                <span class="paso-numero">📦 Paso ${index + 1}</span>
+                <div class="paso-tipo-selector">
+                    <select onchange="actualizarTipoPaso(${index}, this.value)">
+                        <option value="mensaje" ${paso.tipo === 'mensaje' ? 'selected' : ''}>💬 Mensaje de Texto</option>
+                        <option value="opciones" ${paso.tipo === 'opciones' ? 'selected' : ''}> Opciones (Botones)</option>
+                        <option value="pregunta" ${paso.tipo === 'pregunta' ? 'selected' : ''}> Pregunta Abierta</option>
+                    </select>
+                    <button class="btn-eliminar-paso" onclick="eliminarPaso(${index})">️ Eliminar</button>
+                </div>
+            </div>
+        `;
+        
+        // Contenido según tipo
+        if (paso.tipo === 'mensaje') {
+            contenidoHTML = `
+                <div class="paso-contenido">
+                    <label>Texto del mensaje:</label>
+                    <textarea placeholder="Escribe el mensaje que el bot enviará..." oninput="pasosTemp[${index}].texto = this.value">${paso.texto}</textarea>
+                </div>
+            `;
+        } else if (paso.tipo === 'opciones') {
+            const opcionesHTML = paso.opciones.map((opcion, opIndex) => `
+                <div class="opcion-item">
+                    <input type="text" placeholder="Opción ${opIndex + 1}" value="${opcion}" oninput="pasosTemp[${index}].opciones[${opIndex}] = this.value">
+                    <button class="btn-eliminar-opcion" onclick="eliminarOpcion(${index}, ${opIndex})">✖</button>
+                </div>
+            `).join('');
+            
+            contenidoHTML = `
+                <div class="paso-contenido">
+                    <label>Variable para guardar la respuesta:</label>
+                    <input type="text" placeholder="Ej: tipo_evento" value="${paso.campo}" oninput="pasosTemp[${index}].campo = this.value">
+                    
+                    <label style="margin-top: 10px;">Opciones (una por línea):</label>
+                    <div class="opciones-lista">
+                        ${opcionesHTML}
+                    </div>
+                    <button class="btn-agregar-opcion" onclick="agregarOpcion(${index})">➕ Agregar Opción</button>
+                </div>
+            `;
+        } else if (paso.tipo === 'pregunta') {
+            contenidoHTML = `
+                <div class="paso-contenido">
+                    <label>Pregunta para el usuario:</label>
+                    <textarea placeholder="Ej: ¿Para qué fecha es tu evento?" oninput="pasosTemp[${index}].texto = this.value">${paso.texto}</textarea>
+                    
+                    <label>Variable para guardar la respuesta:</label>
+                    <input type="text" placeholder="Ej: fecha_evento" value="${paso.campo}" oninput="pasosTemp[${index}].campo = this.value">
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="paso-card">
+                ${tipoSelector}
+                ${contenidoHTML}
+            </div>
+        `;
+    }).join('');
+}
+
+// ============================================================================
+// GUARDAR FLUJO
+// ============================================================================
+async function guardarFlujo() {
+    const nombre = document.getElementById('flujo-nombre').value.trim();
+    const trigger = document.getElementById('flujo-trigger').value.trim();
+    
+    if (!nombre || !trigger) {
+        alert('⚠️ Por favor, completa el nombre y la palabra clave del flujo');
+        return;
+    }
+    
+    if (pasosTemp.length === 0) {
+        alert('⚠️ Debes agregar al menos un paso al flujo');
+        return;
+    }
+    
+    // Validar que todos los pasos tengan contenido
+    for (let i = 0; i < pasosTemp.length; i++) {
+        const paso = pasosTemp[i];
+        if (paso.tipo === 'mensaje' || paso.tipo === 'pregunta') {
+            if (!paso.texto.trim()) {
+                alert(`️ El Paso ${i + 1} necesita texto`);
+                return;
+            }
+        } else if (paso.tipo === 'opciones') {
+            if (!paso.campo.trim()) {
+                alert(`⚠️ El Paso ${i + 1} necesita una variable para guardar la respuesta`);
+                return;
+            }
+            const opcionesValidas = paso.opciones.filter(op => op.trim() !== '');
+            if (opcionesValidas.length < 2) {
+                alert(`️ El Paso ${i + 1} necesita al menos 2 opciones`);
+                return;
+            }
+        }
+    }
+    
+    // Construir el JSON final
+    const pasosJSON = pasosTemp.map(paso => {
+        if (paso.tipo === 'mensaje') {
+            return { tipo: 'mensaje', texto: paso.texto };
+        } else if (paso.tipo === 'opciones') {
+            return {
+                tipo: 'opciones',
+                campo: paso.campo,
+                opciones: paso.opciones.filter(op => op.trim() !== '')
+            };
+        } else if (paso.tipo === 'pregunta') {
+            return { tipo: 'pregunta', texto: paso.texto, campo: paso.campo };
+        }
+    });
+    
+    const flujoData = {
+        id: flujoEditandoId,
+        nombre: nombre,
+        trigger_keyword: trigger,
+        pasos: pasosJSON,
+        activo: true
+    };
+    
+    try {
+        const resp = await fetch('/flujos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(flujoData)
+        });
+        
+        const data = await resp.json();
+        
+        if (data.ok) {
+            mostrarNotificacionSuave('✅ Flujo guardado correctamente', 'success');
+            cerrarModalFlujo();
+            cargarFlujos(); // Recargar la lista
+        } else {
+            alert('❌ Error: ' + (data.error || 'desconocido'));
+        }
+    } catch (err) {
+        console.error('Error al guardar flujo:', err);
+        alert('❌ Error de conexión');
+    }
+}
+
+// ============================================================================
+// CARGAR LISTA DE FLUJOS
+// ============================================================================
+async function cargarFlujos() {
+    try {
+        const resp = await fetch('/flujos');
+        const flujos = await resp.json();
+        
+        const container = document.getElementById('lista-flujos');
+        
+        if (flujos.length === 0) {
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #7f8c8d; padding: 40px;">No hay flujos creados aún. Haz clic en "➕ Nuevo Flujo" para comenzar.</div>';
+            return;
+        }
+        
+        container.innerHTML = flujos.map(flujo => {
+            const numPasos = Array.isArray(flujo.pasos) ? flujo.pasos.length : 0;
+            const estadoClass = flujo.activo ? 'flujo-activo' : 'flujo-inactivo';
+            
+            return `
+                <div class="flujo-card ${estadoClass}" onclick="editarFlujo(${flujo.id})">
+                    <h3>${flujo.nombre}</h3>
+                    <div class="flujo-info">
+                        <div>🔑 Palabra clave: <strong>${flujo.trigger_keyword}</strong></div>
+                        <div>📋 ${numPasos} paso(s)</div>
+                        <div>Estado: ${flujo.activo ? '✅ Activo' : '⏸️ Inactivo'}</div>
+                    </div>
+                    <div class="flujo-actions">
+                        <button class="btn-editar" onclick="event.stopPropagation(); editarFlujo(${flujo.id})">✏️ Editar</button>
+                        <button class="btn-eliminar" onclick="event.stopPropagation(); eliminarFlujo(${flujo.id})">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (err) {
+        console.error('Error al cargar flujos:', err);
+        document.getElementById('lista-flujos').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #e74c3c; padding: 40px;">Error al cargar flujos</div>';
+    }
+}
+
+// ============================================================================
+// EDITAR FLUJO EXISTENTE
+// ============================================================================
+async function editarFlujo(id) {
+    try {
+        const resp = await fetch(`/flujos/${id}`);
+        const flujo = await resp.json();
+        
+        flujoEditandoId = flujo.id;
+        document.getElementById('flujo-id').value = flujo.id;
+        document.getElementById('flujo-nombre').value = flujo.nombre;
+        document.getElementById('flujo-trigger').value = flujo.trigger_keyword;
+        document.getElementById('modal-flujo-titulo').textContent = '✏️ Editar Flujo';
+        
+        // Cargar pasos
+        pasosTemp = Array.isArray(flujo.pasos) ? flujo.pasos : [];
+        renderizarPasos();
+        
+        const modal = document.getElementById('modal-flujo');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        
+    } catch (err) {
+        console.error('Error al cargar flujo:', err);
+        alert('❌ Error al cargar el flujo');
+    }
+}
+
+// ============================================================================
+// ELIMINAR FLUJO
+// ============================================================================
+async function eliminarFlujo(id) {
+    if (!confirm('⚠️ ¿Seguro que quieres eliminar este flujo? Esta acción no se puede deshacer.')) {
+        return;
+    }
+    
+    try {
+        const resp = await fetch(`/flujos/${id}`, { method: 'DELETE' });
+        const data = await resp.json();
+        
+        if (data.ok) {
+            mostrarNotificacionSuave('🗑️ Flujo eliminado', 'success');
+            cargarFlujos();
+        } else {
+            alert('❌ Error: ' + (data.error || 'desconocido'));
+        }
+    } catch (err) {
+        console.error('Error al eliminar flujo:', err);
+        alert('❌ Error de conexión');
+    }
+}
+
+// Cargar flujos al iniciar la sección
+document.addEventListener('DOMContentLoaded', () => {
+    const seccionFlujos = document.getElementById('flujos');
+    if (seccionFlujos) {
+        // Observar cuando la sección se hace visible
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.target.classList.contains('hidden') === false) {
+                    cargarFlujos();
+                }
+            });
+        });
+        
+        observer.observe(seccionFlujos, { attributes: true, attributeFilter: ['class'] });
+    }
+});
 
 
 
