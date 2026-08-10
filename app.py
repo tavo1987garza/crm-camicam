@@ -1055,8 +1055,16 @@ def recibir_mensaje():
         return jsonify({"error": "Faltan datos (remitente o mensaje)"}), 400
 
     tipos_validos = {"enviado", "recibido", "recibido_imagen", "enviado_imagen", "recibido_video", "enviado_video"}
+    
+    # 🔄 Normalizar: si viene en inglés desde el bot, lo pasamos a español
+    if tipo in ["recibido_image", "enviado_image"]:
+        tipo = tipo.replace("image", "imagen")
+    elif tipo in ["recibido_video", "enviado_video"]:
+        tipo = tipo.replace("video", "video") # Ya está bien, pero por consistencia
+        
     if tipo not in tipos_validos:
         tipo = "recibido"
+
 
     conn = conectar_db()
     if not conn:
