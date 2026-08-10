@@ -1095,7 +1095,7 @@ def recibir_mensaje():
             VALUES (%s, %s, %s, 'Nuevo', %s, %s, NOW())
         """, (plataforma, remitente, mensaje, tipo, cliente_id))
 
-             # ========================================================================
+        # ========================================================================
         # 🧠 3. LÓGICA DE RESPUESTA AUTOMÁTICA (3 NIVELES DE INTELIGENCIA)
         # ========================================================================
         bot_response = None
@@ -1107,8 +1107,7 @@ def recibir_mensaje():
             try:
                 mensaje_limpio = mensaje.strip()
                 
-                # 🎯 NIVEL 1: Coincidencia EXACTA (ignorando acentos y mayúsculas)
-                # Ej: "horario" == "Horario" == "horário"
+                #  NIVEL 1: Coincidencia EXACTA (ignorando acentos y mayúsculas)
                 cursor.execute("""
                     SELECT id, respuesta 
                     FROM bot_keywords 
@@ -1126,7 +1125,6 @@ def recibir_mensaje():
                     nivel_match = "EXACTO"
                 else:
                     # 🎯 NIVEL 2: La keyword está CONTENIDA en el mensaje
-                    # Ej: mensaje="cual es el horario?" contiene keyword="horario"
                     cursor.execute("""
                         SELECT id, respuesta 
                         FROM bot_keywords 
@@ -1144,8 +1142,7 @@ def recibir_mensaje():
                         bot_response = resultado[1]
                         nivel_match = "CONTENIDO"
                     else:
-                        #  NIVEL 3: Coincidencia por SIMILITUD (para typos)
-                        # Ej: "ubicacion" ~ "ubicación" ~ "ubicasion" (similitud > 0.6)
+                        # 🎯 NIVEL 3: Coincidencia por SIMILITUD (para typos)
                         cursor.execute("""
                             SELECT id, respuesta, similarity(unaccent(LOWER(keyword)), unaccent(LOWER(%s))) as sim
                             FROM bot_keywords 
@@ -1176,10 +1173,8 @@ def recibir_mensaje():
                     
             except Exception as e:
                 print(f"⚠️ Error buscando keywords en BD: {e}")
-                import traceback
-                traceback.print_exc()
 
-        # Guardamos todos los cambios (mensaje + stats de keyword)
+        # ✅ 3.5. Guardamos todos los cambios (mensaje + stats de keyword)
         conn.commit()
 
         # 4. 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
@@ -1191,10 +1186,10 @@ def recibir_mensaje():
             "cliente_id": cliente_id
         })
 
-        # 5. Devolver la respuesta al Bot (si existe, el Bot la enviará por WhatsApp)
+        # 5. Devolver la respuesta al Bot
         return jsonify({
             "mensaje": "Mensaje recibido y almacenado",
-            "bot_response": bot_response  # <--- ¡ESTO ES LO QUE EL BOT ESTÁ ESPERANDO!
+            "bot_response": bot_response
         }), 200
 
     except Exception as e:
@@ -1203,6 +1198,7 @@ def recibir_mensaje():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
+
 
 # ============================================================================
 # 2. ENVIAR MENSAJES DESDE EL CRM (CRM -> BOT/WHATSAPP)
