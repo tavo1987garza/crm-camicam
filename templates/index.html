@@ -9036,33 +9036,61 @@ async function eliminarFlujo(id) {
 // ============================================================================
 // EDITAR FLUJO EXISTENTE (Carga el JSON en el constructor visual)
 // ============================================================================
+// ============================================================================
+// EDITAR FLUJO EXISTENTE (Versión Blindada con Debugging)
+// ============================================================================
 async function editarFlujo(flowId) {
+  console.log("🔍 Intentando editar flujo ID:", flowId);
+  
   try {
     const resp = await fetch('/api/bot/flows');
-    if (!resp.ok) throw new Error('Error al cargar flows');
+    if (!resp.ok) {
+      throw new Error(`El servidor respondió con error: ${resp.status} ${resp.statusText}`);
+    }
     
     const flows = await resp.json();
+    console.log("✅ Flujos recibidos del backend:", flows);
+    
     const flow = flows.find(f => f.id === flowId);
     
     if (!flow) {
+      console.error("❌ No se encontró el flujo con ID:", flowId);
       mostrarNotificacionSuave('❌ Flujo no encontrado', 'error');
       return;
     }
+    
+    console.log("✅ Flujo encontrado:", flow);
     
     document.getElementById('flow-id-editando').value = flow.id;
     document.getElementById('flow-nombre').value = flow.nombre || '';
     document.getElementById('flow-trigger').value = flow.trigger_keyword || '';
     
+    // 🛡️ Manejo seguro de los pasos: 
+    // A veces PostgreSQL los devuelve como string JSON, a veces como array.
+    let pasosParseados = [];
+    if (Array.isArray(flow.pasos)) {
+      pasosParseados = flow.pasos;
+    } else if (typeof flow.pasos === 'string') {
+      try {
+        pasosParseados = JSON.parse(flow.pasos);
+      } catch (e) {
+        console.error("❌ Error al parsear JSON de pasos:", e);
+        pasosParseados = [];
+      }
+    }
+    
+    console.log("✅ Pasos parseados para el editor:", pasosParseados);
+    
     // Cargar pasos en el array temporal y renderizar
-    pasosFlujoTemp = Array.isArray(flow.pasos) ? flow.pasos : [];
+    pasosFlujoTemp = pasosParseados;
     renderizarPasosFlujo();
     
     document.getElementById('modal-editor-flujo').classList.remove('hidden');
     document.getElementById('flow-feedback').classList.add('hidden');
     
   } catch (err) {
-    console.error('❌ Error al cargar flujo para editar:', err);
-    mostrarNotificacionSuave('❌ Error al cargar datos del flujo', 'error');
+    console.error('❌ Error CRÍTICO al cargar flujo para editar:', err);
+    mostrarNotificacionSuave('❌ Error: ' + err.message, 'error');
   }
 }
 
