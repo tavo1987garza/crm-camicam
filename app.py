@@ -1139,11 +1139,38 @@ def recibir_mensaje():
                             paso_anterior = pasos[paso_actual - 1]
                             if paso_anterior.get("tipo") == "opciones" and "campo" in paso_anterior:
                                 contexto_dict[paso_anterior["campo"]] = mensaje_limpio
+                            elif paso_anterior.get("tipo") == "pregunta" and "campo" in paso_anterior:
+                                contexto_dict[paso_anterior["campo"]] = mensaje_limpio
                         
                         # 2. Obtener el siguiente paso
                         if paso_actual < len(pasos):
                             siguiente_paso = pasos[paso_actual]
-                            bot_response = siguiente_paso.get("texto")
+                            tipo_paso = siguiente_paso.get("tipo", "mensaje")
+                            
+                            # 🎯 Reemplazar variables dinámicas en el texto (ej: {tipo_consulta})
+                            texto_base = siguiente_paso.get("texto", "")
+                            for key, value in contexto_dict.items():
+                                texto_base = texto_base.replace(f"{{{key}}}", str(value))
+                            
+                            # 🎯 Construir el payload estructurado para el Bot
+                            respuesta_a_enviar = {
+                                "type": tipo_paso,
+                                "caption": texto_base,
+                                "bot_buttons": []
+                            }
+                            
+                            # Si es imagen o video, agregar la URL
+                            if tipo_paso in ["imagen", "video"]:
+                                respuesta_a_enviar["url"] = siguiente_paso.get("url", "")
+                            
+                            # Si es opciones, preparar los botones (máx 3)
+                            if tipo_paso == "opciones":
+                                opciones = siguiente_paso.get("opciones", [])
+                                respuesta_a_enviar["bot_buttons"] = opciones[:3]
+                                if not respuesta_a_enviar["caption"]:
+                                    respuesta_a_enviar["caption"] = "Por favor, selecciona una opción:"
+                            
+                            bot_response = respuesta_a_enviar  # <-- Ahora es un DICT, no un string
                             nivel_match = f"FLUJO: {nombre_flujo} (Paso {paso_actual + 1})"
                             flujo_activo_encontrado = True
                             
