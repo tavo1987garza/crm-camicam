@@ -2907,6 +2907,73 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
   border-bottom: 1px solid #eee;
   padding-bottom: 0;
 }
+/* Estilos para el constructor visual de flujos */
+.paso-flujo-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  position: relative;
+}
+
+.paso-flujo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.paso-flujo-header select {
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.btn-eliminar-paso {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.paso-flujo-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paso-flujo-content input, 
+.paso-flujo-content textarea {
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.opcion-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.btn-agregar-opcion, .btn-eliminar-opcion {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  color: white;
+}
+
+.btn-agregar-opcion { background: #0d6efd; }
+.btn-eliminar-opcion { background: #dc3545; }
+
 
 
     </style>
@@ -3794,12 +3861,13 @@ MODAL: CONFIGURAR CHATBOT MULTI-TENANT
   </div>
 </div>
 
-<!-- Modal Editor de Flujo (anidado) -->
+
+<!-- Modal Editor de Flujo (CON CONSTRUCTOR VISUAL) -->
 <div id="modal-editor-flujo" class="modal hidden">
-  <div class="modal-content" style="max-width: 700px;">
+  <div class="modal-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
     <button class="close-btn" onclick="cerrarModalFlujo()">✖</button>
     <h3>✏️ Editor de Flujo</h3>
-    <!-- Campo oculto para saber si estamos editando o creando -->
+    
     <input type="hidden" id="flow-id-editando">
     
     <div class="form-group">
@@ -3813,12 +3881,16 @@ MODAL: CONFIGURAR CHATBOT MULTI-TENANT
     </div>
     
     <div class="form-group">
-      <label>Pasos del flujo (JSON):</label>
-      <textarea id="flow-pasos" rows="8" placeholder='[
-  {"tipo": "mensaje", "texto": "¿Para qué tipo de evento?"},
-  {"tipo": "opciones", "opciones": ["XV años", "Boda", "Corporativo"]}
-]' style="font-family: monospace; font-size: 12px;"></textarea>
-      <small style="color: #666;">Formato JSON: array de objetos con "tipo", "texto", "opciones", etc.</small>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <label style="margin: 0;">Pasos del flujo:</label>
+        <button type="button" onclick="agregarPasoFlujo()" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">➕ Agregar Paso</button>
+      </div>
+      
+      <!-- Contenedor visual de pasos (reemplaza al textarea) -->
+      <div id="flow-pasos-container" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 10px;">
+        <!-- Los pasos se renderizan aquí dinámicamente -->
+      </div>
+      <small style="color: #666;">Agrega pasos de mensaje, preguntas u opciones. El sistema generará el JSON automáticamente.</small>
     </div>
     
     <div style="display: flex; gap: 10px; margin-top: 20px;">
@@ -3828,8 +3900,6 @@ MODAL: CONFIGURAR CHATBOT MULTI-TENANT
     <div id="flow-feedback" class="alert hidden"></div>
   </div>
 </div>
-
-
 
 
 <!-- Modal para Código de Seguridad -->
@@ -8707,6 +8777,11 @@ async function toggleKeyword(id, nuevoEstado) {
 }
 
 // --- FLOWS ---
+// ============================================================================
+// FLOWS - CONSTRUCTOR VISUAL
+// ============================================================================
+
+let pasosFlujoTemp = []; // Almacena los pasos temporalmente mientras se edita
 
 async function cargarFlows() {
   try {
@@ -8738,56 +8813,153 @@ async function cargarFlows() {
 }
 
 function abrirEditorFlujo() {
-  document.getElementById('modal-editor-flujo').classList.remove('hidden');
+  pasosFlujoTemp = []; // Reiniciar pasos
+  document.getElementById('flow-id-editando').value = '';
   document.getElementById('flow-nombre').value = '';
   document.getElementById('flow-trigger').value = '';
-  document.getElementById('flow-pasos').value = '';
   document.getElementById('flow-feedback').classList.add('hidden');
+  
+  renderizarPasosFlujo(); // Renderizar estado vacío
+  document.getElementById('modal-editor-flujo').classList.remove('hidden');
 }
 
 function cerrarModalFlujo() {
   document.getElementById('modal-editor-flujo').classList.add('hidden');
 }
 
+// --- Funciones del Constructor Visual ---
+
+function agregarPasoFlujo() {
+  pasosFlujoTemp.push({ tipo: 'mensaje', texto: '' });
+  renderizarPasosFlujo();
+}
+
+function eliminarPasoFlujo(index) {
+  pasosFlujoTemp.splice(index, 1);
+  renderizarPasosFlujo();
+}
+
+function cambiarTipoPaso(index, nuevoTipo) {
+  pasosFlujoTemp[index].tipo = nuevoTipo;
+  // Limpiar campos irrelevantes según el tipo
+  if (nuevoTipo === 'mensaje') {
+    delete pasosFlujoTemp[index].campo;
+    delete pasosFlujoTemp[index].opciones;
+  } else if (nuevoTipo === 'opciones') {
+    delete pasosFlujoTemp[index].texto;
+    if (!pasosFlujoTemp[index].opciones) pasosFlujoTemp[index].opciones = ['', ''];
+  } else if (nuevoTipo === 'pregunta') {
+    delete pasosFlujoTemp[index].opciones;
+  }
+  renderizarPasosFlujo();
+}
+
+function agregarOpcionFlujo(pasoIndex) {
+  if (!pasosFlujoTemp[pasoIndex].opciones) pasosFlujoTemp[pasoIndex].opciones = [];
+  pasosFlujoTemp[pasoIndex].opciones.push('');
+  renderizarPasosFlujo();
+}
+
+function eliminarOpcionFlujo(pasoIndex, opcionIndex) {
+  pasosFlujoTemp[pasoIndex].opciones.splice(opcionIndex, 1);
+  renderizarPasosFlujo();
+}
+
+function renderizarPasosFlujo() {
+  const container = document.getElementById('flow-pasos-container');
+  
+  if (pasosFlujoTemp.length === 0) {
+    container.innerHTML = '<p style="color:#999; text-align:center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px;">No hay pasos aún. Haz clic en "➕ Agregar Paso"</p>';
+    return;
+  }
+
+  container.innerHTML = pasosFlujoTemp.map((paso, index) => {
+    let contenidoHTML = '';
+    
+    if (paso.tipo === 'mensaje') {
+      contenidoHTML = `
+        <textarea placeholder="Escribe el mensaje que el bot enviará..." 
+          oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>
+      `;
+    } else if (paso.tipo === 'opciones') {
+      const opcionesHTML = (paso.opciones || []).map((op, opIdx) => `
+        <div class="opcion-item">
+          <input type="text" placeholder="Opción ${opIdx + 1}" value="${op}" 
+            oninput="pasosFlujoTemp[${index}].opciones[${opIdx}] = this.value">
+          <button class="btn-eliminar-opcion" onclick="eliminarOpcionFlujo(${index}, ${opIdx})">✖</button>
+        </div>
+      `).join('');
+      
+      contenidoHTML = `
+        <input type="text" placeholder="Variable para guardar respuesta (ej: tipo_evento)" 
+          value="${paso.campo || ''}" oninput="pasosFlujoTemp[${index}].campo = this.value">
+        <div style="margin-top:5px;">${opcionesHTML}</div>
+        <button class="btn-agregar-opcion" onclick="agregarOpcionFlujo(${index})" style="margin-top:5px;">➕ Agregar Opción</button>
+      `;
+    } else if (paso.tipo === 'pregunta') {
+      contenidoHTML = `
+        <textarea placeholder="Ej: ¿Para qué fecha es tu evento?" 
+          oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>
+        <input type="text" placeholder="Variable para guardar respuesta (ej: fecha)" 
+          value="${paso.campo || ''}" oninput="pasosFlujoTemp[${index}].campo = this.value">
+      `;
+    }
+
+    return `
+      <div class="paso-flujo-card">
+        <div class="paso-flujo-header">
+          <strong style="font-size: 14px; color: #495057;">Paso ${index + 1}</strong>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select onchange="cambiarTipoPaso(${index}, this.value)">
+              <option value="mensaje" ${paso.tipo === 'mensaje' ? 'selected' : ''}>💬 Mensaje</option>
+              <option value="opciones" ${paso.tipo === 'opciones' ? 'selected' : ''}>🔘 Opciones</option>
+              <option value="pregunta" ${paso.tipo === 'pregunta' ? 'selected' : ''}>❓ Pregunta</option>
+            </select>
+            <button class="btn-eliminar-paso" onclick="eliminarPasoFlujo(${index})">🗑️</button>
+          </div>
+        </div>
+        <div class="paso-flujo-content">
+          ${contenidoHTML}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 // ============================================================================
-// FUNCIÓN: GUARDAR FLUJO (CREATE O UPDATE) - CORREGIDA
+// GUARDAR FLUJO (Adaptado para enviar el JSON generado visualmente)
 // ============================================================================
 async function guardarFlujo() {
   const flowId = document.getElementById('flow-id-editando').value;
   const nombre = document.getElementById('flow-nombre').value.trim();
   const trigger = document.getElementById('flow-trigger').value.trim();
-  const pasosRaw = document.getElementById('flow-pasos').value.trim();
   
-  // Validaciones básicas
-  if (!nombre || !pasosRaw) {
-    mostrarFeedbackFlujo('⚠️ Nombre y pasos son requeridos', 'warning');
+  if (!nombre) {
+    mostrarFeedbackFlujo('⚠️ El nombre del flujo es requerido', 'warning');
     return;
   }
   
-  // Parsear y validar JSON de pasos
-  let pasos;
-  try {
-    pasos = JSON.parse(pasosRaw);
-    if (!Array.isArray(pasos)) throw new Error('Debe ser un array JSON');
-  } catch (e) {
-    mostrarFeedbackFlujo('❌ JSON inválido en pasos: ' + e.message, 'error');
+  if (pasosFlujoTemp.length === 0) {
+    mostrarFeedbackFlujo('⚠️ Debes agregar al menos un paso al flujo', 'warning');
     return;
   }
-  
-  // Validar estructura mínima de cada paso
-  for (let i = 0; i < pasos.length; i++) {
-    if (!pasos[i] || typeof pasos[i] !== 'object') {
-      mostrarFeedbackFlujo(`❌ El paso ${i+1} debe ser un objeto JSON`, 'error');
-      return;
+
+  // Validar y limpiar pasos antes de enviar
+  const pasosLimpios = pasosFlujoTemp.map(paso => {
+    if (paso.tipo === 'mensaje') {
+      return { tipo: 'mensaje', texto: paso.texto.trim() };
+    } else if (paso.tipo === 'opciones') {
+      return { 
+        tipo: 'opciones', 
+        campo: (paso.campo || '').trim(), 
+        opciones: (paso.opciones || []).filter(op => op.trim() !== '') 
+      };
+    } else if (paso.tipo === 'pregunta') {
+      return { tipo: 'pregunta', texto: paso.texto.trim(), campo: (paso.campo || '').trim() };
     }
-    if (!pasos[i].tipo) {
-      mostrarFeedbackFlujo(`❌ El paso ${i+1} debe tener un campo "tipo"`, 'error');
-      return;
-    }
-  }
-  
+  });
+
   try {
-    // Determinar método: POST para crear, PUT para actualizar
     const method = flowId ? 'PUT' : 'POST';
     const url = flowId ? `/api/bot/flows?id=${flowId}` : '/api/bot/flows';
     
@@ -8797,25 +8969,21 @@ async function guardarFlujo() {
       body: JSON.stringify({ 
         nombre, 
         trigger_keyword: trigger, 
-        pasos,
-        orden: flowId ? undefined : 0  // Solo asignar orden en creación
+        pasos: pasosLimpios, // <-- Aquí enviamos el array limpio, el backend lo convierte a JSONB
+        orden: flowId ? undefined : 0
       })
     });
     
     const result = await resp.json();
     
     if (result.ok) {
-      // Cerrar modal y recargar lista
       cerrarModalFlujo();
       cargarFlows();
-      
-      // Mensaje contextual
       const accion = flowId ? 'actualizado' : 'creado';
       mostrarNotificacionSuave(`✅ Flujo ${accion} correctamente`, 'success');
     } else {
       mostrarFeedbackFlujo('❌ Error: ' + (result.error || 'desconocido'), 'error');
     }
-    
   } catch (err) {
     console.error('❌ Error al guardar flujo:', err);
     mostrarFeedbackFlujo('❌ Error de conexión con el servidor', 'error');
@@ -8841,39 +9009,31 @@ async function eliminarFlujo(id) {
 }
 
 // ============================================================================
-// FUNCIÓN: EDITAR FLUJO EXISTENTE (CORREGIDA)
+// EDITAR FLUJO EXISTENTE (Carga el JSON en el constructor visual)
 // ============================================================================
 async function editarFlujo(flowId) {
-  console.log('✏️ Editando flujo ID:', flowId);
-  
   try {
-    // 1. Obtener lista actualizada de flows
     const resp = await fetch('/api/bot/flows');
     if (!resp.ok) throw new Error('Error al cargar flows');
     
     const flows = await resp.json();
-    
-    // 2. Buscar el flow específico por ID
     const flow = flows.find(f => f.id === flowId);
+    
     if (!flow) {
       mostrarNotificacionSuave('❌ Flujo no encontrado', 'error');
       return;
     }
     
-    // 3. Llenar el formulario con los datos existentes
     document.getElementById('flow-id-editando').value = flow.id;
     document.getElementById('flow-nombre').value = flow.nombre || '';
     document.getElementById('flow-trigger').value = flow.trigger_keyword || '';
     
-    // Formatear pasos JSON para que sea legible en el textarea
-    const pasosPretty = JSON.stringify(flow.pasos || [], null, 2);
-    document.getElementById('flow-pasos').value = pasosPretty;
+    // Cargar pasos en el array temporal y renderizar
+    pasosFlujoTemp = Array.isArray(flow.pasos) ? flow.pasos : [];
+    renderizarPasosFlujo();
     
-    // 4. Abrir el modal editor
     document.getElementById('modal-editor-flujo').classList.remove('hidden');
     document.getElementById('flow-feedback').classList.add('hidden');
-    
-    console.log('✅ Datos cargados para edición:', flow.nombre);
     
   } catch (err) {
     console.error('❌ Error al cargar flujo para editar:', err);
