@@ -8876,25 +8876,22 @@ function renderizarPasosFlujo() {
   container.innerHTML = pasosFlujoTemp.map((paso, index) => {
     let contenidoHTML = '';
     
-// Dentro de renderizarPasosFlujo(), donde defines contenidoHTML:
-
     if (paso.tipo === 'mensaje') {
-    contenidoHTML = `<textarea placeholder="Escribe el mensaje..." oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>`;
+      contenidoHTML = `<textarea placeholder="Escribe el mensaje..." oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>`;
     } 
     else if (paso.tipo === 'imagen') {
-    contenidoHTML = `
+      contenidoHTML = `
         <input type="text" placeholder="URL de la imagen (S3 o externa)" value="${paso.url || ''}" oninput="pasosFlujoTemp[${index}].url = this.value">
         <textarea placeholder="Texto o pie de foto (opcional)" oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>
-    `;
+      `;
     } 
     else if (paso.tipo === 'video') {
-    contenidoHTML = `
+      contenidoHTML = `
         <input type="text" placeholder="URL del video (S3 o externa)" value="${paso.url || ''}" oninput="pasosFlujoTemp[${index}].url = this.value">
         <textarea placeholder="Texto o pie de video (opcional)" oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>
-    `;
-    
-    
-    } else if (paso.tipo === 'opciones') {
+      `;
+    } 
+    else if (paso.tipo === 'opciones') {
       const opcionesHTML = (paso.opciones || []).map((op, opIdx) => `
         <div class="opcion-item">
           <input type="text" placeholder="Opción ${opIdx + 1}" value="${op}" 
@@ -8909,7 +8906,8 @@ function renderizarPasosFlujo() {
         <div style="margin-top:5px;">${opcionesHTML}</div>
         <button class="btn-agregar-opcion" onclick="agregarOpcionFlujo(${index})" style="margin-top:5px;">➕ Agregar Opción</button>
       `;
-    } else if (paso.tipo === 'pregunta') {
+    } 
+    else if (paso.tipo === 'pregunta') {
       contenidoHTML = `
         <textarea placeholder="Ej: ¿Para qué fecha es tu evento?" 
           oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>
@@ -8918,22 +8916,35 @@ function renderizarPasosFlujo() {
       `;
     }
 
+    // HTML del delay - se agrega a todos los tipos de paso
+    const delayHTML = `
+      <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+        <label style="font-size: 12px; color: #666; margin: 0;">⏳ Retraso antes de enviar (segundos):</label>
+        <input type="number" min="0" max="10" value="${paso.delay || 0}" 
+          oninput="pasosFlujoTemp[${index}].delay = parseInt(this.value) || 0"
+          style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+        <small style="font-size: 11px; color: #999;">(0 = inmediato, 2-3 = más humano)</small>
+      </div>
+    `;
+
     return `
       <div class="paso-flujo-card">
         <div class="paso-flujo-header">
           <strong style="font-size: 14px; color: #495057;">Paso ${index + 1}</strong>
           <div style="display:flex; gap:8px; align-items:center;">
             <select onchange="cambiarTipoPaso(${index}, this.value)">
-            <option value="mensaje" ${paso.tipo === 'mensaje' ? 'selected' : ''}>💬 Mensaje de Texto</option>
-            <option value="imagen" ${paso.tipo === 'imagen' ? 'selected' : ''}>🖼️ Imagen</option>
-            <option value="video" ${paso.tipo === 'video' ? 'selected' : ''}>🎥 Video</option>
-            <option value="opciones" ${paso.tipo === 'opciones' ? 'selected' : ''}>🔘 Opciones (Botones)</option>
+              <option value="mensaje" ${paso.tipo === 'mensaje' ? 'selected' : ''}>💬 Mensaje de Texto</option>
+              <option value="imagen" ${paso.tipo === 'imagen' ? 'selected' : ''}>🖼️ Imagen</option>
+              <option value="video" ${paso.tipo === 'video' ? 'selected' : ''}>🎥 Video</option>
+              <option value="opciones" ${paso.tipo === 'opciones' ? 'selected' : ''}>🔘 Opciones (Botones)</option>
+              <option value="pregunta" ${paso.tipo === 'pregunta' ? 'selected' : ''}>❓ Pregunta</option>
             </select>
             <button class="btn-eliminar-paso" onclick="eliminarPasoFlujo(${index})">🗑️</button>
           </div>
         </div>
         <div class="paso-flujo-content">
           ${contenidoHTML}
+          ${delayHTML}
         </div>
       </div>
     `;
