@@ -9013,25 +9013,98 @@ async function guardarFlujo() {
     return;
   }
   
+  if (!trigger) {
+    mostrarFeedbackFlujo('⚠️ La palabra clave (trigger) es requerida', 'warning');
+    return;
+  }
+  
   if (pasosFlujoTemp.length === 0) {
     mostrarFeedbackFlujo('⚠️ Debes agregar al menos un paso al flujo', 'warning');
     return;
   }
 
-  // Validar y limpiar pasos antes de enviar
-  const pasosLimpios = pasosFlujoTemp.map(paso => {
+  // 🎯 CONVERTIR pasos lineales a formato de nodos
+  const nodes = {};
+  let nodoIdCounter = 1;
+  
+  // Nodo trigger (siempre el primero)
+  const triggerNodeId = `n${nodoIdCounter++}`;
+  nodes[triggerNodeId] = {
+    id: triggerNodeId,
+    type: "trigger",
+    keyword: trigger.toLowerCase(),
+    next: null  // Se llena después
+  };
+  
+  let prevNodeId = triggerNodeId;
+  
+  // Convertir cada paso a un nodo
+  for (let i = 0; i < pasosFlujoTemp.length; i++) {
+    const paso = pasosFlujoTemp[i];
+    const nodeId = `n${nodoIdCounter++}`;
+    const nodo = { id: nodeId };
+    
     if (paso.tipo === 'mensaje') {
-      return { tipo: 'mensaje', texto: paso.texto.trim() };
-    } else if (paso.tipo === 'opciones') {
-      return { 
-        tipo: 'opciones', 
-        campo: (paso.campo || '').trim(), 
-        opciones: (paso.opciones || []).filter(op => op.trim() !== '') 
-      };
-    } else if (paso.tipo === 'pregunta') {
-      return { tipo: 'pregunta', texto: paso.texto.trim(), campo: (paso.campo || '').trim() };
+      nodo.type = 'message';
+      nodo.text = (paso.texto || '').trim();
+      nodo.delay = paso.delay || 0;
+    } 
+    else if (paso.tipo === 'imagen') {
+      nodo.type = 'image';
+      nodo.url = (paso.url || '').trim();
+      nodo.caption = (paso.texto || '').trim();
+      nodo.delay = paso.delay || 0;
+    } 
+    else if (paso.tipo === 'video') {
+      nodo.type = 'video';
+      nodo.url = (paso.url || '').trim();
+      nodo.caption = (paso.texto || '').trim();
+      nodo.delay = paso.delay || 0;
+    } 
+    else if (paso.tipo === 'opciones') {
+      nodo.type = 'options';
+      nodo.text = (paso.texto || 'Selecciona una opción:').trim();
+      nodo.field = (paso.campo || '').trim();
+      nodo.branches = (paso.opciones || []).filter(op => op.trim() !== '').map((op, idx) => ({
+        label: op.trim(),
+        value: op.trim().toLowerCase().replace(/\s+/g, '_'),
+        next: null  // Se llena después con el siguiente nodo
+      }));
+    } 
+    else if (paso.tipo === 'pregunta') {
+      nodo.type = 'question';
+      nodo.text = (paso.texto || '').trim();
+      nodo.field = (paso.campo || '').trim();
+      nodo.validation = paso.validation || 'any';
+      nodo.allow_empty = paso.allow_empty || false;
+      nodo.delay = paso.delay || 0;
     }
-  });
+    
+    // Conectar con el nodo anterior
+    if (nodes[prevNodeId].type === 'options') {
+      // Si el anterior es opciones, las ramas apuntarán después
+    } else {
+      nodes[prevNodeId].next = nodeId;
+    }
+    
+    nodes[nodeId] = nodo;
+    prevNodeId = nodeId;
+  }
+  
+  // Agregar nodo final
+  const endNodeId = 'n_end';
+  nodes[endNodeId] = { id: endNodeId, type: 'end' };
+  nodes[prevNodeId].next = endNodeId;
+  
+  // Conectar el trigger con el primer paso
+  const firstStepId = Object.keys(nodes).find(k => k !== triggerNodeId && k !== endNodeId);
+  nodes[triggerNodeId].next = firstStepId;
+  
+  // Construir payload final
+  const pasosJSON = {
+    start_node: triggerNodeId,
+    nodes: nodes
+  };
 
   try {
     const method = flowId ? 'PUT' : 'POST';
@@ -9043,7 +9116,7 @@ async function guardarFlujo() {
       body: JSON.stringify({ 
         nombre, 
         trigger_keyword: trigger, 
-        pasos: pasosLimpios, // <-- Aquí enviamos el array limpio, el backend lo convierte a JSONB
+        pasos: pasosJSON,
         orden: flowId ? undefined : 0
       })
     });
@@ -9063,6 +9136,7 @@ async function guardarFlujo() {
     mostrarFeedbackFlujo('❌ Error de conexión con el servidor', 'error');
   }
 }
+
 
 function mostrarFeedbackFlujo(mensaje, tipo) {
   const fb = document.getElementById('flow-feedback');
@@ -9087,8 +9161,6 @@ async function eliminarFlujo(id) {
 // EDITAR FLUJO EXISTENTE (Versión Blindada con Debugging)
 // ============================================================================
 async function editarFlujo(flowId) {
-  console.log("🔍 Intentando editar flujo ID:", flowId);
-  
   try {
     const resp = await fetch('/api/bot/flows');
     if (!resp.ok) throw new Error('Error al cargar flujos: ' + resp.status);
@@ -9105,20 +9177,51 @@ async function editarFlujo(flowId) {
     document.getElementById('flow-nombre').value = flow.nombre || '';
     document.getElementById('flow-trigger').value = flow.trigger_keyword || '';
     
+    // 🎯 Convertir formato nodos → array lineal para el editor
     let pasosParseados = [];
-    if (Array.isArray(flow.pasos)) {
-      pasosParseados = flow.pasos;
-    } else if (typeof flow.pasos === 'string') {
-      try {
-        pasosParseados = JSON.parse(flow.pasos);
-      } catch (e) {
-        console.error("Error al parsear JSON de pasos:", e);
-        pasosParseados = [];
+    if (flow.pasos && typeof flow.pasos === 'object' && flow.pasos.nodes) {
+      const nodes = flow.pasos.nodes;
+      const startNodeId = flow.pasos.start_node;
+      
+      // Recorrer desde el trigger hasta el end
+      let currentNodeId = nodes[startNodeId]?.next;
+      while (currentNodeId && currentNodeId !== 'n_end') {
+        const nodo = nodes[currentNodeId];
+        if (!nodo) break;
+        
+        if (nodo.type === 'message') {
+          pasosParseados.push({ tipo: 'mensaje', texto: nodo.text || '', delay: nodo.delay || 0 });
+        } 
+        else if (nodo.type === 'image') {
+          pasosParseados.push({ tipo: 'imagen', url: nodo.url || '', texto: nodo.caption || '', delay: nodo.delay || 0 });
+        } 
+        else if (nodo.type === 'video') {
+          pasosParseados.push({ tipo: 'video', url: nodo.url || '', texto: nodo.caption || '', delay: nodo.delay || 0 });
+        } 
+        else if (nodo.type === 'question') {
+          pasosParseados.push({ 
+            tipo: 'pregunta', 
+            texto: nodo.text || '', 
+            campo: nodo.field || '',
+            validation: nodo.validation || 'any',
+            allow_empty: nodo.allow_empty || false,
+            delay: nodo.delay || 0
+          });
+        } 
+        else if (nodo.type === 'options') {
+          pasosParseados.push({ 
+            tipo: 'opciones', 
+            texto: nodo.text || '',
+            campo: nodo.field || '',
+            opciones: (nodo.branches || []).map(b => b.label)
+          });
+        }
+        
+        currentNodeId = nodo.next;
       }
     }
     
-    pasosFlujoTemp = pasosParseados.filter(p => p !== null && p !== undefined);
-    
+    pasosFlujoTemp = pasosParseados;
     renderizarPasosFlujo();
     
     document.getElementById('modal-editor-flujo').classList.remove('hidden');
@@ -9129,7 +9232,6 @@ async function editarFlujo(flowId) {
     mostrarNotificacionSuave('❌ Error: ' + err.message, 'error');
   }
 }
-
 
 
 // ============================================================================
