@@ -49,6 +49,232 @@ CORS(app,
      supports_credentials=True
 )
 
+
+# ============================================================================
+# MOTOR DE FLUJOS - FUNCIONES AUXILIARES
+# ============================================================================
+
+def validar_respuesta(valor, validation_type, allow_empty=False):
+    """Valida y normaliza la respuesta según el tipo esperado."""
+    if valor is None:
+        return (False, None)
+    
+    valor = str(valor).strip()
+    
+    if not valor:
+        return (True, "") if allow_empty else (False, None)
+    
+    if validation_type in [None, "any", ""]:
+        return (True, valor)
+    
+    if validation_type == "text":
+        if re.match(r'^[a-záéíóúñüA-ZÁÉÍÓÚÑÜ\s]+$', valor) and len(valor) >= 2:
+            return (True, valor.title())
+        return (False, None)
+    
+    if validation_type == "date":
+        valor_lower = valor.lower()
+        respuestas_vacias = ["no se", "no sé", "aun no", "aún no", "no", "falta", 
+                           "despues", "después", "nose", "todavia", "todavía"]
+        if any(r in valor_lower for r in respuestas_vacias):
+            return (True, "") if allow_empty else (False, None)
+        
+        patrones = [
+            r'(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)',
+            r'(\d{1,2})/(\d{1,2})/(\d{2,4})',
+            r'(\d{4})-(\d{2})-(\d{2})'
+        ]
+        for patron in patrones:
+            if re.search(patron, valor_lower):
+                return (True, valor)
+        return (False, None)
+    
+    if validation_type == "phone":
+        limpio = re.sub(r'\D', '', valor)
+        if len(limpio) == 10:
+            limpio = '521' + limpio
+        if len(limpio) == 13 and limpio.startswith('521'):
+            return (True, limpio)
+        return (False, None)
+    
+    if validation_type == "email":
+        if re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', valor):
+            return (True, valor.lower())
+        return (False, None)
+    
+    if validation_type == "number":
+        numeros = re.findall(r'\d+', valor)
+        if numeros:
+            return (True, int(numeros[0]))
+        return (False, None)
+    
+    return (True, valor)
+
+
+def reemplazar_variables(texto, contexto_dict):
+    """Reemplaza {variable} en un texto con los valores del contexto."""
+    if not texto:
+        return ""
+    resultado = str(texto)
+    for key, value in contexto_dict.items():
+        resultado = resultado.replace(f"{{{key}}}", str(value))
+    return resultado
+
+
+def ejecutar_cadena_nodos(cursor, nodes, start_node_id, contexto_dict, sesion_id, cliente_id, remitente, nombre_flujo):
+    """Ejecuta una cadena de nodos automáticos hasta encontrar uno que requiera pausa."""
+    acciones = []
+    nodo_actual_id = start_node_id
+    max_iteraciones = 20
+    iteraciones = 0
+    
+    while nodo_actual_id and nodo_actual_id != "end" and iteraciones < max_iteraciones:
+        iteraciones += 1
+        nodo = nodes.get(nodo_actual_id)
+        
+        if not nodo or not isinstance(nodo, dict):
+            print(f"⚠️ [FLUJO] Nodo '{nodo_actual_id}' no encontrado")
+            break
+        
+        tipo = nodo.get("type", "message")
+        
+        if tipo == "message":
+            acciones.append({
+                "type": "mensaje",
+                "caption": reemplazar_variables(nodo.get("text", ""), contexto_dict),
+                "delay": nodo.get("delay", 0)
+            })
+            nodo_actual_id = nodo.get("next")
+            
+        elif tipo == "delay":
+            acciones.append({
+                "type": "delay",
+                "seconds": nodo.get("seconds", 1)
+            })
+            nodo_actual_id = nodo.get("next")
+            
+        elif tipo == "image":
+            acciones.append({
+                "type": "imagen",
+                "url": nodo.get("url", ""),
+                "caption": reemplazar_variables(nodo.get("caption", ""), contexto_dict),
+                "delay": nodo.get("delay", 0)
+            })
+            nodo_actual_id = nodo.get("next")
+            
+        elif tipo == "video":
+            acciones.append({
+                "type": "video",
+                "url": nodo.get("url", ""),
+                "caption": reemplazar_variables(nodo.get("caption", ""), contexto_dict),
+                "delay": nodo.get("delay", 0)
+            })
+            nodo_actual_id = nodo.get("next")
+            
+        elif tipo == "question":
+            cursor.execute("""
+                UPDATE conversation_sessions 
+                SET nodo_actual = %s, ultimo_input_en = NOW()
+                WHERE id = %s
+            """, (nodo_actual_id, sesion_id))
+            
+            acciones.append({
+                "type": "mensaje",
+                "caption": reemplazar_variables(nodo.get("text", ""), contexto_dict),
+                "delay": nodo.get("delay", 0)
+            })
+            break
+            
+        elif tipo == "options":
+            cursor.execute("""
+                UPDATE conversation_sessions 
+                SET nodo_actual = %s, ultimo_input_en = NOW()
+                WHERE id = %s
+            """, (nodo_actual_id, sesion_id))
+            
+            branches = nodo.get("branches", [])
+            botones = [b.get("label", "") for b in branches][:3]
+            
+            acciones.append({
+                "type": "opciones",
+                "caption": reemplazar_variables(nodo.get("text", ""), contexto_dict),
+                "botones": botones,
+                "delay": nodo.get("delay", 0)
+            })
+            break
+            
+        elif tipo == "end":
+            if contexto_dict:
+                handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre_flujo)
+            
+            cursor.execute("""
+                UPDATE conversation_sessions 
+                SET estado_actual = 'idle', flujo_activo_id = NULL, 
+                    nodo_actual = NULL, paso_actual = 0, contexto = '{}'::jsonb
+                WHERE id = %s
+            """, (sesion_id,))
+            break
+            
+        elif tipo == "trigger":
+            nodo_actual_id = nodo.get("next")
+            
+        else:
+            print(f"⚠️ [FLUJO] Tipo de nodo desconocido: {tipo}")
+            break
+    
+    return acciones if acciones else None
+
+
+def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre_flujo):
+    """Copia el contexto del flujo al lead antes de cerrar la sesión."""
+    print(f"🔍 [HANDOFF DEBUG] Iniciando handoff para {remitente} con datos: {contexto_dict}")
+    try:
+        # 1. Buscar el lead
+        cursor.execute("""
+            SELECT id, contexto FROM leads 
+            WHERE telefono = %s AND cliente_id = %s
+        """, (remitente, cliente_id))
+        lead_row = cursor.fetchone()
+        print(f"🔍 [HANDOFF DEBUG] Lead encontrado en BD: {lead_row}")
+        
+        if lead_row:
+            lead_id, contexto_existente = lead_row
+            
+            # 2. Normalizar contexto existente
+            if isinstance(contexto_existente, str):
+                try:
+                    contexto_existente = json.loads(contexto_existente)
+                except Exception as e:
+                    print(f"⚠️ [HANDOFF DEBUG] Error parseando contexto existente: {e}")
+                    contexto_existente = {}
+            elif not contexto_existente:
+                contexto_existente = {}
+            
+            # 3. Fusionar contextos
+            contexto_mergeado = {**contexto_existente, **contexto_dict}
+            contexto_mergeado["_ultimo_flujo"] = {
+                "nombre": nombre_flujo,
+                "completado_en": datetime.now().isoformat(),
+                "datos_recolectados": contexto_dict
+            }
+            
+            print(f"🔍 [HANDOFF DEBUG] Contexto final a guardar: {contexto_mergeado}")
+            
+            # 4. Ejecutar UPDATE
+            cursor.execute("""
+                UPDATE leads SET contexto = %s::jsonb WHERE id = %s
+            """, (json.dumps(contexto_mergeado), lead_id))
+            
+            print(f"🎯 [HANDOFF ÉXITO] Contexto guardado en lead {remitente} (ID: {lead_id})")
+        else:
+            print(f"⚠️ [HANDOFF DEBUG] No se encontró el lead {remitente} en la BD para hacer el handoff.")
+            
+    except Exception as e:
+        print(f"❌ [HANDOFF ERROR] Excepción atrapada: {e}")
+        import traceback
+        traceback.print_exc()
+
+        
 # ============================================================================
 # FUNCIONES DE ENCRIPTACIÓN PARA CREDENCIALES DE TENANTS
 # ============================================================================
@@ -436,229 +662,7 @@ def kpi_mes():
 ##################################
 #----------SECCION LEADS---------- 
 ##################################   
-# ============================================================================
-# MOTOR DE FLUJOS - FUNCIONES AUXILIARES
-# ============================================================================
 
-def validar_respuesta(valor, validation_type, allow_empty=False):
-    """Valida y normaliza la respuesta según el tipo esperado."""
-    if valor is None:
-        return (False, None)
-    
-    valor = str(valor).strip()
-    
-    if not valor:
-        return (True, "") if allow_empty else (False, None)
-    
-    if validation_type in [None, "any", ""]:
-        return (True, valor)
-    
-    if validation_type == "text":
-        if re.match(r'^[a-záéíóúñüA-ZÁÉÍÓÚÑÜ\s]+$', valor) and len(valor) >= 2:
-            return (True, valor.title())
-        return (False, None)
-    
-    if validation_type == "date":
-        valor_lower = valor.lower()
-        respuestas_vacias = ["no se", "no sé", "aun no", "aún no", "no", "falta", 
-                           "despues", "después", "nose", "todavia", "todavía"]
-        if any(r in valor_lower for r in respuestas_vacias):
-            return (True, "") if allow_empty else (False, None)
-        
-        patrones = [
-            r'(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)',
-            r'(\d{1,2})/(\d{1,2})/(\d{2,4})',
-            r'(\d{4})-(\d{2})-(\d{2})'
-        ]
-        for patron in patrones:
-            if re.search(patron, valor_lower):
-                return (True, valor)
-        return (False, None)
-    
-    if validation_type == "phone":
-        limpio = re.sub(r'\D', '', valor)
-        if len(limpio) == 10:
-            limpio = '521' + limpio
-        if len(limpio) == 13 and limpio.startswith('521'):
-            return (True, limpio)
-        return (False, None)
-    
-    if validation_type == "email":
-        if re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', valor):
-            return (True, valor.lower())
-        return (False, None)
-    
-    if validation_type == "number":
-        numeros = re.findall(r'\d+', valor)
-        if numeros:
-            return (True, int(numeros[0]))
-        return (False, None)
-    
-    return (True, valor)
-
-
-def reemplazar_variables(texto, contexto_dict):
-    """Reemplaza {variable} en un texto con los valores del contexto."""
-    if not texto:
-        return ""
-    resultado = str(texto)
-    for key, value in contexto_dict.items():
-        resultado = resultado.replace(f"{{{key}}}", str(value))
-    return resultado
-
-
-def ejecutar_cadena_nodos(cursor, nodes, start_node_id, contexto_dict, sesion_id, cliente_id, remitente, nombre_flujo):
-    """Ejecuta una cadena de nodos automáticos hasta encontrar uno que requiera pausa."""
-    acciones = []
-    nodo_actual_id = start_node_id
-    max_iteraciones = 20
-    iteraciones = 0
-    
-    while nodo_actual_id and nodo_actual_id != "end" and iteraciones < max_iteraciones:
-        iteraciones += 1
-        nodo = nodes.get(nodo_actual_id)
-        
-        if not nodo or not isinstance(nodo, dict):
-            print(f"⚠️ [FLUJO] Nodo '{nodo_actual_id}' no encontrado")
-            break
-        
-        tipo = nodo.get("type", "message")
-        
-        if tipo == "message":
-            acciones.append({
-                "type": "mensaje",
-                "caption": reemplazar_variables(nodo.get("text", ""), contexto_dict),
-                "delay": nodo.get("delay", 0)
-            })
-            nodo_actual_id = nodo.get("next")
-            
-        elif tipo == "delay":
-            acciones.append({
-                "type": "delay",
-                "seconds": nodo.get("seconds", 1)
-            })
-            nodo_actual_id = nodo.get("next")
-            
-        elif tipo == "image":
-            acciones.append({
-                "type": "imagen",
-                "url": nodo.get("url", ""),
-                "caption": reemplazar_variables(nodo.get("caption", ""), contexto_dict),
-                "delay": nodo.get("delay", 0)
-            })
-            nodo_actual_id = nodo.get("next")
-            
-        elif tipo == "video":
-            acciones.append({
-                "type": "video",
-                "url": nodo.get("url", ""),
-                "caption": reemplazar_variables(nodo.get("caption", ""), contexto_dict),
-                "delay": nodo.get("delay", 0)
-            })
-            nodo_actual_id = nodo.get("next")
-            
-        elif tipo == "question":
-            cursor.execute("""
-                UPDATE conversation_sessions 
-                SET nodo_actual = %s, ultimo_input_en = NOW()
-                WHERE id = %s
-            """, (nodo_actual_id, sesion_id))
-            
-            acciones.append({
-                "type": "mensaje",
-                "caption": reemplazar_variables(nodo.get("text", ""), contexto_dict),
-                "delay": nodo.get("delay", 0)
-            })
-            break
-            
-        elif tipo == "options":
-            cursor.execute("""
-                UPDATE conversation_sessions 
-                SET nodo_actual = %s, ultimo_input_en = NOW()
-                WHERE id = %s
-            """, (nodo_actual_id, sesion_id))
-            
-            branches = nodo.get("branches", [])
-            botones = [b.get("label", "") for b in branches][:3]
-            
-            acciones.append({
-                "type": "opciones",
-                "caption": reemplazar_variables(nodo.get("text", ""), contexto_dict),
-                "botones": botones,
-                "delay": nodo.get("delay", 0)
-            })
-            break
-            
-        elif tipo == "end":
-            if contexto_dict:
-                handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre_flujo)
-            
-            cursor.execute("""
-                UPDATE conversation_sessions 
-                SET estado_actual = 'idle', flujo_activo_id = NULL, 
-                    nodo_actual = NULL, paso_actual = 0, contexto = '{}'::jsonb
-                WHERE id = %s
-            """, (sesion_id,))
-            break
-            
-        elif tipo == "trigger":
-            nodo_actual_id = nodo.get("next")
-            
-        else:
-            print(f"⚠️ [FLUJO] Tipo de nodo desconocido: {tipo}")
-            break
-    
-    return acciones if acciones else None
-
-
-def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre_flujo):
-    """Copia el contexto del flujo al lead antes de cerrar la sesión."""
-    print(f"🔍 [HANDOFF DEBUG] Iniciando handoff para {remitente} con datos: {contexto_dict}")
-    try:
-        # 1. Buscar el lead
-        cursor.execute("""
-            SELECT id, contexto FROM leads 
-            WHERE telefono = %s AND cliente_id = %s
-        """, (remitente, cliente_id))
-        lead_row = cursor.fetchone()
-        print(f"🔍 [HANDOFF DEBUG] Lead encontrado en BD: {lead_row}")
-        
-        if lead_row:
-            lead_id, contexto_existente = lead_row
-            
-            # 2. Normalizar contexto existente
-            if isinstance(contexto_existente, str):
-                try:
-                    contexto_existente = json.loads(contexto_existente)
-                except Exception as e:
-                    print(f"⚠️ [HANDOFF DEBUG] Error parseando contexto existente: {e}")
-                    contexto_existente = {}
-            elif not contexto_existente:
-                contexto_existente = {}
-            
-            # 3. Fusionar contextos
-            contexto_mergeado = {**contexto_existente, **contexto_dict}
-            contexto_mergeado["_ultimo_flujo"] = {
-                "nombre": nombre_flujo,
-                "completado_en": datetime.now().isoformat(),
-                "datos_recolectados": contexto_dict
-            }
-            
-            print(f"🔍 [HANDOFF DEBUG] Contexto final a guardar: {contexto_mergeado}")
-            
-            # 4. Ejecutar UPDATE
-            cursor.execute("""
-                UPDATE leads SET contexto = %s::jsonb WHERE id = %s
-            """, (json.dumps(contexto_mergeado), lead_id))
-            
-            print(f"🎯 [HANDOFF ÉXITO] Contexto guardado en lead {remitente} (ID: {lead_id})")
-        else:
-            print(f"⚠️ [HANDOFF DEBUG] No se encontró el lead {remitente} en la BD para hacer el handoff.")
-            
-    except Exception as e:
-        print(f"❌ [HANDOFF ERROR] Excepción atrapada: {e}")
-        import traceback
-        traceback.print_exc()
 
 # ============================================================================
 # ESTADOS DE LEADS PERSONALIZABLES POR TENANT
@@ -1542,7 +1546,10 @@ def recibir_mensaje():
         # ✅ Guardar cambios
         conn.commit()
 
-        # 4. 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
+        # ✅ Guardar todos los cambios (mensaje + stats + handoff)
+        conn.commit()
+
+        # 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
         socketio.emit("nuevo_mensaje", {
             "remitente": remitente,
             "mensaje": mensaje,
@@ -1551,19 +1558,20 @@ def recibir_mensaje():
             "cliente_id": cliente_id
         })
 
-        # 5. Devolver la respuesta al Bot
+        # 📤 Devolver la respuesta al Bot
         return jsonify({
             "mensaje": "Mensaje recibido y almacenado",
-            "bot_response": bot_response
+            "bot_response": bot_response  # Aquí va el array de acciones o el string
         }), 200
 
     except Exception as e:
         conn.rollback()
-        print(f"❌ Error en /recibir_mensaje: {str(e)}")
+        import sys, traceback
+        print(f"❌ Error en /recibir_mensaje: {e}", flush=True)
+        traceback.print_exc(file=sys.stdout)
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-
 
 # ============================================================================
 # 2. ENVIAR MENSAJES DESDE EL CRM (CRM -> BOT/WHATSAPP)
