@@ -8868,46 +8868,33 @@ function eliminarOpcionFlujo(pasoIndex, opcionIndex) {
 function renderizarPasosFlujo() {
   const container = document.getElementById('flow-pasos-container');
   
-  if (!pasosFlujoTemp || pasosFlujoTemp.length === 0) {
+  if (pasosFlujoTemp.length === 0) {
     container.innerHTML = '<p style="color:#999; text-align:center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px;">No hay pasos aún. Haz clic en "➕ Agregar Paso"</p>';
     return;
   }
 
   container.innerHTML = pasosFlujoTemp.map((paso, index) => {
-    // 🛡️ SEGURIDAD: Si el paso es null o no es un objeto, mostrar advertencia
-    if (!paso || typeof paso !== 'object') {
-      console.warn(`⚠️ El paso ${index} está corrupto o es nulo:`, paso);
-      return `
-        <div style="background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 15px; color: #c00; display: flex; justify-content: space-between; align-items: center;">
-          <span>⚠️ El Paso ${index + 1} está corrupto. Elimínalo y agrégalo de nuevo.</span>
-          <button class="btn-eliminar-paso" onclick="eliminarPasoFlujo(${index})">🗑️ Eliminar</button>
-        </div>
-      `;
-    }
-
     let contenidoHTML = '';
-    // 🛡️ SEGURIDAD: Valor por defecto si 'tipo' no existe
-    const tipo = paso.tipo || 'mensaje'; 
     
-    if (tipo === 'mensaje') {
+    if (paso.tipo === 'mensaje') {
       contenidoHTML = `<textarea placeholder="Escribe el mensaje..." oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>`;
     } 
-    else if (tipo === 'imagen') {
+    else if (paso.tipo === 'imagen') {
       contenidoHTML = `
         <input type="text" placeholder="URL de la imagen (S3 o externa)" value="${paso.url || ''}" oninput="pasosFlujoTemp[${index}].url = this.value">
         <textarea placeholder="Texto o pie de foto (opcional)" oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>
       `;
     } 
-    else if (tipo === 'video') {
+    else if (paso.tipo === 'video') {
       contenidoHTML = `
         <input type="text" placeholder="URL del video (S3 o externa)" value="${paso.url || ''}" oninput="pasosFlujoTemp[${index}].url = this.value">
         <textarea placeholder="Texto o pie de video (opcional)" oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>
       `;
     } 
-    else if (tipo === 'opciones') {
+    else if (paso.tipo === 'opciones') {
       const opcionesHTML = (paso.opciones || []).map((op, opIdx) => `
         <div class="opcion-item">
-          <input type="text" placeholder="Opción ${opIdx + 1}" value="${op || ''}" 
+          <input type="text" placeholder="Opción ${opIdx + 1}" value="${op}" 
             oninput="pasosFlujoTemp[${index}].opciones[${opIdx}] = this.value">
           <button class="btn-eliminar-opcion" onclick="eliminarOpcionFlujo(${index}, ${opIdx})">✖</button>
         </div>
@@ -8920,7 +8907,7 @@ function renderizarPasosFlujo() {
         <button class="btn-agregar-opcion" onclick="agregarOpcionFlujo(${index})" style="margin-top:5px;">➕ Agregar Opción</button>
       `;
     } 
-    else if (tipo === 'pregunta') {
+    else if (paso.tipo === 'pregunta') {
       contenidoHTML = `
         <textarea placeholder="Ej: ¿Para qué fecha es tu evento?" 
           oninput="pasosFlujoTemp[${index}].texto = this.value">${paso.texto || ''}</textarea>
@@ -8929,13 +8916,11 @@ function renderizarPasosFlujo() {
       `;
     }
 
-    // 🛡️ SEGURIDAD: Valor por defecto para el delay
-    const delay = paso.delay !== undefined ? paso.delay : 0;
-
+    // HTML del delay - se agrega a todos los tipos de paso
     const delayHTML = `
       <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-        <label style="font-size: 12px; color: #666; margin: 0;">⏳ Retraso (seg):</label>
-        <input type="number" min="0" max="10" value="${delay}" 
+        <label style="font-size: 12px; color: #666; margin: 0;">⏳ Retraso antes de enviar (segundos):</label>
+        <input type="number" min="0" max="10" value="${paso.delay || 0}" 
           oninput="pasosFlujoTemp[${index}].delay = parseInt(this.value) || 0"
           style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
         <small style="font-size: 11px; color: #999;">(0 = inmediato, 2-3 = más humano)</small>
@@ -8948,11 +8933,11 @@ function renderizarPasosFlujo() {
           <strong style="font-size: 14px; color: #495057;">Paso ${index + 1}</strong>
           <div style="display:flex; gap:8px; align-items:center;">
             <select onchange="cambiarTipoPaso(${index}, this.value)">
-              <option value="mensaje" ${tipo === 'mensaje' ? 'selected' : ''}>💬 Mensaje</option>
-              <option value="imagen" ${tipo === 'imagen' ? 'selected' : ''}>🖼️ Imagen</option>
-              <option value="video" ${tipo === 'video' ? 'selected' : ''}>🎥 Video</option>
-              <option value="opciones" ${tipo === 'opciones' ? 'selected' : ''}>🔘 Opciones</option>
-              <option value="pregunta" ${tipo === 'pregunta' ? 'selected' : ''}>❓ Pregunta</option>
+              <option value="mensaje" ${paso.tipo === 'mensaje' ? 'selected' : ''}>💬 Mensaje de Texto</option>
+              <option value="imagen" ${paso.tipo === 'imagen' ? 'selected' : ''}>🖼️ Imagen</option>
+              <option value="video" ${paso.tipo === 'video' ? 'selected' : ''}>🎥 Video</option>
+              <option value="opciones" ${paso.tipo === 'opciones' ? 'selected' : ''}>🔘 Opciones (Botones)</option>
+              <option value="pregunta" ${paso.tipo === 'pregunta' ? 'selected' : ''}>❓ Pregunta</option>
             </select>
             <button class="btn-eliminar-paso" onclick="eliminarPasoFlujo(${index})">🗑️</button>
           </div>
@@ -9048,7 +9033,9 @@ async function eliminarFlujo(id) {
   }
 }
 
-
+// ============================================================================
+// EDITAR FLUJO EXISTENTE (Carga el JSON en el constructor visual)
+// ============================================================================
 // ============================================================================
 // EDITAR FLUJO EXISTENTE (Versión Blindada con Debugging)
 // ============================================================================
@@ -9058,10 +9045,12 @@ async function editarFlujo(flowId) {
   try {
     const resp = await fetch('/api/bot/flows');
     if (!resp.ok) {
-      throw new Error(`El servidor respondió con error: ${resp.status}`);
+      throw new Error(`El servidor respondió con error: ${resp.status} ${resp.statusText}`);
     }
     
     const flows = await resp.json();
+    console.log("✅ Flujos recibidos del backend:", flows);
+    
     const flow = flows.find(f => f.id === flowId);
     
     if (!flow) {
@@ -9070,11 +9059,14 @@ async function editarFlujo(flowId) {
       return;
     }
     
+    console.log("✅ Flujo encontrado:", flow);
+    
     document.getElementById('flow-id-editando').value = flow.id;
     document.getElementById('flow-nombre').value = flow.nombre || '';
     document.getElementById('flow-trigger').value = flow.trigger_keyword || '';
     
-    // 🛡️ LIMPIEZA DE DATOS: Filtrar pasos nulos y asegurar que sea un array
+    // 🛡️ Manejo seguro de los pasos: 
+    // A veces PostgreSQL los devuelve como string JSON, a veces como array.
     let pasosParseados = [];
     if (Array.isArray(flow.pasos)) {
       pasosParseados = flow.pasos;
@@ -9087,11 +9079,10 @@ async function editarFlujo(flowId) {
       }
     }
     
-    // Filtrar cualquier elemento que sea null o undefined
-    pasosFlujoTemp = pasosParseados.filter(p => p !== null && p !== undefined);
+    console.log("✅ Pasos parseados para el editor:", pasosParseados);
     
-    console.log("✅ Pasos limpios cargados para el editor:", pasosFlujoTemp);
-    
+    // Cargar pasos en el array temporal y renderizar
+    pasosFlujoTemp = pasosParseados;
     renderizarPasosFlujo();
     
     document.getElementById('modal-editor-flujo').classList.remove('hidden');
