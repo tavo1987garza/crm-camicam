@@ -1196,11 +1196,55 @@ def recibir_mensaje():
                                     WHERE id = %s
                                 """, (paso_actual + 1, json.dumps(contexto_dict), sesion_id))
                                 
-                                # 4. Si era el último paso, cerrar la sesión
+                                # 4. Si era el último paso, hacer HANDOFF al lead y cerrar sesión
                                 if paso_actual == len(pasos) - 1:
+                                    # 🎯 HANDOFF: Copiar el contexto recolectado al lead ANTES de limpiar
+                                    if contexto_dict:  # Solo si hay datos que guardar
+                                        try:
+                                            # Obtener el lead_id del remitente
+                                            cursor.execute("""
+                                                SELECT id, contexto FROM leads 
+                                                WHERE telefono = %s AND cliente_id = %s
+                                            """, (remitente, cliente_id))
+                                            lead_row = cursor.fetchone()
+                                            
+                                            if lead_row:
+                                                lead_id = lead_row[0]
+                                                contexto_existente = lead_row[1] if lead_row[1] else {}
+                                                
+                                                # Si el contexto existente es string, parsearlo
+                                                if isinstance(contexto_existente, str):
+                                                    try:
+                                                        contexto_existente = json.loads(contexto_existente)
+                                                    except:
+                                                        contexto_existente = {}
+                                                
+                                                # 🔄 MERGE: Combinar contexto existente con el nuevo
+                                                contexto_mergeado = {**contexto_existente, **contexto_dict}
+                                                
+                                                # Agregar metadata del flujo completado
+                                                contexto_mergeado["_ultimo_flujo"] = {
+                                                    "nombre": nombre_flujo,
+                                                    "completado_en": datetime.now().isoformat(),
+                                                    "datos_recolectados": contexto_dict
+                                                }
+                                                
+                                                # Guardar en el lead
+                                                cursor.execute("""
+                                                    UPDATE leads 
+                                                    SET contexto = %s::jsonb
+                                                    WHERE id = %s
+                                                """, (json.dumps(contexto_mergeado), lead_id))
+                                                
+                                                print(f"🎯 [HANDOFF] Contexto del flujo '{nombre_flujo}' copiado al lead {remitente}: {list(contexto_dict.keys())}")
+                                        except Exception as e:
+                                            print(f"⚠️ Error copiando contexto al lead: {e}")
+                                    
+                                    # Ahora sí, cerrar la sesión del bot
                                     cursor.execute("""
                                         UPDATE conversation_sessions 
-                                        SET estado_actual = 'idle', flujo_activo_id = NULL, paso_actual = 0, contexto = '{}'::jsonb
+                                        SET estado_actual = 'idle', flujo_activo_id = NULL, 
+                                            paso_actual = 0, contexto = '{}'::jsonb
                                         WHERE id = %s
                                     """, (sesion_id,))
                         else:

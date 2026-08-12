@@ -5597,25 +5597,75 @@ document.getElementById("leads-container").addEventListener("dragstart", (event)
 // ============================================================================
 // ABRIR MODAL DE EDICIÓN DE LEADS
 // ============================================================================
-function abrirModalEditar(id, nombre, telefono, notas) {
+async function abrirModalEditar(id, nombre, telefono, notas) {
     const modal = document.getElementById("edit-lead-modal");
-    if (!modal) {
-        console.error("❌ No se encontró el modal 'edit-lead-modal'");
-        return;
-    }
+    if (!modal) return;
 
     document.getElementById("edit-lead-id").value = id;
     document.getElementById("edit-lead-nombre").value = nombre;
     document.getElementById("edit-lead-telefono").value = telefono;
     document.getElementById("edit-lead-notas").value = notas || "";
 
-    // Guardar valores originales para detectar cambios al cerrar
-    modal.dataset.originalNombre = nombre;
-    modal.dataset.originalNotas = notas || "";
+    // 🆕 NUEVO: Cargar contexto del bot si existe
+    try {
+        const resp = await fetch(`/lead_id?telefono=${telefono}`);
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.id) {
+                const contextoResp = await fetch(`/leads/context?telefono=${telefono}`);
+                if (contextoResp.ok) {
+                    const contextoData = await contextoResp.json();
+                    if (contextoData.context && Object.keys(contextoData.context).length > 0) {
+                        mostrarContextoEnModal(contextoData.context);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.warn("No se pudo cargar contexto del lead:", err);
+    }
 
-    // Mostrar el modal
     modal.classList.remove("hidden");
     modal.style.display = "flex";
+}
+
+// 🆕 Función auxiliar para mostrar el contexto en el modal
+function mostrarContextoEnModal(contexto) {
+    // Remover panel anterior si existe
+    const existente = document.getElementById("lead-contexto-panel");
+    if (existente) existente.remove();
+    
+    // Crear panel de contexto
+    const panel = document.createElement("div");
+    panel.id = "lead-contexto-panel";
+    panel.style.cssText = "background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 15px; margin: 15px 0;";
+    
+    let html = '<h4 style="margin: 0 0 10px 0; color: #1976d2;">🤖 Información recolectada por el bot</h4>';
+    
+    // Mostrar el último flujo completado
+    if (contexto._ultimo_flujo) {
+        html += `<div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+            Último flujo: <strong>${contexto._ultimo_flujo.nombre}</strong> 
+            (completado el ${new Date(contexto._ultimo_flujo.completado_en).toLocaleString()})
+        </div>`;
+    }
+    
+    // Mostrar datos recolectados (excluyendo metadata)
+    const datosReales = Object.entries(contexto).filter(([key]) => !key.startsWith('_'));
+    if (datosReales.length > 0) {
+        html += '<div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 13px;">';
+        datosReales.forEach(([key, value]) => {
+            html += `<strong style="color: #1976d2;">${key}:</strong><span>${value}</span>`;
+        });
+        html += '</div>';
+    }
+    
+    panel.innerHTML = html;
+    
+    // Insertar antes de los botones del modal
+    const modalContent = document.querySelector("#edit-lead-modal .modal-content");
+    const botones = modalContent.querySelector(".modal-buttons");
+    modalContent.insertBefore(panel, botones);
 }
 
 
