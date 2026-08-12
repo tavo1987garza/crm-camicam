@@ -1161,6 +1161,7 @@ def obtener_contexto_lead():
     conn = conectar_db()
     if not conn:
         return jsonify({"context": None}), 200
+    
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute(
@@ -1168,6 +1169,7 @@ def obtener_contexto_lead():
             (telefono, cliente_id)
         )
         row = cursor.fetchone()
+        
         if not row or not row['contexto']:
             return jsonify({"context": None}), 200
         
@@ -1178,11 +1180,11 @@ def obtener_contexto_lead():
             try:
                 contexto = json.loads(contexto_raw)
             except (json.JSONDecodeError, TypeError, ValueError):
-                app.logger.warning(f"Contexto malformado para {telefono}: {contexto_raw}")
                 return jsonify({"context": None}), 200
+        
         return jsonify({"context": contexto}), 200
     except Exception as e:
-        app.logger.error(f"Error inesperado en /leads/context: {e}")
+        print(f"❌ Error en /leads/context: {e}")
         return jsonify({"context": None}), 200
     finally:
         liberar_db(conn)

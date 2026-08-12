@@ -5606,19 +5606,17 @@ async function abrirModalEditar(id, nombre, telefono, notas) {
     document.getElementById("edit-lead-telefono").value = telefono;
     document.getElementById("edit-lead-notas").value = notas || "";
 
-    // 🆕 NUEVO: Cargar contexto del bot si existe
+    // 🆕 NUEVO: Cargar contexto del bot
     try {
-        const resp = await fetch(`/lead_id?telefono=${telefono}`);
-        if (resp.ok) {
-            const data = await resp.json();
-            if (data.id) {
-                const contextoResp = await fetch(`/leads/context?telefono=${telefono}`);
-                if (contextoResp.ok) {
-                    const contextoData = await contextoResp.json();
-                    if (contextoData.context && Object.keys(contextoData.context).length > 0) {
-                        mostrarContextoEnModal(contextoData.context);
-                    }
-                }
+        const contextoResp = await fetch(`/leads/context?telefono=${telefono}`);
+        if (contextoResp.ok) {
+            const contextoData = await contextoResp.json();
+            if (contextoData.context && Object.keys(contextoData.context).length > 0) {
+                mostrarContextoEnModal(contextoData.context);
+            } else {
+                // Remover panel anterior si existe
+                const existente = document.getElementById("lead-contexto-panel");
+                if (existente) existente.remove();
             }
         }
     } catch (err) {
@@ -5629,7 +5627,7 @@ async function abrirModalEditar(id, nombre, telefono, notas) {
     modal.style.display = "flex";
 }
 
-// 🆕 Función auxiliar para mostrar el contexto en el modal
+// 🆕 Función para mostrar el contexto en el modal
 function mostrarContextoEnModal(contexto) {
     // Remover panel anterior si existe
     const existente = document.getElementById("lead-contexto-panel");
@@ -5640,24 +5638,28 @@ function mostrarContextoEnModal(contexto) {
     panel.id = "lead-contexto-panel";
     panel.style.cssText = "background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 15px; margin: 15px 0;";
     
-    let html = '<h4 style="margin: 0 0 10px 0; color: #1976d2;">🤖 Información recolectada por el bot</h4>';
+    let html = '<h4 style="margin: 0 0 10px 0; color: #1976d2; font-size: 14px;">🤖 Información recolectada por el bot</h4>';
     
     // Mostrar el último flujo completado
     if (contexto._ultimo_flujo) {
-        html += `<div style="font-size: 12px; color: #666; margin-bottom: 10px;">
-            Último flujo: <strong>${contexto._ultimo_flujo.nombre}</strong> 
-            (completado el ${new Date(contexto._ultimo_flujo.completado_en).toLocaleString()})
+        const fechaCompletado = new Date(contexto._ultimo_flujo.completado_en).toLocaleString('es-MX');
+        html += `<div style="font-size: 12px; color: #666; margin-bottom: 10px; padding: 8px; background: #fff; border-radius: 4px;">
+            <strong>Último flujo:</strong> ${contexto._ultimo_flujo.nombre}<br>
+            <strong>Completado:</strong> ${fechaCompletado}
         </div>`;
     }
     
     // Mostrar datos recolectados (excluyendo metadata)
     const datosReales = Object.entries(contexto).filter(([key]) => !key.startsWith('_'));
     if (datosReales.length > 0) {
-        html += '<div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 13px;">';
+        html += '<div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 13px; background: #fff; padding: 10px; border-radius: 4px;">';
         datosReales.forEach(([key, value]) => {
-            html += `<strong style="color: #1976d2;">${key}:</strong><span>${value}</span>`;
+            const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            html += `<strong style="color: #1976d2;">${label}:</strong><span>${value}</span>`;
         });
         html += '</div>';
+    } else {
+        html += '<p style="color: #999; font-size: 12px; margin: 0;">No hay datos recolectados aún.</p>';
     }
     
     panel.innerHTML = html;
@@ -5665,7 +5667,11 @@ function mostrarContextoEnModal(contexto) {
     // Insertar antes de los botones del modal
     const modalContent = document.querySelector("#edit-lead-modal .modal-content");
     const botones = modalContent.querySelector(".modal-buttons");
-    modalContent.insertBefore(panel, botones);
+    if (botones) {
+        modalContent.insertBefore(panel, botones);
+    } else {
+        modalContent.appendChild(panel);
+    }
 }
 
 
