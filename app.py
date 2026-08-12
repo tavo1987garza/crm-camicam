@@ -613,23 +613,30 @@ def ejecutar_cadena_nodos(cursor, nodes, start_node_id, contexto_dict, sesion_id
 
 def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre_flujo):
     """Copia el contexto del flujo al lead antes de cerrar la sesión."""
+    print(f"🔍 [HANDOFF DEBUG] Iniciando handoff para {remitente} con datos: {contexto_dict}")
     try:
+        # 1. Buscar el lead
         cursor.execute("""
             SELECT id, contexto FROM leads 
             WHERE telefono = %s AND cliente_id = %s
         """, (remitente, cliente_id))
         lead_row = cursor.fetchone()
+        print(f"🔍 [HANDOFF DEBUG] Lead encontrado en BD: {lead_row}")
         
         if lead_row:
             lead_id, contexto_existente = lead_row
+            
+            # 2. Normalizar contexto existente
             if isinstance(contexto_existente, str):
                 try:
                     contexto_existente = json.loads(contexto_existente)
-                except:
+                except Exception as e:
+                    print(f"⚠️ [HANDOFF DEBUG] Error parseando contexto existente: {e}")
                     contexto_existente = {}
             elif not contexto_existente:
                 contexto_existente = {}
             
+            # 3. Fusionar contextos
             contexto_mergeado = {**contexto_existente, **contexto_dict}
             contexto_mergeado["_ultimo_flujo"] = {
                 "nombre": nombre_flujo,
@@ -637,12 +644,21 @@ def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre
                 "datos_recolectados": contexto_dict
             }
             
+            print(f"🔍 [HANDOFF DEBUG] Contexto final a guardar: {contexto_mergeado}")
+            
+            # 4. Ejecutar UPDATE
             cursor.execute("""
                 UPDATE leads SET contexto = %s::jsonb WHERE id = %s
             """, (json.dumps(contexto_mergeado), lead_id))
-            print(f"🎯 [HANDOFF] Contexto guardado en lead {remitente}: {list(contexto_dict.keys())}")
+            
+            print(f"🎯 [HANDOFF ÉXITO] Contexto guardado en lead {remitente} (ID: {lead_id})")
+        else:
+            print(f"⚠️ [HANDOFF DEBUG] No se encontró el lead {remitente} en la BD para hacer el handoff.")
+            
     except Exception as e:
-        print(f"⚠️ Error en handoff: {e}")
+        print(f"❌ [HANDOFF ERROR] Excepción atrapada: {e}")
+        import traceback
+        traceback.print_exc()
 
 # ============================================================================
 # ESTADOS DE LEADS PERSONALIZABLES POR TENANT
