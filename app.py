@@ -1142,52 +1142,67 @@ def recibir_mensaje():
                             elif paso_anterior.get("tipo") == "pregunta" and "campo" in paso_anterior:
                                 contexto_dict[paso_anterior["campo"]] = mensaje_limpio
                         
-                        # 2. Obtener el siguiente paso
+                  
+                        # 2. Obtener el siguiente paso (con protección contra nulos)
                         if paso_actual < len(pasos):
                             siguiente_paso = pasos[paso_actual]
-                            tipo_paso = siguiente_paso.get("tipo", "mensaje")
                             
-                            # 🎯 Reemplazar variables dinámicas en el texto (ej: {tipo_consulta})
-                            texto_base = siguiente_paso.get("texto", "")
-                            for key, value in contexto_dict.items():
-                                texto_base = texto_base.replace(f"{{{key}}}", str(value))
-                            
-                            # 🎯 Construir el payload estructurado para el Bot
-                            respuesta_a_enviar = {
-                                "type": tipo_paso,
-                                "caption": texto_base,
-                                "bot_buttons": []
-                            }
-                            
-                            # Si es imagen o video, agregar la URL
-                            if tipo_paso in ["imagen", "video"]:
-                                respuesta_a_enviar["url"] = siguiente_paso.get("url", "")
-                            
-                            # Si es opciones, preparar los botones (máx 3)
-                            if tipo_paso == "opciones":
-                                opciones = siguiente_paso.get("opciones", [])
-                                respuesta_a_enviar["bot_buttons"] = opciones[:3]
-                                if not respuesta_a_enviar["caption"]:
-                                    respuesta_a_enviar["caption"] = "Por favor, selecciona una opción:"
-                            
-                            bot_response = respuesta_a_enviar  # <-- Ahora es un DICT, no un string
-                            nivel_match = f"FLUJO: {nombre_flujo} (Paso {paso_actual + 1})"
-                            flujo_activo_encontrado = True
-                            
-                            # 3. Actualizar la sesión
-                            cursor.execute("""
-                                UPDATE conversation_sessions 
-                                SET paso_actual = %s, contexto = %s, ultimo_input_en = NOW()
-                                WHERE id = %s
-                            """, (paso_actual + 1, json.dumps(contexto_dict), sesion_id))
-                            
-                            # 4. Si era el último paso, cerrar la sesión
-                            if paso_actual == len(pasos) - 1:
+                            # 🛡️ SEGURIDAD: Si el paso es None o no es un diccionario, reiniciar flujo
+                            if not siguiente_paso or not isinstance(siguiente_paso, dict):
+                                print(f"⚠️ [FLUJO] El paso {paso_actual} es nulo o inválido. Reiniciando flujo.")
                                 cursor.execute("""
                                     UPDATE conversation_sessions 
                                     SET estado_actual = 'idle', flujo_activo_id = NULL, paso_actual = 0, contexto = '{}'::jsonb
                                     WHERE id = %s
                                 """, (sesion_id,))
+                                conn.commit()
+                                # No enviar respuesta de flujo, dejar que las keywords normales actúen
+                                bot_response = None
+                                flujo_activo_encontrado = False
+                            else:
+                                tipo_paso = siguiente_paso.get("tipo", "mensaje")
+                                
+                                # 🎯 Reemplazar variables dinámicas en el texto (ej: {tipo_consulta})
+                                texto_base = siguiente_paso.get("texto", "")
+                                for key, value in contexto_dict.items():
+                                    texto_base = texto_base.replace(f"{{{key}}}", str(value))
+                                
+                                # 🎯 Construir el payload estructurado para el Bot
+                                respuesta_a_enviar = {
+                                    "type": tipo_paso,
+                                    "caption": texto_base,
+                                    "bot_buttons": []
+                                }
+                                
+                                # Si es imagen o video, agregar la URL
+                                if tipo_paso in ["imagen", "video"]:
+                                    respuesta_a_enviar["url"] = siguiente_paso.get("url", "")
+                                
+                                # Si es opciones, preparar los botones (máx 3)
+                                if tipo_paso == "opciones":
+                                    opciones = siguiente_paso.get("opciones", [])
+                                    respuesta_a_enviar["bot_buttons"] = opciones[:3]
+                                    if not respuesta_a_enviar["caption"]:
+                                        respuesta_a_enviar["caption"] = "Por favor, selecciona una opción:"
+                                
+                                bot_response = respuesta_a_enviar
+                                nivel_match = f"FLUJO: {nombre_flujo} (Paso {paso_actual + 1})"
+                                flujo_activo_encontrado = True
+                                
+                                # 3. Actualizar la sesión
+                                cursor.execute("""
+                                    UPDATE conversation_sessions 
+                                    SET paso_actual = %s, contexto = %s, ultimo_input_en = NOW()
+                                    WHERE id = %s
+                                """, (paso_actual + 1, json.dumps(contexto_dict), sesion_id))
+                                
+                                # 4. Si era el último paso, cerrar la sesión
+                                if paso_actual == len(pasos) - 1:
+                                    cursor.execute("""
+                                        UPDATE conversation_sessions 
+                                        SET estado_actual = 'idle', flujo_activo_id = NULL, paso_actual = 0, contexto = '{}'::jsonb
+                                        WHERE id = %s
+                                    """, (sesion_id,))
                         else:
                             # Flujo terminado inesperadamente, reiniciar
                             cursor.execute("""
