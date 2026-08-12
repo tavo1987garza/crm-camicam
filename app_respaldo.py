@@ -1,6 +1,7 @@
 import re
 from dotenv import load_dotenv
 import os
+load_dotenv()
 import json
 import traceback
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -21,8 +22,8 @@ from flask import (
     current_app, redirect, url_for, session, g, abort, flash
 )
 from flask_socketio import SocketIO
-
 from flask_cors import CORS
+
 
 
 
@@ -30,7 +31,7 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = os.getenv('SECRET_KEY')
 
-load_dotenv()
+
 
 
 # ✅ CORS SIMPLIFICADO - Solo tu dominio principal
@@ -49,6 +50,50 @@ CORS(app,
      supports_credentials=True
 )
 
+# ============================================================================
+# FUNCIONES DE ENCRIPTACIÓN PARA CREDENCIALES DE TENANTS
+# ============================================================================
+from cryptography.fernet import Fernet
+
+
+# 🔑 Clave maestra para encriptar credenciales (cargada desde .env)
+ENCRYPTION_KEY = os.getenv('CREDENTIALS_ENCRYPTION_KEY')
+
+# Validar que la clave exista
+if not ENCRYPTION_KEY:
+    app.logger.error("❌ ERROR: CREDENTIALS_ENCRYPTION_KEY no está definida en .env")
+    raise ValueError("CREDENTIALS_ENCRYPTION_KEY es requerida en .env")
+
+# Inicializar cipher Fernet
+cipher = Fernet(ENCRYPTION_KEY.encode())
+
+def encriptar_credencial(valor):
+    """
+    Encripta una credencial sensible para guardar en BD.
+    Retorna None si el valor está vacío.
+    """
+    if not valor or valor.strip() == "":
+        return None
+    try:
+        return cipher.encrypt(valor.strip().encode()).decode()
+    except Exception as e:
+        app.logger.error(f"❌ Error al encriptar credencial: {str(e)}")
+        return None
+
+def desencriptar_credencial(valor_encriptado):
+    """
+    Desencripta una credencial para usarla (solo en memoria).
+    Retorna None si el valor está vacío o es inválido.
+    """
+    if not valor_encriptado:
+        return None
+    try:
+        return cipher.decrypt(valor_encriptado.encode()).decode()
+    except Exception as e:
+        app.logger.error(f"❌ Error al desencriptar credencial: {str(e)}")
+        return None
+
+# ============================================================================
 
 
 @app.before_request
@@ -106,18 +151,29 @@ if not DATABASE_URL:
     app.logger.critical("Falta configurar DATABASE_URL en las variables de entorno")
     raise RuntimeError("Falta configurar DATABASE_URL")
 
+
+
 # 📌 Inicializar el pool de conexiones
+
+
 try:
+    # 🔍 Detectar automáticamente si estamos en local o en producción
+    es_local = "localhost" in DATABASE_URL or "127.0.0.1" in DATABASE_URL
+    
+    # Si es local, desactiva SSL. Si es producción (DigitalOcean/Heroku), exígelo.
+    modo_ssl = "disable" if es_local else "require"
+
     db_pool = pool.SimpleConnectionPool(
         minconn=1,
         maxconn=10,
         dsn=DATABASE_URL,
-        sslmode="require"
+        sslmode=modo_ssl  # <--- Ahora es dinámico e inteligente
     )
-    app.logger.info("Pool de conexiones a la base de datos iniciado con éxito")
+    app.logger.info(f"Pool de conexiones iniciado con éxito (SSL: {modo_ssl})")
 except Exception as e:
     app.logger.error(f"Error al inicializar el pool de conexiones: {e}")
     db_pool = None
+
 
 def conectar_db():
     """Obtiene una conexión del pool."""
@@ -631,6 +687,12 @@ def cambiar_estado_lead():
     finally:
         liberar_db(conn)
 
+# 📌 Validación de teléfono (debe tener 13 dígitos y empezar con 521 para México)
+def validar_telefono(telefono):
+    # Limpiamos espacios o guiones por si acaso
+    telefono_limpio = str(telefono).replace(" ", "").replace("-", "")
+    return len(telefono_limpio) == 13 and telefono_limpio.startswith("521")
+
 
 # 📌 Crear un nuevo lead manualmente        
 @app.route("/crear_lead", methods=["POST"])
@@ -968,23 +1030,44 @@ def obtener_lead_id():
     finally:
         liberar_db(conn)
 
-# 📌 Endpoint para recibir mensajes desde WhatsApp
+
+
+
+#'''''''''''''''''''''''''''''''''''''''''''''''
+#------------SECION DE CHAT---------------
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+# ============================================================================
+# 1. RECIBIR MENSAJES DESDE WHATSAPP (BOT -> CRM)
+# ============================================================================
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
+    # 🔥 LATIDO: Esto debe aparecer en los logs SIEMPRE que el bot llama al CRM
+    print(f"🔥 [CRM] ¡Petición recibida en /recibir_mensaje! Payload: {request.json}")
+    
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
+        print("⚠️ [CRM] Cliente no autorizado (subdominio no reconocido)")
         return jsonify({"error": "Cliente no autorizado"}), 404
 
     datos = request.json
-    plataforma = datos.get("plataforma")
+    plataforma = datos.get("plataforma", "whatsapp")
     remitente = str(datos.get("remitente", ""))
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo")
-
-    if not plataforma or not remitente or mensaje is None:
-        return jsonify({"error": "Faltan datos"}), 400
+    tipo = datos.get("tipo", "recibido")
+    
+    print(f"📝 [CRM] Datos procesados -> Remitente: {remitente}, Mensaje: '{mensaje}', Tipo: '{tipo}'")
+    
+    if not remitente or mensaje is None:
+        return jsonify({"error": "Faltan datos (remitente o mensaje)"}), 400
 
     tipos_validos = {"enviado", "recibido", "recibido_imagen", "enviado_imagen", "recibido_video", "enviado_video"}
+    
+    # 🔄 Normalizar: si viene en inglés desde el bot, lo pasamos a español
+    if tipo in ["recibido_image", "enviado_image"]:
+        tipo = tipo.replace("image", "imagen")
+    elif tipo in ["recibido_video", "enviado_video"]:
+        tipo = tipo.replace("video", "video") # Ya está bien, pero por consistencia
+        
     if tipo not in tipos_validos:
         tipo = "recibido"
 
@@ -995,113 +1078,475 @@ def recibir_mensaje():
     try:
         cursor = conn.cursor()
 
-        # Verificar si el lead ya existe PARA ESTE CLIENTE
+        # 1. Verificar si el lead ya existe PARA ESTE CLIENTE
         cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s AND cliente_id = %s", (remitente, cliente_id))
         lead = cursor.fetchone()
-        lead_id = None
-        lead_creado = False
-
+        
         if not lead:
-            nombre_por_defecto = f"Lead desde Chat {remitente[-10:]}"
+            nombre_por_defecto = f"Lead {remitente[-4:]}"
             cursor.execute("""
                 INSERT INTO leads (nombre, telefono, estado, cliente_id)
-                VALUES (%s, %s, 'Contacto Inicial', %s)
+                VALUES (%s, %s, '✅ CONTACTO INICIAL', %s)
                 ON CONFLICT (telefono, cliente_id) DO NOTHING
                 RETURNING id
             """, (nombre_por_defecto, remitente, cliente_id))
             row = cursor.fetchone()
-            if row:
-                lead_id = row[0]
-                lead_creado = True
+            lead_id = row[0] if row else None
         else:
             lead_id = lead[0]
 
-        # Guardar el mensaje con cliente_id
+        # 2. Guardar el mensaje en la BD
         cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id)
-            VALUES (%s, %s, %s, 'Nuevo', %s, %s)
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
+            VALUES (%s, %s, %s, 'Nuevo', %s, %s, NOW())
         """, (plataforma, remitente, mensaje, tipo, cliente_id))
+
+        # ========================================================================
+        # 🧠 3. LÓGICA DE RESPUESTA AUTOMÁTICA (FLUJOS + TUS KEYWORDS FUNCIONALES)
+        # ========================================================================
+        bot_response = None
+        keyword_id_usada = None
+        nivel_match = None
+        
+        if tipo == "recibido" and mensaje and mensaje.strip():
+            try:
+                mensaje_limpio = mensaje.strip()
+                flujo_activo_encontrado = False
+
+                # ==========================================
+                # PASO 1: ¿El usuario ya está en un FLUJO activo?
+                # ==========================================
+                cursor.execute("""
+                    SELECT id, flujo_activo_id, paso_actual, contexto 
+                    FROM conversation_sessions 
+                    WHERE cliente_id = %s AND external_user_id = %s AND platform = 'whatsapp' AND estado_actual = 'active'
+                """, (cliente_id, remitente))
+                sesion = cursor.fetchone()
+                
+                if sesion:
+                    sesion_id, flujo_id, paso_actual, contexto = sesion
+                    contexto_dict = contexto if isinstance(contexto, dict) else {}
+                    
+                    cursor.execute("SELECT nombre, pasos FROM bot_flows WHERE id = %s AND activo = true", (flujo_id,))
+                    flujo = cursor.fetchone()
+                    
+                    if flujo:
+                        nombre_flujo, pasos_json = flujo
+                        pasos = pasos_json if isinstance(pasos_json, list) else []
+                        
+                        # 1. Guardar respuesta en contexto si el paso anterior lo pedía
+                        if paso_actual > 0 and paso_actual <= len(pasos):
+                            paso_anterior = pasos[paso_actual - 1]
+                            if paso_anterior.get("tipo") == "opciones" and "campo" in paso_anterior:
+                                contexto_dict[paso_anterior["campo"]] = mensaje_limpio
+                            elif paso_anterior.get("tipo") == "pregunta" and "campo" in paso_anterior:
+                                contexto_dict[paso_anterior["campo"]] = mensaje_limpio
+                        
+                  
+                        # 2. Obtener el siguiente paso (con protección contra nulos)
+                        if paso_actual < len(pasos):
+                            siguiente_paso = pasos[paso_actual]
+                            
+                            # 🛡️ SEGURIDAD: Si el paso es None o no es un diccionario, reiniciar flujo
+                            if not siguiente_paso or not isinstance(siguiente_paso, dict):
+                                print(f"⚠️ [FLUJO] El paso {paso_actual} es nulo o inválido. Reiniciando flujo.")
+                                cursor.execute("""
+                                    UPDATE conversation_sessions 
+                                    SET estado_actual = 'idle', flujo_activo_id = NULL, paso_actual = 0, contexto = '{}'::jsonb
+                                    WHERE id = %s
+                                """, (sesion_id,))
+                                conn.commit()
+                                # No enviar respuesta de flujo, dejar que las keywords normales actúen
+                                bot_response = None
+                                flujo_activo_encontrado = False
+                            else:
+                                tipo_paso = siguiente_paso.get("tipo", "mensaje")
+                                
+                                # 🎯 Reemplazar variables dinámicas en el texto (ej: {tipo_consulta})
+                                texto_base = siguiente_paso.get("texto", "")
+                                for key, value in contexto_dict.items():
+                                    texto_base = texto_base.replace(f"{{{key}}}", str(value))
+                                
+                                # 🎯 Construir el payload estructurado para el Bot
+                                respuesta_a_enviar = {
+                                    "type": tipo_paso,
+                                    "caption": texto_base,
+                                    "bot_buttons": []
+                                }
+                                
+                                # Si es imagen o video, agregar la URL
+                                if tipo_paso in ["imagen", "video"]:
+                                    respuesta_a_enviar["url"] = siguiente_paso.get("url", "")
+                                
+                                # Si es opciones, preparar los botones (máx 3)
+                                if tipo_paso == "opciones":
+                                    opciones = siguiente_paso.get("opciones", [])
+                                    respuesta_a_enviar["bot_buttons"] = opciones[:3]
+                                    if not respuesta_a_enviar["caption"]:
+                                        respuesta_a_enviar["caption"] = "Por favor, selecciona una opción:"
+                                
+                                bot_response = respuesta_a_enviar
+                                nivel_match = f"FLUJO: {nombre_flujo} (Paso {paso_actual + 1})"
+                                flujo_activo_encontrado = True
+                                
+                                # 3. Actualizar la sesión
+                                cursor.execute("""
+                                    UPDATE conversation_sessions 
+                                    SET paso_actual = %s, contexto = %s, ultimo_input_en = NOW()
+                                    WHERE id = %s
+                                """, (paso_actual + 1, json.dumps(contexto_dict), sesion_id))
+                                
+                                # 4. Si era el último paso, hacer HANDOFF al lead y cerrar sesión
+                                if paso_actual == len(pasos) - 1:
+                                    # 🎯 HANDOFF: Copiar el contexto recolectado al lead ANTES de limpiar
+                                    if contexto_dict:  # Solo si hay datos que guardar
+                                        try:
+                                            # Obtener el lead_id del remitente
+                                            cursor.execute("""
+                                                SELECT id, contexto FROM leads 
+                                                WHERE telefono = %s AND cliente_id = %s
+                                            """, (remitente, cliente_id))
+                                            lead_row = cursor.fetchone()
+                                            
+                                            if lead_row:
+                                                lead_id = lead_row[0]
+                                                contexto_existente = lead_row[1] if lead_row[1] else {}
+                                                
+                                                # Si el contexto existente es string, parsearlo
+                                                if isinstance(contexto_existente, str):
+                                                    try:
+                                                        contexto_existente = json.loads(contexto_existente)
+                                                    except:
+                                                        contexto_existente = {}
+                                                
+                                                # 🔄 MERGE: Combinar contexto existente con el nuevo
+                                                contexto_mergeado = {**contexto_existente, **contexto_dict}
+                                                
+                                                # Agregar metadata del flujo completado
+                                                contexto_mergeado["_ultimo_flujo"] = {
+                                                    "nombre": nombre_flujo,
+                                                    "completado_en": datetime.now().isoformat(),
+                                                    "datos_recolectados": contexto_dict
+                                                }
+                                                
+                                                # Guardar en el lead
+                                                cursor.execute("""
+                                                    UPDATE leads 
+                                                    SET contexto = %s::jsonb
+                                                    WHERE id = %s
+                                                """, (json.dumps(contexto_mergeado), lead_id))
+                                                
+                                                print(f"🎯 [HANDOFF] Contexto del flujo '{nombre_flujo}' copiado al lead {remitente}: {list(contexto_dict.keys())}")
+                                        except Exception as e:
+                                            print(f"⚠️ Error copiando contexto al lead: {e}")
+                                    
+                                    # Ahora sí, cerrar la sesión del bot
+                                    cursor.execute("""
+                                        UPDATE conversation_sessions 
+                                        SET estado_actual = 'idle', flujo_activo_id = NULL, 
+                                            paso_actual = 0, contexto = '{}'::jsonb
+                                        WHERE id = %s
+                                    """, (sesion_id,))
+                        else:
+                            # Flujo terminado inesperadamente, reiniciar
+                            cursor.execute("""
+                                UPDATE conversation_sessions 
+                                SET estado_actual = 'idle', flujo_activo_id = NULL, paso_actual = 0, contexto = '{}'::jsonb
+                                WHERE id = %s
+                            """, (sesion_id,))
+
+                # ==========================================
+                # PASO 2: ¿El mensaje DISPARA un nuevo flujo? (Solo si no hay flujo activo)
+                # ==========================================
+                if not flujo_activo_encontrado:
+                    cursor.execute("""
+                        SELECT id, pasos FROM bot_flows 
+                        WHERE cliente_id = %s AND activo = true 
+                          AND unaccent(LOWER(trigger_keyword)) = unaccent(LOWER(%s))
+                        LIMIT 1
+                    """, (cliente_id, mensaje_limpio))
+                    
+                    flujo_trigger = cursor.fetchone()
+                    if flujo_trigger:
+                        flujo_id, pasos_json = flujo_trigger
+                        pasos = pasos_json if isinstance(pasos_json, list) else []
+                        
+                        if pasos:
+                            primer_paso = pasos[0]
+                            bot_response = primer_paso.get("texto")
+                            nivel_match = f"FLUJO INICIADO: {mensaje_limpio}"
+                            flujo_activo_encontrado = True
+                            
+                            cursor.execute("""
+                                INSERT INTO conversation_sessions 
+                                (cliente_id, external_user_id, platform, estado_actual, flujo_activo_id, paso_actual, contexto, ultimo_input_en)
+                                VALUES (%s, %s, 'whatsapp', 'active', %s, 1, '{}'::jsonb, NOW())
+                                ON CONFLICT (cliente_id, external_user_id, platform) 
+                                DO UPDATE SET 
+                                    estado_actual = 'active',
+                                    flujo_activo_id = EXCLUDED.flujo_activo_id,
+                                    paso_actual = EXCLUDED.paso_actual,
+                                    contexto = EXCLUDED.contexto,
+                                    ultimo_input_en = NOW()
+                            """, (cliente_id, remitente, flujo_id))
+
+                # ==========================================
+                # PASO 3: TUS KEYWORDS (Exactamente como funcionaban, protegidas por el 'if')
+                # ==========================================
+                if not flujo_activo_encontrado:
+                    # NIVEL 1: Coincidencia EXACTA
+                    cursor.execute("""
+                        SELECT id, respuesta 
+                        FROM bot_keywords 
+                        WHERE cliente_id = %s 
+                          AND activo = true
+                          AND unaccent(LOWER(keyword)) = unaccent(LOWER(%s))
+                        LIMIT 1
+                    """, (cliente_id, mensaje_limpio))
+                    
+                    resultado = cursor.fetchone()
+                    
+                    if resultado:
+                        keyword_id_usada = resultado[0]
+                        bot_response = resultado[1]
+                        nivel_match = "EXACTO"
+                    else:
+                        # NIVEL 2: La keyword está CONTENIDA en el mensaje
+                        cursor.execute("""
+                            SELECT id, respuesta 
+                            FROM bot_keywords 
+                            WHERE cliente_id = %s 
+                              AND activo = true
+                              AND unaccent(LOWER(%s)) LIKE CONCAT('%%', unaccent(LOWER(keyword)), '%%')
+                            ORDER BY LENGTH(keyword) DESC
+                            LIMIT 1
+                        """, (cliente_id, mensaje_limpio))
+                        
+                        resultado = cursor.fetchone()
+                        
+                        if resultado:
+                            keyword_id_usada = resultado[0]
+                            bot_response = resultado[1]
+                            nivel_match = "CONTENIDO"
+                        else:
+                            # NIVEL 3: Coincidencia por SIMILITUD (para typos)
+                            # ⚠️ NOTA: El orden de parámetros aquí es (mensaje_limpio, cliente_id) 
+                            # porque el primer %s es LOWER(%s) y el segundo es cliente_id = %s
+                            cursor.execute("""
+                                SELECT id, respuesta, similarity(unaccent(LOWER(keyword)), unaccent(LOWER(%s))) as sim
+                                FROM bot_keywords 
+                                WHERE cliente_id = %s 
+                                  AND activo = true
+                                ORDER BY sim DESC
+                                LIMIT 1
+                            """, (mensaje_limpio, cliente_id))
+                            
+                            resultado = cursor.fetchone()
+                            
+                            if resultado and resultado[2] > 0.3:
+                                keyword_id_usada = resultado[0]
+                                bot_response = resultado[1]
+                                nivel_match = f"SIMILITUD ({resultado[2]:.0%})"
+                    
+                    # Si encontramos una keyword, actualizamos sus estadísticas
+                    if resultado and keyword_id_usada:
+                        print(f"🤖 [AUTO-RESPUESTA - {nivel_match}] Keyword #{keyword_id_usada} para {remitente}: '{bot_response}'")
+                        
+                        cursor.execute("""
+                            UPDATE bot_keywords 
+                            SET veces_usada = COALESCE(veces_usada, 0) + 1,
+                                ultima_usada_en = NOW()
+                            WHERE id = %s
+                        """, (keyword_id_usada,))
+                else:
+                    # Si fue un flujo, también lo registramos en los logs
+                    print(f"🤖 [AUTO-RESPUESTA - {nivel_match}] Para {remitente}: '{bot_response}'")
+
+            except Exception as e:
+                import sys
+                print(f"⚠️ Error buscando respuestas en BD: {e}", flush=True)
+                import traceback
+                traceback.print_exc(file=sys.stdout)
+
+        # ✅ 3.5. Guardamos todos los cambios (mensaje + stats de keyword/flujo)
         conn.commit()
 
-        # ... resto del código para eventos y emisión WebSocket ...
 
-        return jsonify({"mensaje": "Mensaje recibido y almacenado"}), 200
+        # 4. 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
+        socketio.emit("nuevo_mensaje", {
+            "remitente": remitente,
+            "mensaje": mensaje,
+            "tipo": tipo,
+            "fecha": datetime.now().isoformat(),
+            "cliente_id": cliente_id
+        })
+
+        # 5. Devolver la respuesta al Bot
+        return jsonify({
+            "mensaje": "Mensaje recibido y almacenado",
+            "bot_response": bot_response
+        }), 200
 
     except Exception as e:
+        conn.rollback()
         print(f"❌ Error en /recibir_mensaje: {str(e)}")
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
-             
-# 📌 Enviar respuesta a Camibot con reintento automático
-CAMIBOT_API_URL = os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
 
+
+# ============================================================================
+# 2. ENVIAR MENSAJES DESDE EL CRM (CRM -> BOT/WHATSAPP)
+# ============================================================================
 @app.route("/enviar_mensaje", methods=["POST"])
 def enviar_mensaje():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "Cliente no autorizado"}), 404
+
     datos = request.json
     telefono = datos.get("telefono")
     tipo = datos.get("tipo", "texto")
-    url_imagen = datos.get("url")
-    url_video = datos.get("url_video")
-    caption = datos.get("caption", "")
     mensaje_texto = datos.get("mensaje")
+    caption = datos.get("caption", "")
 
     if not telefono:
         return jsonify({"error": "Número de teléfono es obligatorio"}), 400
 
-    # Imagen
-    if tipo == "imagen":
-        if not url_imagen:
-            return jsonify({"error": "Falta la URL de la imagen"}), 400
-        payload = {"telefono": telefono, "imageUrl": url_imagen, "caption": caption}
-        max_intentos = 3
-        for intento in range(max_intentos):
-            try:
-                r = requests.post(f"{CAMIBOT_API_URL}/enviar_imagen", json=payload, timeout=5)
-                if r.status_code == 200:
-                    break
-            except requests.exceptions.RequestException as e:
-                print(f"⚠️ Intento {intento + 1} fallido (imagen): {str(e)}")
-                time.sleep(2)
-        return jsonify({"mensaje": "Imagen enviada correctamente"}), 200
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
 
-    # ⬇️ Video
-    if tipo == "video":
-        if not url_video:
-            return jsonify({"error": "Falta la URL del video"}), 400
-        payload = {"telefono": telefono, "videoUrl": url_video, "caption": caption}
-        max_intentos = 3
-        for intento in range(max_intentos):
-            try:
-                r = requests.post(f"{CAMIBOT_API_URL}/enviar_video", json=payload, timeout=5)
-                if r.status_code == 200:
-                    break
-            except requests.exceptions.RequestException as e:
-                print(f"⚠️ Intento {intento + 1} fallido (video): {str(e)}")
-                time.sleep(2)
-        return jsonify({"mensaje": "Video enviado correctamente"}), 200
+    try:
+        cursor = conn.cursor()
+        
+        # 1. Guardar el mensaje ENVIADO en la BD
+        cursor.execute("""
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
+            VALUES ('web', %s, %s, 'Enviado', %s, %s, NOW())
+        """, (telefono, mensaje_texto, tipo, cliente_id))
+        conn.commit()
 
-    # Texto
-    if not mensaje_texto:
-        return jsonify({"error": "Falta el 'mensaje' de texto"}), 400
 
-    payload = {"telefono": telefono, "mensaje": mensaje_texto}
-    max_intentos = 3
-    for intento in range(max_intentos):
-        try:
-            r = requests.post(f"{CAMIBOT_API_URL}/enviar_mensaje", json=payload, timeout=5)
-            if r.status_code == 200:
-                break
-        except requests.exceptions.RequestException as e:
-            print(f"⚠️ Intento {intento + 1} fallido (texto): {str(e)}")
-            time.sleep(2)
-    return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
-
-# 📌 Validación de teléfono (debe tener 13 dígitos)
-def validar_telefono(telefono):
-    return len(telefono) == 13 and telefono.startswith("521")
+         # 2. 🚀 OBTENER CREDENCIALES DEL TENANT
+        cursor.execute("""
+            SELECT whatsapp_access_token, whatsapp_phone_number_id, bot_url 
+            FROM tenant_integraciones 
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+        config = cursor.fetchone()
+        
+        # Desencriptar el token si existe en la BD
+        token_encriptado = config[0] if config and config[0] else None
+        if token_encriptado:
+            token = desencriptar_credencial(token_encriptado)
+        else:
+            # Fallback a variable global si no hay nada en la BD
+            token = os.getenv("WHATSAPP_TOKEN_GLOBAL")
             
-# 📌 Obtener mensajes
+        phone_id = config[1] if config and config[1] else os.getenv("WHATSAPP_PHONE_ID_GLOBAL")
+        bot_url = config[2] if config and config[2] else os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
+
+        if not token or not phone_id:
+            return jsonify({"error": "Faltan credenciales de WhatsApp configuradas para este negocio. Ve a Configuración → Integraciones."}), 400
+
+
+        # 3. Preparar payload PARA CAMIBOT (incluyendo las credenciales del tenant)
+        payload = {
+            "telefono": telefono,
+            "cliente_id": cliente_id,
+            "whatsapp_token": token,           # <--- CamiBot usará esto
+            "whatsapp_phone_id": phone_id      # <--- CamiBot usará esto
+        }
+        
+        if tipo == "imagen":
+            payload.update({"imageUrl": mensaje_texto, "caption": caption, "tipo": "imagen"})
+            endpoint = f"{bot_url.rstrip('/')}/enviar_imagen"
+        elif tipo == "video":
+            payload.update({"videoUrl": mensaje_texto, "caption": caption, "tipo": "video"})
+            endpoint = f"{bot_url.rstrip('/')}/enviar_video"
+        else:
+            payload.update({"mensaje": mensaje_texto, "tipo": "texto"})
+            endpoint = f"{bot_url.rstrip('/')}/enviar_mensaje"
+
+        # 4. Enviar a CamiBot con reintentos
+        max_intentos = 3
+        exito = False
+        for intento in range(max_intentos):
+            try:
+                r = requests.post(endpoint, json=payload, timeout=10)
+                if r.status_code == 200:
+                    exito = True
+                    break
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
+                time.sleep(2)
+        
+        if not exito:
+            cursor.execute("""
+                UPDATE mensajes SET estado = 'Fallido' 
+                WHERE remitente = %s AND mensaje = %s AND cliente_id = %s
+            """, (telefono, mensaje_texto, cliente_id))
+            conn.commit()
+            return jsonify({"error": "No se pudo conectar con el servicio de mensajería"}), 500
+
+        return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
+
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error CRÍTICO en /enviar_mensaje: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error interno del servidor"}), 500
+    finally:
+        liberar_db(conn)
+
+
+# ============================================================================
+# 3. SUBIDA DE IMÁGENES DESDE EL CRM (Multi-tenant Dinámico)
+# ============================================================================
+@app.route("/api/chat/upload_imagen", methods=["POST"])
+def upload_imagen_chat():
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 404
+
+    if 'imagen' not in request.files:
+        return jsonify({"error": "No se encontró el archivo"}), 400
+    
+    file = request.files['imagen']
+    if file.filename == '':
+        return jsonify({"error": "Nombre de archivo vacío"}), 400
+
+    try:
+        # Crear carpeta si no existe
+        uploads_dir = os.path.join('static', 'uploads')
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        # Generar nombre único con cliente_id
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
+        filename = f"cliente_{cliente_id}_{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(uploads_dir, filename)
+        
+        file.save(filepath)
+        
+        # ✅ SOLUCIÓN MULTI-TENANT: Obtener el dominio dinámicamente
+        # request.host_url devuelve algo como "https://camicam.eventa.com.mx/"
+        dominio_base = request.host_url.rstrip('/')
+        url_publica = f"{dominio_base}/static/uploads/{filename}"
+        
+        return jsonify({"url": url_publica}), 200
+        
+    except Exception as e:
+        print(f"❌ Error en upload_imagen_chat: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error al subir imagen"}), 500
+
+    
+# ============================================================================
+# 4. OBTENER MENSAJES (LISTA DE CHATS Y DETALLE)
+# ============================================================================
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -1114,7 +1559,13 @@ def obtener_mensajes():
 
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM mensajes WHERE cliente_id = %s ORDER BY fecha DESC", (cliente_id,))
+        # Obtenemos los últimos mensajes para armar la lista de chats
+        cursor.execute("""
+            SELECT DISTINCT ON (remitente) remitente, mensaje, tipo, fecha 
+            FROM mensajes 
+            WHERE cliente_id = %s 
+            ORDER BY remitente, fecha DESC
+        """, (cliente_id,))
         mensajes = cursor.fetchall()
         return jsonify(mensajes)
     except Exception as e:
@@ -1122,10 +1573,8 @@ def obtener_mensajes():
         return jsonify([])
     finally:
         liberar_db(conn)
-        
-        
-#obtener los mensajes de un remitente específico Devuelve los mensajes en el formato esperado por el frontend.
-# Mostrar los mensajes de cada chat
+
+
 @app.route("/mensajes_chat", methods=["GET"])
 def obtener_mensajes_chat():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -1142,12 +1591,16 @@ def obtener_mensajes_chat():
 
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Obtener nombre del lead
         cursor.execute("SELECT nombre FROM leads WHERE telefono = %s AND cliente_id = %s", (remitente, cliente_id))
         lead = cursor.fetchone()
         nombre_lead = lead["nombre"] if lead else remitente
 
+        # Obtener historial de mensajes ordenado cronológicamente
         cursor.execute("""
-            SELECT * FROM mensajes 
+            SELECT id, mensaje, tipo, fecha 
+            FROM mensajes 
             WHERE remitente = %s AND cliente_id = %s 
             ORDER BY fecha ASC
         """, (remitente, cliente_id))
@@ -1158,16 +1611,16 @@ def obtener_mensajes_chat():
         return jsonify({"error": str(e)}), 500
     finally:
         liberar_db(conn)
-        
-        
     
-    
+
+
+
+
+
     
 #'''''''''''''''''''''''''''''''''''''''''''''''
 #------------SECION DE CALENDARIO---------------
-#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-    
-    
+#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,    
 # 📌 Obtener Años con Eventos (Nuevo)
 @app.route("/calendario/anios", methods=["GET"])
 def obtener_anios_calendario():
@@ -2394,6 +2847,114 @@ def admin_downgrade_tenant(tenant_id):
     liberar_db(conn)
     return redirect(url_for('admin_tenants'))
 
+#Ruta para el boton de CREAR NUEVO TENANT
+@app.route("/admin/crear_tenant", methods=["POST"])
+@admin_required
+def admin_crear_tenant():
+    """Crea un nuevo tenant directamente desde el panel de administración"""
+    try:
+        datos = request.json
+        nombre = datos.get("nombre", "").strip()
+        subdominio = datos.get("subdominio", "").strip().lower()
+        email = datos.get("email", "").strip().lower()
+        plan = datos.get("plan", "basico")
+        
+        # Validaciones básicas
+        if not nombre or not subdominio or not email:
+            return jsonify({"error": "Todos los campos son requeridos"}), 400
+        
+        # Usamos tu función existente de validación
+        if not validar_subdominio(subdominio):
+            return jsonify({"error": "Subdominio inválido o reservado"}), 400
+            
+        if plan not in ['basico', 'premium']:
+            return jsonify({"error": "Plan inválido"}), 400
+
+        conn = conectar_db()
+        if not conn:
+            return jsonify({"error": "Error de conexión a la base de datos"}), 500
+
+        try:
+            cur = conn.cursor()
+            
+            # 1. Verificar si el subdominio ya existe
+            cur.execute("SELECT id FROM clientes WHERE subdominio = %s", (subdominio,))
+            if cur.fetchone():
+                return jsonify({"error": "Este subdominio ya está en uso"}), 400
+                
+            # 2. Verificar si el email ya está registrado
+            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if cur.fetchone():
+                return jsonify({"error": "Este email ya está registrado"}), 400
+
+            # Contraseña por defecto para tenants creados por el admin
+            default_password = "#Mishi2023"
+            password_hash = generate_password_hash(default_password, method='pbkdf2:sha256', salt_length=8)
+
+            # 3. Crear el cliente (tenant)
+            # Como lo crea un admin, lo marcamos como email_verificado = true automáticamente
+            query_cliente = """
+                INSERT INTO clientes (
+                    nombre, subdominio, plan, activo, 
+                    email_verificado, email_admin
+                )
+                VALUES (%(nombre)s, %(subdominio)s, %(plan)s, %(activo)s, 
+                        %(email_verificado)s, %(email_admin)s)
+                RETURNING id
+            """
+            params_cliente = {
+                'nombre': nombre,
+                'subdominio': subdominio,
+                'plan': plan,
+                'activo': True,
+                'email_verificado': True, # ✅ Verificado automáticamente
+                'email_admin': email
+            }
+            cur.execute(query_cliente, params_cliente)
+            cliente_id = cur.fetchone()[0]
+
+            # 4. Crear el usuario administrador para este nuevo tenant
+            query_usuario = """
+                INSERT INTO users (email, password_hash, cliente_id, activo)
+                VALUES (%(email)s, %(password_hash)s, %(cliente_id)s, %(activo)s)
+                RETURNING id
+            """
+            params_usuario = {
+                'email': email,
+                'password_hash': password_hash,
+                'cliente_id': cliente_id,
+                'activo': True
+            }
+            cur.execute(query_usuario, params_usuario)
+            user_id = cur.fetchone()[0]
+
+            # 5. Asignar rol 'admin' al nuevo usuario
+            cur.execute("""
+                INSERT INTO user_roles (user_id, role_id)
+                SELECT %(user_id)s, id FROM roles WHERE name = 'admin'
+            """, {'user_id': user_id})
+            
+            conn.commit()
+            
+            return jsonify({
+                "mensaje": f"Tenant '{nombre}' creado exitosamente. Contraseña inicial: {default_password}",
+                "subdominio": subdominio
+            }), 200
+            
+        except Exception as e:
+            conn.rollback()
+            print(f"❌ Error en admin_crear_tenant: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": "Error al crear el cliente en la base de datos"}), 500
+        finally:
+            liberar_db(conn)
+            
+    except Exception as e:
+        print(f"💥 ERROR CRÍTICO EN CREAR TENANT: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error interno del servidor"}), 500
 
  
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -2522,61 +3083,955 @@ def config_mensajeria():
     return jsonify({"ok":True})
 
 
-# IA (OpenAI)
-@app.route("/config/ia", methods=["GET","POST"])
-def config_ia():
+
+# ============================================================================
+# ENDPOINTS: GESTIÓN DE CREDENCIALES POR TENANT
+# ============================================================================
+
+@app.route("/api/integraciones", methods=["GET"])
+def obtener_integraciones():
+    """
+    Obtiene credenciales del tenant actual (enmascaradas para seguridad).
+    Solo retorna valores reales para campos NO sensibles (phone_number_id, URLs).
+    """
     cliente_id = obtener_cliente_id_de_subdominio()
     if not cliente_id:
-        return jsonify({"error": "Cliente no autorizado"}), 404
-
-    if request.method == "GET":
-        conn = conectar_db()
-        cur = conn.cursor()
-        cur.execute("SELECT valor FROM config WHERE clave='openai:api_key' AND cliente_id = %s", (cliente_id,))
-        row = cur.fetchone()
-        liberar_db(conn)
-        return jsonify({"openai_api_key": row[0] if row else ""})
+        return jsonify({"error": "No autorizado"}), 401
     
-    key = request.json.get("openai_api_key","")
     conn = conectar_db()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO config(clave,valor,cliente_id)
-        VALUES ('openai:api_key',%s,%s)
-        ON CONFLICT(clave,cliente_id) DO UPDATE SET valor=EXCLUDED.valor
-    """, (key, cliente_id))
-    conn.commit()
-    liberar_db(conn)
-    return jsonify({"ok":True})
-
-
-# n8n
-@app.route("/config/n8n", methods=["GET","POST"])
-def config_n8n():
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify({"error": "Cliente no autorizado"}), 404
-
-    if request.method == "GET":
-        conn = conectar_db()
-        cur = conn.cursor()
-        cur.execute("SELECT clave,valor FROM config WHERE clave LIKE 'n8n:%' AND cliente_id = %s", (cliente_id,))
-        rows = cur.fetchall()
-        liberar_db(conn)
-        return jsonify({k.split(":",1)[1]:v for k,v in rows})
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
     
-    data = request.json or {}
-    conn = conectar_db()
-    cur = conn.cursor()
-    for k,v in data.items():
+    try:
+        cur = conn.cursor()
         cur.execute("""
-            INSERT INTO config(clave,valor,cliente_id)
-            VALUES (%s,%s,%s)
-            ON CONFLICT(clave,cliente_id) DO UPDATE SET valor=EXCLUDED.valor
-        """, (f"n8n:{k}", v, cliente_id))
-    conn.commit()
-    liberar_db(conn)
-    return jsonify({"ok":True})
+            SELECT 
+                whatsapp_access_token,
+                whatsapp_phone_number_id,
+                whatsapp_verify_token,
+                facebook_page_token,
+                instagram_access_token,
+                openai_api_key,
+                n8n_url,
+                n8n_api_key,
+                creado_en,
+                actualizado_en
+            FROM tenant_integraciones
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+        
+        row = cur.fetchone()
+        
+        if row:
+            # ✅ Retornar valores enmascarados para campos sensibles
+            return jsonify({
+                "existe": True,
+                "whatsapp_access_token": "••••••••••" if row[0] else "",
+                "whatsapp_phone_number_id": row[1] or "",
+                "whatsapp_verify_token": "••••••••••" if row[2] else "",
+                "facebook_page_token": "••••••••••" if row[3] else "",
+                "instagram_access_token": "••••••••••" if row[4] else "",
+                "openai_api_key": "••••••••••" if row[5] else "",
+                "n8n_url": row[6] or "",
+                "n8n_api_key": "••••••••••" if row[7] else "",
+                "creado_en": row[8].isoformat() if row[8] else None,
+                "actualizado_en": row[9].isoformat() if row[9] else None
+            }), 200
+        else:
+            # No hay registro aún para este tenant
+            return jsonify({
+                "existe": False,
+                "whatsapp_access_token": "",
+                "whatsapp_phone_number_id": "",
+                "whatsapp_verify_token": "",
+                "facebook_page_token": "",
+                "instagram_access_token": "",
+                "openai_api_key": "",
+                "n8n_url": "",
+                "n8n_api_key": ""
+            }), 200
+            
+    except Exception as e:
+        app.logger.error(f"❌ Error en obtener_integraciones: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error interno del servidor"}), 500
+    finally:
+        liberar_db(conn)
+
+
+@app.route("/api/integraciones", methods=["POST"])
+def guardar_integraciones():
+    """
+    Guarda/actualiza credenciales del tenant actual (encriptadas en BD).
+    Solo encripta campos sensibles; phone_number_id y URLs se guardan en texto plano.
+    """
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    datos = request.json
+    if not datos:
+        return jsonify({"error": "No se recibieron datos"}), 400
+    
+    # ✅ Encriptar solo campos sensibles antes de guardar
+    credenciales = {
+        # Sensibles → encriptar
+        "whatsapp_access_token": encriptar_credencial(datos.get("whatsapp_access_token")),
+        "whatsapp_verify_token": encriptar_credencial(datos.get("whatsapp_verify_token")),
+        "facebook_page_token": encriptar_credencial(datos.get("facebook_page_token")),
+        "instagram_access_token": encriptar_credencial(datos.get("instagram_access_token")),
+        "openai_api_key": encriptar_credencial(datos.get("openai_api_key")),
+        "n8n_api_key": encriptar_credencial(datos.get("n8n_api_key")),
+        # No sensibles → guardar en texto plano
+        "whatsapp_phone_number_id": datos.get("whatsapp_phone_number_id", "").strip(),
+        "n8n_url": datos.get("n8n_url", "").strip(),
+    }
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # ✅ INSERT o UPDATE según exista o no el registro para este tenant
+        cur.execute("""
+            INSERT INTO tenant_integraciones 
+            (cliente_id, 
+             whatsapp_access_token, whatsapp_phone_number_id, whatsapp_verify_token,
+             facebook_page_token, instagram_access_token,
+             openai_api_key, n8n_url, n8n_api_key,
+             actualizado_en)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (cliente_id) 
+            DO UPDATE SET 
+                whatsapp_access_token = COALESCE(EXCLUDED.whatsapp_access_token, tenant_integraciones.whatsapp_access_token),
+                whatsapp_phone_number_id = EXCLUDED.whatsapp_phone_number_id,
+                whatsapp_verify_token = COALESCE(EXCLUDED.whatsapp_verify_token, tenant_integraciones.whatsapp_verify_token),
+                facebook_page_token = COALESCE(EXCLUDED.facebook_page_token, tenant_integraciones.facebook_page_token),
+                instagram_access_token = COALESCE(EXCLUDED.instagram_access_token, tenant_integraciones.instagram_access_token),
+                openai_api_key = COALESCE(EXCLUDED.openai_api_key, tenant_integraciones.openai_api_key),
+                n8n_url = EXCLUDED.n8n_url,
+                n8n_api_key = COALESCE(EXCLUDED.n8n_api_key, tenant_integraciones.n8n_api_key),
+                actualizado_en = CURRENT_TIMESTAMP
+        """, (
+            cliente_id,
+            credenciales["whatsapp_access_token"],
+            credenciales["whatsapp_phone_number_id"],
+            credenciales["whatsapp_verify_token"],
+            credenciales["facebook_page_token"],
+            credenciales["instagram_access_token"],
+            credenciales["openai_api_key"],
+            credenciales["n8n_url"],
+            credenciales["n8n_api_key"]
+        ))
+        
+        conn.commit()
+        app.logger.info(f"✅ Credenciales actualizadas para cliente_id={cliente_id}")
+        return jsonify({"ok": True, "mensaje": "Credenciales actualizadas correctamente"}), 200
+        
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"❌ Error en guardar_integraciones: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error al guardar credenciales: {str(e)}"}), 500
+    finally:
+        liberar_db(conn)
+   
+# ============================================================================
+# ENDPOINT: PROBAR CONEXIÓN WHATSAPP BUSINESS API
+# ============================================================================
+@app.route("/api/integraciones/test-whatsapp", methods=["POST"])
+def test_whatsapp_connection():
+    """
+    Prueba de conexión básica con WhatsApp Business API de Meta.
+    Verifica que el token y phone_number_id sean válidos.
+    """
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    datos = request.json
+    if not datos:
+        return jsonify({"error": "No se recibieron datos"}), 400
+    
+    phone_id = datos.get("phone_number_id", "").strip()
+    access_token = datos.get("access_token", "").strip()  # Token nuevo para probar
+    
+    if not phone_id or not access_token:
+        return jsonify({"error": "Phone Number ID y Access Token son requeridos"}), 400
+    
+    try:
+        # Prueba básica: obtener información del número de WhatsApp
+        url = f"https://graph.facebook.com/v18.0/{phone_id}"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        resp = requests.get(url, headers=headers, timeout=10)
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            return jsonify({
+                "ok": True,
+                "mensaje": f"✅ Conectado: {data.get('name', 'WhatsApp Business')}",
+                "phone_id": phone_id,
+                "verified_name": data.get('verified_name'),
+                "quality_rating": data.get('quality_rating')
+            }), 200
+            
+        elif resp.status_code == 401:
+            return jsonify({"error": "❌ Token inválido o expirado"}), 401
+            
+        elif resp.status_code == 404:
+            return jsonify({"error": f"❌ Phone Number ID no encontrado: {phone_id}"}), 404
+            
+        else:
+            error_detail = resp.text[:200] if resp.text else "Sin detalles"
+            return jsonify({
+                "error": f"❌ HTTP {resp.status_code}: {error_detail}"
+            }), resp.status_code
+            
+    except requests.Timeout:
+        return jsonify({"error": "⏱️ Timeout: no se pudo conectar con Meta en 10s"}), 504
+    except requests.ConnectionError:
+        return jsonify({"error": "🌐 Error de conexión: verifica tu internet"}), 503
+    except Exception as e:
+        app.logger.error(f"❌ Error en test_whatsapp_connection: {str(e)}")
+        return jsonify({"error": f"❌ Error interno: {str(e)[:100]}"}), 500      
+        
+
+# ============================================================================
+# WEBHOOK META: WHATSAPP / FACEBOOK / INSTAGRAM (MULTI-TENANT)
+# ============================================================================
+@app.route("/webhook/meta", methods=["GET", "POST"])
+def webhook_meta():
+    """
+    Endpoint público para recibir mensajes de Meta (WhatsApp, FB, IG).
+    - GET: Verificación del webhook por Meta
+    - POST: Procesamiento de mensajes entrantes
+    """
+    # ==================== GET: VERIFICACIÓN DE WEBHOOK ====================
+    if request.method == "GET":
+        mode = request.args.get("hub.mode")
+        token = request.args.get("hub.verify_token")
+        challenge = request.args.get("hub.challenge")
+        
+        VERIFY_TOKEN = os.getenv("META_WEBHOOK_VERIFY_TOKEN", "mi_token_secreto_123")
+        
+        if mode == "subscribe" and token == VERIFY_TOKEN:
+            app.logger.info("✅ Webhook verificado exitosamente por Meta")
+            return challenge, 200
+        else:
+            return "Token inválido", 403
+
+    # ==================== POST: PROCESAMIENTO DE MENSAJES ====================
+    try:
+        payload = request.json
+        if not payload:
+            return jsonify({"error": "Payload vacío"}), 400
+
+        # Filtrar solo eventos de WhatsApp o Facebook con mensajes
+        if "object" not in payload or payload.get("object") not in ["whatsapp", "page"]:
+            return jsonify({"ok": True}), 200
+
+        for entry in payload.get("entry", []):
+            for change in entry.get("changes", []):
+                value = change.get("value", {})
+                messages = value.get("messages", [])
+                
+                # Si no hay mensajes, puede ser status update (sent, delivered, read)
+                if not messages:
+                    continue
+
+                # Identificadores clave
+                phone_number_id = value.get("metadata", {}).get("phone_number_id")
+                external_user_id = messages[0].get("from")
+                msg_type = messages[0].get("type")
+                msg_text = ""
+                
+                if msg_type == "text":
+                    msg_text = messages[0].get("text", {}).get("body", "")
+                elif msg_type == "interactive":
+                    # Soporte para botones y listas
+                    msg_text = (messages[0].get("interactive", {}).get("button_reply", {}).get("id") or
+                               messages[0].get("interactive", {}).get("list_reply", {}).get("id") or
+                               "[interactive]")
+                else:
+                    msg_text = f"[{msg_type}]"
+
+                if not phone_number_id or not external_user_id:
+                    continue
+
+                # 🔍 1. IDENTIFICAR TENANT POR phone_number_id (CORREGIDO)
+                conn = conectar_db()
+                if not conn: 
+                    app.logger.error("❌ No se pudo conectar a la BD")
+                    continue
+
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT 
+                        tbc.cliente_id,
+                        tbc.bot_activo, 
+                        tbc.usar_ia, 
+                        tbc.instrucciones_ia, 
+                        tbc.modelo_ia, 
+                        tbc.temperatura_ia, 
+                        tbc.mensaje_fallback, 
+                        tbc.handoff_keywords, 
+                        tbc.handoff_email,
+                        ti.whatsapp_access_token
+                    FROM tenant_bot_config tbc
+                    JOIN tenant_integraciones ti ON tbc.cliente_id = ti.cliente_id
+                    WHERE ti.whatsapp_phone_number_id = %s
+                """, (phone_number_id,))
+
+                tenant = cur.fetchone()
+                if not tenant:
+                    app.logger.warning(f"⚠️ phone_number_id {phone_number_id} no registrado")
+                    liberar_db(conn)
+                    continue
+
+                # Desempaquetar 10 valores
+                (tbc_cliente_id, bot_activo, usar_ia, instrucciones_ia, modelo_ia, 
+                 temp_ia, fallback, handoff_kws, handoff_email, access_token_enc) = tenant
+                
+                if not bot_activo:
+                    liberar_db(conn)
+                    continue
+
+                # 📝 2. REGISTRAR MENSAJE ENTRANTE
+                cur.execute("""
+                    INSERT INTO conversation_logs 
+                    (cliente_id, external_user_id, platform, direccion, mensaje_texto, mensaje_tipo, creado_en)
+                    VALUES (%s, %s, 'whatsapp', 'incoming', %s, %s, CURRENT_TIMESTAMP)
+                """, (tbc_cliente_id, external_user_id, msg_text, msg_type))
+                conn.commit()
+
+                # 🤖 3. MOTOR DE RESPUESTAS
+                respuesta_bot = None
+                procesado_por = "fallback"
+
+                # 3a. Handoff a humano
+                if handoff_kws and any(kw.lower() in msg_text.lower() for kw in (handoff_kws or [])):
+                    respuesta_bot = "👤 Entendido. Un asesor humano te contactará pronto. Gracias por tu paciencia."
+                    procesado_por = "handoff"
+
+                # 3b. Keyword match
+                if not respuesta_bot:
+                    cur.execute("""
+                        SELECT respuesta FROM bot_keywords 
+                        WHERE cliente_id = %s AND activo = TRUE 
+                        AND (LOWER(keyword) = %s OR %s LIKE CONCAT('%', LOWER(keyword), '%'))
+                        ORDER BY exact_match DESC LIMIT 1
+                    """, (tbc_cliente_id, msg_text.lower(), msg_text.lower()))
+                    kw_row = cur.fetchone()
+                    if kw_row:
+                        respuesta_bot = kw_row[0]
+                        procesado_por = "keyword"
+
+                # 3c. Fallback o IA (placeholder)
+                if not respuesta_bot:
+                    if usar_ia and instrucciones_ia:
+                        # TODO: Implementar llamada real a OpenAI
+                        respuesta_bot = fallback or "😅 Estoy aprendiendo. Intenta con 'horario' o 'precio'."
+                        procesado_por = "ia"
+                    else:
+                        respuesta_bot = fallback or "😅 No entendí tu mensaje. ¿Puedes reformularlo?"
+                        procesado_por = "fallback"
+
+                # 📤 4. ENVIAR RESPUESTA VÍA META API (solo una vez, con token desencriptado)
+                if respuesta_bot and access_token_enc:
+                    try:
+                        access_token = desencriptar_credencial(access_token_enc)
+                        
+                        if access_token:
+                            url = f"https://graph.facebook.com/v18.0/{phone_number_id}/messages"
+                            headers = {
+                                "Authorization": f"Bearer {access_token}",
+                                "Content-Type": "application/json"
+                            }
+                            payload_reply = {
+                                "messaging_product": "whatsapp",
+                                "to": external_user_id,
+                                "type": "text",
+                                "text": {"body": respuesta_bot}
+                            }
+                            resp = requests.post(url, json=payload_reply, headers=headers, timeout=10)
+                            
+                            if resp.status_code in (200, 201):
+                                app.logger.info(f"📤 Respuesta enviada a {external_user_id}")
+                            else:
+                                app.logger.error(f"❌ Meta API Error {resp.status_code}: {resp.text[:200]}")
+                        else:
+                            app.logger.warning("⚠️ No se pudo desencriptar el access token")
+                    except Exception as e:
+                        app.logger.error(f"❌ Error al enviar respuesta: {e}")
+
+                # 📝 5. REGISTRAR RESPUESTA SALIENTE
+                cur.execute("""
+                    INSERT INTO conversation_logs 
+                    (cliente_id, external_user_id, platform, direccion, mensaje_texto, procesado_por, creado_en)
+                    VALUES (%s, %s, 'whatsapp', 'outgoing', %s, %s, CURRENT_TIMESTAMP)
+                """, (tbc_cliente_id, external_user_id, respuesta_bot, procesado_por))
+                conn.commit()
+
+                # 🔗 6. SOCKET: ACTUALIZAR CHAT EN TIEMPO REAL
+                try:
+                    socketio.emit("nuevo_mensaje_chat", {
+                        "cliente_id": tbc_cliente_id,
+                        "external_user_id": external_user_id,
+                        "texto": respuesta_bot,
+                        "direccion": "outgoing",
+                        "timestamp": datetime.now().isoformat()
+                    }, room=f"cliente_{tbc_cliente_id}")
+                except Exception as e:
+                    app.logger.warning(f"⚠️ Socket emit falló: {e}")
+
+                liberar_db(conn)
+
+        return jsonify({"ok": True}), 200
+
+    except Exception as e:
+        app.logger.error(f"❌ Error crítico en webhook_meta: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error interno"}), 500
+    
+# ============================================================================
+# ENDPOINTS: CONFIGURACIÓN DE CHATBOT MULTI-TENANT
+# ============================================================================
+@app.route("/api/bot/config", methods=["GET", "POST"])
+def api_bot_config():
+    """
+    Obtener o actualizar la configuración general del bot del tenant actual.
+    GET: Retorna config actual (enmascarada si es sensible)
+    POST: Guarda/actualiza config con encriptación si aplica
+    """
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        if request.method == "GET":
+            # 🔍 Obtener configuración actual del tenant
+            cur.execute("""
+                SELECT bot_activo, nombre_bot, mensaje_bienvenida, mensaje_fallback, 
+                       usar_ia, instrucciones_ia, modelo_ia, temperatura_ia, 
+                       handoff_keywords, handoff_email, actualizado_en
+                FROM tenant_bot_config 
+                WHERE cliente_id = %s
+            """, (cliente_id,))
+            
+            row = cur.fetchone()
+            
+            if row:
+                return jsonify({
+                    "bot_activo": row[0] or False,
+                    "nombre_bot": row[1] or "Asistente Virtual",
+                    "mensaje_bienvenida": row[2] or "👋 ¡Hola! ¿En qué puedo ayudarte?",
+                    "mensaje_fallback": row[3] or "😅 No entendí tu mensaje. ¿Puedes reformularlo?",
+                    "usar_ia": row[4] or False,
+                    "instrucciones_ia": row[5],  # Puede ser None
+                    "modelo_ia": row[6] or "gpt-3.5-turbo",
+                    "temperatura_ia": row[7] or 0.7,
+                    "handoff_keywords": row[8] or [],  # Array de texto
+                    "handoff_email": row[9],  # Puede ser None
+                    "actualizado_en": row[10].isoformat() if row[10] else None
+                }), 200
+            else:
+                # No hay config aún → retornar defaults
+                return jsonify({
+                    "bot_activo": False,
+                    "nombre_bot": "Asistente Virtual",
+                    "mensaje_bienvenida": "👋 ¡Hola! ¿En qué puedo ayudarte?",
+                    "mensaje_fallback": "😅 No entendí tu mensaje. ¿Puedes reformularlo?",
+                    "usar_ia": False,
+                    "instrucciones_ia": None,
+                    "modelo_ia": "gpt-3.5-turbo",
+                    "temperatura_ia": 0.7,
+                    "handoff_keywords": [],
+                    "handoff_email": None,
+                    "existe": False
+                }), 200
+                
+        else:  # POST - Guardar/Actualizar configuración
+            data = request.json
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+            
+            # Validar campos requeridos mínimos
+            if "nombre_bot" not in data:
+                return jsonify({"error": "El nombre del bot es requerido"}), 400
+            
+            # Preparar valores para BD (manejar arrays y nulls)
+            handoff_keywords = data.get("handoff_keywords")
+            if isinstance(handoff_keywords, list):
+                handoff_keywords = [k.strip() for k in handoff_keywords if k.strip()]
+            elif handoff_keywords and isinstance(handoff_keywords, str):
+                # Si viene como string separado por comas, convertir a lista
+                handoff_keywords = [k.strip() for k in handoff_keywords.split(",") if k.strip()]
+            else:
+                handoff_keywords = []
+            
+            # 🔗 INSERT o UPDATE con ON CONFLICT
+            cur.execute("""
+                INSERT INTO tenant_bot_config 
+                (cliente_id, bot_activo, nombre_bot, mensaje_bienvenida, mensaje_fallback, 
+                 usar_ia, instrucciones_ia, modelo_ia, temperatura_ia, handoff_keywords, handoff_email)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (cliente_id) DO UPDATE SET 
+                    bot_activo = EXCLUDED.bot_activo,
+                    nombre_bot = EXCLUDED.nombre_bot,
+                    mensaje_bienvenida = EXCLUDED.mensaje_bienvenida,
+                    mensaje_fallback = EXCLUDED.mensaje_fallback,
+                    usar_ia = EXCLUDED.usar_ia,
+                    instrucciones_ia = EXCLUDED.instrucciones_ia,
+                    modelo_ia = EXCLUDED.modelo_ia,
+                    temperatura_ia = EXCLUDED.temperatura_ia,
+                    handoff_keywords = EXCLUDED.handoff_keywords,
+                    handoff_email = EXCLUDED.handoff_email,
+                    actualizado_en = CURRENT_TIMESTAMP
+            """, (
+                cliente_id,
+                data.get("bot_activo", False),
+                data.get("nombre_bot", "Asistente Virtual"),
+                data.get("mensaje_bienvenida", "👋 ¡Hola! ¿En qué puedo ayudarte?"),
+                data.get("mensaje_fallback", "😅 No entendí tu mensaje. ¿Puedes reformularlo?"),
+                data.get("usar_ia", False),
+                data.get("instrucciones_ia"),
+                data.get("modelo_ia", "gpt-3.5-turbo"),
+                data.get("temperatura_ia", 0.7),
+                handoff_keywords,
+                data.get("handoff_email")
+            ))
+            
+            conn.commit()
+            
+            # 🔗 EMITIR SOCKET: Config general actualizada (tiempo real)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot",
+                    "subtipo": "config",
+                    "cliente_id": cliente_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "mensaje": "Configuración general actualizada"
+                }, room=f"cliente_{cliente_id}")
+                app.logger.info(f"🔗 Socket emitido: chatbot config actualizada para cliente {cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ No se pudo emitir socket para chatbot config: {e}")
+                # No fallar la petición si el socket falla
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": "✅ Configuración del bot actualizada correctamente",
+                "cliente_id": cliente_id
+            }), 200
+            
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"❌ Error en api_bot_config: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error interno: {str(e)[:100]}"}), 500
+    finally:
+        liberar_db(conn)
+            
+# ============================================================================
+# ENDPOINT: GESTIÓN DE KEYWORDS (RESPUESTAS RÁPIDAS) POR TENANT
+# ============================================================================
+@app.route("/api/bot/keywords", methods=["GET", "POST", "DELETE"])
+def api_bot_keywords():
+    """
+    CRUD de respuestas rápidas por palabra clave para el tenant actual.
+    GET: Lista todas las keywords activas/inactivas
+    POST: Crea o actualiza una keyword
+    DELETE: Elimina una keyword por ID
+    """
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # ==================== GET: Listar keywords ====================
+        if request.method == "GET":
+            cur.execute("""
+                SELECT id, keyword, respuesta, exact_match, case_sensitive, 
+                       veces_usada, activo, creado_en, actualizado_en
+                FROM bot_keywords 
+                WHERE cliente_id = %s 
+                ORDER BY keyword ASC
+            """, (cliente_id,))
+            
+            keywords = []
+            for row in cur.fetchall():
+                keywords.append({
+                    "id": row[0],
+                    "keyword": row[1],
+                    "respuesta": row[2],
+                    "exact_match": row[3],
+                    "case_sensitive": row[4],
+                    "veces_usada": row[5],
+                    "activo": row[6],
+                    "creado_en": row[7].isoformat() if row[7] else None,
+                    "actualizado_en": row[8].isoformat() if row[8] else None
+                })
+            
+            return jsonify(keywords), 200
+        
+        # ==================== POST: Crear/Actualizar keyword ====================
+        elif request.method == "POST":
+            data = request.json
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+            
+            keyword = data.get("keyword", "").strip().lower()
+            respuesta = data.get("respuesta", "").strip()
+            
+            if not keyword or not respuesta:
+                return jsonify({"error": "Keyword y respuesta son requeridos"}), 400
+            
+            # Validar longitud máxima
+            if len(keyword) > 100:
+                return jsonify({"error": "La keyword no puede exceder 100 caracteres"}), 400
+            
+            # 🔗 INSERT o UPDATE con ON CONFLICT
+            cur.execute("""
+                INSERT INTO bot_keywords 
+                (cliente_id, keyword, respuesta, exact_match, case_sensitive, activo)
+                VALUES (%s, %s, %s, %s, %s, TRUE)
+                ON CONFLICT (cliente_id, keyword) DO UPDATE SET 
+                    respuesta = EXCLUDED.respuesta,
+                    exact_match = EXCLUDED.exact_match,
+                    case_sensitive = EXCLUDED.case_sensitive,
+                    activo = TRUE,
+                    actualizado_en = CURRENT_TIMESTAMP
+            """, (
+                cliente_id,
+                keyword,
+                respuesta,
+                data.get("exact_match", False),
+                data.get("case_sensitive", False)
+            ))
+            
+            conn.commit()
+            
+            # 🔗 EMITIR SOCKET: Keywords actualizadas (tiempo real)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot",
+                    "subtipo": "keywords",
+                    "cliente_id": cliente_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "keyword": keyword,
+                    "accion": "creada_o_actualizada"
+                }, room=f"cliente_{cliente_id}")
+                app.logger.info(f"🔗 Socket emitido: keyword '{keyword}' actualizada para cliente {cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ No se pudo emitir socket para keywords: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": f"✅ Keyword '{keyword}' guardada correctamente",
+                "id": cur.lastrowid if cur.lastrowid else None
+            }), 200
+        
+        # ==================== DELETE: Eliminar keyword ====================
+        elif request.method == "DELETE":
+            keyword_id = request.args.get("id", type=int)
+            
+            if not keyword_id:
+                return jsonify({"error": "ID de keyword es requerido"}), 400
+            
+            # Verificar que la keyword pertenece al tenant antes de eliminar
+            cur.execute("""
+                SELECT keyword FROM bot_keywords 
+                WHERE id = %s AND cliente_id = %s
+            """, (keyword_id, cliente_id))
+            
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "Keyword no encontrada o no pertenece a este tenant"}), 404
+            
+            keyword_eliminada = row[0]
+            
+            cur.execute("""
+                DELETE FROM bot_keywords 
+                WHERE id = %s AND cliente_id = %s
+            """, (keyword_id, cliente_id))
+            
+            conn.commit()
+            
+            # 🔗 EMITIR SOCKET: Keywords actualizadas (tiempo real)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot",
+                    "subtipo": "keywords",
+                    "cliente_id": cliente_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "keyword": keyword_eliminada,
+                    "accion": "eliminada"
+                }, room=f"cliente_{cliente_id}")
+                app.logger.info(f"🔗 Socket emitido: keyword '{keyword_eliminada}' eliminada para cliente {cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ No se pudo emitir socket para keywords: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": f"✅ Keyword '{keyword_eliminada}' eliminada correctamente",
+                "eliminadas": cur.rowcount
+            }), 200
+            
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"❌ Error en api_bot_keywords: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error interno: {str(e)[:100]}"}), 500
+    finally:
+        liberar_db(conn)
+        
+
+# ============================================================================
+# ENDPOINT: GESTIÓN DE FLOWS - VERSIÓN CORREGIDA PARA JSONB
+# ============================================================================
+@app.route("/api/bot/flows", methods=["GET", "POST", "PUT", "DELETE"])
+def api_bot_flows():
+    """CRUD de flujos de conversación con pasos JSONB"""
+    cliente_id = obtener_cliente_id_de_subdominio()
+    if not cliente_id:
+        return jsonify({"error": "No autorizado"}), 401
+    
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión"}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # ==================== GET: Listar flujos ====================
+        if request.method == "GET":
+            cur.execute("""
+                SELECT id, nombre, descripcion, trigger_keyword, trigger_type, 
+                       pasos, requiere_autenticacion, timeout_segundos, 
+                       max_reintentos, activo, orden, creado_en, actualizado_en
+                FROM bot_flows WHERE cliente_id = %s ORDER BY orden ASC, nombre ASC
+            """, (cliente_id,))
+            
+            flows = []
+            for row in cur.fetchall():
+                flows.append({
+                    "id": row[0], "nombre": row[1], "descripcion": row[2],
+                    "trigger_keyword": row[3], "trigger_type": row[4],
+                    "pasos": row[5],  # psycopg2 convierte JSONB → dict automáticamente en SELECT
+                    "requiere_autenticacion": row[6], "timeout_segundos": row[7],
+                    "max_reintentos": row[8], "activo": row[9], "orden": row[10],
+                    "creado_en": row[11].isoformat() if row[11] else None,
+                    "actualizado_en": row[12].isoformat() if row[12] else None
+                })
+            return jsonify(flows), 200
+        
+        # ==================== POST: Crear/Actualizar flujo ====================
+        elif request.method == "POST":
+            import json  # ← Agregar al inicio del archivo si no está
+            
+            data = request.json
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+            
+            nombre = data.get("nombre", "").strip()
+            if not nombre:
+                return jsonify({"error": "El nombre del flujo es requerido"}), 400
+            
+            # 🔧 VALIDAR Y CONVERTIR pasos a JSON string para PostgreSQL
+            pasos = data.get("pasos")
+            if not pasos:
+                return jsonify({"error": "Los pasos del flujo son requeridos"}), 400
+            
+            # Si es dict/list Python, convertir a string JSON
+            if isinstance(pasos, (dict, list)):
+                pasos_json = json.dumps(pasos, ensure_ascii=False)
+            elif isinstance(pasos, str):
+                # Si ya es string, validar que sea JSON válido
+                try:
+                    json.loads(pasos)  # Solo validar
+                    pasos_json = pasos
+                except json.JSONDecodeError as e:
+                    return jsonify({"error": f"JSON inválido en pasos: {str(e)}"}), 400
+            else:
+                return jsonify({"error": "Los pasos deben ser un objeto o array JSON"}), 400
+            
+            # 🔧 USAR pasos_json (string) en la consulta, NO el dict original
+            cur.execute("""
+                INSERT INTO bot_flows 
+                (cliente_id, nombre, descripcion, trigger_keyword, trigger_type, 
+                 pasos, requiere_autenticacion, timeout_segundos, max_reintentos, activo, orden)
+                VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, TRUE, %s)
+                ON CONFLICT (cliente_id, nombre) DO UPDATE SET 
+                    descripcion = EXCLUDED.descripcion,
+                    trigger_keyword = EXCLUDED.trigger_keyword,
+                    trigger_type = EXCLUDED.trigger_type,
+                    pasos = EXCLUDED.pasos::jsonb,
+                    requiere_autenticacion = EXCLUDED.requiere_autenticacion,
+                    timeout_segundos = EXCLUDED.timeout_segundos,
+                    max_reintentos = EXCLUDED.max_reintentos,
+                    activo = TRUE,
+                    orden = EXCLUDED.orden,
+                    actualizado_en = CURRENT_TIMESTAMP
+            """, (
+                cliente_id, nombre, data.get("descripcion"),
+                data.get("trigger_keyword"), data.get("trigger_type", "keyword"),
+                pasos_json,  # ← String JSON, NO dict
+                data.get("requiere_autenticacion", False),
+                data.get("timeout_segundos", 300),
+                data.get("max_reintentos", 3),
+                data.get("orden", 0)
+            ))
+            
+            conn.commit()
+            
+            # 🔗 Socket emit (igual que antes)
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot", "subtipo": "flows",
+                    "cliente_id": cliente_id, "timestamp": datetime.now().isoformat(),
+                    "flow_nombre": nombre, "accion": "creado_o_actualizado"
+                }, room=f"cliente_{cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ Socket emit falló: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": f"✅ Flujo '{nombre}' guardado correctamente",
+                "id": cur.lastrowid if cur.lastrowid else None
+            }), 200
+        
+        # ==================== DELETE: Eliminar flujo ====================
+        elif request.method == "DELETE":
+            flow_id = request.args.get("id", type=int)
+            if not flow_id:
+                return jsonify({"error": "ID de flujo es requerido"}), 400
+            
+            cur.execute("SELECT nombre FROM bot_flows WHERE id = %s AND cliente_id = %s", (flow_id, cliente_id))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "Flujo no encontrado"}), 404
+            
+            flow_nombre = row[0]
+            cur.execute("DELETE FROM bot_flows WHERE id = %s AND cliente_id = %s", (flow_id, cliente_id))
+            conn.commit()
+            
+            # 🔗 Socket emit para delete
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot", "subtipo": "flows",
+                    "cliente_id": cliente_id, "timestamp": datetime.now().isoformat(),
+                    "flow_nombre": flow_nombre, "accion": "eliminado"
+                }, room=f"cliente_{cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ Socket emit falló: {e}")
+            
+            return jsonify({"ok": True, "mensaje": f"✅ Flujo eliminado", "eliminados": cur.rowcount}), 200
+            
+            
+                    # ==================== PUT: Actualizar flujo existente ====================
+        elif request.method == "PUT":
+            import json
+            
+            flow_id = request.args.get("id", type=int)
+            if not flow_id:
+                return jsonify({"error": "ID de flujo es requerido para actualizar"}), 400
+            
+            data = request.json
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+            
+            # Validar que el flujo existe y pertenece al tenant
+            cur.execute("SELECT nombre FROM bot_flows WHERE id = %s AND cliente_id = %s", (flow_id, cliente_id))
+            if not cur.fetchone():
+                return jsonify({"error": "Flujo no encontrado o no autorizado"}), 404
+            
+            # Procesar pasos JSON (igual que en POST)
+            pasos = data.get("pasos")
+            if isinstance(pasos, (dict, list)):
+                pasos_json = json.dumps(pasos, ensure_ascii=False)
+            elif isinstance(pasos, str):
+                try:
+                    json.loads(pasos)
+                    pasos_json = pasos
+                except json.JSONDecodeError as e:
+                    return jsonify({"error": f"JSON inválido: {str(e)}"}), 400
+            else:
+                return jsonify({"error": "Los pasos deben ser JSON válido"}), 400
+            
+            # UPDATE explícito
+            cur.execute("""
+                UPDATE bot_flows SET 
+                    nombre = %s,
+                    descripcion = %s,
+                    trigger_keyword = %s,
+                    trigger_type = %s,
+                    pasos = %s::jsonb,
+                    requiere_autenticacion = %s,
+                    timeout_segundos = %s,
+                    max_reintentos = %s,
+                    orden = %s,
+                    actualizado_en = CURRENT_TIMESTAMP
+                WHERE id = %s AND cliente_id = %s
+            """, (
+                data.get("nombre"), data.get("descripcion"),
+                data.get("trigger_keyword"), data.get("trigger_type", "keyword"),
+                pasos_json,
+                data.get("requiere_autenticacion", False),
+                data.get("timeout_segundos", 300),
+                data.get("max_reintentos", 3),
+                data.get("orden", 0),
+                flow_id, cliente_id
+            ))
+            
+            conn.commit()
+            
+            # 🔗 Socket emit
+            try:
+                socketio.emit("configuracion_actualizada", {
+                    "tipo": "chatbot", "subtipo": "flows",
+                    "cliente_id": cliente_id, "timestamp": datetime.now().isoformat(),
+                    "flow_nombre": data.get("nombre"), "accion": "actualizado"
+                }, room=f"cliente_{cliente_id}")
+            except Exception as e:
+                app.logger.warning(f"⚠️ Socket emit falló: {e}")
+            
+            return jsonify({
+                "ok": True, 
+                "mensaje": "✅ Flujo actualizado correctamente",
+                "id": flow_id
+            }), 200
+            
+            
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"❌ Error en api_bot_flows: {str(e)}")
+        return jsonify({"error": f"Error interno: {str(e)[:100]}"}), 500
+    finally:
+        liberar_db(conn)
+
+# ============================================================================
 
 #Verificar CODIGO DE SEGURIDAD
 @app.route("/verificar_codigo_seguridad", methods=["POST"])
@@ -3087,28 +4542,36 @@ def pagina_verificar_registro():
     return render_template("verificar_registro.html")
 
 
+
+
 @app.route("/login")
 def pagina_login():
-    """Página de login para cualquier subdominio"""
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        # Mostrar selector de cliente para subdominios genéricos
-        return render_template("seleccionar_cliente.html")
+    """
+    Página de login para cualquier subdominio.
+    El frontend (JS) detecta el subdominio y renderiza el contenido apropiado.
+    """
+    # ✅ Siempre retornar login.html, el frontend se encarga del resto
     return render_template("login.html")
-
-
 
 @app.route("/login", methods=["POST"])
 def procesar_login():
     """
     Procesa el login y valida que el usuario pertenezca al cliente actual.
+    En modo local (localhost), permite entrar a cualquier tenant para pruebas.
     """
     try:
         cliente_id = obtener_cliente_id_de_subdominio()
-        if not cliente_id:
-            return jsonify({"error": "Cliente no encontrado"}), 404
-
-        datos = request.json
+        
+        # ✅ OBTENER DATOS: Intentar JSON primero, luego fallback a form
+        if request.is_json:
+            datos = request.get_json()
+        else:
+            try:
+                import json
+                datos = json.loads(request.data.decode('utf-8'))
+            except:
+                datos = request.form.to_dict()
+        
         email = datos.get("email", "").strip().lower()
         password = datos.get("password", "")
 
@@ -3121,13 +4584,28 @@ def procesar_login():
 
         try:
             cur = conn.cursor()
-            cur.execute("""
-                SELECT id, password_hash 
-                FROM users 
-                WHERE email = %s AND cliente_id = %s AND activo = true
-            """, (email, cliente_id))
             
-            user = cur.fetchone()
+            # 🚀 MODO LOCAL: Si estamos en localhost, buscar por email sin importar el subdominio
+            if 'localhost' in request.host or '127.0.0.1' in request.host:
+                cur.execute("""
+                    SELECT id, password_hash, cliente_id 
+                    FROM users 
+                    WHERE email = %s AND activo = true
+                """, (email,))
+                user = cur.fetchone()
+                if user:
+                    # Usar el cliente_id REAL del usuario para la sesión
+                    cliente_id = user[2] 
+            else:
+                # 🌐 MODO PRODUCCIÓN: Validar estrictamente que pertenezca al subdominio
+                if not cliente_id:
+                    return jsonify({"error": "Cliente no encontrado"}), 404
+                cur.execute("""
+                    SELECT id, password_hash, cliente_id 
+                    FROM users 
+                    WHERE email = %s AND cliente_id = %s AND activo = true
+                """, (email, cliente_id))
+                user = cur.fetchone()
             
             if not user or not check_password_hash(user[1], password):
                 return jsonify({"error": "Credenciales inválidas"}), 401
