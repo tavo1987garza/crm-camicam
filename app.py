@@ -1156,7 +1156,7 @@ def guardar_variable_lead(
     ))
 
 
-    def obtener_nodo(flow_data, node_id):
+def obtener_nodo(flow_data, node_id):
     if not isinstance(flow_data, dict):
         return None
 
