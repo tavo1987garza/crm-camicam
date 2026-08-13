@@ -1958,44 +1958,51 @@ def enviar_mensaje():
 
     try:
         cursor = conn.cursor()
-        
-        # 1. Guardar el mensaje ENVIADO en la BD
-        cursor.execute("""
-            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
-            VALUES ('web', %s, %s, 'Enviado', %s, %s, NOW())
-        """, (telefono, mensaje_texto, tipo, cliente_id))
-        conn.commit()
 
-
-         # 2. 🚀 OBTENER CREDENCIALES DEL TENANT
+        # 1. Obtener exclusivamente la integración del tenant autenticado.
         cursor.execute("""
             SELECT whatsapp_access_token, whatsapp_phone_number_id, bot_url 
             FROM tenant_integraciones 
             WHERE cliente_id = %s
         """, (cliente_id,))
         config = cursor.fetchone()
-        
-        # Desencriptar el token si existe en la BD
-        token_encriptado = config[0] if config and config[0] else None
-        if token_encriptado:
-            token = desencriptar_credencial(token_encriptado)
-        else:
-            # Fallback a variable global si no hay nada en la BD
-            token = os.getenv("WHATSAPP_TOKEN_GLOBAL")
-            
-        phone_id = config[1] if config and config[1] else os.getenv("WHATSAPP_PHONE_ID_GLOBAL")
-        bot_url = config[2] if config and config[2] else os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
 
-        if not token or not phone_id:
-            return jsonify({"error": "Faltan credenciales de WhatsApp configuradas para este negocio. Ve a Configuración → Integraciones."}), 400
+        if not config:
+            return jsonify({"error": "No existe una integración de WhatsApp configurada para este negocio."}), 400
 
+        token_encriptado, phone_id, bot_url_tenant = config
 
-        # 3. Preparar payload PARA CAMIBOT (incluyendo las credenciales del tenant)
+        if not token_encriptado:
+            return jsonify({"error": "Falta configurar el Access Token de WhatsApp para este negocio."}), 400
+
+        if not phone_id or not str(phone_id).strip():
+            return jsonify({"error": "Falta configurar el Phone Number ID de WhatsApp para este negocio."}), 400
+
+        token = desencriptar_credencial(token_encriptado)
+        if not token or not token.strip():
+            return jsonify({"error": "No se pudo obtener un Access Token válido para este negocio."}), 400
+
+        phone_id = str(phone_id).strip()
+
+        # CAMIBOT_API_URL es infraestructura compartida del gateway Node; no es
+        # una credencial WhatsApp ni sustituye token/phone_id del tenant.
+        bot_url = bot_url_tenant or os.getenv("CAMIBOT_API_URL", "http://localhost:3001")
+
+        secreto_interno = os.getenv("BOT_INTERNAL_SECRET")
+        if not secreto_interno:
+            app.logger.error("❌ BOT_INTERNAL_SECRET no está configurado en Flask")
+            return jsonify({"error": "Configuración interna de mensajería incompleta."}), 500
+
+        headers = {
+            "X-Bot-Secret": secreto_interno,
+            "Content-Type": "application/json"
+        }
+
+        # 2. Preparar payload para Node sin enviar cliente_id.
         payload = {
             "telefono": telefono,
-            "cliente_id": cliente_id,
-            "whatsapp_token": token,           # <--- CamiBot usará esto
-            "whatsapp_phone_id": phone_id      # <--- CamiBot usará esto
+            "whatsapp_token": token,
+            "whatsapp_phone_id": phone_id
         }
         
         if tipo == "imagen":
@@ -2008,12 +2015,26 @@ def enviar_mensaje():
             payload.update({"mensaje": mensaje_texto, "tipo": "texto"})
             endpoint = f"{bot_url.rstrip('/')}/enviar_mensaje"
 
-        # 4. Enviar a CamiBot con reintentos
+        # 3. Registrar el intento sin marcarlo como enviado antes de tiempo.
+        cursor.execute("""
+            INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
+            VALUES ('web', %s, %s, 'Pendiente', %s, %s, NOW())
+            RETURNING id
+        """, (telefono, mensaje_texto, tipo, cliente_id))
+        mensaje_id = cursor.fetchone()[0]
+        conn.commit()
+
+        # 4. Enviar a Node con autenticación interna y reintentos.
         max_intentos = 3
         exito = False
         for intento in range(max_intentos):
             try:
-                r = requests.post(endpoint, json=payload, timeout=10)
+                r = requests.post(
+                    endpoint,
+                    json=payload,
+                    headers=headers,
+                    timeout=10
+                )
                 if r.status_code == 200:
                     exito = True
                     break
@@ -2024,10 +2045,16 @@ def enviar_mensaje():
         if not exito:
             cursor.execute("""
                 UPDATE mensajes SET estado = 'Fallido' 
-                WHERE remitente = %s AND mensaje = %s AND cliente_id = %s
-            """, (telefono, mensaje_texto, cliente_id))
+                WHERE id = %s AND cliente_id = %s
+            """, (mensaje_id, cliente_id))
             conn.commit()
             return jsonify({"error": "No se pudo conectar con el servicio de mensajería"}), 500
+
+        cursor.execute("""
+            UPDATE mensajes SET estado = 'Enviado'
+            WHERE id = %s AND cliente_id = %s
+        """, (mensaje_id, cliente_id))
+        conn.commit()
 
         return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
