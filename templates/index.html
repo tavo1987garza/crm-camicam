@@ -5606,17 +5606,19 @@ async function abrirModalEditar(id, nombre, telefono, notas) {
     document.getElementById("edit-lead-telefono").value = telefono;
     document.getElementById("edit-lead-notas").value = notas || "";
 
-    // 🆕 NUEVO: Cargar contexto del bot
+    // 🆕 NUEVO: Cargar contexto del bot si existe
     try {
-        const contextoResp = await fetch(`/leads/context?telefono=${telefono}`);
-        if (contextoResp.ok) {
-            const contextoData = await contextoResp.json();
-            if (contextoData.context && Object.keys(contextoData.context).length > 0) {
-                mostrarContextoEnModal(contextoData.context);
-            } else {
-                // Remover panel anterior si existe
-                const existente = document.getElementById("lead-contexto-panel");
-                if (existente) existente.remove();
+        const resp = await fetch(`/lead_id?telefono=${telefono}`);
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.id) {
+                const contextoResp = await fetch(`/leads/context?telefono=${telefono}`);
+                if (contextoResp.ok) {
+                    const contextoData = await contextoResp.json();
+                    if (contextoData.context && Object.keys(contextoData.context).length > 0) {
+                        mostrarContextoEnModal(contextoData.context);
+                    }
+                }
             }
         }
     } catch (err) {
@@ -5627,7 +5629,7 @@ async function abrirModalEditar(id, nombre, telefono, notas) {
     modal.style.display = "flex";
 }
 
-// 🆕 Función para mostrar el contexto en el modal
+// 🆕 Función auxiliar para mostrar el contexto en el modal
 function mostrarContextoEnModal(contexto) {
     // Remover panel anterior si existe
     const existente = document.getElementById("lead-contexto-panel");
@@ -5638,28 +5640,24 @@ function mostrarContextoEnModal(contexto) {
     panel.id = "lead-contexto-panel";
     panel.style.cssText = "background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 15px; margin: 15px 0;";
     
-    let html = '<h4 style="margin: 0 0 10px 0; color: #1976d2; font-size: 14px;">🤖 Información recolectada por el bot</h4>';
+    let html = '<h4 style="margin: 0 0 10px 0; color: #1976d2;">🤖 Información recolectada por el bot</h4>';
     
     // Mostrar el último flujo completado
     if (contexto._ultimo_flujo) {
-        const fechaCompletado = new Date(contexto._ultimo_flujo.completado_en).toLocaleString('es-MX');
-        html += `<div style="font-size: 12px; color: #666; margin-bottom: 10px; padding: 8px; background: #fff; border-radius: 4px;">
-            <strong>Último flujo:</strong> ${contexto._ultimo_flujo.nombre}<br>
-            <strong>Completado:</strong> ${fechaCompletado}
+        html += `<div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+            Último flujo: <strong>${contexto._ultimo_flujo.nombre}</strong> 
+            (completado el ${new Date(contexto._ultimo_flujo.completado_en).toLocaleString()})
         </div>`;
     }
     
     // Mostrar datos recolectados (excluyendo metadata)
     const datosReales = Object.entries(contexto).filter(([key]) => !key.startsWith('_'));
     if (datosReales.length > 0) {
-        html += '<div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 13px; background: #fff; padding: 10px; border-radius: 4px;">';
+        html += '<div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 13px;">';
         datosReales.forEach(([key, value]) => {
-            const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            html += `<strong style="color: #1976d2;">${label}:</strong><span>${value}</span>`;
+            html += `<strong style="color: #1976d2;">${key}:</strong><span>${value}</span>`;
         });
         html += '</div>';
-    } else {
-        html += '<p style="color: #999; font-size: 12px; margin: 0;">No hay datos recolectados aún.</p>';
     }
     
     panel.innerHTML = html;
@@ -5667,11 +5665,7 @@ function mostrarContextoEnModal(contexto) {
     // Insertar antes de los botones del modal
     const modalContent = document.querySelector("#edit-lead-modal .modal-content");
     const botones = modalContent.querySelector(".modal-buttons");
-    if (botones) {
-        modalContent.insertBefore(panel, botones);
-    } else {
-        modalContent.appendChild(panel);
-    }
+    modalContent.insertBefore(panel, botones);
 }
 
 
@@ -9019,98 +9013,25 @@ async function guardarFlujo() {
     return;
   }
   
-  if (!trigger) {
-    mostrarFeedbackFlujo('⚠️ La palabra clave (trigger) es requerida', 'warning');
-    return;
-  }
-  
   if (pasosFlujoTemp.length === 0) {
     mostrarFeedbackFlujo('⚠️ Debes agregar al menos un paso al flujo', 'warning');
     return;
   }
 
-  // 🎯 CONVERTIR pasos lineales a formato de nodos
-  const nodes = {};
-  let nodoIdCounter = 1;
-  
-  // Nodo trigger (siempre el primero)
-  const triggerNodeId = `n${nodoIdCounter++}`;
-  nodes[triggerNodeId] = {
-    id: triggerNodeId,
-    type: "trigger",
-    keyword: trigger.toLowerCase(),
-    next: null  // Se llena después
-  };
-  
-  let prevNodeId = triggerNodeId;
-  
-  // Convertir cada paso a un nodo
-  for (let i = 0; i < pasosFlujoTemp.length; i++) {
-    const paso = pasosFlujoTemp[i];
-    const nodeId = `n${nodoIdCounter++}`;
-    const nodo = { id: nodeId };
-    
+  // Validar y limpiar pasos antes de enviar
+  const pasosLimpios = pasosFlujoTemp.map(paso => {
     if (paso.tipo === 'mensaje') {
-      nodo.type = 'message';
-      nodo.text = (paso.texto || '').trim();
-      nodo.delay = paso.delay || 0;
-    } 
-    else if (paso.tipo === 'imagen') {
-      nodo.type = 'image';
-      nodo.url = (paso.url || '').trim();
-      nodo.caption = (paso.texto || '').trim();
-      nodo.delay = paso.delay || 0;
-    } 
-    else if (paso.tipo === 'video') {
-      nodo.type = 'video';
-      nodo.url = (paso.url || '').trim();
-      nodo.caption = (paso.texto || '').trim();
-      nodo.delay = paso.delay || 0;
-    } 
-    else if (paso.tipo === 'opciones') {
-      nodo.type = 'options';
-      nodo.text = (paso.texto || 'Selecciona una opción:').trim();
-      nodo.field = (paso.campo || '').trim();
-      nodo.branches = (paso.opciones || []).filter(op => op.trim() !== '').map((op, idx) => ({
-        label: op.trim(),
-        value: op.trim().toLowerCase().replace(/\s+/g, '_'),
-        next: null  // Se llena después con el siguiente nodo
-      }));
-    } 
-    else if (paso.tipo === 'pregunta') {
-      nodo.type = 'question';
-      nodo.text = (paso.texto || '').trim();
-      nodo.field = (paso.campo || '').trim();
-      nodo.validation = paso.validation || 'any';
-      nodo.allow_empty = paso.allow_empty || false;
-      nodo.delay = paso.delay || 0;
+      return { tipo: 'mensaje', texto: paso.texto.trim() };
+    } else if (paso.tipo === 'opciones') {
+      return { 
+        tipo: 'opciones', 
+        campo: (paso.campo || '').trim(), 
+        opciones: (paso.opciones || []).filter(op => op.trim() !== '') 
+      };
+    } else if (paso.tipo === 'pregunta') {
+      return { tipo: 'pregunta', texto: paso.texto.trim(), campo: (paso.campo || '').trim() };
     }
-    
-    // Conectar con el nodo anterior
-    if (nodes[prevNodeId].type === 'options') {
-      // Si el anterior es opciones, las ramas apuntarán después
-    } else {
-      nodes[prevNodeId].next = nodeId;
-    }
-    
-    nodes[nodeId] = nodo;
-    prevNodeId = nodeId;
-  }
-  
-  // Agregar nodo final
-  const endNodeId = 'n_end';
-  nodes[endNodeId] = { id: endNodeId, type: 'end' };
-  nodes[prevNodeId].next = endNodeId;
-  
-  // Conectar el trigger con el primer paso
-  const firstStepId = Object.keys(nodes).find(k => k !== triggerNodeId && k !== endNodeId);
-  nodes[triggerNodeId].next = firstStepId;
-  
-  // Construir payload final
-  const pasosJSON = {
-    start_node: triggerNodeId,
-    nodes: nodes
-  };
+  });
 
   try {
     const method = flowId ? 'PUT' : 'POST';
@@ -9122,7 +9043,7 @@ async function guardarFlujo() {
       body: JSON.stringify({ 
         nombre, 
         trigger_keyword: trigger, 
-        pasos: pasosJSON,
+        pasos: pasosLimpios, // <-- Aquí enviamos el array limpio, el backend lo convierte a JSONB
         orden: flowId ? undefined : 0
       })
     });
@@ -9142,7 +9063,6 @@ async function guardarFlujo() {
     mostrarFeedbackFlujo('❌ Error de conexión con el servidor', 'error');
   }
 }
-
 
 function mostrarFeedbackFlujo(mensaje, tipo) {
   const fb = document.getElementById('flow-feedback');
@@ -9167,6 +9087,8 @@ async function eliminarFlujo(id) {
 // EDITAR FLUJO EXISTENTE (Versión Blindada con Debugging)
 // ============================================================================
 async function editarFlujo(flowId) {
+  console.log("🔍 Intentando editar flujo ID:", flowId);
+  
   try {
     const resp = await fetch('/api/bot/flows');
     if (!resp.ok) throw new Error('Error al cargar flujos: ' + resp.status);
@@ -9183,51 +9105,20 @@ async function editarFlujo(flowId) {
     document.getElementById('flow-nombre').value = flow.nombre || '';
     document.getElementById('flow-trigger').value = flow.trigger_keyword || '';
     
-    // 🎯 Convertir formato nodos → array lineal para el editor
     let pasosParseados = [];
-    if (flow.pasos && typeof flow.pasos === 'object' && flow.pasos.nodes) {
-      const nodes = flow.pasos.nodes;
-      const startNodeId = flow.pasos.start_node;
-      
-      // Recorrer desde el trigger hasta el end
-      let currentNodeId = nodes[startNodeId]?.next;
-      while (currentNodeId && currentNodeId !== 'n_end') {
-        const nodo = nodes[currentNodeId];
-        if (!nodo) break;
-        
-        if (nodo.type === 'message') {
-          pasosParseados.push({ tipo: 'mensaje', texto: nodo.text || '', delay: nodo.delay || 0 });
-        } 
-        else if (nodo.type === 'image') {
-          pasosParseados.push({ tipo: 'imagen', url: nodo.url || '', texto: nodo.caption || '', delay: nodo.delay || 0 });
-        } 
-        else if (nodo.type === 'video') {
-          pasosParseados.push({ tipo: 'video', url: nodo.url || '', texto: nodo.caption || '', delay: nodo.delay || 0 });
-        } 
-        else if (nodo.type === 'question') {
-          pasosParseados.push({ 
-            tipo: 'pregunta', 
-            texto: nodo.text || '', 
-            campo: nodo.field || '',
-            validation: nodo.validation || 'any',
-            allow_empty: nodo.allow_empty || false,
-            delay: nodo.delay || 0
-          });
-        } 
-        else if (nodo.type === 'options') {
-          pasosParseados.push({ 
-            tipo: 'opciones', 
-            texto: nodo.text || '',
-            campo: nodo.field || '',
-            opciones: (nodo.branches || []).map(b => b.label)
-          });
-        }
-        
-        currentNodeId = nodo.next;
+    if (Array.isArray(flow.pasos)) {
+      pasosParseados = flow.pasos;
+    } else if (typeof flow.pasos === 'string') {
+      try {
+        pasosParseados = JSON.parse(flow.pasos);
+      } catch (e) {
+        console.error("Error al parsear JSON de pasos:", e);
+        pasosParseados = [];
       }
     }
     
-    pasosFlujoTemp = pasosParseados;
+    pasosFlujoTemp = pasosParseados.filter(p => p !== null && p !== undefined);
+    
     renderizarPasosFlujo();
     
     document.getElementById('modal-editor-flujo').classList.remove('hidden');
@@ -9238,6 +9129,7 @@ async function editarFlujo(flowId) {
     mostrarNotificacionSuave('❌ Error: ' + err.message, 'error');
   }
 }
+
 
 
 // ============================================================================
