@@ -1881,31 +1881,31 @@ def recibir_mensaje():
                 traceback.print_exc(file=sys.stdout)
 
 
-                # ========================================================================
-                # 📤 ENVIAR RESPUESTA AUTOMÁTICA
-                # ========================================================================
+            # ========================================================================
+            # 📤 ENVIAR RESPUESTA AUTOMÁTICA
+            # ========================================================================
 
-                if bot_response:
-                    try:
-                        enviar_respuesta_whatsapp_tenant(
-                            cursor=cursor,
-                            cliente_id=cliente_id,
-                            telefono=remitente,
-                            respuesta=bot_response
-                        )
+            if bot_response:
+                try:
+                    enviar_respuesta_whatsapp_tenant(
+                        cursor=cursor,
+                        cliente_id=cliente_id,
+                        telefono=remitente,
+                        respuesta=bot_response
+                    )
 
-                        print(
-                            f"✅ [BOT] Respuesta automática enviada -> "
-                            f"cliente_id={cliente_id}, "
-                            f"telefono={remitente}"
-                        )
+                    print(
+                        f"✅ [BOT] Respuesta automática enviada -> "
+                        f"cliente_id={cliente_id}, "
+                        f"telefono={remitente}"
+                    )
 
-                    except Exception as envio_error:
-                        print(
-                            f"❌ [BOT] Error enviando respuesta automática -> "
-                            f"cliente_id={cliente_id}: "
-                            f"{envio_error}"
-                        )
+                except Exception as envio_error:
+                    print(
+                        f"❌ [BOT] Error enviando respuesta automática -> "
+                        f"cliente_id={cliente_id}: "
+                        f"{envio_error}"
+                    )
 
         # ✅ 3.5. Guardamos todos los cambios (mensaje + stats de keyword/flujo)
         conn.commit()
