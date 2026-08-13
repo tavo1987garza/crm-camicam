@@ -227,30 +227,32 @@ def ejecutar_cadena_nodos(cursor, nodes, start_node_id, contexto_dict, sesion_id
 
 def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre_flujo):
     """Copia el contexto del flujo al lead antes de cerrar la sesión."""
-    print(f"🔍 [HANDOFF DEBUG] Iniciando handoff para {remitente} con datos: {contexto_dict}")
+    # 📝 Escribir en archivo para asegurar que no se pierda el log
+    with open("/tmp/handoff_debug.log", "a") as f:
+        f.write(f"[{datetime.now().isoformat()}] 🔍 Iniciando handoff para {remitente}\n")
+        f.write(f"[{datetime.now().isoformat()}] 📦 Datos a guardar: {contexto_dict}\n")
+    
     try:
-        # 1. Buscar el lead
         cursor.execute("""
             SELECT id, contexto FROM leads 
             WHERE telefono = %s AND cliente_id = %s
         """, (remitente, cliente_id))
         lead_row = cursor.fetchone()
-        print(f"🔍 [HANDOFF DEBUG] Lead encontrado en BD: {lead_row}")
+        
+        with open("/tmp/handoff_debug.log", "a") as f:
+            f.write(f"[{datetime.now().isoformat()}] 🕵️ Lead encontrado en BD: {lead_row}\n")
         
         if lead_row:
             lead_id, contexto_existente = lead_row
             
-            # 2. Normalizar contexto existente
             if isinstance(contexto_existente, str):
                 try:
                     contexto_existente = json.loads(contexto_existente)
-                except Exception as e:
-                    print(f"⚠️ [HANDOFF DEBUG] Error parseando contexto existente: {e}")
+                except:
                     contexto_existente = {}
             elif not contexto_existente:
                 contexto_existente = {}
             
-            # 3. Fusionar contextos
             contexto_mergeado = {**contexto_existente, **contexto_dict}
             contexto_mergeado["_ultimo_flujo"] = {
                 "nombre": nombre_flujo,
@@ -258,22 +260,24 @@ def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre
                 "datos_recolectados": contexto_dict
             }
             
-            print(f"🔍 [HANDOFF DEBUG] Contexto final a guardar: {contexto_mergeado}")
+            with open("/tmp/handoff_debug.log", "a") as f:
+                f.write(f"[{datetime.now().isoformat()}] 💾 Guardando contexto fusionado: {contexto_mergeado}\n")
             
-            # 4. Ejecutar UPDATE
             cursor.execute("""
                 UPDATE leads SET contexto = %s::jsonb WHERE id = %s
             """, (json.dumps(contexto_mergeado), lead_id))
             
-            print(f"🎯 [HANDOFF ÉXITO] Contexto guardado en lead {remitente} (ID: {lead_id})")
+            with open("/tmp/handoff_debug.log", "a") as f:
+                f.write(f"[{datetime.now().isoformat()}] ✅ HANDOFF EXITOSO para lead ID: {lead_id}\n")
         else:
-            print(f"⚠️ [HANDOFF DEBUG] No se encontró el lead {remitente} en la BD para hacer el handoff.")
-            
+            with open("/tmp/handoff_debug.log", "a") as f:
+                f.write(f"[{datetime.now().isoformat()}] ❌ ERROR: Lead NO encontrado para {remitente}\n")
+                
     except Exception as e:
-        print(f"❌ [HANDOFF ERROR] Excepción atrapada: {e}")
+        with open("/tmp/handoff_debug.log", "a") as f:
+            f.write(f"[{datetime.now().isoformat()}] 💥 EXCEPCIÓN: {e}\n")
         import traceback
         traceback.print_exc()
-
         
 # ============================================================================
 # FUNCIONES DE ENCRIPTACIÓN PARA CREDENCIALES DE TENANTS
