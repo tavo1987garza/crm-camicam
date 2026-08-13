@@ -1258,6 +1258,227 @@ def validar_bot_interno(request):
 
     return secreto_recibido == secreto_configurado
 
+
+# ============================================================================
+# ENVÍO WHATSAPP MULTI-TENANT: FLASK -> NODE -> META
+# ============================================================================
+
+def enviar_respuesta_whatsapp_tenant(
+    cursor,
+    cliente_id,
+    telefono,
+    respuesta
+):
+    """
+    Envía una respuesta automática usando exclusivamente
+    las credenciales WhatsApp del tenant actual.
+
+    Soporta:
+      - string -> texto
+      - dict type=mensaje
+      - dict type=imagen
+      - dict type=video
+      - dict type=opciones
+    """
+
+    # ------------------------------------------------------------------------
+    # 1. Obtener integración del tenant
+    # ------------------------------------------------------------------------
+    cursor.execute("""
+        SELECT
+            whatsapp_access_token,
+            whatsapp_phone_number_id,
+            bot_url
+        FROM tenant_integraciones
+        WHERE cliente_id = %s
+        LIMIT 1
+    """, (cliente_id,))
+
+    config = cursor.fetchone()
+
+    if not config:
+        raise Exception(
+            f"No existe integración WhatsApp para cliente_id={cliente_id}"
+        )
+
+    token_encriptado, phone_id, bot_url = config
+
+    if not token_encriptado:
+        raise Exception(
+            f"Tenant {cliente_id} no tiene whatsapp_access_token"
+        )
+
+    if not phone_id:
+        raise Exception(
+            f"Tenant {cliente_id} no tiene whatsapp_phone_number_id"
+        )
+
+    if not bot_url:
+        raise Exception(
+            f"Tenant {cliente_id} no tiene bot_url"
+        )
+
+    token = desencriptar_credencial(token_encriptado)
+
+    if not token:
+        raise Exception(
+            f"No se pudo desencriptar el token del tenant {cliente_id}"
+        )
+
+    # ------------------------------------------------------------------------
+    # 2. Verificar secreto interno Flask -> Node
+    # ------------------------------------------------------------------------
+    secreto_interno = os.getenv("BOT_INTERNAL_SECRET")
+
+    if not secreto_interno:
+        raise Exception(
+            "BOT_INTERNAL_SECRET no está configurado en Flask"
+        )
+
+    headers = {
+        "X-Bot-Secret": secreto_interno,
+        "Content-Type": "application/json"
+    }
+
+    # ------------------------------------------------------------------------
+    # 3. Keyword tradicional: respuesta tipo string
+    # ------------------------------------------------------------------------
+    if isinstance(respuesta, str):
+
+        endpoint = f"{bot_url.rstrip('/')}/enviar_mensaje"
+
+        payload = {
+            "telefono": telefono,
+            "mensaje": respuesta,
+            "delay": 0,
+            "whatsapp_token": token,
+            "whatsapp_phone_id": phone_id
+        }
+
+    # ------------------------------------------------------------------------
+    # 4. Respuesta estructurada del Flow Engine
+    # ------------------------------------------------------------------------
+    elif isinstance(respuesta, dict):
+
+        tipo_respuesta = respuesta.get(
+            "type",
+            "mensaje"
+        )
+
+        caption = respuesta.get(
+            "caption",
+            ""
+        )
+
+        try:
+            delay = int(
+                respuesta.get("delay", 0) or 0
+            )
+        except (TypeError, ValueError):
+            delay = 0
+
+        # IMAGEN
+        if tipo_respuesta == "imagen":
+
+            url = respuesta.get("url", "")
+
+            if not url:
+                raise ValueError(
+                    "Respuesta de imagen sin URL"
+                )
+
+            endpoint = f"{bot_url.rstrip('/')}/enviar_imagen"
+
+            payload = {
+                "telefono": telefono,
+                "imageUrl": url,
+                "caption": caption,
+                "delay": delay,
+                "whatsapp_token": token,
+                "whatsapp_phone_id": phone_id
+            }
+
+        # VIDEO
+        elif tipo_respuesta == "video":
+
+            url = respuesta.get("url", "")
+
+            if not url:
+                raise ValueError(
+                    "Respuesta de video sin URL"
+                )
+
+            endpoint = f"{bot_url.rstrip('/')}/enviar_video"
+
+            payload = {
+                "telefono": telefono,
+                "videoUrl": url,
+                "caption": caption,
+                "delay": delay,
+                "whatsapp_token": token,
+                "whatsapp_phone_id": phone_id
+            }
+
+        # OPCIONES / BOTONES
+        elif tipo_respuesta == "opciones":
+
+            botones = respuesta.get(
+                "bot_buttons",
+                []
+            )
+
+            if not isinstance(botones, list) or not botones:
+                raise ValueError(
+                    "Respuesta de opciones sin botones"
+                )
+
+            endpoint = f"{bot_url.rstrip('/')}/enviar_botones"
+
+            payload = {
+                "telefono": telefono,
+                "mensaje": caption or "Selecciona una opción:",
+                "opciones": botones,
+                "delay": delay,
+                "whatsapp_token": token,
+                "whatsapp_phone_id": phone_id
+            }
+
+        # TEXTO
+        else:
+
+            endpoint = f"{bot_url.rstrip('/')}/enviar_mensaje"
+
+            payload = {
+                "telefono": telefono,
+                "mensaje": caption,
+                "delay": delay,
+                "whatsapp_token": token,
+                "whatsapp_phone_id": phone_id
+            }
+
+    else:
+        raise ValueError(
+            "Formato de respuesta automática no soportado"
+        )
+
+    # ------------------------------------------------------------------------
+    # 5. Enviar al gateway Node
+    # ------------------------------------------------------------------------
+    response = requests.post(
+        endpoint,
+        json=payload,
+        headers=headers,
+        timeout=15
+    )
+
+    if not response.ok:
+        raise Exception(
+            f"Node respondió {response.status_code}: {response.text}"
+        )
+
+    return True
+
+
 # ============================================================================
 # 1. RECIBIR MENSAJES DESDE WHATSAPP (BOT -> CRM)
 # ============================================================================
@@ -1659,6 +1880,33 @@ def recibir_mensaje():
                 import traceback
                 traceback.print_exc(file=sys.stdout)
 
+
+                # ========================================================================
+                # 📤 ENVIAR RESPUESTA AUTOMÁTICA
+                # ========================================================================
+
+                if bot_response:
+                    try:
+                        enviar_respuesta_whatsapp_tenant(
+                            cursor=cursor,
+                            cliente_id=cliente_id,
+                            telefono=remitente,
+                            respuesta=bot_response
+                        )
+
+                        print(
+                            f"✅ [BOT] Respuesta automática enviada -> "
+                            f"cliente_id={cliente_id}, "
+                            f"telefono={remitente}"
+                        )
+
+                    except Exception as envio_error:
+                        print(
+                            f"❌ [BOT] Error enviando respuesta automática -> "
+                            f"cliente_id={cliente_id}: "
+                            f"{envio_error}"
+                        )
+
         # ✅ 3.5. Guardamos todos los cambios (mensaje + stats de keyword/flujo)
         conn.commit()
 
@@ -1674,8 +1922,8 @@ def recibir_mensaje():
 
         # 5. Devolver la respuesta al Bot
         return jsonify({
-            "mensaje": "Mensaje recibido y almacenado",
-            "bot_response": bot_response
+            "ok": True,
+            "mensaje": "Mensaje recibido y procesado"
         }), 200
 
     except Exception as e:
