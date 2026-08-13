@@ -1037,37 +1037,296 @@ def obtener_lead_id():
 #------------SECION DE CHAT---------------
 #,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 # ============================================================================
+# FLOW ENGINE V2 - HELPERS MULTI-TENANT
+# ============================================================================
+
+def obtener_flow_tenant(cursor, cliente_id, flow_id):
+    """
+    Obtiene un flow exclusivamente dentro del tenant actual.
+    Nunca buscar un flow solamente por ID.
+    """
+    cursor.execute("""
+        SELECT
+            id,
+            cliente_id,
+            nombre,
+            descripcion,
+            trigger_keyword,
+            trigger_type,
+            flow_data,
+            timeout_segundos,
+            max_reintentos,
+            activo
+        FROM bot_flows
+        WHERE id = %s
+          AND cliente_id = %s
+          AND activo = TRUE
+        LIMIT 1
+    """, (flow_id, cliente_id))
+
+    return cursor.fetchone()
+
+
+def obtener_sesion_tenant(
+    cursor,
+    cliente_id,
+    external_user_id,
+    platform="whatsapp"
+):
+    """
+    Obtiene exclusivamente la sesión perteneciente
+    al tenant + usuario + plataforma.
+    """
+    cursor.execute("""
+        SELECT
+            id,
+            cliente_id,
+            external_user_id,
+            platform,
+            estado_actual,
+            flujo_activo_id,
+            current_node_id,
+            waiting_node_id,
+            waiting_variable,
+            waiting_input_type,
+            contexto,
+            pending_variables,
+            execution_meta,
+            reintentos,
+            ultimo_input_en,
+            handoff_solicitado
+        FROM conversation_sessions
+        WHERE cliente_id = %s
+          AND external_user_id = %s
+          AND platform = %s
+        LIMIT 1
+    """, (
+        cliente_id,
+        external_user_id,
+        platform
+    ))
+
+    return cursor.fetchone()
+
+
+def obtener_lead_tenant(cursor, cliente_id, telefono):
+    """
+    Obtiene un lead exclusivamente dentro del tenant actual.
+    """
+    cursor.execute("""
+        SELECT id, nombre, telefono, estado, contexto
+        FROM leads
+        WHERE cliente_id = %s
+          AND telefono = %s
+        LIMIT 1
+    """, (
+        cliente_id,
+        telefono
+    ))
+
+    return cursor.fetchone()
+
+
+def guardar_variable_lead(
+    cursor,
+    cliente_id,
+    telefono,
+    variable,
+    valor
+):
+    """
+    Guarda una variable permanente en leads.contexto.
+
+    La combinación cliente_id + telefono evita cualquier
+    contaminación entre tenants.
+    """
+
+    cursor.execute("""
+        UPDATE leads
+        SET contexto =
+            COALESCE(contexto, '{}'::jsonb)
+            || jsonb_build_object(%s, %s::jsonb)
+        WHERE cliente_id = %s
+          AND telefono = %s
+    """, (
+        variable,
+        json.dumps(valor, ensure_ascii=False),
+        cliente_id,
+        telefono
+    ))
+
+
+    def obtener_nodo(flow_data, node_id):
+    if not isinstance(flow_data, dict):
+        return None
+
+    nodes = flow_data.get("nodes", [])
+
+    for node in nodes:
+        if isinstance(node, dict) and node.get("id") == node_id:
+            return node
+
+    return None
+
+
+def obtener_edges_salida(flow_data, node_id):
+    if not isinstance(flow_data, dict):
+        return []
+
+    edges = flow_data.get("edges", [])
+
+    return [
+        edge
+        for edge in edges
+        if isinstance(edge, dict)
+        and edge.get("source") == node_id
+    ]
+
+
+def obtener_siguiente_nodo_id(
+    flow_data,
+    node_id,
+    source_handle="default"
+):
+    edges = obtener_edges_salida(flow_data, node_id)
+
+    for edge in edges:
+        handle = edge.get("source_handle", "default")
+
+        if handle == source_handle:
+            return edge.get("target")
+
+    return None
+
+
+def reemplazar_variables(texto, contexto):
+    if not texto:
+        return ""
+
+    resultado = str(texto)
+
+    if not isinstance(contexto, dict):
+        return resultado
+
+    for key, value in contexto.items():
+        if value is not None:
+            resultado = resultado.replace(
+                f"{{{key}}}",
+                str(value)
+            )
+
+    return resultado
+
+
+# ============================================================================
+# WHATSAPP MULTI-TENANT - RESOLUCIÓN SEGURA
+# ============================================================================
+
+def obtener_tenant_por_whatsapp_phone_id(cursor, whatsapp_phone_id):
+    """
+    Resuelve el tenant propietario de un WhatsApp Phone Number ID.
+
+    IMPORTANTE:
+    Nunca confiar en cliente_id enviado por Node.
+    """
+
+    if not whatsapp_phone_id:
+        return None
+
+    cursor.execute("""
+        SELECT
+            ti.cliente_id,
+            ti.whatsapp_access_token,
+            ti.whatsapp_phone_number_id,
+            ti.bot_url
+        FROM tenant_integraciones ti
+        WHERE ti.whatsapp_phone_number_id = %s
+        LIMIT 1
+    """, (str(whatsapp_phone_id),))
+
+    return cursor.fetchone()
+
+def validar_bot_interno(request):
+    secreto_configurado = os.getenv("BOT_INTERNAL_SECRET")
+    secreto_recibido = request.headers.get("X-Bot-Secret")
+
+    if not secreto_configurado:
+        app.logger.error(
+            "❌ BOT_INTERNAL_SECRET no está configurado"
+        )
+        return False
+
+    return secreto_recibido == secreto_configurado
+
+# ============================================================================
 # 1. RECIBIR MENSAJES DESDE WHATSAPP (BOT -> CRM)
 # ============================================================================
 @app.route("/recibir_mensaje", methods=["POST"])
 def recibir_mensaje():
-    # 🔥 LATIDO: Esto debe aparecer en los logs SIEMPRE que el bot llama al CRM
-    print(f"🔥 [CRM] ¡Petición recibida en /recibir_mensaje! Payload: {request.json}")
-    
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        print("⚠️ [CRM] Cliente no autorizado (subdominio no reconocido)")
-        return jsonify({"error": "Cliente no autorizado"}), 404
+    # 🔥 LATIDO
+    print(
+        f"🔥 [CRM] ¡Petición recibida en /recibir_mensaje! "
+        f"Payload: {request.json}"
+    )
 
-    datos = request.json
-    plataforma = datos.get("plataforma", "whatsapp")
-    remitente = str(datos.get("remitente", ""))
+    # 🔐 Solo el Bot puede llamar este endpoint
+    if not validar_bot_interno(request):
+        print("⛔ [CRM] Petición rechazada: BOT_INTERNAL_SECRET inválido")
+        return jsonify({"error": "No autorizado"}), 401
+
+    datos = request.get_json(silent=True) or {}
+
+    plataforma = str(
+        datos.get("plataforma", "whatsapp")
+    ).lower().strip()
+
+    remitente = str(
+        datos.get("remitente", "")
+    ).strip()
+
     mensaje = datos.get("mensaje")
-    tipo = datos.get("tipo", "recibido")
-    
-    print(f"📝 [CRM] Datos procesados -> Remitente: {remitente}, Mensaje: '{mensaje}', Tipo: '{tipo}'")
-    
-    if not remitente or mensaje is None:
-        return jsonify({"error": "Faltan datos (remitente o mensaje)"}), 400
 
-    tipos_validos = {"enviado", "recibido", "recibido_imagen", "enviado_imagen", "recibido_video", "enviado_video"}
-    
-    # 🔄 Normalizar: si viene en inglés desde el bot, lo pasamos a español
+    tipo = str(
+        datos.get("tipo", "recibido")
+    ).lower().strip()
+
+    whatsapp_phone_id = str(
+        datos.get("whatsapp_phone_id", "")
+    ).strip()
+
+    print(
+        f"📝 [CRM] Datos procesados -> "
+        f"Remitente: {remitente}, "
+        f"Mensaje: '{mensaje}', "
+        f"Tipo: '{tipo}', "
+        f"WhatsApp Phone ID: '{whatsapp_phone_id}'"
+    )
+
+    if not remitente or mensaje is None:
+        return jsonify({
+            "error": "Faltan datos (remitente o mensaje)"
+        }), 400
+
+    if plataforma == "whatsapp" and not whatsapp_phone_id:
+        return jsonify({
+            "error": "Falta whatsapp_phone_id"
+        }), 400
+
+    tipos_validos = {
+        "enviado",
+        "recibido",
+        "recibido_imagen",
+        "enviado_imagen",
+        "recibido_video",
+        "enviado_video"
+    }
+
+    # 🔄 Normalización
     if tipo in ["recibido_image", "enviado_image"]:
         tipo = tipo.replace("image", "imagen")
     elif tipo in ["recibido_video", "enviado_video"]:
-        tipo = tipo.replace("video", "video") # Ya está bien, pero por consistencia
-        
+        tipo = tipo.replace("video", "video")
+
     if tipo not in tipos_validos:
         tipo = "recibido"
 
@@ -1077,6 +1336,38 @@ def recibir_mensaje():
 
     try:
         cursor = conn.cursor()
+
+# ============================================================================
+# 🔐 RESOLVER TENANT REAL DESDE EL WHATSAPP PHONE NUMBER ID
+# ============================================================================
+
+        tenant = obtener_tenant_por_whatsapp_phone_id(
+            cursor,
+            whatsapp_phone_id
+        )
+
+        if not tenant:
+            print(
+                f"⛔ [CRM] WhatsApp Phone ID no registrado: "
+                f"{whatsapp_phone_id}"
+            )
+
+            return jsonify({
+                "error": "Número de WhatsApp no registrado"
+            }), 404
+
+        (
+            cliente_id,
+            access_token_encriptado,
+            tenant_phone_id,
+            bot_url
+        ) = tenant
+
+        print(
+            f"✅ [CRM] Tenant resuelto correctamente -> "
+            f"cliente_id={cliente_id}, "
+            f"phone_id={tenant_phone_id}"
+        )
 
         # 1. Verificar si el lead ya existe PARA ESTE CLIENTE
         cursor.execute("SELECT id, nombre FROM leads WHERE telefono = %s AND cliente_id = %s", (remitente, cliente_id))
