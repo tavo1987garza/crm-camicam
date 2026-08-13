@@ -128,20 +128,12 @@ def ejecutar_cadena_nodos(cursor, nodes, start_node_id, contexto_dict, sesion_id
     max_iteraciones = 20
     iteraciones = 0
     
-    # 📝 Log de inicio
-    with open("/tmp/flujo_debug.log", "a") as f:
-        f.write(f"\n[{datetime.now().strftime('%H:%M:%S')}] 🚀 INICIO CADENA | start_node: {start_node_id} | contexto: {contexto_dict}\n")
-    
     while nodo_actual_id and nodo_actual_id != "end" and iteraciones < max_iteraciones:
         iteraciones += 1
         nodo = nodes.get(nodo_actual_id)
         
-        with open("/tmp/flujo_debug.log", "a") as f:
-            f.write(f"   ↳ Iteración {iteraciones}: procesando nodo '{nodo_actual_id}' -> {nodo.get('type') if nodo else 'NULL'}\n")
-        
         if not nodo or not isinstance(nodo, dict):
-            with open("/tmp/flujo_debug.log", "a") as f:
-                f.write(f"   ⚠️ ERROR: Nodo '{nodo_actual_id}' no encontrado o inválido. Rompiendo bucle.\n")
+            print(f"⚠️ [FLUJO] Nodo '{nodo_actual_id}' no encontrado")
             break
         
         tipo = nodo.get("type", "message")
@@ -191,8 +183,6 @@ def ejecutar_cadena_nodos(cursor, nodes, start_node_id, contexto_dict, sesion_id
                 "caption": reemplazar_variables(nodo.get("text", ""), contexto_dict),
                 "delay": nodo.get("delay", 0)
             })
-            with open("/tmp/flujo_debug.log", "a") as f:
-                f.write(f"   ⏸️ PAUSA en pregunta '{nodo_actual_id}'. Retornando acciones.\n")
             break
             
         elif tipo == "options":
@@ -211,19 +201,11 @@ def ejecutar_cadena_nodos(cursor, nodes, start_node_id, contexto_dict, sesion_id
                 "botones": botones,
                 "delay": nodo.get("delay", 0)
             })
-            with open("/tmp/flujo_debug.log", "a") as f:
-                f.write(f"   ⏸️ PAUSA en opciones '{nodo_actual_id}'. Retornando acciones.\n")
             break
             
         elif tipo == "end":
-            with open("/tmp/flujo_debug.log", "a") as f:
-                f.write(f"   🏁 LLEGÓ AL NODO END. contexto_dict actual: {contexto_dict}\n")
-            
             if contexto_dict:
                 handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre_flujo)
-            else:
-                with open("/tmp/flujo_debug.log", "a") as f:
-                    f.write(f"   ⚠️ ADVERTENCIA: contexto_dict está vacío ({}). No se ejecuta handoff.\n")
             
             cursor.execute("""
                 UPDATE conversation_sessions 
@@ -237,21 +219,18 @@ def ejecutar_cadena_nodos(cursor, nodes, start_node_id, contexto_dict, sesion_id
             nodo_actual_id = nodo.get("next")
             
         else:
-            with open("/tmp/flujo_debug.log", "a") as f:
-                f.write(f"   ⚠️ Tipo de nodo desconocido: {tipo}\n")
+            print(f"⚠️ [FLUJO] Tipo de nodo desconocido: {tipo}")
             break
-    
-    with open("/tmp/flujo_debug.log", "a") as f:
-        f.write(f"   ✅ FIN CADENA. Acciones generadas: {len(acciones)}\n")
     
     return acciones if acciones else None
 
 
 def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre_flujo):
     """Copia el contexto del flujo al lead antes de cerrar la sesión."""
+    # 📝 Escribir en archivo para asegurar que no se pierda el log
     with open("/tmp/handoff_debug.log", "a") as f:
-        f.write(f"[{datetime.now().strftime('%H:%M:%S')}] 🔍 Iniciando handoff para {remitente}\n")
-        f.write(f"[{datetime.now().strftime('%H:%M:%S')}] 📦 Datos a guardar: {contexto_dict}\n")
+        f.write(f"[{datetime.now().isoformat()}] 🔍 Iniciando handoff para {remitente}\n")
+        f.write(f"[{datetime.now().isoformat()}] 📦 Datos a guardar: {contexto_dict}\n")
     
     try:
         cursor.execute("""
@@ -261,7 +240,7 @@ def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre
         lead_row = cursor.fetchone()
         
         with open("/tmp/handoff_debug.log", "a") as f:
-            f.write(f"[{datetime.now().strftime('%H:%M:%S')}] 🕵️ Lead encontrado en BD: {lead_row}\n")
+            f.write(f"[{datetime.now().isoformat()}] 🕵️ Lead encontrado en BD: {lead_row}\n")
         
         if lead_row:
             lead_id, contexto_existente = lead_row
@@ -282,21 +261,21 @@ def handoff_contexto_a_lead(cursor, cliente_id, remitente, contexto_dict, nombre
             }
             
             with open("/tmp/handoff_debug.log", "a") as f:
-                f.write(f"[{datetime.now().strftime('%H:%M:%S')}] 💾 Guardando contexto fusionado...\n")
+                f.write(f"[{datetime.now().isoformat()}] 💾 Guardando contexto fusionado: {contexto_mergeado}\n")
             
             cursor.execute("""
                 UPDATE leads SET contexto = %s::jsonb WHERE id = %s
             """, (json.dumps(contexto_mergeado), lead_id))
             
             with open("/tmp/handoff_debug.log", "a") as f:
-                f.write(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ HANDOFF EXITOSO para lead ID: {lead_id}\n")
+                f.write(f"[{datetime.now().isoformat()}] ✅ HANDOFF EXITOSO para lead ID: {lead_id}\n")
         else:
             with open("/tmp/handoff_debug.log", "a") as f:
-                f.write(f"[{datetime.now().strftime('%H:%M:%S')}] ❌ ERROR: Lead NO encontrado para {remitente}\n")
+                f.write(f"[{datetime.now().isoformat()}] ❌ ERROR: Lead NO encontrado para {remitente}\n")
                 
     except Exception as e:
         with open("/tmp/handoff_debug.log", "a") as f:
-            f.write(f"[{datetime.now().strftime('%H:%M:%S')}] 💥 EXCEPCIÓN: {e}\n")
+            f.write(f"[{datetime.now().isoformat()}] 💥 EXCEPCIÓN: {e}\n")
         import traceback
         traceback.print_exc()
         
