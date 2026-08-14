@@ -2911,10 +2911,20 @@ def enviar_mensaje():
         }
         
         if tipo == "imagen":
-            payload.update({"imageUrl": mensaje_texto, "caption": caption, "tipo": "imagen"})
+            payload.update({
+                "imageUrl": mensaje_texto,
+                "caption": caption,
+                "tipo": "imagen",
+                "reportar_al_crm": False
+            })
             endpoint = f"{bot_url.rstrip('/')}/enviar_imagen"
         elif tipo == "video":
-            payload.update({"videoUrl": mensaje_texto, "caption": caption, "tipo": "video"})
+            payload.update({
+                "videoUrl": mensaje_texto,
+                "caption": caption,
+                "tipo": "video",
+                "reportar_al_crm": False
+            })
             endpoint = f"{bot_url.rstrip('/')}/enviar_video"
         else:
             payload.update({
@@ -2936,57 +2946,40 @@ def enviar_mensaje():
         conn.commit()
 
         exito = False
-        if tipo not in ("imagen", "video"):
-            # Sin una idempotency key durable, cualquier reintento podría
-            # duplicar un envío que Meta ya hubiera aceptado.
-            try:
-                r = requests.post(
-                    endpoint,
-                    json=payload,
-                    headers=headers,
-                    timeout=20
-                )
-                if r.status_code == 200:
-                    exito = True
-                elif r.status_code == 504:
-                    app.logger.warning(
-                        "resultado_ambiguo_timeout: "
-                        f"cliente_id={cliente_id}, mensaje_id={mensaje_id}"
-                    )
-                else:
-                    app.logger.warning(
-                        "envio_whatsapp_fallido_gateway: "
-                        f"cliente_id={cliente_id}, mensaje_id={mensaje_id}, "
-                        f"http_status={r.status_code}"
-                    )
-            except requests.exceptions.Timeout:
+        # Sin una idempotency key durable, cada intento manual realiza una
+        # sola llamada. Flask espera más que el timeout Meta de cada helper.
+        timeout_gateway = 25 if tipo == "imagen" else 35 if tipo == "video" else 20
+        try:
+            r = requests.post(
+                endpoint,
+                json=payload,
+                headers=headers,
+                timeout=timeout_gateway
+            )
+            if r.status_code == 200:
+                exito = True
+            elif r.status_code == 504:
                 app.logger.warning(
                     "resultado_ambiguo_timeout: "
                     f"cliente_id={cliente_id}, mensaje_id={mensaje_id}"
                 )
-            except requests.exceptions.RequestException as e:
+            else:
                 app.logger.warning(
-                    "resultado_ambiguo_error_red: "
+                    "envio_whatsapp_fallido_gateway: "
                     f"cliente_id={cliente_id}, mensaje_id={mensaje_id}, "
-                    f"tipo_error={type(e).__name__}"
+                    f"http_status={r.status_code}"
                 )
-        else:
-            # La política de multimedia saliente queda fuera de esta etapa.
-            max_intentos = 3
-            for intento in range(max_intentos):
-                try:
-                    r = requests.post(
-                        endpoint,
-                        json=payload,
-                        headers=headers,
-                        timeout=10
-                    )
-                    if r.status_code == 200:
-                        exito = True
-                        break
-                except requests.exceptions.RequestException as e:
-                    print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
-                    time.sleep(2)
+        except requests.exceptions.Timeout:
+            app.logger.warning(
+                "resultado_ambiguo_timeout: "
+                f"cliente_id={cliente_id}, mensaje_id={mensaje_id}"
+            )
+        except requests.exceptions.RequestException as e:
+            app.logger.warning(
+                "resultado_ambiguo_error_red: "
+                f"cliente_id={cliente_id}, mensaje_id={mensaje_id}, "
+                f"tipo_error={type(e).__name__}"
+            )
         
         if not exito:
             cursor.execute("""
