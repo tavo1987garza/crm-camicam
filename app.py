@@ -2917,16 +2917,22 @@ def enviar_mensaje():
             payload.update({"videoUrl": mensaje_texto, "caption": caption, "tipo": "video"})
             endpoint = f"{bot_url.rstrip('/')}/enviar_video"
         else:
-            payload.update({"mensaje": mensaje_texto, "tipo": "texto"})
+            payload.update({
+                "mensaje": mensaje_texto,
+                "tipo": "texto",
+                # Flask persiste y emite el texto manual; Node sólo transporta.
+                "reportar_al_crm": False
+            })
             endpoint = f"{bot_url.rstrip('/')}/enviar_mensaje"
 
         # 3. Registrar el intento sin marcarlo como enviado antes de tiempo.
+        tipo_persistido = "enviado" if tipo not in ("imagen", "video") else tipo
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
             VALUES ('web', %s, %s, 'Pendiente', %s, %s, NOW())
-            RETURNING id
-        """, (telefono, mensaje_texto, tipo, cliente_id))
-        mensaje_id = cursor.fetchone()[0]
+            RETURNING id, fecha
+        """, (telefono, mensaje_texto, tipo_persistido, cliente_id))
+        mensaje_id, fecha_mensaje = cursor.fetchone()
         conn.commit()
 
         # 4. Enviar a Node con autenticación interna y reintentos.
@@ -2960,6 +2966,30 @@ def enviar_mensaje():
             WHERE id = %s AND cliente_id = %s
         """, (mensaje_id, cliente_id))
         conn.commit()
+
+        # El texto manual tiene una única autoridad de persistencia (Flask) y
+        # se publica sólo en la room del tenant después de confirmar a Node.
+        if tipo not in ("imagen", "video"):
+            try:
+                socketio.emit(
+                    "nuevo_mensaje",
+                    {
+                        "id": mensaje_id,
+                        "remitente": telefono,
+                        "mensaje": mensaje_texto,
+                        "tipo": "enviado",
+                        "estado": "Enviado",
+                        "fecha": fecha_mensaje.isoformat(),
+                        "cliente_id": cliente_id
+                    },
+                    room=f"cliente_{cliente_id}"
+                )
+            except Exception as emit_error:
+                app.logger.warning(
+                    "No se pudo emitir el texto saliente por Socket.IO: "
+                    f"cliente_id={cliente_id}, mensaje_id={mensaje_id}, "
+                    f"error={emit_error}"
+                )
 
         return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
