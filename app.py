@@ -1,6 +1,9 @@
 import re
 from dotenv import load_dotenv
 import os
+import hashlib
+import tempfile
+from urllib.parse import urlparse
 load_dotenv()
 import json
 import traceback
@@ -10,6 +13,7 @@ import base64
 import uuid 
 from datetime import datetime, timezone, date, timedelta
 import requests
+import boto3
 import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
@@ -1632,6 +1636,587 @@ def recibir_media():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
+
+
+# ============================================================================
+# WORKER MULTIMEDIA: PROCESAMIENTO MANUAL DE UN TRABAJO
+# ============================================================================
+class ErrorProcesamientoMedia(Exception):
+    """Error seguro para persistir sin secretos ni URLs temporales."""
+
+
+WHATSAPP_MEDIA_LIMITES_DEFAULT = {
+    "image": 5 * 1024 * 1024,
+    "video": 16 * 1024 * 1024,
+    "document": 16 * 1024 * 1024,
+    "audio": 16 * 1024 * 1024,
+    "sticker": 500 * 1024,
+}
+
+WHATSAPP_MEDIA_ENV_LIMITES = {
+    "image": "WHATSAPP_MEDIA_MAX_IMAGE_BYTES",
+    "video": "WHATSAPP_MEDIA_MAX_VIDEO_BYTES",
+    "document": "WHATSAPP_MEDIA_MAX_DOCUMENT_BYTES",
+    "audio": "WHATSAPP_MEDIA_MAX_AUDIO_BYTES",
+    "sticker": "WHATSAPP_MEDIA_MAX_STICKER_BYTES",
+}
+
+WHATSAPP_MEDIA_MIME_EXTENSIONES = {
+    "image": {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+    },
+    "video": {
+        "video/mp4": "mp4",
+        "video/3gpp": "3gp",
+    },
+    "document": {
+        "application/pdf": "pdf",
+        "application/msword": "doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+        "application/vnd.ms-excel": "xls",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+        "application/vnd.ms-powerpoint": "ppt",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+        "text/plain": "txt",
+    },
+    "audio": {
+        "audio/aac": "aac",
+        "audio/mp4": "m4a",
+        "audio/mpeg": "mp3",
+        "audio/amr": "amr",
+        "audio/ogg": "ogg",
+        "audio/opus": "opus",
+    },
+    "sticker": {
+        "image/webp": "webp",
+    },
+}
+
+
+def _obtener_entero_positivo_env(nombre, valor_default):
+    valor = os.getenv(nombre)
+    if valor is None or not valor.strip():
+        return valor_default
+    try:
+        entero = int(valor)
+    except (TypeError, ValueError):
+        raise ErrorProcesamientoMedia(f"configuracion_invalida:{nombre}")
+    if entero <= 0:
+        raise ErrorProcesamientoMedia(f"configuracion_invalida:{nombre}")
+    return entero
+
+
+def _limite_media_bytes(message_type):
+    if message_type not in WHATSAPP_MEDIA_LIMITES_DEFAULT:
+        raise ErrorProcesamientoMedia("message_type_no_soportado")
+    return _obtener_entero_positivo_env(
+        WHATSAPP_MEDIA_ENV_LIMITES[message_type],
+        WHATSAPP_MEDIA_LIMITES_DEFAULT[message_type]
+    )
+
+
+def _normalizar_mime(valor):
+    if not isinstance(valor, str):
+        return None
+    mime = valor.split(";", 1)[0].strip().lower()
+    return mime or None
+
+
+def _resolver_mime_y_extension(message_type, mime_meta, mime_descarga):
+    mime_meta = _normalizar_mime(mime_meta)
+    mime_descarga = _normalizar_mime(mime_descarga)
+    genericos = {None, "application/octet-stream", "binary/octet-stream"}
+
+    if (
+        mime_meta not in genericos
+        and mime_descarga not in genericos
+        and mime_meta != mime_descarga
+    ):
+        raise ErrorProcesamientoMedia("mime_inconsistente")
+
+    mime = (
+        mime_meta if mime_meta not in genericos
+        else mime_descarga
+    )
+    extensiones = WHATSAPP_MEDIA_MIME_EXTENSIONES.get(message_type, {})
+    extension = extensiones.get(mime)
+    if not mime or not extension:
+        raise ErrorProcesamientoMedia("mime_no_soportado")
+    return mime, extension
+
+
+def reclamar_trabajo_multimedia():
+    conn = conectar_db()
+    if not conn:
+        raise ErrorProcesamientoMedia("db_no_disponible_claim")
+
+    lock_token = str(uuid.uuid4())
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            WITH candidato AS (
+                SELECT id
+                FROM whatsapp_inbound_events
+                WHERE (
+                    status = 'pending'
+                    OR (
+                        status = 'failed'
+                        AND next_attempt_at IS NOT NULL
+                    )
+                )
+                  AND next_attempt_at <= NOW()
+                ORDER BY next_attempt_at ASC, creado_en ASC, id ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+            )
+            UPDATE whatsapp_inbound_events AS evento
+            SET status = 'processing',
+                attempts = evento.attempts + 1,
+                locked_at = NOW(),
+                lock_token = %s,
+                actualizado_en = NOW()
+            FROM candidato
+            WHERE evento.id = candidato.id
+            RETURNING
+                evento.id AS event_id,
+                evento.cliente_id,
+                evento.whatsapp_phone_number_id,
+                evento.remitente,
+                evento.message_type,
+                evento.media_id,
+                evento.attempts,
+                evento.lock_token
+        """, (lock_token,))
+        trabajo = cursor.fetchone()
+        conn.commit()
+        return dict(trabajo) if trabajo else None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        liberar_db(conn)
+
+
+def recuperar_leases_multimedia_vencidos():
+    timeout_segundos = _obtener_entero_positivo_env(
+        "WHATSAPP_MEDIA_LEASE_TIMEOUT_SECONDS",
+        15 * 60
+    )
+    conn = conectar_db()
+    if not conn:
+        raise ErrorProcesamientoMedia("db_no_disponible_recovery")
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE whatsapp_inbound_events
+            SET status = 'pending',
+                locked_at = NULL,
+                lock_token = NULL,
+                next_attempt_at = NOW(),
+                last_error = 'lease_expirado',
+                actualizado_en = NOW()
+            WHERE status = 'processing'
+              AND locked_at < NOW() - (%s * INTERVAL '1 second')
+        """, (timeout_segundos,))
+        recuperados = cursor.rowcount
+        conn.commit()
+        return recuperados
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        liberar_db(conn)
+
+
+def _obtener_integracion_media(trabajo):
+    conn = conectar_db()
+    if not conn:
+        raise ErrorProcesamientoMedia("db_no_disponible_integracion")
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT whatsapp_access_token, whatsapp_phone_number_id
+            FROM tenant_integraciones
+            WHERE cliente_id = %s
+              AND whatsapp_phone_number_id = %s
+        """, (
+            trabajo["cliente_id"],
+            trabajo["whatsapp_phone_number_id"],
+        ))
+        integracion = cursor.fetchone()
+        conn.rollback()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        liberar_db(conn)
+
+    if not integracion or not integracion[0]:
+        raise ErrorProcesamientoMedia("integracion_whatsapp_invalida")
+
+    token = desencriptar_credencial(integracion[0])
+    if not token or not token.strip():
+        raise ErrorProcesamientoMedia("token_whatsapp_invalido")
+
+    phone_id = str(integracion[1]).strip() if integracion[1] else ""
+    if phone_id != str(trabajo["whatsapp_phone_number_id"]).strip():
+        raise ErrorProcesamientoMedia("phone_id_inconsistente")
+
+    return token
+
+
+def _obtener_metadata_meta(media_id, token):
+    version = os.getenv("WABA_VERSION", "v21.0").strip()
+    endpoint = f"https://graph.facebook.com/{version}/{media_id}"
+    try:
+        respuesta = requests.get(
+            endpoint,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=(5, 20)
+        )
+    except requests.RequestException:
+        raise ErrorProcesamientoMedia("meta_metadata_network_error")
+
+    try:
+        if respuesta.status_code != 200:
+            raise ErrorProcesamientoMedia(
+                f"meta_metadata_http_{respuesta.status_code}"
+            )
+
+        try:
+            metadata = respuesta.json()
+        except ValueError:
+            raise ErrorProcesamientoMedia("meta_metadata_json_invalido")
+    finally:
+        respuesta.close()
+
+    url_temporal = metadata.get("url")
+    if not isinstance(url_temporal, str) or not url_temporal.strip():
+        raise ErrorProcesamientoMedia("meta_media_url_ausente")
+    if urlparse(url_temporal).scheme.lower() != "https":
+        raise ErrorProcesamientoMedia("meta_media_url_no_https")
+
+    return {
+        "url": url_temporal.strip(),
+        "mime_type": metadata.get("mime_type"),
+        "file_size": metadata.get("file_size"),
+    }
+
+
+def _descargar_media_a_temporal(metadata, token, message_type):
+    limite_bytes = _limite_media_bytes(message_type)
+    file_size_meta = metadata.get("file_size")
+    if file_size_meta is not None:
+        try:
+            if int(file_size_meta) > limite_bytes:
+                raise ErrorProcesamientoMedia("media_excede_limite_metadata")
+        except (TypeError, ValueError):
+            raise ErrorProcesamientoMedia("media_file_size_invalido")
+
+    try:
+        respuesta = requests.get(
+            metadata["url"],
+            headers={"Authorization": f"Bearer {token}"},
+            stream=True,
+            timeout=(5, 60)
+        )
+    except requests.RequestException:
+        raise ErrorProcesamientoMedia("meta_download_network_error")
+
+    archivo = None
+    entregar_archivo = False
+    try:
+        if respuesta.status_code != 200:
+            raise ErrorProcesamientoMedia(
+                f"meta_download_http_{respuesta.status_code}"
+            )
+
+        if urlparse(respuesta.url).scheme.lower() != "https":
+            raise ErrorProcesamientoMedia("meta_download_redirect_no_https")
+
+        mime_type, extension = _resolver_mime_y_extension(
+            message_type,
+            metadata.get("mime_type"),
+            respuesta.headers.get("Content-Type")
+        )
+
+        content_length = respuesta.headers.get("Content-Length")
+        if content_length:
+            try:
+                if int(content_length) > limite_bytes:
+                    raise ErrorProcesamientoMedia("media_excede_limite_header")
+            except ValueError:
+                raise ErrorProcesamientoMedia("content_length_invalido")
+
+        archivo = tempfile.TemporaryFile(mode="w+b")
+        sha256 = hashlib.sha256()
+        size_bytes = 0
+        for bloque in respuesta.iter_content(chunk_size=64 * 1024):
+            if not bloque:
+                continue
+            size_bytes += len(bloque)
+            if size_bytes > limite_bytes:
+                raise ErrorProcesamientoMedia("media_excede_limite_stream")
+            sha256.update(bloque)
+            archivo.write(bloque)
+
+        if size_bytes <= 0:
+            raise ErrorProcesamientoMedia("media_vacia")
+
+        archivo.seek(0)
+        resultado = {
+            "archivo": archivo,
+            "mime_type": mime_type,
+            "extension": extension,
+            "size_bytes": size_bytes,
+            "sha256": sha256.hexdigest(),
+        }
+        entregar_archivo = True
+        return resultado
+    finally:
+        try:
+            respuesta.close()
+        finally:
+            if archivo is not None and not entregar_archivo:
+                archivo.close()
+
+
+def _crear_cliente_s3_media():
+    region = os.getenv("AWS_REGION")
+    access_key = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    bucket = os.getenv("S3_BUCKET_NAME")
+    if not all((region, access_key, secret_key, bucket)):
+        raise ErrorProcesamientoMedia("configuracion_s3_incompleta")
+
+    cliente = boto3.client(
+        "s3",
+        region_name=region,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+    )
+    return cliente, bucket.strip()
+
+
+def _marcar_evento_fallido(trabajo, error_seguro):
+    attempts = int(trabajo.get("attempts") or 1)
+    max_attempts = _obtener_entero_positivo_env(
+        "WHATSAPP_MEDIA_MAX_ATTEMPTS",
+        5
+    )
+    programar_retry = attempts < max_attempts
+    backoff_segundos = min(60 * 60, 30 * (2 ** max(0, attempts - 1)))
+    error_truncado = str(error_seguro)[:500]
+
+    conn = conectar_db()
+    if not conn:
+        return False
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE whatsapp_inbound_events
+            SET status = 'failed',
+                locked_at = NULL,
+                lock_token = NULL,
+                last_error = %s,
+                next_attempt_at = CASE
+                    WHEN %s THEN NOW() + (%s * INTERVAL '1 second')
+                    ELSE NULL
+                END,
+                actualizado_en = NOW()
+            WHERE id = %s
+              AND cliente_id = %s
+              AND status = 'processing'
+              AND lock_token = %s
+        """, (
+            error_truncado,
+            programar_retry,
+            backoff_segundos,
+            trabajo["event_id"],
+            trabajo["cliente_id"],
+            str(trabajo["lock_token"]),
+        ))
+        actualizado = cursor.rowcount == 1
+        conn.commit()
+        return actualizado
+    except Exception:
+        conn.rollback()
+        return False
+    finally:
+        liberar_db(conn)
+
+
+def _persistir_media_y_completar(trabajo, datos_media, bucket, s3_key):
+    conn = conectar_db()
+    if not conn:
+        raise ErrorProcesamientoMedia("db_no_disponible_finalize")
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO whatsapp_media (
+                cliente_id,
+                inbound_event_id,
+                media_type,
+                meta_media_id,
+                s3_bucket,
+                s3_key,
+                mime_type,
+                size_bytes,
+                sha256,
+                original_filename,
+                creado_en
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, NOW())
+            RETURNING id
+        """, (
+            trabajo["cliente_id"],
+            trabajo["event_id"],
+            trabajo["message_type"],
+            trabajo["media_id"],
+            bucket,
+            s3_key,
+            datos_media["mime_type"],
+            datos_media["size_bytes"],
+            datos_media["sha256"],
+        ))
+        media_id_db = cursor.fetchone()[0]
+
+        cursor.execute("""
+            UPDATE whatsapp_inbound_events
+            SET status = 'completed',
+                processed_at = NOW(),
+                locked_at = NULL,
+                lock_token = NULL,
+                last_error = NULL,
+                actualizado_en = NOW()
+            WHERE id = %s
+              AND cliente_id = %s
+              AND status = 'processing'
+              AND lock_token = %s
+        """, (
+            trabajo["event_id"],
+            trabajo["cliente_id"],
+            str(trabajo["lock_token"]),
+        ))
+        if cursor.rowcount != 1:
+            raise ErrorProcesamientoMedia("lease_perdido_finalize")
+
+        conn.commit()
+        return media_id_db
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        liberar_db(conn)
+
+
+def procesar_un_trabajo_multimedia():
+    trabajo = reclamar_trabajo_multimedia()
+    if not trabajo:
+        return {"status": "no_job"}
+
+    archivo_temporal = None
+    cliente_s3 = None
+    bucket = None
+    s3_key = None
+    objeto_subido = False
+
+    try:
+        if trabajo["message_type"] not in WHATSAPP_MEDIA_MIME_EXTENSIONES:
+            raise ErrorProcesamientoMedia("message_type_no_soportado")
+
+        token = _obtener_integracion_media(trabajo)
+        metadata = _obtener_metadata_meta(trabajo["media_id"], token)
+        datos_media = _descargar_media_a_temporal(
+            metadata,
+            token,
+            trabajo["message_type"]
+        )
+        archivo_temporal = datos_media["archivo"]
+
+        cliente_s3, bucket = _crear_cliente_s3_media()
+        s3_key = (
+            f"tenants/{trabajo['cliente_id']}/whatsapp/inbound/"
+            f"{trabajo['message_type']}/{uuid.uuid4()}."
+            f"{datos_media['extension']}"
+        )
+        try:
+            cliente_s3.upload_fileobj(
+                archivo_temporal,
+                bucket,
+                s3_key,
+                ExtraArgs={"ContentType": datos_media["mime_type"]}
+            )
+        except Exception:
+            raise ErrorProcesamientoMedia("s3_upload_error")
+        objeto_subido = True
+
+        media_id_db = _persistir_media_y_completar(
+            trabajo,
+            datos_media,
+            bucket,
+            s3_key
+        )
+        app.logger.info(
+            "Media completada: "
+            f"cliente_id={trabajo['cliente_id']}, "
+            f"event_id={trabajo['event_id']}, "
+            f"media_type={trabajo['message_type']}, "
+            f"attempts={trabajo['attempts']}, "
+            f"size_bytes={datos_media['size_bytes']}"
+        )
+        return {
+            "status": "completed",
+            "event_id": trabajo["event_id"],
+            "media_id": media_id_db,
+        }
+
+    except Exception as e:
+        if objeto_subido and cliente_s3 and bucket and s3_key:
+            try:
+                cliente_s3.delete_object(Bucket=bucket, Key=s3_key)
+            except Exception:
+                app.logger.error(
+                    "No se pudo limpiar objeto S3 huérfano: "
+                    f"cliente_id={trabajo['cliente_id']}, "
+                    f"event_id={trabajo['event_id']}"
+                )
+
+        error_seguro = (
+            str(e)
+            if isinstance(e, ErrorProcesamientoMedia)
+            else f"error_interno:{type(e).__name__}"
+        )
+        actualizado = _marcar_evento_fallido(trabajo, error_seguro)
+        app.logger.error(
+            "Media fallida: "
+            f"cliente_id={trabajo['cliente_id']}, "
+            f"event_id={trabajo['event_id']}, "
+            f"media_type={trabajo['message_type']}, "
+            f"attempts={trabajo['attempts']}, "
+            f"estado_actualizado={actualizado}"
+        )
+        return {
+            "status": "failed",
+            "event_id": trabajo["event_id"],
+            "error": error_seguro,
+        }
+
+    finally:
+        if archivo_temporal:
+            archivo_temporal.close()
+
+
+@app.cli.command("procesar-media-una-vez")
+def procesar_media_una_vez_command():
+    """Procesa como máximo un trabajo multimedia y termina."""
+    resultado = procesar_un_trabajo_multimedia()
+    print(json.dumps(resultado, ensure_ascii=False))
 
 
 # ============================================================================
