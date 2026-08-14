@@ -3739,18 +3739,33 @@ def guardar_integraciones():
     datos = request.json
     if not datos:
         return jsonify({"error": "No se recibieron datos"}), 400
-    
+
+    phone_id_presente = "whatsapp_phone_number_id" in datos
+    phone_id_raw = datos.get("whatsapp_phone_number_id")
+    if phone_id_presente and phone_id_raw is not None and not isinstance(phone_id_raw, str):
+        return jsonify({"error": "WhatsApp Phone Number ID inválido"}), 400
+
+    phone_id_normalizado = None
+    if phone_id_presente and phone_id_raw is not None:
+        phone_id_normalizado = phone_id_raw.strip() or None
+
+    token_raw = datos.get("whatsapp_access_token")
+    if token_raw is not None and not isinstance(token_raw, str):
+        return jsonify({"error": "WhatsApp Access Token inválido"}), 400
+
+    token_nuevo = token_raw.strip() if isinstance(token_raw, str) else ""
+
     # ✅ Encriptar solo campos sensibles antes de guardar
     credenciales = {
         # Sensibles → encriptar
-        "whatsapp_access_token": encriptar_credencial(datos.get("whatsapp_access_token")),
+        "whatsapp_access_token": encriptar_credencial(token_nuevo),
         "whatsapp_verify_token": encriptar_credencial(datos.get("whatsapp_verify_token")),
         "facebook_page_token": encriptar_credencial(datos.get("facebook_page_token")),
         "instagram_access_token": encriptar_credencial(datos.get("instagram_access_token")),
         "openai_api_key": encriptar_credencial(datos.get("openai_api_key")),
         "n8n_api_key": encriptar_credencial(datos.get("n8n_api_key")),
-        # No sensibles → guardar en texto plano
-        "whatsapp_phone_number_id": datos.get("whatsapp_phone_number_id", "").strip(),
+        # El Phone ID se normaliza a texto sin espacios o NULL.
+        "whatsapp_phone_number_id": phone_id_normalizado,
         "n8n_url": datos.get("n8n_url", "").strip(),
     }
     
@@ -3760,7 +3775,68 @@ def guardar_integraciones():
     
     try:
         cur = conn.cursor()
-        
+
+        # La UI envía secretos vacíos para indicar "conservar" y siempre
+        # reenvía el Phone ID visible. Para clientes API, omitir Phone ID
+        # conserva el actual; enviarlo vacío representa "sin configurar".
+        cur.execute("""
+            SELECT whatsapp_access_token, whatsapp_phone_number_id
+            FROM tenant_integraciones
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+        integracion_actual = cur.fetchone()
+
+        token_actual = integracion_actual[0] if integracion_actual else None
+        phone_id_actual = integracion_actual[1] if integracion_actual else None
+        phone_id_actual = (
+            str(phone_id_actual).strip() or None
+            if phone_id_actual is not None
+            else None
+        )
+
+        phone_id_efectivo = (
+            phone_id_normalizado
+            if phone_id_presente
+            else phone_id_actual
+        )
+
+        if (
+            phone_id_presente
+            and phone_id_normalizado is not None
+            and phone_id_normalizado != phone_id_actual
+            and not token_nuevo
+        ):
+            conn.rollback()
+            return jsonify({
+                "error": "Para cambiar el WhatsApp Phone Number ID debes ingresar también un nuevo Access Token."
+            }), 400
+
+        if token_nuevo and phone_id_efectivo is None:
+            conn.rollback()
+            return jsonify({
+                "error": "Para guardar un nuevo Access Token debes configurar también el WhatsApp Phone Number ID."
+            }), 400
+
+        if phone_id_efectivo is not None and not (token_nuevo or token_actual):
+            conn.rollback()
+            return jsonify({
+                "error": "Para configurar el WhatsApp Phone Number ID debes ingresar también un Access Token."
+            }), 400
+
+        if phone_id_efectivo is not None:
+            cur.execute("""
+                SELECT cliente_id
+                FROM tenant_integraciones
+                WHERE whatsapp_phone_number_id = %s
+                  AND cliente_id <> %s
+            """, (phone_id_efectivo, cliente_id))
+
+            if cur.fetchone():
+                conn.rollback()
+                return jsonify({
+                    "error": "Este WhatsApp Phone Number ID ya está asociado a otro negocio."
+                }), 409
+
         # ✅ INSERT o UPDATE según exista o no el registro para este tenant
         cur.execute("""
             INSERT INTO tenant_integraciones 
@@ -3784,7 +3860,7 @@ def guardar_integraciones():
         """, (
             cliente_id,
             credenciales["whatsapp_access_token"],
-            credenciales["whatsapp_phone_number_id"],
+            phone_id_efectivo,
             credenciales["whatsapp_verify_token"],
             credenciales["facebook_page_token"],
             credenciales["instagram_access_token"],
@@ -3796,7 +3872,13 @@ def guardar_integraciones():
         conn.commit()
         app.logger.info(f"✅ Credenciales actualizadas para cliente_id={cliente_id}")
         return jsonify({"ok": True, "mensaje": "Credenciales actualizadas correctamente"}), 200
-        
+
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        return jsonify({
+            "error": "Este WhatsApp Phone Number ID ya está asociado a otro negocio."
+        }), 409
+
     except Exception as e:
         conn.rollback()
         app.logger.error(f"❌ Error en guardar_integraciones: {str(e)}")
@@ -3823,12 +3905,42 @@ def test_whatsapp_connection():
     if not datos:
         return jsonify({"error": "No se recibieron datos"}), 400
     
-    phone_id = datos.get("phone_number_id", "").strip()
-    access_token = datos.get("access_token", "").strip()  # Token nuevo para probar
+    phone_id_raw = datos.get("phone_number_id")
+    access_token_raw = datos.get("access_token")
+
+    if not isinstance(phone_id_raw, str) or not isinstance(access_token_raw, str):
+        return jsonify({"error": "Phone Number ID y Access Token son requeridos"}), 400
+
+    phone_id = phone_id_raw.strip()
+    access_token = access_token_raw.strip()  # Token nuevo para probar
     
     if not phone_id or not access_token:
         return jsonify({"error": "Phone Number ID y Access Token son requeridos"}), 400
-    
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "Error de conexión a base de datos"}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT cliente_id
+            FROM tenant_integraciones
+            WHERE whatsapp_phone_number_id = %s
+              AND cliente_id <> %s
+        """, (phone_id, cliente_id))
+
+        if cur.fetchone():
+            return jsonify({
+                "error": "Este WhatsApp Phone Number ID ya está asociado a otro negocio."
+            }), 409
+    except Exception as e:
+        app.logger.error(f"❌ Error validando propiedad del Phone ID: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+    finally:
+        conn.rollback()
+        liberar_db(conn)
+
     try:
         # Prueba básica: obtener información del número de WhatsApp
         url = f"https://graph.facebook.com/v18.0/{phone_id}"
