@@ -2518,6 +2518,16 @@ def recibir_mensaje():
             VALUES (%s, %s, %s, 'Nuevo', %s, %s, NOW())
         """, (plataforma, remitente, mensaje, tipo, cliente_id))
 
+        # Hacer durable y publicar el inbound antes de cualquier automatización.
+        conn.commit()
+        socketio.emit("nuevo_mensaje", {
+            "remitente": remitente,
+            "mensaje": mensaje,
+            "tipo": tipo,
+            "fecha": datetime.now().isoformat(),
+            "cliente_id": cliente_id
+        }, room=f"cliente_{cliente_id}")
+
         # ========================================================================
         # 🧠 3. LÓGICA DE RESPUESTA AUTOMÁTICA (FLUJOS + TUS KEYWORDS FUNCIONALES)
         # ========================================================================
@@ -2812,20 +2822,10 @@ def recibir_mensaje():
                         f"{envio_error}"
                     )
 
-        # ✅ 3.5. Guardamos todos los cambios (mensaje + stats de keyword/flujo)
+        # ✅ 3.5. Guardamos los cambios de stats de keyword/flujo
         conn.commit()
 
-
-        # 4. 🚀 EMITIR WEBSOCKET PARA ACTUALIZAR EL CRM EN TIEMPO REAL
-        socketio.emit("nuevo_mensaje", {
-            "remitente": remitente,
-            "mensaje": mensaje,
-            "tipo": tipo,
-            "fecha": datetime.now().isoformat(),
-            "cliente_id": cliente_id
-        }, room=f"cliente_{cliente_id}")
-
-        # 5. Devolver la respuesta al Bot
+        # 4. Devolver la respuesta al Bot
         return jsonify({
             "ok": True,
             "mensaje": "Mensaje recibido y procesado"
