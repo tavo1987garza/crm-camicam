@@ -2935,23 +2935,58 @@ def enviar_mensaje():
         mensaje_id, fecha_mensaje = cursor.fetchone()
         conn.commit()
 
-        # 4. Enviar a Node con autenticación interna y reintentos.
-        max_intentos = 3
         exito = False
-        for intento in range(max_intentos):
+        if tipo not in ("imagen", "video"):
+            # Sin una idempotency key durable, cualquier reintento podría
+            # duplicar un envío que Meta ya hubiera aceptado.
             try:
                 r = requests.post(
                     endpoint,
                     json=payload,
                     headers=headers,
-                    timeout=10
+                    timeout=20
                 )
                 if r.status_code == 200:
                     exito = True
-                    break
+                elif r.status_code == 504:
+                    app.logger.warning(
+                        "resultado_ambiguo_timeout: "
+                        f"cliente_id={cliente_id}, mensaje_id={mensaje_id}"
+                    )
+                else:
+                    app.logger.warning(
+                        "envio_whatsapp_fallido_gateway: "
+                        f"cliente_id={cliente_id}, mensaje_id={mensaje_id}, "
+                        f"http_status={r.status_code}"
+                    )
+            except requests.exceptions.Timeout:
+                app.logger.warning(
+                    "resultado_ambiguo_timeout: "
+                    f"cliente_id={cliente_id}, mensaje_id={mensaje_id}"
+                )
             except requests.exceptions.RequestException as e:
-                print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
-                time.sleep(2)
+                app.logger.warning(
+                    "resultado_ambiguo_error_red: "
+                    f"cliente_id={cliente_id}, mensaje_id={mensaje_id}, "
+                    f"tipo_error={type(e).__name__}"
+                )
+        else:
+            # La política de multimedia saliente queda fuera de esta etapa.
+            max_intentos = 3
+            for intento in range(max_intentos):
+                try:
+                    r = requests.post(
+                        endpoint,
+                        json=payload,
+                        headers=headers,
+                        timeout=10
+                    )
+                    if r.status_code == 200:
+                        exito = True
+                        break
+                except requests.exceptions.RequestException as e:
+                    print(f"⚠️ Intento {intento + 1} fallido: {str(e)}")
+                    time.sleep(2)
         
         if not exito:
             cursor.execute("""
