@@ -1857,7 +1857,8 @@ def reclamar_trabajo_multimedia():
                 evento.message_type,
                 evento.media_id,
                 evento.attempts,
-                evento.lock_token
+                evento.lock_token,
+                evento.creado_en AS evento_creado_en
         """, (lock_token,))
         trabajo = cursor.fetchone()
         conn.commit()
@@ -2156,6 +2157,55 @@ def _persistir_media_y_completar(trabajo, datos_media, bucket, s3_key):
         ))
         media_id_db = cursor.fetchone()[0]
 
+        tipos_mensaje = {
+            "image": ("[Imagen]", "recibido_imagen"),
+            "video": ("[Video]", "recibido_video"),
+        }
+        datos_mensaje = tipos_mensaje.get(trabajo["message_type"])
+        if not datos_mensaje:
+            raise ErrorProcesamientoMedia("message_type_sin_mensaje_soportado")
+
+        texto_mensaje, tipo_mensaje = datos_mensaje
+        cursor.execute("""
+            INSERT INTO mensajes (
+                plataforma,
+                remitente,
+                mensaje,
+                estado,
+                tipo,
+                cliente_id,
+                fecha,
+                whatsapp_media_id
+            )
+            VALUES ('whatsapp', %s, %s, 'Nuevo', %s, %s, %s, %s)
+            ON CONFLICT (whatsapp_media_id)
+                WHERE whatsapp_media_id IS NOT NULL
+            DO NOTHING
+            RETURNING id
+        """, (
+            trabajo["remitente"],
+            texto_mensaje,
+            tipo_mensaje,
+            trabajo["cliente_id"],
+            trabajo["evento_creado_en"],
+            media_id_db,
+        ))
+        mensaje_insertado = cursor.fetchone()
+
+        if mensaje_insertado:
+            mensaje_id_db = mensaje_insertado[0]
+        else:
+            cursor.execute("""
+                SELECT id
+                FROM mensajes
+                WHERE whatsapp_media_id = %s
+                  AND cliente_id = %s
+            """, (media_id_db, trabajo["cliente_id"]))
+            mensaje_existente = cursor.fetchone()
+            if not mensaje_existente:
+                raise ErrorProcesamientoMedia("mensaje_media_no_resuelto")
+            mensaje_id_db = mensaje_existente[0]
+
         cursor.execute("""
             UPDATE whatsapp_inbound_events
             SET status = 'completed',
@@ -2177,7 +2227,13 @@ def _persistir_media_y_completar(trabajo, datos_media, bucket, s3_key):
             raise ErrorProcesamientoMedia("lease_perdido_finalize")
 
         conn.commit()
-        return media_id_db
+        return {
+            "media_id": media_id_db,
+            "mensaje_id": mensaje_id_db,
+            "mensaje": texto_mensaje,
+            "tipo": tipo_mensaje,
+            "fecha": trabajo["evento_creado_en"],
+        }
     except Exception:
         conn.rollback()
         raise
@@ -2226,12 +2282,40 @@ def procesar_un_trabajo_multimedia():
             raise ErrorProcesamientoMedia("s3_upload_error")
         objeto_subido = True
 
-        media_id_db = _persistir_media_y_completar(
+        resultado_persistencia = _persistir_media_y_completar(
             trabajo,
             datos_media,
             bucket,
             s3_key
         )
+        media_id_db = resultado_persistencia["media_id"]
+
+        fecha_socket = resultado_persistencia["fecha"]
+        if hasattr(fecha_socket, "isoformat"):
+            fecha_socket = fecha_socket.isoformat()
+
+        try:
+            socketio.emit(
+                "nuevo_mensaje",
+                {
+                    "remitente": trabajo["remitente"],
+                    "mensaje": resultado_persistencia["mensaje"],
+                    "tipo": resultado_persistencia["tipo"],
+                    "fecha": fecha_socket,
+                    "cliente_id": trabajo["cliente_id"],
+                    "whatsapp_media_id": media_id_db,
+                    "media_url": f"/api/media/{media_id_db}",
+                },
+                room=f"cliente_{trabajo['cliente_id']}"
+            )
+        except Exception as e:
+            app.logger.warning(
+                "No se pudo emitir media completada por Socket.IO: "
+                f"cliente_id={trabajo['cliente_id']}, "
+                f"event_id={trabajo['event_id']}, "
+                f"tipo_error={type(e).__name__}"
+            )
+
         app.logger.info(
             "Media completada: "
             f"cliente_id={trabajo['cliente_id']}, "

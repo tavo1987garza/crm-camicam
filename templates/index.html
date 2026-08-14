@@ -6112,7 +6112,12 @@ socket.on("nuevo_mensaje", (data) => {
     // 2. Si el chat está abierto, agregar el mensaje al DOM
     if (chatActivoRemitente === data.remitente) {
         const chatBox = document.getElementById("chat-messages");
-        const divMensaje = crearMensajeChat(data.mensaje, tipoMensaje, data.fecha);
+        const divMensaje = crearMensajeChat(
+            data.mensaje,
+            tipoMensaje,
+            data.fecha,
+            data.media_url
+        );
         chatBox.appendChild(divMensaje);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
