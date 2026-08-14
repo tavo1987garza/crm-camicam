@@ -1480,6 +1480,161 @@ def enviar_respuesta_whatsapp_tenant(
 
 
 # ============================================================================
+# RECEPCIÓN DURABLE DE DESCRIPTORES MULTIMEDIA (BOT -> CRM)
+# ============================================================================
+@app.route("/recibir_media", methods=["POST"])
+def recibir_media():
+    if not validar_bot_interno(request):
+        return jsonify({"error": "No autorizado"}), 401
+
+    datos = request.get_json(silent=True)
+    if not isinstance(datos, dict):
+        return jsonify({"error": "Descriptor multimedia inválido"}), 400
+
+    campos_requeridos = (
+        "whatsapp_phone_id",
+        "meta_message_id",
+        "remitente",
+        "message_type",
+        "media_id",
+    )
+
+    descriptor = {}
+    for campo in campos_requeridos:
+        valor = datos.get(campo)
+        if not isinstance(valor, str) or not valor.strip():
+            return jsonify({
+                "error": f"Campo requerido inválido: {campo}"
+            }), 400
+        descriptor[campo] = valor.strip()
+
+    tipos_permitidos = {
+        "image",
+        "video",
+        "document",
+        "audio",
+        "sticker",
+    }
+    if descriptor["message_type"] not in tipos_permitidos:
+        return jsonify({"error": "Tipo multimedia no soportado"}), 400
+
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        tenant = obtener_tenant_por_whatsapp_phone_id(
+            cursor,
+            descriptor["whatsapp_phone_id"]
+        )
+
+        if not tenant:
+            conn.rollback()
+            return jsonify({"error": "Número de WhatsApp no registrado"}), 404
+
+        cliente_id, _, tenant_phone_id, _ = tenant
+
+        # Defensa en profundidad: el Phone ID retornado por la integración debe
+        # coincidir exactamente con el descriptor normalizado recibido de Node.
+        if str(tenant_phone_id).strip() != descriptor["whatsapp_phone_id"]:
+            conn.rollback()
+            app.logger.error(
+                "Inconsistencia de Phone ID al reservar evento multimedia "
+                f"para cliente_id={cliente_id}"
+            )
+            return jsonify({"error": "Identidad de WhatsApp inconsistente"}), 409
+
+        cursor.execute("""
+            INSERT INTO whatsapp_inbound_events (
+                cliente_id,
+                meta_message_id,
+                whatsapp_phone_number_id,
+                remitente,
+                message_type,
+                media_id,
+                status,
+                attempts,
+                next_attempt_at,
+                creado_en,
+                actualizado_en
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, 'pending', 0, NOW(), NOW(), NOW())
+            ON CONFLICT (cliente_id, meta_message_id)
+            DO NOTHING
+            RETURNING id
+        """, (
+            cliente_id,
+            descriptor["meta_message_id"],
+            descriptor["whatsapp_phone_id"],
+            descriptor["remitente"],
+            descriptor["message_type"],
+            descriptor["media_id"],
+        ))
+
+        nueva_fila = cursor.fetchone()
+        if nueva_fila:
+            event_id = nueva_fila[0]
+            conn.commit()
+            app.logger.info(
+                "Evento multimedia aceptado: "
+                f"cliente_id={cliente_id}, event_id={event_id}, "
+                f"message_type={descriptor['message_type']}"
+            )
+            return jsonify({
+                "ok": True,
+                "status": "accepted",
+                "event_id": event_id,
+            }), 202
+
+        cursor.execute("""
+            SELECT id, status
+            FROM whatsapp_inbound_events
+            WHERE cliente_id = %s
+              AND meta_message_id = %s
+        """, (
+            cliente_id,
+            descriptor["meta_message_id"],
+        ))
+        evento_existente = cursor.fetchone()
+        conn.rollback()
+
+        if not evento_existente:
+            app.logger.error(
+                "No se pudo recuperar un evento multimedia duplicado "
+                f"para cliente_id={cliente_id}"
+            )
+            return jsonify({"error": "No se pudo recuperar el evento"}), 500
+
+        event_id, estado = evento_existente
+        respuestas_duplicado = {
+            "completed": ("already_processed", 200),
+            "pending": ("already_accepted", 202),
+            "processing": ("already_processing", 202),
+            "failed": ("previously_failed", 200),
+        }
+        estado_respuesta, codigo_http = respuestas_duplicado.get(
+            estado,
+            ("unknown_status", 409)
+        )
+
+        return jsonify({
+            "ok": estado in respuestas_duplicado,
+            "status": estado_respuesta,
+            "event_id": event_id,
+        }), codigo_http
+
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(
+            f"Error reservando evento multimedia: {type(e).__name__}"
+        )
+        return jsonify({"error": "Error interno del servidor"}), 500
+    finally:
+        liberar_db(conn)
+
+
+# ============================================================================
 # 1. RECIBIR MENSAJES DESDE WHATSAPP (BOT -> CRM)
 # ============================================================================
 @app.route("/recibir_mensaje", methods=["POST"])
