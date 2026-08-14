@@ -25,7 +25,7 @@ from flask import (
     Flask, request, jsonify, render_template, send_from_directory,
     current_app, redirect, url_for, session, g, abort, flash
 )
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, join_room
 from flask_cors import CORS
 
 
@@ -555,7 +555,8 @@ def guardar_estados_lead():
                 "cliente_id": cliente_id,
                 "timestamp": datetime.now().isoformat(),
                 "leads_movidos": leads_movidos
-            }
+            },
+            room=f"cliente_{cliente_id}"
         )
         
         return jsonify({"ok": True, "leads_movidos": leads_movidos}), 200
@@ -625,6 +626,7 @@ def eliminar_estado_lead():
                 "cliente_id": cliente_id,
                 "timestamp": datetime.now().isoformat()
             },
+            room=f"cliente_{cliente_id}"
         )
         
         return jsonify({"ok": True}), 200
@@ -682,7 +684,7 @@ def cambiar_estado_lead():
                 "id": lead_id,
                 "estado_nuevo": nuevo_estado,
                 "telefono": telefono
-            })
+            }, room=f"cliente_{cliente_id}")
         
         return jsonify({"mensaje": "Estado actualizado correctamente"}), 200
     except Exception as e:
@@ -743,7 +745,11 @@ def crear_lead():
                 "estado": estado,  # ✅ Enviar el estado correcto al frontend
                 "notas": notas
             }
-            socketio.emit("nuevo_lead", nuevo_lead)
+            socketio.emit(
+                "nuevo_lead",
+                nuevo_lead,
+                room=f"cliente_{cliente_id}"
+            )
             return jsonify({"mensaje": "Lead creado correctamente", "lead": nuevo_lead}), 200
         else:
             return jsonify({"mensaje": "No se pudo obtener el ID del lead"}), 500
@@ -820,7 +826,11 @@ def eliminar_lead():
         except Exception as e:
             app.logger.warning(f"⚠️ No se pudo notificar al bot al eliminar lead {telefono}: {e}")
 
-        socketio.emit("lead_eliminado", {"id": lead_id, "telefono": telefono})
+        socketio.emit(
+            "lead_eliminado",
+            {"id": lead_id, "telefono": telefono},
+            room=f"cliente_{cliente_id}"
+        )
         return jsonify({"mensaje": "Lead y sus mensajes eliminados correctamente"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1636,6 +1646,66 @@ def recibir_media():
         return jsonify({"error": "Error interno del servidor"}), 500
     finally:
         liberar_db(conn)
+
+
+def resolver_identidad_socket():
+    """Resuelve usuario y tenant del socket sin confiar en datos del cliente."""
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+
+    cliente_id_subdominio = obtener_cliente_id_de_subdominio()
+    if not cliente_id_subdominio:
+        return None
+
+    conn = conectar_db()
+    if not conn:
+        return None
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, cliente_id
+            FROM users
+            WHERE id = %s
+              AND cliente_id = %s
+              AND activo = true
+        """, (user_id, cliente_id_subdominio))
+        usuario = cursor.fetchone()
+        if not usuario:
+            return None
+
+        return {
+            "user_id": usuario[0],
+            "cliente_id": usuario[1]
+        }
+    finally:
+        liberar_db(conn)
+
+
+@socketio.on("connect")
+def conectar_socket(auth=None):
+    try:
+        identidad = resolver_identidad_socket()
+    except Exception as e:
+        app.logger.error(
+            "Error resolviendo identidad Socket.IO: "
+            f"tipo_error={type(e).__name__}"
+        )
+        return False
+
+    if not identidad:
+        app.logger.warning("Conexión Socket.IO rechazada por identidad inválida")
+        return False
+
+    room = f"cliente_{identidad['cliente_id']}"
+    join_room(room)
+    app.logger.info(
+        "Socket.IO autenticado: "
+        f"user_id={identidad['user_id']}, "
+        f"cliente_id={identidad['cliente_id']}, "
+        f"room={room}"
+    )
 
 
 # ============================================================================
@@ -2658,7 +2728,7 @@ def recibir_mensaje():
             "tipo": tipo,
             "fecha": datetime.now().isoformat(),
             "cliente_id": cliente_id
-        })
+        }, room=f"cliente_{cliente_id}")
 
         # 5. Devolver la respuesta al Bot
         return jsonify({
@@ -3215,7 +3285,8 @@ def agregar_fecha_manual():
 
         socketio.emit(
             "calendario_actualizado",
-            {"accion": "nueva_fecha", "anio": fecha_local.year, "fecha": fecha_str, "titulo": titulo}
+            {"accion": "nueva_fecha", "anio": fecha_local.year, "fecha": fecha_str, "titulo": titulo},
+            room=f"cliente_{cliente_id}"
         )
 
         return jsonify({
@@ -3459,6 +3530,7 @@ def editar_calendario(cal_id):
                     "titulo": titulo,
                     "cal_id": cal_id
                 },
+                room=f"cliente_{cliente_id}"
             )
         
         return jsonify({"ok": True, "mensaje": "Fecha actualizada"}), 200
@@ -3503,6 +3575,7 @@ def eliminar_calendario(cal_id):
                     "fecha": fecha_evento.strftime("%Y-%m-%d") if fecha_evento else None,
                     "cal_id": cal_id
                 },
+                room=f"cliente_{cliente_id}"
             )
         
         return jsonify({"ok": True, "mensaje": "Fecha eliminada"}), 200
@@ -5653,6 +5726,7 @@ def guardar_campos_evento():
             "timestamp": datetime.now().isoformat(),
             "cantidad_campos": len(campos)
         },
+        room=f"cliente_{cliente_id}"
     )
     
     return jsonify({"ok": True})
@@ -5712,6 +5786,7 @@ def guardar_servicios_tenant():
             "cliente_id": cliente_id,
             "timestamp": datetime.now().isoformat()
         },
+        room=f"cliente_{cliente_id}"
     )
     
     return jsonify({"ok": True})
