@@ -32,7 +32,18 @@ from flask_cors import CORS
 
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+REDIS_URL = os.getenv("REDIS_URL")
+SOCKETIO_CHANNEL = "eventa_crm_socketio"
+
+if not REDIS_URL:
+    raise RuntimeError("Falta configurar REDIS_URL para Socket.IO")
+
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    message_queue=REDIS_URL,
+    channel=SOCKETIO_CHANNEL
+)
 app.secret_key = os.getenv('SECRET_KEY')
 
 
