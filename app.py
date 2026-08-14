@@ -2853,6 +2853,65 @@ def upload_imagen_chat():
 # ============================================================================
 # 4. OBTENER MENSAJES (LISTA DE CHATS Y DETALLE)
 # ============================================================================
+@app.route("/api/media/<int:media_id>", methods=["GET"])
+def obtener_media_privada(media_id):
+    if not g.current_user:
+        return jsonify({"error": "No autorizado"}), 401
+
+    cliente_id = g.current_user["cliente_id"]
+    conn = conectar_db()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                s3_bucket,
+                s3_key,
+                mime_type,
+                original_filename
+            FROM whatsapp_media
+            WHERE id = %s
+              AND cliente_id = %s
+        """, (media_id, cliente_id))
+        media = cursor.fetchone()
+
+        if not media:
+            return jsonify({"error": "Media no encontrada"}), 404
+
+        bucket, key, _mime_type, _original_filename = media
+        cliente_s3, _bucket_configurado = _crear_cliente_s3_media()
+        expiracion = _obtener_entero_positivo_env(
+            "WHATSAPP_MEDIA_PRESIGNED_EXPIRES_SECONDS",
+            300
+        )
+        url_firmada = cliente_s3.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": bucket,
+                "Key": key
+            },
+            ExpiresIn=expiracion
+        )
+        return redirect(url_firmada, code=302)
+    except ErrorProcesamientoMedia:
+        app.logger.error(
+            "Configuración incompleta al generar acceso a media privada: "
+            f"cliente_id={cliente_id}, media_id={media_id}"
+        )
+        return jsonify({"error": "No se pudo obtener la media"}), 500
+    except Exception as e:
+        app.logger.error(
+            "Error al generar acceso a media privada: "
+            f"cliente_id={cliente_id}, media_id={media_id}, "
+            f"tipo_error={type(e).__name__}"
+        )
+        return jsonify({"error": "No se pudo obtener la media"}), 500
+    finally:
+        liberar_db(conn)
+
+
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
     cliente_id = obtener_cliente_id_de_subdominio()
@@ -2867,12 +2926,22 @@ def obtener_mensajes():
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         # Obtenemos los últimos mensajes para armar la lista de chats
         cursor.execute("""
-            SELECT DISTINCT ON (remitente) remitente, mensaje, tipo, fecha 
+            SELECT DISTINCT ON (remitente)
+                remitente,
+                mensaje,
+                tipo,
+                fecha,
+                whatsapp_media_id
             FROM mensajes 
             WHERE cliente_id = %s 
             ORDER BY remitente, fecha DESC
         """, (cliente_id,))
-        mensajes = cursor.fetchall()
+        mensajes = [dict(row) for row in cursor.fetchall()]
+        for mensaje in mensajes:
+            media_id = mensaje.get("whatsapp_media_id")
+            mensaje["media_url"] = (
+                f"/api/media/{media_id}" if media_id is not None else None
+            )
         return jsonify(mensajes)
     except Exception as e:
         print("❌ Error en /mensajes:", str(e))
@@ -2905,12 +2974,17 @@ def obtener_mensajes_chat():
 
         # Obtener historial de mensajes ordenado cronológicamente
         cursor.execute("""
-            SELECT id, mensaje, tipo, fecha 
+            SELECT id, mensaje, tipo, fecha, whatsapp_media_id
             FROM mensajes 
             WHERE remitente = %s AND cliente_id = %s 
             ORDER BY fecha ASC
         """, (remitente, cliente_id))
-        mensajes = cursor.fetchall()
+        mensajes = [dict(row) for row in cursor.fetchall()]
+        for mensaje in mensajes:
+            media_id = mensaje.get("whatsapp_media_id")
+            mensaje["media_url"] = (
+                f"/api/media/{media_id}" if media_id is not None else None
+            )
 
         return jsonify({"nombre": nombre_lead, "mensajes": mensajes})
     except Exception as e:

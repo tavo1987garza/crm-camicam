@@ -5926,7 +5926,12 @@ async function cargarMensajesChat(remitente) {
         chatBox.innerHTML = ""; // Limpiar
         
         (data.mensajes || []).forEach(msg => {
-            const div = crearMensajeChat(msg.mensaje, msg.tipo, msg.fecha);
+            const div = crearMensajeChat(
+                msg.mensaje,
+                msg.tipo,
+                msg.fecha,
+                msg.media_url
+            );
             chatBox.appendChild(div);
         });
         
@@ -5940,9 +5945,10 @@ async function cargarMensajesChat(remitente) {
 // ============================================================================
 // 3. CREACIÓN DE ELEMENTOS DE MENSAJE
 // ============================================================================
-function crearMensajeChat(mensaje, tipo, fechaStr) {
+function crearMensajeChat(mensaje, tipo, fechaStr, mediaUrl = null) {
     const div = document.createElement("div");
     div.className = "mensaje";
+    const contenidoMedia = mediaUrl || mensaje;
     
     // Determinar si es enviado o recibido
     const esEnviado = tipo.startsWith("enviado");
@@ -5951,13 +5957,13 @@ function crearMensajeChat(mensaje, tipo, fechaStr) {
     // Contenido según tipo (Ahora detecta "imagen" o "image")
     if (tipo.includes("imagen") || tipo.includes("image")) {
         const img = document.createElement("img");
-        img.src = mensaje;
+        img.src = contenidoMedia;
         img.alt = "Imagen";
         img.style.maxWidth = "100%";
         img.style.borderRadius = "8px";
         img.style.marginTop = "5px";
         img.style.cursor = "pointer"; // Para que se vea que se puede clicar
-        img.onclick = () => window.open(mensaje, '_blank'); // ¡Bonus: abrir en tamaño real al hacer clic!
+        img.onclick = () => window.open(contenidoMedia, '_blank'); // ¡Bonus: abrir en tamaño real al hacer clic!
         div.appendChild(img);
     } else if (tipo.includes("video")) {
         const video = document.createElement("video");
@@ -5965,7 +5971,7 @@ function crearMensajeChat(mensaje, tipo, fechaStr) {
         video.style.maxWidth = "100%";
         video.style.borderRadius = "8px";
         const source = document.createElement("source");
-        source.src = mensaje;
+        source.src = contenidoMedia;
         source.type = "video/mp4";
         video.appendChild(source);
         div.appendChild(video);
