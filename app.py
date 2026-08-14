@@ -2936,7 +2936,11 @@ def enviar_mensaje():
             endpoint = f"{bot_url.rstrip('/')}/enviar_mensaje"
 
         # 3. Registrar el intento sin marcarlo como enviado antes de tiempo.
-        tipo_persistido = "enviado" if tipo not in ("imagen", "video") else tipo
+        tipos_persistidos = {
+            "imagen": "enviado_imagen",
+            "video": "enviado_video"
+        }
+        tipo_persistido = tipos_persistidos.get(tipo, "enviado")
         cursor.execute("""
             INSERT INTO mensajes (plataforma, remitente, mensaje, estado, tipo, cliente_id, fecha)
             VALUES ('web', %s, %s, 'Pendiente', %s, %s, NOW())
@@ -2995,29 +2999,30 @@ def enviar_mensaje():
         """, (mensaje_id, cliente_id))
         conn.commit()
 
-        # El texto manual tiene una única autoridad de persistencia (Flask) y
-        # se publica sólo en la room del tenant después de confirmar a Node.
-        if tipo not in ("imagen", "video"):
-            try:
-                socketio.emit(
-                    "nuevo_mensaje",
-                    {
-                        "id": mensaje_id,
-                        "remitente": telefono,
-                        "mensaje": mensaje_texto,
-                        "tipo": "enviado",
-                        "estado": "Enviado",
-                        "fecha": fecha_mensaje.isoformat(),
-                        "cliente_id": cliente_id
-                    },
-                    room=f"cliente_{cliente_id}"
-                )
-            except Exception as emit_error:
-                app.logger.warning(
-                    "No se pudo emitir el texto saliente por Socket.IO: "
-                    f"cliente_id={cliente_id}, mensaje_id={mensaje_id}, "
-                    f"error={emit_error}"
-                )
+        # Flask publica el envío manual sólo después de confirmar a Node y
+        # persistir estado='Enviado', siempre en la room del tenant.
+        try:
+            socketio.emit(
+                "nuevo_mensaje",
+                {
+                    "id": mensaje_id,
+                    "remitente": telefono,
+                    "mensaje": mensaje_texto,
+                    "tipo": tipo_persistido,
+                    "estado": "Enviado",
+                    "fecha": fecha_mensaje.isoformat(),
+                    "cliente_id": cliente_id,
+                    "whatsapp_media_id": None,
+                    "media_url": None
+                },
+                room=f"cliente_{cliente_id}"
+            )
+        except Exception as emit_error:
+            app.logger.warning(
+                "No se pudo emitir el mensaje saliente por Socket.IO: "
+                f"cliente_id={cliente_id}, mensaje_id={mensaje_id}, "
+                f"error={emit_error}"
+            )
 
         return jsonify({"mensaje": "Mensaje enviado correctamente"}), 200
 
