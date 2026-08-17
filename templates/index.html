@@ -3303,7 +3303,7 @@ CRÍTICO: PESTAÑAS DEL MODAL CHATBOT
                     <button class="chat-attach-btn" onclick="document.getElementById('archivo-input').click()" title="Adjuntar imagen o video">
                         <i class="fas fa-paperclip"></i>
                     </button>
-                    <input type="file" id="archivo-input" accept="image/*,video/*" style="display: none;" onchange="previsualizarYEnviarArchivo(this)">
+                    <input type="file" id="archivo-input" accept="image/*,video/mp4,video/3gpp,.3gp,.3gpp" style="display: none;" onchange="previsualizarYEnviarArchivo(this)">
 
 
                     <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..." autocomplete="off">
@@ -6031,9 +6031,29 @@ function enviarMensaje() {
 async function previsualizarYEnviarArchivo(inputElement) {
     const file = inputElement.files[0];
     if (!file || !chatActivoRemitente) return;
-  
+
+    const VIDEO_MAX_BYTES = 15 * 1024 * 1024;
+    const extension = file.name.includes('.')
+        ? file.name.split('.').pop().toLowerCase()
+        : '';
+    const extensionesVideo = new Set(['mp4', '3gp', '3gpp']);
+    const mimeVideo = new Set(['video/mp4', 'video/3gpp']);
+
     // 🧠 DETECTAR AUTOMÁTICAMENTE SI ES VIDEO O IMAGEN
-    const esVideo = file.type.startsWith('video/');
+    const esVideo = file.type.startsWith('video/') || extensionesVideo.has(extension);
+
+    if (esVideo && file.size > VIDEO_MAX_BYTES) {
+        alert("El video supera el máximo permitido de 15 MB. Selecciona un archivo más pequeño.");
+        inputElement.value = "";
+        return;
+    }
+
+    if (esVideo && (!extensionesVideo.has(extension) || !mimeVideo.has(file.type.toLowerCase()))) {
+        alert("Formato de video no compatible. Usa MP4 o 3GP.");
+        inputElement.value = "";
+        return;
+    }
+
     const tipoEnvio = esVideo ? "video" : "imagen";
     const caption = esVideo ? "🎥 Video enviado desde el CRM" : "📷 Foto enviada desde el CRM";
   
@@ -6050,9 +6070,19 @@ async function previsualizarYEnviarArchivo(inputElement) {
         btnEnviar.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         const uploadResp = await fetch(uploadURL, { method: "POST", body: formData });
-        if (!uploadResp.ok) throw new Error("Error al subir archivo al servidor");
-        
-        const uploadData = await uploadResp.json();
+        const uploadData = await uploadResp.json().catch(() => null);
+        if (!uploadResp.ok) {
+            if (
+                uploadData?.code === "video_too_large"
+                || uploadData?.code === "video_format_not_supported"
+            ) {
+                alert(uploadData.error);
+            } else {
+                alert(uploadData?.error || "No se pudo subir el archivo. Intenta nuevamente.");
+            }
+            return;
+        }
+
         const archivoUrl = uploadData.url;
         
         // 🚀 ENVIAR AL BACKEND CON EL TIPO CORRECTO

@@ -8,6 +8,7 @@ load_dotenv()
 import json
 import traceback
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import time
 import base64
 import uuid 
@@ -1789,6 +1790,12 @@ def _obtener_entero_positivo_env(nombre, valor_default):
     return entero
 
 
+WHATSAPP_VIDEO_MAX_BYTES = _obtener_entero_positivo_env(
+    "WHATSAPP_VIDEO_MAX_BYTES",
+    15 * 1024 * 1024
+)
+
+
 def _limite_media_bytes(message_type):
     if message_type not in WHATSAPP_MEDIA_LIMITES_DEFAULT:
         raise ErrorProcesamientoMedia("message_type_no_soportado")
@@ -3097,9 +3104,12 @@ def enviar_mensaje():
 # ============================================================================
 @app.route("/api/chat/upload_imagen", methods=["POST"])
 def upload_imagen_chat():
-    cliente_id = obtener_cliente_id_de_subdominio()
-    if not cliente_id:
-        return jsonify({"error": "No autorizado"}), 404
+    # cargar_usuario_actual valida sesión, usuario activo, tenant activo y que
+    # el usuario pertenezca al tenant derivado server-side del subdominio.
+    if not g.current_user:
+        return jsonify({"error": "No autorizado"}), 401
+
+    cliente_id = g.current_user["cliente_id"]
 
     if 'imagen' not in request.files:
         return jsonify({"error": "No se encontró el archivo"}), 400
@@ -3108,17 +3118,79 @@ def upload_imagen_chat():
     if file.filename == '':
         return jsonify({"error": "Nombre de archivo vacío"}), 400
 
+    filepath = None
+    archivo_creado = False
     try:
+        nombre_seguro = secure_filename(file.filename)
+        extension = os.path.splitext(nombre_seguro)[1].lower()
+        mime_type = (file.content_type or "").split(";", 1)[0].strip().lower()
+
+        extensiones_video = {".mp4", ".3gp", ".3gpp"}
+        mime_video = {"video/mp4", "video/3gpp"}
+        extensiones_imagen = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+        mime_imagen = {
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+        }
+
+        es_candidato_video = (
+            mime_type.startswith("video/")
+            or extension in extensiones_video
+        )
+
+        if es_candidato_video:
+            if extension not in extensiones_video or mime_type not in mime_video:
+                return jsonify({
+                    "ok": False,
+                    "code": "video_format_not_supported",
+                    "error": "Formato de video no compatible. Usa MP4 o 3GP."
+                }), 415
+
+            try:
+                posicion_inicial = file.stream.tell()
+                file.stream.seek(0, os.SEEK_END)
+                tamano_archivo = file.stream.tell()
+                file.stream.seek(posicion_inicial, os.SEEK_SET)
+            except (AttributeError, OSError) as e:
+                raise RuntimeError("No se pudo determinar el tamaño del archivo") from e
+
+            if tamano_archivo > WHATSAPP_VIDEO_MAX_BYTES:
+                return jsonify({
+                    "ok": False,
+                    "code": "video_too_large",
+                    "error": "El video supera el máximo permitido de 15 MB.",
+                    "max_bytes": WHATSAPP_VIDEO_MAX_BYTES
+                }), 413
+        else:
+            # Mantener los formatos de imagen web habituales y bloquear que
+            # contenido activo/arbitrario se publique bajo /static/uploads.
+            if extension not in extensiones_imagen or mime_type not in mime_imagen:
+                return jsonify({
+                    "ok": False,
+                    "code": "image_format_not_supported",
+                    "error": "Formato de imagen no compatible."
+                }), 415
+
         # Crear carpeta si no existe
-        uploads_dir = os.path.join('static', 'uploads')
+        uploads_dir = os.path.abspath(os.path.join('static', 'uploads'))
         os.makedirs(uploads_dir, exist_ok=True)
         
-        # Generar nombre único con cliente_id
-        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
-        filename = f"cliente_{cliente_id}_{uuid.uuid4().hex}.{ext}"
+        # El nombre final no utiliza rutas ni nombres controlados por el cliente.
+        extension_normalizada = extension.lstrip(".")
+        filename = (
+            f"cliente_{cliente_id}_{uuid.uuid4().hex}."
+            f"{extension_normalizada}"
+        )
         filepath = os.path.join(uploads_dir, filename)
-        
-        file.save(filepath)
+        if os.path.commonpath((uploads_dir, filepath)) != uploads_dir:
+            raise RuntimeError("Ruta de upload inválida")
+
+        # Creación exclusiva: nunca sobrescribe un archivo existente.
+        with open(filepath, "xb") as destino:
+            archivo_creado = True
+            file.save(destino)
         
         # ✅ SOLUCIÓN MULTI-TENANT: Obtener el dominio dinámicamente
         # request.host_url devuelve algo como "https://camicam.eventa.com.mx/"
@@ -3128,10 +3200,31 @@ def upload_imagen_chat():
         return jsonify({"url": url_publica}), 200
         
     except Exception as e:
-        print(f"❌ Error en upload_imagen_chat: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": "Error al subir imagen"}), 500
+        if archivo_creado and filepath:
+            try:
+                uploads_dir_real = os.path.realpath(uploads_dir)
+                filepath_real = os.path.realpath(filepath)
+                if (
+                    os.path.commonpath((uploads_dir_real, filepath_real))
+                    == uploads_dir_real
+                    and os.path.isfile(filepath_real)
+                ):
+                    os.remove(filepath_real)
+            except OSError:
+                app.logger.error(
+                    "No se pudo limpiar upload parcial: "
+                    f"cliente_id={cliente_id}, tipo_error={type(e).__name__}"
+                )
+
+        app.logger.error(
+            "Error interno durante upload multimedia: "
+            f"cliente_id={cliente_id}, tipo_error={type(e).__name__}"
+        )
+        return jsonify({
+            "ok": False,
+            "code": "upload_internal_error",
+            "error": "No se pudo guardar el archivo."
+        }), 500
 
     
 # ============================================================================
