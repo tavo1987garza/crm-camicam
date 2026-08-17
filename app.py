@@ -1729,7 +1729,7 @@ class ErrorProcesamientoMedia(Exception):
 
 WHATSAPP_MEDIA_LIMITES_DEFAULT = {
     "image": 5 * 1024 * 1024,
-    "video": 16 * 1024 * 1024,
+    "video": 15 * 1024 * 1024,
     "document": 16 * 1024 * 1024,
     "audio": 16 * 1024 * 1024,
     "sticker": 500 * 1024,
@@ -1833,6 +1833,65 @@ def _resolver_mime_y_extension(message_type, mime_meta, mime_descarga):
     if not mime or not extension:
         raise ErrorProcesamientoMedia("mime_no_soportado")
     return mime, extension
+
+
+ERRORES_MEDIA_PERMANENTES = {
+    "message_type_no_soportado",
+    "message_type_sin_mensaje_soportado",
+    "mime_inconsistente",
+    "mime_no_soportado",
+    "media_excede_limite_metadata",
+    "media_excede_limite_header",
+    "media_excede_limite_stream",
+    "media_file_size_invalido",
+    "content_length_invalido",
+    "media_vacia",
+    "meta_media_url_no_https",
+    "meta_download_redirect_no_https",
+    "integracion_whatsapp_invalida",
+    "token_whatsapp_invalido",
+    "phone_id_inconsistente",
+    "configuracion_s3_incompleta",
+}
+
+ERRORES_VIDEO_DEMASIADO_GRANDE = {
+    "media_excede_limite_metadata",
+    "media_excede_limite_header",
+    "media_excede_limite_stream",
+}
+
+ESTADOS_HTTP_META_TRANSITORIOS = {408, 409, 425, 429}
+
+
+def _error_media_es_permanente(error_seguro):
+    codigo = str(error_seguro)
+    if codigo in ERRORES_MEDIA_PERMANENTES:
+        return True
+    if codigo.startswith("configuracion_invalida:"):
+        return True
+
+    prefijos_http = (
+        "meta_metadata_http_",
+        "meta_download_http_",
+    )
+    for prefijo in prefijos_http:
+        if codigo.startswith(prefijo):
+            estado = codigo[len(prefijo):]
+            if not estado.isdigit():
+                return False
+            estado_http = int(estado)
+            if prefijo == "meta_metadata_http_" and estado_http == 404:
+                return True
+            if prefijo == "meta_download_http_" and estado_http == 404:
+                return False
+            return (
+                400 <= estado_http < 500
+                and estado_http not in ESTADOS_HTTP_META_TRANSITORIOS
+            )
+
+    # Un 404 de descarga puede deberse a una URL temporal expirada; se deja
+    # retryable para obtener metadata y URL nuevas en el siguiente intento.
+    return False
 
 
 def reclamar_trabajo_multimedia():
@@ -2117,15 +2176,21 @@ def _crear_cliente_s3_media():
     return cliente, bucket.strip()
 
 
-def _marcar_evento_fallido(trabajo, error_seguro):
+def _marcar_evento_fallido(trabajo, error_seguro, permanente=False):
     attempts = int(trabajo.get("attempts") or 1)
     max_attempts = _obtener_entero_positivo_env(
         "WHATSAPP_MEDIA_MAX_ATTEMPTS",
         5
     )
-    programar_retry = attempts < max_attempts
+    programar_retry = not permanente and attempts < max_attempts
     backoff_segundos = min(60 * 60, 30 * (2 ** max(0, attempts - 1)))
     error_truncado = str(error_seguro)[:500]
+    crear_aviso_video = (
+        permanente
+        and trabajo.get("message_type") == "video"
+        and error_truncado in ERRORES_VIDEO_DEMASIADO_GRANDE
+    )
+    aviso = None
 
     conn = conectar_db()
     if not conn:
@@ -2173,6 +2238,35 @@ def _marcar_evento_fallido(trabajo, error_seguro):
                 str(trabajo["lock_token"]),
             ))
         actualizado = cursor.rowcount == 1
+        if actualizado and crear_aviso_video:
+            texto_aviso = (
+                "⚠️ El cliente envió un video que supera el máximo "
+                "permitido de 15 MB."
+            )
+            cursor.execute("""
+                INSERT INTO mensajes (
+                    plataforma,
+                    remitente,
+                    mensaje,
+                    estado,
+                    tipo,
+                    cliente_id,
+                    fecha
+                )
+                VALUES ('whatsapp', %s, %s, 'Nuevo', 'recibido', %s, %s)
+                RETURNING id, fecha
+            """, (
+                trabajo["remitente"],
+                texto_aviso,
+                trabajo["cliente_id"],
+                trabajo["evento_creado_en"],
+            ))
+            aviso_id, aviso_fecha = cursor.fetchone()
+            aviso = {
+                "id": aviso_id,
+                "mensaje": texto_aviso,
+                "fecha": aviso_fecha,
+            }
         conn.commit()
         if not actualizado:
             app.logger.warning(
@@ -2181,7 +2275,6 @@ def _marcar_evento_fallido(trabajo, error_seguro):
                 f"event_id={trabajo['event_id']}, "
                 "motivo=lease_no_vigente"
             )
-        return actualizado
     except Exception as e:
         conn.rollback()
         app.logger.error(
@@ -2193,6 +2286,35 @@ def _marcar_evento_fallido(trabajo, error_seguro):
         return False
     finally:
         liberar_db(conn)
+
+    if aviso:
+        fecha_socket = aviso["fecha"]
+        if hasattr(fecha_socket, "isoformat"):
+            fecha_socket = fecha_socket.isoformat()
+        try:
+            socketio.emit(
+                "nuevo_mensaje",
+                {
+                    "id": aviso["id"],
+                    "remitente": trabajo["remitente"],
+                    "mensaje": aviso["mensaje"],
+                    "tipo": "recibido",
+                    "fecha": fecha_socket,
+                    "cliente_id": trabajo["cliente_id"],
+                    "whatsapp_media_id": None,
+                    "media_url": None,
+                },
+                room=f"cliente_{trabajo['cliente_id']}"
+            )
+        except Exception as e:
+            app.logger.warning(
+                "No se pudo emitir aviso multimedia por Socket.IO: "
+                f"cliente_id={trabajo['cliente_id']}, "
+                f"event_id={trabajo['event_id']}, "
+                f"tipo_error={type(e).__name__}"
+            )
+
+    return actualizado
 
 
 def _persistir_media_y_completar(trabajo, datos_media, bucket, s3_key):
@@ -2420,15 +2542,31 @@ def procesar_un_trabajo_multimedia():
             if isinstance(e, ErrorProcesamientoMedia)
             else f"error_interno:{type(e).__name__}"
         )
-        actualizado = _marcar_evento_fallido(trabajo, error_seguro)
-        app.logger.error(
-            "Media fallida: "
-            f"cliente_id={trabajo['cliente_id']}, "
-            f"event_id={trabajo['event_id']}, "
-            f"media_type={trabajo['message_type']}, "
-            f"attempts={trabajo['attempts']}, "
-            f"estado_actualizado={actualizado}"
+        permanente = _error_media_es_permanente(error_seguro)
+        actualizado = _marcar_evento_fallido(
+            trabajo,
+            error_seguro,
+            permanente=permanente
         )
+        if permanente:
+            app.logger.warning(
+                "Media rechazada permanentemente: "
+                f"cliente_id={trabajo['cliente_id']}, "
+                f"event_id={trabajo['event_id']}, "
+                f"media_type={trabajo['message_type']}, "
+                f"error_code={error_seguro}, "
+                f"attempts={trabajo['attempts']}, "
+                f"estado_actualizado={actualizado}"
+            )
+        else:
+            app.logger.error(
+                "Media fallida: "
+                f"cliente_id={trabajo['cliente_id']}, "
+                f"event_id={trabajo['event_id']}, "
+                f"media_type={trabajo['message_type']}, "
+                f"attempts={trabajo['attempts']}, "
+                f"estado_actualizado={actualizado}"
+            )
         return {
             "status": "failed",
             "event_id": trabajo["event_id"],
