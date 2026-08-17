@@ -1829,6 +1829,10 @@ def _resolver_mime_y_extension(message_type, mime_meta, mime_descarga):
 
 
 def reclamar_trabajo_multimedia():
+    max_attempts = _obtener_entero_positivo_env(
+        "WHATSAPP_MEDIA_MAX_ATTEMPTS",
+        5
+    )
     conn = conectar_db()
     if not conn:
         raise ErrorProcesamientoMedia("db_no_disponible_claim")
@@ -1848,6 +1852,7 @@ def reclamar_trabajo_multimedia():
                     )
                 )
                   AND next_attempt_at <= NOW()
+                  AND attempts < %s
                 ORDER BY next_attempt_at ASC, creado_en ASC, id ASC
                 FOR UPDATE SKIP LOCKED
                 LIMIT 1
@@ -1870,7 +1875,7 @@ def reclamar_trabajo_multimedia():
                 evento.attempts,
                 evento.lock_token,
                 evento.creado_en AS evento_creado_en
-        """, (lock_token,))
+        """, (max_attempts, lock_token))
         trabajo = cursor.fetchone()
         conn.commit()
         return dict(trabajo) if trabajo else None
@@ -1886,6 +1891,10 @@ def recuperar_leases_multimedia_vencidos():
         "WHATSAPP_MEDIA_LEASE_TIMEOUT_SECONDS",
         15 * 60
     )
+    max_attempts = _obtener_entero_positivo_env(
+        "WHATSAPP_MEDIA_MAX_ATTEMPTS",
+        5
+    )
     conn = conectar_db()
     if not conn:
         raise ErrorProcesamientoMedia("db_no_disponible_recovery")
@@ -1894,15 +1903,32 @@ def recuperar_leases_multimedia_vencidos():
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE whatsapp_inbound_events
-            SET status = 'pending',
+            SET status = CASE
+                    WHEN attempts >= %s THEN 'failed'
+                    ELSE 'pending'
+                END,
                 locked_at = NULL,
                 lock_token = NULL,
-                next_attempt_at = NOW(),
-                last_error = 'lease_expirado',
+                next_attempt_at = CASE
+                    WHEN attempts >= %s THEN NULL
+                    ELSE NOW()
+                END,
+                last_error = CASE
+                    WHEN attempts >= %s THEN COALESCE(
+                        NULLIF(last_error, ''),
+                        'lease_expirado_max_attempts'
+                    )
+                    ELSE 'lease_expirado'
+                END,
                 actualizado_en = NOW()
             WHERE status = 'processing'
               AND locked_at < NOW() - (%s * INTERVAL '1 second')
-        """, (timeout_segundos,))
+        """, (
+            max_attempts,
+            max_attempts,
+            max_attempts,
+            timeout_segundos,
+        ))
         recuperados = cursor.rowcount
         conn.commit()
         return recuperados
@@ -2099,34 +2125,64 @@ def _marcar_evento_fallido(trabajo, error_seguro):
         return False
     try:
         cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE whatsapp_inbound_events
-            SET status = 'failed',
-                locked_at = NULL,
-                lock_token = NULL,
-                last_error = %s,
-                next_attempt_at = CASE
-                    WHEN %s THEN NOW() + (%s * INTERVAL '1 second')
-                    ELSE NULL
-                END,
-                actualizado_en = NOW()
-            WHERE id = %s
-              AND cliente_id = %s
-              AND status = 'processing'
-              AND lock_token = %s
-        """, (
-            error_truncado,
-            programar_retry,
-            backoff_segundos,
-            trabajo["event_id"],
-            trabajo["cliente_id"],
-            str(trabajo["lock_token"]),
-        ))
+        if programar_retry:
+            cursor.execute("""
+                UPDATE whatsapp_inbound_events
+                SET status = 'failed',
+                    locked_at = NULL,
+                    lock_token = NULL,
+                    last_error = %s,
+                    next_attempt_at = NOW() + (%s * INTERVAL '1 second'),
+                    actualizado_en = NOW()
+                WHERE id = %s
+                  AND cliente_id = %s
+                  AND status = 'processing'
+                  AND lock_token = %s
+            """, (
+                error_truncado,
+                backoff_segundos,
+                trabajo["event_id"],
+                trabajo["cliente_id"],
+                str(trabajo["lock_token"]),
+            ))
+        else:
+            cursor.execute("""
+                UPDATE whatsapp_inbound_events
+                SET status = 'failed',
+                    locked_at = NULL,
+                    lock_token = NULL,
+                    next_attempt_at = NULL,
+                    processed_at = NULL,
+                    last_error = %s,
+                    actualizado_en = NOW()
+                WHERE id = %s
+                  AND cliente_id = %s
+                  AND status = 'processing'
+                  AND lock_token = %s
+            """, (
+                error_truncado,
+                trabajo["event_id"],
+                trabajo["cliente_id"],
+                str(trabajo["lock_token"]),
+            ))
         actualizado = cursor.rowcount == 1
         conn.commit()
+        if not actualizado:
+            app.logger.warning(
+                "No se actualizó evento multimedia fallido: "
+                f"cliente_id={trabajo['cliente_id']}, "
+                f"event_id={trabajo['event_id']}, "
+                "motivo=lease_no_vigente"
+            )
         return actualizado
-    except Exception:
+    except Exception as e:
         conn.rollback()
+        app.logger.error(
+            "Error al actualizar evento multimedia fallido: "
+            f"cliente_id={trabajo['cliente_id']}, "
+            f"event_id={trabajo['event_id']}, "
+            f"tipo_error={type(e).__name__}"
+        )
         return False
     finally:
         liberar_db(conn)
